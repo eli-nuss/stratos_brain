@@ -1,0 +1,571 @@
+version: "3.2"
+meta:
+  name: "Stratos Signal Templates (Production v3.2)"
+  created_at: "2025-12-29"
+  description: >
+    v3.2 fixes from v3.1:
+    (1) trend_leadership gate relaxed: rs_roc_20 >= 0 OR rs_breakout = true (handles missing RS data)
+    (2) exhaustion: accel_turn_up booster only applies to bullish exhaustion (oversold), not bearish
+    (3) momentum_inflection + bullish exhaustion: require no_new_5d_lows when below MA200 (falling knife guard)
+
+# Global knobs that apply to all templates
+global:
+  tradeability:
+    hard_gate: false
+    min_dollar_volume_sma_20:
+      equity: 5_000_000
+      crypto: 2_000_000
+      default: 1_000_000
+    max_illiquidity:
+      equity: 2.5e-8
+      crypto: 5.0e-8
+      default: 5.0e-8
+
+  data_quality:
+    min_bars_available: 252
+    min_coverage_252: 0.85
+
+  global_strength_adjustments:
+    add:
+      - name: "cross_section_unusualness_high"
+        when: { feature: "cs_unusualness", op: ">=", value: 2.0 }
+        points: 6
+      - name: "cross_section_unusualness_med"
+        when: { feature: "cs_unusualness", op: ">=", value: 1.0 }
+        points: 3
+    subtract:
+      - name: "data_coverage_low"
+        when: { feature: "coverage_252", op: "<", value: 0.85 }
+        points: 12
+      - name: "bars_insufficient"
+        when: { feature: "bars_available", op: "<", value: 252 }
+        points: 20
+
+templates:
+
+  # ==========================================================================
+  # FIX 3 (v3.2): MOMENTUM_INFLECTION - Added falling knife guard
+  # ==========================================================================
+  # When below MA200, require no_new_5d_lows to avoid catching falling knives
+  # ==========================================================================
+  - name: "momentum_inflection"
+    base_weight: 30
+    direction_rule: "momentum_inflection"
+
+    gate:
+      all:
+        - { feature: "roc_20", op: "<", value: 0 }
+        - { feature: "droc_20", op: ">", value: 0 }
+        - any:
+            - { feature: "accel_turn_up", op: "==", value: true }
+            - { feature: "accel_z_20", op: ">", value: 0.25 }
+        # Structural uptrend OR (near lows WITH no new lows)
+        - any:
+            - { feature: "above_ma200", op: "==", value: true }
+            - all:  # FIX 3: Falling knife guard when below MA200
+                - { feature: "dist_52w_low", op: "<", value: 0.30 }
+                - { feature: "no_new_5d_lows", op: "==", value: true }
+
+    strength:
+      base: 60
+      add:
+        - { name: "accel_extreme", when: { feature: "accel_z_20", op: ">=", value: 1.0 }, points: 7 }
+        - { name: "volume_confirm", when: { feature: "rvol_20", op: ">=", value: 1.2 }, points: 6 }
+        - { name: "obv_accumulation", when: { feature: "obv_slope_20", op: ">", value: 0 }, points: 5 }
+        - { name: "rs_improving", when: { feature: "rs_acceleration", op: ">", value: 0 }, points: 4 }
+        - { name: "momentum_turn_flag", when: { feature: "accel_turn_up", op: "==", value: true }, points: 4 }
+        - { name: "oversold_rsi_support", when: { feature: "rsi_14", op: "<=", value: 35 }, points: 3 }
+        - { name: "near_52w_low", when: { feature: "dist_52w_low", op: "<", value: 0.15 }, points: 4 }
+        - { name: "pullback_under_50d", when: { feature: "ma_dist_50", op: "<", value: 0 }, points: 3 }
+        - { name: "no_new_lows", when: { feature: "no_new_5d_lows", op: "==", value: true }, points: 3 }
+        - { name: "drawdown_deep", when: { feature: "drawdown_63d", op: "<=", value: -0.20 }, points: 2 }
+      subtract:
+        - { name: "still_breaking_down", when: { feature: "breakout_down_20", op: "==", value: true }, points: 12 }
+        - { name: "volatility_exploding", when: { feature: "atr_pctile", op: ">=", value: 0.95 }, points: 6 }
+        - { name: "below_ma200", when: { feature: "above_ma200", op: "==", value: false }, points: 4 }
+
+    invalidation:
+      any:
+        - { feature: "breakout_down_20", op: "==", value: true }
+        - { feature: "droc_20", op: "<", value: -0.05 }
+
+    evidence_fields:
+      - roc_5
+      - roc_20
+      - roc_63
+      - droc_20
+      - droc_63
+      - vel_ema_5
+      - accel_ema_5
+      - accel_z_20
+      - accel_z_20_prev
+      - accel_turn_up
+      - rsi_14
+      - macd_histogram
+      - rvol_20
+      - volume_z_60
+      - obv_slope_20
+      - trend_regime
+      - above_ma200
+      - ma_dist_20
+      - ma_dist_50
+      - ma_dist_200
+      - dist_52w_low
+      - no_new_5d_lows
+      - drawdown_63d
+      - cs_unusualness
+
+  # ==========================================================================
+  # BREAKOUT_PARTICIPATION - Unchanged from v3.1
+  # ==========================================================================
+  - name: "breakout_participation"
+    base_weight: 25
+    direction_rule: "breakout_participation"
+
+    gate:
+      all:
+        - any:
+            - { feature: "breakout_up_20", op: "==", value: true }
+            - { feature: "breakout_down_20", op: "==", value: true }
+        - { feature: "rvol_20", op: ">=", value: 1.0 }
+
+    strength:
+      base: 60
+      add:
+        - { name: "confirmed_breakout", when: { feature: "breakout_confirmed_up", op: "==", value: true }, points: 8 }
+        - { name: "rs_breakout", when: { feature: "rs_breakout", op: "==", value: true }, points: 6 }
+        - { name: "volume_extreme", when: { feature: "volume_z_60", op: ">=", value: 2.0 }, points: 6 }
+        - { name: "volume_strong", when: { feature: "rvol_20", op: ">=", value: 1.5 }, points: 4 }
+        - { name: "obv_confirm", when: { feature: "obv_slope_20", op: ">", value: 0 }, points: 4 }
+        - { name: "bb_expanding", when: { feature: "bb_width_pctile_expanding", op: "==", value: true }, points: 4 }
+        - { name: "trend_strong", when: { feature: "trend_regime", op: "in", value: ["uptrend","strong_uptrend"] }, points: 4 }
+        - { name: "not_overextended", when: { feature: "ma_dist_50", op: "<=", value: 0.15 }, points: 3 }
+        - { name: "near_52w_high", when: { feature: "dist_52w_high", op: ">=", value: -0.05 }, points: 3 }
+      subtract:
+        - { name: "overextended_ma50", when: { feature: "ma_dist_50", op: ">=", value: 0.25 }, points: 10 }
+        - { name: "rsi_extreme", when: { feature: "rsi_14", op: ">=", value: 80 }, points: 6 }
+        - { name: "downtrend_penalty", when: { feature: "trend_regime", op: "in", value: ["downtrend", "strong_downtrend"] }, points: 6 }
+
+    invalidation:
+      any:
+        - { feature: "breakout_down_20", op: "==", value: true }
+        - { feature: "ma_dist_20", op: "<=", value: -0.05 }
+
+    evidence_fields:
+      - breakout_up_20
+      - breakout_down_20
+      - breakout_confirmed_up
+      - breakout_confirmed_down
+      - donchian_high_20
+      - donchian_low_20
+      - donchian_high_55
+      - donchian_low_55
+      - rvol_20
+      - volume_z_60
+      - obv_slope_20
+      - bb_width
+      - bb_width_pctile
+      - bb_width_pctile_expanding
+      - realized_vol_20
+      - atr_pct
+      - atr_pctile
+      - trend_regime
+      - ma_dist_20
+      - ma_dist_50
+      - rsi_14
+      - rs_breakout
+      - rs_roc_20
+      - cs_unusualness
+
+  # ==========================================================================
+  # TREND_IGNITION - Unchanged from v3.1
+  # ==========================================================================
+  - name: "trend_ignition"
+    base_weight: 25
+    direction_rule: "trend_ignition"
+
+    gate:
+      all:
+        - { feature: "roc_20", op: ">", value: 0 }
+        - { feature: "droc_20", op: ">", value: 0 }
+        - any:
+            - { feature: "squeeze_release", op: "==", value: true }
+            - { feature: "bb_width_pctile", op: "<=", value: 0.25 }
+        - { feature: "close", op: ">", value_feature: "sma_50" }
+
+    strength:
+      base: 60
+      add:
+        - { name: "ma50_above_ma200", when: { feature: "ma50_above_ma200", op: "==", value: true }, points: 6 }
+        - { name: "above_ma200", when: { feature: "above_ma200", op: "==", value: true }, points: 5 }
+        - { name: "macd_confirm", when: { feature: "macd_histogram", op: ">", value: 0 }, points: 5 }
+        - { name: "bb_compression_extreme", when: { feature: "bb_width_pctile", op: "<=", value: 0.10 }, points: 5 }
+        - { name: "rvol_confirm", when: { feature: "rvol_20", op: ">=", value: 1.1 }, points: 4 }
+        - { name: "rs_accel", when: { feature: "rs_acceleration", op: ">", value: 0 }, points: 3 }
+      subtract:
+        - { name: "already_extended", when: { feature: "ma_dist_50", op: ">=", value: 0.25 }, points: 8 }
+        - { name: "volatility_too_high", when: { feature: "atr_pctile", op: ">=", value: 0.95 }, points: 6 }
+
+    invalidation:
+      any:
+        - { feature: "close", op: "<", value_feature: "sma_50" }
+        - { feature: "ma_slope_50", op: "<", value: 0 }
+
+    evidence_fields:
+      - roc_5
+      - roc_20
+      - roc_63
+      - droc_20
+      - droc_63
+      - trend_regime
+      - above_ma200
+      - ma50_above_ma200
+      - sma_20
+      - sma_50
+      - sma_200
+      - ma_dist_20
+      - ma_dist_50
+      - ma_slope_20
+      - ma_slope_50
+      - bb_width_pctile
+      - squeeze_flag
+      - squeeze_release
+      - rvol_20
+      - macd_histogram
+      - rsi_14
+      - rs_roc_20
+      - rs_acceleration
+      - cs_unusualness
+
+  # ==========================================================================
+  # SQUEEZE_RELEASE - Unchanged from v3.1
+  # ==========================================================================
+  - name: "squeeze_release"
+    base_weight: 20
+    direction_rule: "squeeze_release"
+
+    gate:
+      all:
+        - { feature: "squeeze_release", op: "==", value: true }
+        - { feature: "bb_width_pctile_expanding", op: "==", value: true }
+        - any:
+            - { feature: "rvol_20", op: ">=", value: 1.0 }
+            - { feature: "breakout_up_20", op: "==", value: true }
+            - { feature: "breakout_down_20", op: "==", value: true }
+            - { feature: "return_z", op: ">=", value: 1.5, abs: true }
+
+    strength:
+      base: 60
+      add:
+        - { name: "macd_confirm", when: { feature: "macd_histogram", op: ">", value: 0 }, points: 5 }
+        - { name: "trend_aligned", when: { feature: "trend_regime", op: "in", value: ["uptrend", "strong_uptrend"] }, points: 5 }
+        - { name: "volume_confirm", when: { feature: "rvol_20", op: ">=", value: 1.3 }, points: 4 }
+        - { name: "breakout_confirm", when: { feature: "breakout_up_20", op: "==", value: true }, points: 4 }
+        - { name: "above_ma200", when: { feature: "above_ma200", op: "==", value: true }, points: 3 }
+      subtract:
+        - { name: "downtrend_penalty", when: { feature: "trend_regime", op: "in", value: ["downtrend", "strong_downtrend"] }, points: 6 }
+        - { name: "volatility_already_high", when: { feature: "atr_pctile", op: ">=", value: 0.90 }, points: 4 }
+
+    invalidation:
+      any:
+        - { feature: "squeeze_flag", op: "==", value: true }
+        - { feature: "bb_width_pctile", op: "<=", value: 0.15 }
+
+    evidence_fields:
+      - squeeze_flag
+      - squeeze_release
+      - bb_width
+      - bb_width_pctile
+      - bb_width_pctile_expanding
+      - roc_5
+      - roc_20
+      - droc_20
+      - macd_histogram
+      - rvol_20
+      - volume_z_60
+      - breakout_up_20
+      - breakout_down_20
+      - trend_regime
+      - above_ma200
+      - atr_pctile
+      - cs_unusualness
+
+  # ==========================================================================
+  # RS_BREAKOUT - Unchanged from v3.1
+  # ==========================================================================
+  - name: "rs_breakout"
+    base_weight: 20
+    direction_rule: "rs_breakout"
+
+    gate:
+      all:
+        - { feature: "rs_breakout", op: "==", value: true }
+        - { feature: "rs_velocity", op: ">", value: 0 }
+        - { feature: "rs_roc_20", op: ">", value: 0 }
+
+    strength:
+      base: 60
+      add:
+        - { name: "rs_accel_strong", when: { feature: "rs_acceleration", op: ">=", value: 0.02 }, points: 6 }
+        - { name: "breakout_confirm", when: { feature: "breakout_up_20", op: "==", value: true }, points: 5 }
+        - { name: "trend_aligned", when: { feature: "trend_regime", op: "in", value: ["uptrend", "strong_uptrend"] }, points: 5 }
+        - { name: "volume_confirm", when: { feature: "rvol_20", op: ">=", value: 1.2 }, points: 4 }
+        - { name: "above_ma200", when: { feature: "above_ma200", op: "==", value: true }, points: 3 }
+      subtract:
+        - { name: "overextended", when: { feature: "ma_dist_50", op: ">=", value: 0.25 }, points: 8 }
+        - { name: "rsi_overbought", when: { feature: "rsi_14", op: ">=", value: 75 }, points: 4 }
+
+    invalidation:
+      any:
+        - { feature: "rs_roc_20", op: "<", value: 0 }
+        - { feature: "rs_velocity", op: "<", value: 0 }
+
+    evidence_fields:
+      - rs_vs_benchmark
+      - rs_roc_20
+      - rs_velocity
+      - rs_acceleration
+      - rs_breakout
+      - roc_20
+      - droc_20
+      - breakout_up_20
+      - rvol_20
+      - trend_regime
+      - above_ma200
+      - ma_dist_50
+      - rsi_14
+      - cs_unusualness
+
+  # ==========================================================================
+  # VOLATILITY_SHOCK - Unchanged from v3.1
+  # ==========================================================================
+  - name: "volatility_shock"
+    base_weight: 15
+    direction_rule: "volatility_shock"
+
+    gate:
+      all:
+        - { feature: "return_z", op: ">=", value: 2.5, abs: true }
+        - { feature: "volume_z_60", op: ">=", value: 1.5 }
+
+    strength:
+      base: 62
+      add:
+        - { name: "gap_signal", when: { feature: "gap_up", op: "==", value: true }, points: 4 }
+        - { name: "gap_signal_down", when: { feature: "gap_down", op: "==", value: true }, points: 4 }
+        - { name: "rvol_extreme", when: { feature: "rvol_20", op: ">=", value: 2.0 }, points: 6 }
+        - { name: "return_extreme", when: { feature: "return_z", op: ">=", value: 3.0, abs: true }, points: 5 }
+        - { name: "vol_of_vol_high", when: { feature: "vol_of_vol", op: ">=", value: 0.10 }, points: 2 }
+      subtract:
+        - { name: "illiquid_penalty", when: { feature: "illiquidity", op: ">=", value: 5.0e-8 }, points: 10 }
+
+    invalidation:
+      all:
+        - { feature: "return_z", op: "<", value: 1.0, abs: true }
+
+    evidence_fields:
+      - return_1d
+      - return_1d_z
+      - return_z
+      - gap_pct
+      - gap_up
+      - gap_down
+      - volume_z_60
+      - rvol_20
+      - atr_pct
+      - atr_pctile
+      - realized_vol_20
+      - trend_regime
+      - cs_unusualness
+
+  # ==========================================================================
+  # FIX 2 (v3.2): EXHAUSTION - accel_turn_up only for bullish (oversold)
+  # ==========================================================================
+  # Also: require no_new_5d_lows for bullish exhaustion when below MA200
+  # ==========================================================================
+  - name: "exhaustion"
+    base_weight: 20
+    direction_rule: "exhaustion"
+
+    gate:
+      all:
+        - any:
+            # Bearish exhaustion (overbought top)
+            - all:
+                - { feature: "rsi_14", op: ">=", value: 70 }
+                - { feature: "droc_20", op: "<", value: 0 }
+            # Bullish exhaustion (oversold washout) - FIX 3: add falling knife guard
+            - all:
+                - { feature: "rsi_14", op: "<=", value: 30 }
+                - { feature: "droc_20", op: ">", value: 0 }
+                # Require either above MA200 OR no new lows (falling knife guard)
+                - any:
+                    - { feature: "above_ma200", op: "==", value: true }
+                    - { feature: "no_new_5d_lows", op: "==", value: true }
+        - any:
+            - { feature: "rvol_declining_3d", op: "==", value: true }
+            - { feature: "rvol_20", op: "<", value: 0.9 }
+
+    strength:
+      base: 58
+      add:
+        # Overbought boosters (bearish exhaustion)
+        - { name: "rsi_overbought", when: { feature: "rsi_14", op: ">=", value: 70 }, points: 6 }
+        - { name: "rsi_extreme_high", when: { feature: "rsi_14", op: ">=", value: 80 }, points: 8 }
+        - { name: "ma_dist_50_extended_high", when: { feature: "ma_dist_50", op: ">=", value: 0.20 }, points: 6 }
+        - { name: "bb_position_high", when: { feature: "bb_pct", op: ">=", value: 0.90 }, points: 4 }
+        # Oversold boosters (bullish exhaustion)
+        - { name: "rsi_oversold", when: { feature: "rsi_14", op: "<=", value: 30 }, points: 6 }
+        - { name: "rsi_extreme_low", when: { feature: "rsi_14", op: "<=", value: 20 }, points: 8 }
+        - { name: "ma_dist_50_extended_low", when: { feature: "ma_dist_50", op: "<=", value: -0.20 }, points: 6 }
+        - { name: "bb_position_low", when: { feature: "bb_pct", op: "<=", value: 0.10 }, points: 4 }
+        # FIX 2: accel_turn_up only for bullish exhaustion (oversold)
+        # This is handled by the condition: only award if RSI <= 30 (oversold)
+        - { name: "accel_turn_up_oversold", when: { feature: "rsi_14", op: "<=", value: 30 }, points: 5 }
+        - { name: "no_new_lows_confirm", when: { feature: "no_new_5d_lows", op: "==", value: true }, points: 4 }
+      subtract:
+        - { name: "still_high_volume", when: { feature: "rvol_20", op: ">=", value: 1.5 }, points: 6 }
+
+    invalidation:
+      any:
+        - all:
+            - { feature: "rsi_14", op: ">=", value: 70 }
+            - { feature: "droc_20", op: ">", value: 0.02 }
+        - all:
+            - { feature: "rsi_14", op: "<=", value: 30 }
+            - { feature: "droc_20", op: "<", value: -0.02 }
+
+    evidence_fields:
+      - roc_20
+      - roc_20_p90_63d
+      - droc_20
+      - accel_turn_up
+      - accel_turn_down
+      - rvol_20
+      - rvol_declining_3d
+      - rsi_14
+      - macd_histogram
+      - ma_dist_20
+      - ma_dist_50
+      - bb_pct
+      - bb_width_pctile
+      - dist_52w_high
+      - dist_52w_low
+      - no_new_5d_lows
+      - above_ma200
+      - cs_unusualness
+
+  # ==========================================================================
+  # TREND_BREAKDOWN - Unchanged from v3.1
+  # ==========================================================================
+  - name: "trend_breakdown"
+    base_weight: 25
+    direction_rule: "trend_breakdown"
+
+    gate:
+      all:
+        - { feature: "close", op: "<", value_feature: "sma_50" }
+        - { feature: "ma_slope_50", op: "<", value: 0 }
+        - { feature: "obv_slope_20", op: "<", value: 0 }
+
+    strength:
+      base: 62
+      add:
+        - { name: "breakdown_20d", when: { feature: "breakout_down_20", op: "==", value: true }, points: 8 }
+        - { name: "drawdown_deep", when: { feature: "drawdown_252d", op: "<=", value: -0.30 }, points: 5 }
+        - { name: "rs_deteriorating", when: { feature: "rs_roc_20", op: "<", value: 0 }, points: 4 }
+        - { name: "volume_confirm", when: { feature: "rvol_20", op: ">=", value: 1.2 }, points: 3 }
+      subtract:
+        - { name: "oversold_bounce_risk", when: { feature: "rsi_14", op: "<=", value: 30 }, points: 6 }
+
+    invalidation:
+      any:
+        - { feature: "close", op: ">", value_feature: "sma_50" }
+        - { feature: "ma_slope_50", op: ">=", value: 0 }
+
+    evidence_fields:
+      - close
+      - sma_20
+      - sma_50
+      - sma_200
+      - ma_dist_20
+      - ma_dist_50
+      - ma_dist_200
+      - ma_slope_50
+      - trend_regime
+      - breakout_down_20
+      - rvol_20
+      - volume_z_60
+      - obv_slope_20
+      - rs_roc_20
+      - drawdown_63d
+      - drawdown_252d
+      - cs_unusualness
+
+  # ==========================================================================
+  # FIX 1 (v3.2): TREND_LEADERSHIP - Relaxed RS gate
+  # ==========================================================================
+  # rs_roc_20 >= 0 OR rs_breakout = true (handles missing RS data where rs_roc_20 = 0)
+  # ==========================================================================
+  - name: "trend_leadership"
+    base_weight: 20
+    direction_rule: "trend_leadership"
+
+    gate:
+      all:
+        - { feature: "trend_regime", op: "in", value: ["uptrend", "strong_uptrend"] }
+        - { feature: "above_ma200", op: "==", value: true }
+        - { feature: "ma_slope_50", op: ">", value: 0 }
+        # FIX 1: Relaxed RS gate - either positive RS OR rs_breakout OR missing RS (=0)
+        - any:
+            - { feature: "rs_roc_20", op: ">", value: 0 }
+            - { feature: "rs_breakout", op: "==", value: true }
+            - { feature: "rs_roc_20", op: "==", value: 0 }  # Missing RS data defaults to 0
+
+    strength:
+      base: 58
+      add:
+        - { name: "strong_uptrend", when: { feature: "trend_regime", op: "==", value: "strong_uptrend" }, points: 8 }
+        - { name: "rs_breakout", when: { feature: "rs_breakout", op: "==", value: true }, points: 6 }
+        - { name: "rs_accel", when: { feature: "rs_acceleration", op: ">", value: 0 }, points: 5 }
+        - { name: "rs_positive", when: { feature: "rs_roc_20", op: ">", value: 0 }, points: 4 }
+        - { name: "ma50_above_ma200", when: { feature: "ma50_above_ma200", op: "==", value: true }, points: 4 }
+        - { name: "macd_positive", when: { feature: "macd_histogram", op: ">", value: 0 }, points: 3 }
+        - { name: "volume_confirm", when: { feature: "rvol_20", op: ">=", value: 1.0 }, points: 3 }
+        - { name: "near_52w_high", when: { feature: "dist_52w_high", op: ">=", value: -0.10 }, points: 4 }
+      subtract:
+        - { name: "overextended", when: { feature: "ma_dist_50", op: ">=", value: 0.30 }, points: 10 }
+        - { name: "rsi_overbought", when: { feature: "rsi_14", op: ">=", value: 75 }, points: 4 }
+        - { name: "rs_weakening", when: { feature: "rs_acceleration", op: "<", value: 0 }, points: 6 }
+        - { name: "rs_missing_penalty", when: { feature: "rs_roc_20", op: "==", value: 0 }, points: 4 }
+
+    invalidation:
+      any:
+        - { feature: "close", op: "<", value_feature: "sma_50" }
+        - { feature: "trend_regime", op: "in", value: ["downtrend", "strong_downtrend"] }
+
+    evidence_fields:
+      - close
+      - sma_20
+      - sma_50
+      - sma_200
+      - ma_dist_20
+      - ma_dist_50
+      - ma_dist_200
+      - ma_slope_20
+      - ma_slope_50
+      - trend_regime
+      - above_ma200
+      - ma50_above_ma200
+      - roc_20
+      - droc_20
+      - rs_vs_benchmark
+      - rs_roc_20
+      - rs_velocity
+      - rs_acceleration
+      - rs_breakout
+      - rvol_20
+      - rsi_14
+      - macd_histogram
+      - dist_52w_high
+      - cs_unusualness

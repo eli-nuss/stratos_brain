@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "stratos_ta_analyst_output",
+  "type": "object",
+  "required": [
+    "attention_level",
+    "confidence",
+    "why_now",
+    "risks_and_contradictions",
+    "invalidation_summary",
+    "reason_codes"
+  ],
+  "properties": {
+    "attention_level": {
+      "type": "string",
+      "enum": [
+        "URGENT",
+        "FOCUS",
+        "WATCH",
+        "IGNORE"
+      ]
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "bullish",
+        "bearish",
+        "neutral"
+      ],
+      "default": "neutral"
+    },
+    "why_now": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 2
+    },
+    "reason_codes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 2
+    },
+    "risks_and_contradictions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "invalidation_summary": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "template_bindings": {
+      "type": "object"
+    },
+    "debug": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}

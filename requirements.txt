@@ -1,0 +1,21 @@
+# Core
+psycopg2-binary>=2.9.9
+pyyaml>=6.0.1
+python-dotenv>=1.0.0
+
+# Supabase
+supabase>=2.0.0
+
+# OpenAI (for AI stage)
+openai>=1.0.0
+
+# Utilities
+structlog>=23.2.0
+tenacity>=8.2.3
+
+# Development
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+black>=23.0.0
+ruff>=0.1.0
+mypy>=1.0.0
