@@ -1,0 +1,47 @@
+# Cloud Build configuration for Stratos Brain Signal Worker
+# This file defines the build steps to build the Docker image and deploy to Cloud Run
+
+steps:
+  # Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/stratos-engine/signal-worker:$COMMIT_SHA'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/stratos-engine/signal-worker:latest'
+      - '-f'
+      - 'docker/Dockerfile'
+      - '.'
+
+  # Push the image with commit SHA tag
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/stratos-engine/signal-worker:$COMMIT_SHA'
+
+  # Push the image with latest tag
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/stratos-engine/signal-worker:latest'
+
+  # Deploy to Cloud Run Worker Pool
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'worker-pools'
+      - 'update'
+      - 'stratos-signal-worker'
+      - '--region=us-central1'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/stratos-engine/signal-worker:$COMMIT_SHA'
+
+# Store images in Artifact Registry
+images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/stratos-engine/signal-worker:$COMMIT_SHA'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/stratos-engine/signal-worker:latest'
+
+# Build options
+options:
+  logging: CLOUD_LOGGING_ONLY
