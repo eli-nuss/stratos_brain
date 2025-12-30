@@ -1,103 +1,130 @@
--- pgmq Queue Setup for Stratos Signal Engine
--- Requires pgmq extension to be enabled in Supabase dashboard
+-- Part 2 & 3: pgmq Queue Setup + enqueue_engine_job Function
+-- Creates the message queue and single entry point for job submission
 
--- Create the queue (idempotent)
+-- Enable pgmq extension (must be enabled in Supabase Dashboard first)
+CREATE EXTENSION IF NOT EXISTS pgmq;
+
+-- Create the queue (lowercase, underscores allowed)
 SELECT pgmq.create('signal_engine_jobs');
 
--- Function to enqueue a job
--- This is called by pg_cron or the Control API
-CREATE OR REPLACE FUNCTION enqueue_engine_job(
-    p_job_type VARCHAR DEFAULT 'full_pipeline',
-    p_as_of_date DATE DEFAULT CURRENT_DATE,
-    p_universe_id VARCHAR DEFAULT NULL,
-    p_config_id UUID DEFAULT NULL,
-    p_params JSONB DEFAULT '{}'
-)
-RETURNS UUID AS $$
+-- Part 3: enqueue_engine_job function
+-- Single entry point that inserts idempotent job row + enqueues pgmq message
+CREATE OR REPLACE FUNCTION public.enqueue_engine_job(
+  p_job_type TEXT,
+  p_config_id UUID,
+  p_universe_id TEXT,
+  p_as_of_date DATE,
+  p_date_start DATE DEFAULT NULL,
+  p_date_end DATE DEFAULT NULL,
+  p_run_ai BOOLEAN DEFAULT true,
+  p_requested_by TEXT DEFAULT NULL
+) RETURNS UUID
+LANGUAGE plpgsql
+AS $$
 DECLARE
-    v_job_id UUID;
-    v_config engine_configs%ROWTYPE;
-    v_message JSONB;
+  v_request_hash TEXT;
+  v_job_id UUID;
+  v_payload JSONB;
 BEGIN
-    -- Get config if specified, otherwise use default
-    IF p_config_id IS NOT NULL THEN
-        SELECT * INTO v_config FROM engine_configs WHERE config_id = p_config_id;
-    ELSE
-        SELECT * INTO v_config FROM engine_configs WHERE name = 'default';
-    END IF;
-    
-    -- Create job record
-    INSERT INTO engine_jobs (
-        config_id,
-        job_type,
-        as_of_date,
-        universe_id,
-        params,
-        status,
-        queued_at
-    ) VALUES (
-        v_config.config_id,
-        p_job_type,
-        p_as_of_date,
-        COALESCE(p_universe_id, v_config.universe_id),
-        p_params,
-        'queued',
-        NOW()
-    )
-    RETURNING job_id INTO v_job_id;
-    
-    -- Build message payload
-    v_message := jsonb_build_object(
-        'job_id', v_job_id,
-        'job_type', p_job_type,
-        'as_of_date', p_as_of_date,
-        'universe_id', COALESCE(p_universe_id, v_config.universe_id),
-        'config_id', v_config.config_id,
-        'ai_min_strength', v_config.min_strength_for_ai,
-        'ai_budget', v_config.ai_budget_per_run,
-        'enable_ai', v_config.enable_ai_stage,
-        'template_overrides', v_config.template_overrides,
-        'params', p_params
-    );
-    
-    -- Send to queue
-    PERFORM pgmq.send('signal_engine_jobs', v_message);
-    
-    RETURN v_job_id;
+  -- Compute request hash for idempotency
+  v_request_hash := encode(
+    digest(
+      coalesce(p_job_type,'') || '|' ||
+      coalesce(p_config_id::text,'') || '|' ||
+      coalesce(p_universe_id,'') || '|' ||
+      coalesce(p_as_of_date::text,'') || '|' ||
+      coalesce(p_date_start::text,'') || '|' ||
+      coalesce(p_date_end::text,'') || '|' ||
+      coalesce(p_run_ai::text,''),
+      'sha256'
+    ),
+    'hex'
+  );
+
+  -- Insert job (on conflict return existing)
+  INSERT INTO public.engine_jobs (
+    job_type, config_id, universe_id, as_of_date, date_start, date_end, run_ai,
+    status, requested_by, request_hash
+  )
+  VALUES (
+    p_job_type, p_config_id, p_universe_id, p_as_of_date, p_date_start, p_date_end, p_run_ai,
+    'queued', p_requested_by, v_request_hash
+  )
+  ON CONFLICT (request_hash) DO UPDATE SET request_hash = excluded.request_hash
+  RETURNING job_id INTO v_job_id;
+
+  -- Build payload for queue message
+  v_payload := jsonb_build_object(
+    'job_id', v_job_id,
+    'job_type', p_job_type,
+    'config_id', p_config_id,
+    'universe_id', p_universe_id,
+    'as_of_date', p_as_of_date,
+    'date_start', p_date_start,
+    'date_end', p_date_end,
+    'run_ai', p_run_ai
+  );
+
+  -- Enqueue message
+  PERFORM pgmq.send('signal_engine_jobs', v_payload);
+
+  RETURN v_job_id;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
--- Function to get queue depth (for monitoring)
-CREATE OR REPLACE FUNCTION get_queue_depth()
-RETURNS INTEGER AS $$
-DECLARE
-    v_depth INTEGER;
-BEGIN
-    SELECT COUNT(*) INTO v_depth
-    FROM pgmq.q_signal_engine_jobs
-    WHERE vt <= NOW();
-    
-    RETURN v_depth;
-END;
-$$ LANGUAGE plpgsql;
+-- Helper function to get queue depth
+CREATE OR REPLACE FUNCTION public.get_queue_depth()
+RETURNS INTEGER
+LANGUAGE sql
+AS $$
+  SELECT COUNT(*)::INTEGER 
+  FROM pgmq.q_signal_engine_jobs 
+  WHERE vt <= NOW();
+$$;
 
--- pg_cron job to run daily pipeline at 6:30 AM ET (11:30 UTC)
--- Note: This requires pg_cron extension enabled in Supabase
--- Uncomment after enabling pg_cron in your Supabase project
+-- View for job status monitoring
+CREATE OR REPLACE VIEW public.v_job_status AS
+SELECT 
+  j.job_id,
+  j.job_type,
+  j.universe_id,
+  j.as_of_date,
+  j.status,
+  j.created_at,
+  j.started_at,
+  j.ended_at,
+  EXTRACT(EPOCH FROM (j.ended_at - j.started_at))::INTEGER AS duration_seconds,
+  j.error_text,
+  j.metrics,
+  c.name AS config_name,
+  c.base_template_version
+FROM public.engine_jobs j
+LEFT JOIN public.engine_configs c ON j.config_id = c.config_id
+ORDER BY j.created_at DESC;
 
--- SELECT cron.schedule(
---     'daily-signal-pipeline',
---     '30 11 * * 1-5',  -- 11:30 UTC = 6:30 AM ET, Mon-Fri
---     $$SELECT enqueue_engine_job('full_pipeline', CURRENT_DATE, 'equities_all')$$
--- );
-
--- pg_cron job for crypto (runs 24/7)
--- SELECT cron.schedule(
---     'daily-crypto-pipeline',
---     '0 12 * * *',  -- 12:00 UTC daily
---     $$SELECT enqueue_engine_job('full_pipeline', CURRENT_DATE, 'crypto_all')$$
--- );
+-- View for recent pipeline runs
+CREATE OR REPLACE VIEW public.v_recent_runs AS
+SELECT 
+  r.run_id,
+  r.job_id,
+  r.as_of_date,
+  r.status,
+  r.started_at,
+  r.ended_at,
+  EXTRACT(EPOCH FROM (r.ended_at - r.started_at))::INTEGER AS duration_seconds,
+  r.counts,
+  r.error_text,
+  r.git_sha,
+  r.template_version,
+  j.job_type,
+  j.universe_id,
+  c.name AS config_name
+FROM public.pipeline_runs r
+LEFT JOIN public.engine_jobs j ON r.job_id = j.job_id
+LEFT JOIN public.engine_configs c ON j.config_id = c.config_id
+ORDER BY r.started_at DESC
+LIMIT 100;
 
 -- Grant execute permissions
-GRANT EXECUTE ON FUNCTION enqueue_engine_job TO authenticated;
-GRANT EXECUTE ON FUNCTION get_queue_depth TO authenticated;
+GRANT EXECUTE ON FUNCTION public.enqueue_engine_job TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_queue_depth TO authenticated;

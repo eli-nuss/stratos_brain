@@ -13,6 +13,10 @@ load_dotenv()
 class SupabaseConfig:
     """Supabase connection configuration."""
     
+    # Direct DATABASE_URL takes precedence (simpler for deployment)
+    database_url: str = field(default_factory=lambda: os.getenv("DATABASE_URL", ""))
+    
+    # Individual components (fallback)
     url: str = field(default_factory=lambda: os.getenv("SUPABASE_URL", ""))
     service_key: str = field(default_factory=lambda: os.getenv("SUPABASE_SERVICE_KEY", ""))
     db_host: str = field(default_factory=lambda: os.getenv("SUPABASE_DB_HOST", ""))
@@ -23,10 +27,12 @@ class SupabaseConfig:
     
     @property
     def connection_string(self) -> str:
-        """Get PostgreSQL connection string."""
+        """Get PostgreSQL connection string. DATABASE_URL takes precedence."""
+        if self.database_url:
+            return self.database_url
         return (
             f"postgresql://{self.db_user}:{self.db_password}"
-            f"@{self.db_host}:{self.db_port}/{self.db_name}"
+            f"@{self.db_host}:{self.db_port}/{self.db_name}?sslmode=require"
         )
 
 

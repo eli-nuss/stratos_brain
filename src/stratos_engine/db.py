@@ -21,16 +21,10 @@ class Database:
     def connect(self) -> None:
         """Establish database connection."""
         if self._conn is None or self._conn.closed:
-            self._conn = psycopg2.connect(
-                host=config.supabase.db_host,
-                port=config.supabase.db_port,
-                dbname=config.supabase.db_name,
-                user=config.supabase.db_user,
-                password=config.supabase.db_password,
-                sslmode="require",
-            )
+            conn_string = config.supabase.connection_string
+            self._conn = psycopg2.connect(conn_string)
             self._conn.autocommit = False
-            logger.info("database_connected", host=config.supabase.db_host)
+            logger.info("database_connected")
     
     def close(self) -> None:
         """Close database connection."""
