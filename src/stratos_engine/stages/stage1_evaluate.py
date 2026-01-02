@@ -3,6 +3,7 @@
 import json
 from dataclasses import dataclass, asdict
 from datetime import date
+from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 import structlog
@@ -11,6 +12,25 @@ from ..db import Database
 from ..templates import TemplateEngine
 
 logger = structlog.get_logger()
+
+
+class DecimalEncoder(json.JSONEncoder):
+    """Custom JSON encoder that handles Decimal objects."""
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super().default(obj)
+
+
+def sanitize_for_json(obj: Any) -> Any:
+    """Recursively convert Decimal objects to floats for JSON serialization."""
+    if isinstance(obj, Decimal):
+        return float(obj)
+    elif isinstance(obj, dict):
+        return {k: sanitize_for_json(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [sanitize_for_json(item) for item in obj]
+    return obj
 
 
 @dataclass
@@ -105,15 +125,16 @@ class Stage1Evaluate:
             
             # Create signal facts
             for signal in signals:
+                # Sanitize Decimal values before storing
                 facts.append(SignalFact(
                     asset_id=asset_id,
                     date=as_of_date,
                     template_name=signal["template_name"],
                     direction=signal["direction"],
-                    strength=signal["strength"],
-                    strength_components=signal["strength_components"],
-                    evidence=signal["evidence"],
-                    attention_score=attention_score,
+                    strength=float(signal["strength"]) if isinstance(signal["strength"], Decimal) else signal["strength"],
+                    strength_components=sanitize_for_json(signal["strength_components"]),
+                    evidence=sanitize_for_json(signal["evidence"]),
+                    attention_score=float(attention_score) if isinstance(attention_score, Decimal) else attention_score,
                     config_id=config_id,
                 ))
         
