@@ -20,7 +20,7 @@ PROMPT_DIR = Path(__file__).parent.parent / "prompts"
 @dataclass
 class AIAnnotation:
     """AI annotation for a signal."""
-    instance_id: str
+    instance_id: int
     attention_level: str  # ignore, glance, focus, priority
     confidence: float  # 0.0 - 1.0
     thesis: str
@@ -103,25 +103,24 @@ Be concise and actionable. Focus on the most important factors."""
         
         query = f"""
         SELECT 
-            si.instance_id,
+            si.id as instance_id,
             si.asset_id,
-            si.template_name,
+            si.signal_type,
             si.direction,
-            si.strength_at_open,
+            si.strength,
             a.symbol,
             dsf.evidence,
-            dsf.strength,
+            dsf.strength as fact_strength,
             dsf.attention_score
         FROM signal_instances si
         JOIN assets a ON si.asset_id = a.asset_id
         JOIN daily_signal_facts dsf ON 
             si.asset_id = dsf.asset_id 
-            AND si.template_name = dsf.template_name
+            AND si.signal_type = dsf.signal_type
             AND dsf.date = %s
-        LEFT JOIN signal_ai_annotations saa ON si.instance_id = saa.instance_id
         WHERE si.state IN ('new', 'active')
           AND dsf.strength >= %s
-          AND saa.instance_id IS NULL
+          AND si.ai_analysis_json IS NULL
           {config_filter}
         ORDER BY dsf.strength DESC
         LIMIT %s
@@ -139,9 +138,9 @@ Be concise and actionable. Focus on the most important factors."""
 Analyze this trading signal:
 
 **Asset:** {signal.get('symbol')} 
-**Signal Type:** {signal.get('template_name')}
+**Signal Type:** {signal.get('signal_type')}
 **Direction:** {signal.get('direction')}
-**Strength:** {signal.get('strength')}/100
+**Strength:** {signal.get('fact_strength', signal.get('strength'))}/100
 **Attention Score:** {signal.get('attention_score')}
 
 **Technical Evidence:**
@@ -189,35 +188,35 @@ Analyze this trading signal:
             return None
     
     def write_annotation(self, annotation: AIAnnotation) -> bool:
-        """Write AI annotation to database."""
+        """Write AI annotation to signal_instances table."""
         query = """
-        INSERT INTO signal_ai_annotations
-            (instance_id, attention_level, confidence, thesis,
-             supporting_factors, risk_factors, recommended_action,
-             priority_rank, tokens_used)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (instance_id) DO UPDATE SET
-            attention_level = EXCLUDED.attention_level,
-            confidence = EXCLUDED.confidence,
-            thesis = EXCLUDED.thesis,
-            supporting_factors = EXCLUDED.supporting_factors,
-            risk_factors = EXCLUDED.risk_factors,
-            recommended_action = EXCLUDED.recommended_action,
-            priority_rank = EXCLUDED.priority_rank,
-            tokens_used = EXCLUDED.tokens_used,
+        UPDATE signal_instances
+        SET ai_analysis_json = %s,
+            ai_thesis = %s,
+            ai_conviction = %s,
+            ai_tokens_in = %s,
+            ai_tokens_out = %s,
             updated_at = NOW()
+        WHERE id = %s
         """
         
+        analysis_json = json.dumps({
+            "attention_level": annotation.attention_level,
+            "confidence": annotation.confidence,
+            "thesis": annotation.thesis,
+            "supporting_factors": annotation.supporting_factors,
+            "risk_factors": annotation.risk_factors,
+            "recommended_action": annotation.recommended_action,
+            "priority_rank": annotation.priority_rank,
+        })
+        
         self.db.execute(query, (
-            annotation.instance_id,
-            annotation.attention_level,
-            annotation.confidence,
+            analysis_json,
             annotation.thesis,
-            json.dumps(annotation.supporting_factors),
-            json.dumps(annotation.risk_factors),
-            annotation.recommended_action,
-            annotation.priority_rank,
-            annotation.tokens_used,
+            annotation.confidence,
+            annotation.tokens_used // 2,  # Approximate split
+            annotation.tokens_used // 2,
+            annotation.instance_id,
         ))
         return True
     
