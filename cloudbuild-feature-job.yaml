@@ -1,0 +1,66 @@
+# Cloud Build configuration for Stratos Feature Calculation Job
+# 
+# This builds and deploys the feature calculation Cloud Run Job.
+# NOTE: Environment variables are managed manually in the Cloud Run console
+#
+# To deploy manually:
+#   gcloud builds submit --config=cloudbuild-feature-job.yaml
+
+steps:
+  # Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/stratos-engine/feature-job:$COMMIT_SHA'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/stratos-engine/feature-job:latest'
+      - '-f'
+      - 'docker/Dockerfile.feature-job'
+      - '.'
+
+  # Push the image with commit SHA tag
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/stratos-engine/feature-job:$COMMIT_SHA'
+
+  # Push the image with latest tag
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/stratos-engine/feature-job:latest'
+
+  # Create or update the Cloud Run Job
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # Check if job exists
+        if gcloud run jobs describe stratos-feature-job --region=us-central1 --quiet 2>/dev/null; then
+          echo "Updating existing job..."
+          gcloud run jobs update stratos-feature-job \
+            --region=us-central1 \
+            --image=us-central1-docker.pkg.dev/$PROJECT_ID/stratos-engine/feature-job:$COMMIT_SHA
+        else
+          echo "Creating new job..."
+          gcloud run jobs create stratos-feature-job \
+            --region=us-central1 \
+            --image=us-central1-docker.pkg.dev/$PROJECT_ID/stratos-engine/feature-job:$COMMIT_SHA \
+            --task-timeout=30m \
+            --max-retries=1 \
+            --memory=2Gi \
+            --cpu=2
+        fi
+
+# Store images in Artifact Registry
+images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/stratos-engine/feature-job:$COMMIT_SHA'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/stratos-engine/feature-job:latest'
+
+# Build options
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: '1200s'  # 20 minutes for build
