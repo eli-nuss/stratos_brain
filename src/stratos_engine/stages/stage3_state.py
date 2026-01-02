@@ -44,7 +44,7 @@ class Stage3State:
     
     def get_active_instances(self, config_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get all instances in NEW or ACTIVE state."""
-        config_filter = "AND config_id = %s" if config_id else "AND config_id IS NULL"
+        config_filter = "AND config_id = %s" if config_id else ""
         params = (config_id,) if config_id else ()
         
         query = f"""
@@ -60,7 +60,7 @@ class Stage3State:
     
     def get_todays_facts(self, as_of_date: str, config_id: Optional[str] = None) -> Dict[tuple, Dict]:
         """Get today's signal facts as a lookup dict."""
-        config_filter = "AND config_id = %s" if config_id else "AND config_id IS NULL"
+        config_filter = "AND config_id = %s" if config_id else ""
         params = (as_of_date, config_id) if config_id else (as_of_date,)
         
         query = f"""
@@ -84,15 +84,17 @@ class Stage3State:
     ) -> int:
         """Create a new signal instance."""
         
+        # Use INSERT with ON CONFLICT based on the actual unique constraint
+        # UNIQUE (asset_id, signal_type, triggered_at)
         query = """
         INSERT INTO signal_instances
             (asset_id, signal_type, direction, state, 
              triggered_at, last_seen_at, strength, config_id)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (asset_id, signal_type, COALESCE(config_id, '00000000-0000-0000-0000-000000000000'::uuid))
-        WHERE state IN ('new', 'active')
+        ON CONFLICT (asset_id, signal_type, triggered_at)
         DO UPDATE SET
             last_seen_at = EXCLUDED.last_seen_at,
+            strength = EXCLUDED.strength,
             updated_at = NOW()
         RETURNING id
         """
@@ -186,7 +188,7 @@ class Stage3State:
         config_id: Optional[str] = None
     ) -> bool:
         """Check if a signal is still in cooldown period."""
-        config_filter = "AND config_id = %s" if config_id else "AND config_id IS NULL"
+        config_filter = "AND config_id = %s" if config_id else ""
         params_base = (asset_id, signal_type, as_of_date)
         params = params_base + (config_id,) if config_id else params_base
         
