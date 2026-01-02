@@ -38,12 +38,11 @@ class SignalFact:
     """A signal fact to be written to daily_signal_facts."""
     asset_id: int
     date: str
-    template_name: str
+    signal_type: str  # Maps to template_name from evaluation
     direction: str
     strength: float
     strength_components: Dict[str, Any]
     evidence: Dict[str, Any]
-    attention_score: float
     config_id: Optional[str] = None
 
 
@@ -120,21 +119,17 @@ class Stage1Evaluate:
             if not signals:
                 continue
             
-            # Compute attention score
-            attention_score = self.engine.compute_attention_score(signals)
-            
             # Create signal facts
             for signal in signals:
                 # Sanitize Decimal values before storing
                 facts.append(SignalFact(
                     asset_id=asset_id,
                     date=as_of_date,
-                    template_name=signal["template_name"],
+                    signal_type=signal["template_name"],  # Map template_name to signal_type
                     direction=signal["direction"],
                     strength=float(signal["strength"]) if isinstance(signal["strength"], Decimal) else signal["strength"],
                     strength_components=sanitize_for_json(signal["strength_components"]),
                     evidence=sanitize_for_json(signal["evidence"]),
-                    attention_score=float(attention_score) if isinstance(attention_score, Decimal) else attention_score,
                     config_id=config_id,
                 ))
         
@@ -146,32 +141,31 @@ class Stage1Evaluate:
         if not facts:
             return 0
         
+        # Use signal_type to match existing database schema
         query = """
         INSERT INTO daily_signal_facts 
-            (asset_id, date, template_name, direction, strength, 
-             strength_components, evidence, attention_score, config_id)
+            (asset_id, date, signal_type, direction, strength, 
+             strength_components, evidence, config_id)
         VALUES 
-            (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (asset_id, date, template_name, COALESCE(config_id, '00000000-0000-0000-0000-000000000000'::uuid)) 
+            (%s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (asset_id, date, signal_type) 
         DO UPDATE SET 
             direction = EXCLUDED.direction,
             strength = EXCLUDED.strength,
             strength_components = EXCLUDED.strength_components,
             evidence = EXCLUDED.evidence,
-            attention_score = EXCLUDED.attention_score,
-            updated_at = NOW()
+            config_id = EXCLUDED.config_id
         """
         
         params_list = [
             (
                 f.asset_id,
                 f.date,
-                f.template_name,
+                f.signal_type,
                 f.direction,
                 f.strength,
                 json.dumps(f.strength_components),
                 json.dumps(f.evidence),
-                f.attention_score,
                 f.config_id,
             )
             for f in facts
@@ -187,9 +181,12 @@ class Stage1Evaluate:
             return 0
         
         # Group by asset_id to get one attention score per asset
+        # Compute attention score as sum of strengths for the asset
         attention_by_asset = {}
         for f in facts:
-            attention_by_asset[f.asset_id] = f.attention_score
+            if f.asset_id not in attention_by_asset:
+                attention_by_asset[f.asset_id] = 0
+            attention_by_asset[f.asset_id] += f.strength
         
         query = """
         UPDATE daily_features
@@ -235,12 +232,12 @@ class Stage1Evaluate:
         facts = self.evaluate_all(features, as_of_date, config_id)
         
         # Summarize
-        by_template = {}
+        by_signal_type = {}
         by_direction = {"bullish": 0, "bearish": 0, "neutral": 0}
         assets_with_signals = set()
         
         for fact in facts:
-            by_template[fact.template_name] = by_template.get(fact.template_name, 0) + 1
+            by_signal_type[fact.signal_type] = by_signal_type.get(fact.signal_type, 0) + 1
             by_direction[fact.direction] = by_direction.get(fact.direction, 0) + 1
             assets_with_signals.add(fact.asset_id)
         
@@ -258,7 +255,7 @@ class Stage1Evaluate:
             "signals_generated": len(facts),
             "signals_written": written,
             "attention_updated": attention_updated,
-            "by_template": by_template,
+            "by_signal_type": by_signal_type,
             "by_direction": by_direction,
         }
         
