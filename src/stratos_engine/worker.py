@@ -127,6 +127,7 @@ class Worker:
         as_of_date = job.get("as_of_date", datetime.now().strftime("%Y-%m-%d"))
         universe_id = job.get("universe_id", "equities_all")
         config_id = job.get("config_id")
+        include_ai = job.get("include_ai", False)
         
         logger.info("job_started", job_type=job_type, date=as_of_date, universe=universe_id)
         
@@ -143,7 +144,7 @@ class Worker:
         try:
             results = {}
             
-            # Freshness Check (only for full pipeline or evaluation)
+            # Freshness Check (only for daily_run which includes data fetching)
             if job_type in ("daily_run", "evaluate"):
                 passed, stats = self.freshness.check_coverage(as_of_date, universe_id)
                 results["freshness"] = stats
@@ -152,8 +153,11 @@ class Worker:
                     raise ValueError(f"Insufficient feature coverage: {stats['actual']}/{stats['expected']} ({stats['coverage']:.1%})")
 
             # Stage 1: Fetch & Evaluate
+            # daily_run: Full pipeline with data fetch
+            # daily_pipeline: Skip fetch, just evaluate existing data
+            # stage1_only/evaluate: Only Stage1
             if job_type in ("daily_run", "stage1_only", "evaluate"):
-                # Fetch data first
+                # Fetch data first (only for daily_run)
                 stage1_fetch = Stage1Fetch(db)
                 results["stage1_fetch"] = stage1_fetch.run(as_of_date, universe_id, config_id)
                 
@@ -161,23 +165,43 @@ class Worker:
                 stage1 = Stage1Evaluate(db)
                 results["stage1"] = stage1.run(as_of_date, universe_id, config_id)
             
+            # daily_pipeline: Evaluate existing data without fetching
+            if job_type == "daily_pipeline":
+                stage1 = Stage1Evaluate(db)
+                results["stage1"] = stage1.run(as_of_date, universe_id, config_id)
+            
             # Stage 3: State Machine (before AI to create instances)
-            if job_type in ("daily_run", "stage3_only", "state"):
+            if job_type in ("daily_run", "daily_pipeline", "stage3_only", "state"):
                 stage3 = Stage3State(db)
                 results["stage3"] = stage3.run(as_of_date, config_id)
 
             # Stage 4: Scoring (after signals are generated)
-            if job_type in ("daily_run", "stage4_only", "scoring"):
+            if job_type in ("daily_run", "daily_pipeline", "stage4_only", "scoring"):
                 stage4 = Stage4Scoring(db)
                 results["stage4"] = stage4.run(as_of_date, universe_id, config_id)
 
-            # Stage 5: AI Review (for top assets)
+            # Stage 5: AI Review (for top assets) - only if enabled and requested
             if job_type in ("daily_run", "stage5_only", "ai_review") and config.engine.enable_ai_stage:
+                stage5 = Stage5AIReview(db)
+                results["stage5"] = stage5.run(as_of_date, config_id)
+            
+            # For daily_pipeline, only run AI if include_ai is True
+            if job_type == "daily_pipeline" and include_ai and config.engine.enable_ai_stage:
                 stage5 = Stage5AIReview(db)
                 results["stage5"] = stage5.run(as_of_date, config_id)
             
             # Stage 2: AI Analysis (optional)
             if job_type in ("daily_run", "stage2_only", "ai") and config.engine.enable_ai_stage:
+                stage2 = Stage2AI(db)
+                results["stage2"] = stage2.run(
+                    as_of_date,
+                    min_strength=job.get("ai_min_strength", 60),
+                    budget=job.get("ai_budget", config.engine.ai_budget_per_run),
+                    config_id=config_id,
+                )
+            
+            # For daily_pipeline with include_ai, also run Stage 2
+            if job_type == "daily_pipeline" and include_ai and config.engine.enable_ai_stage:
                 stage2 = Stage2AI(db)
                 results["stage2"] = stage2.run(
                     as_of_date,
@@ -304,7 +328,7 @@ def main():
     """Entry point for the worker."""
     setup_logging(config.log.level, config.log.format)
     
-    logger.info("starting_stratos_engine_worker", version="0.3.5")
+    logger.info("starting_stratos_engine_worker", version="0.3.6")
     
     worker = Worker()
     worker.run()
