@@ -9,6 +9,11 @@ supabase>=2.0.0
 # OpenAI (for AI stage)
 openai>=1.0.0
 
+# Data processing (for Stage1Fetch)
+pandas>=2.0.0
+numpy>=1.24.0
+requests>=2.31.0
+
 # Utilities
 structlog>=23.2.0
 tenacity>=8.2.3
