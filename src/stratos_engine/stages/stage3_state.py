@@ -91,7 +91,7 @@ class Stage3State:
             (asset_id, signal_type, direction, state, 
              triggered_at, last_seen_at, strength, config_id)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (asset_id, signal_type, triggered_at)
+        ON CONFLICT ON CONSTRAINT daily_signals_v2_asset_id_signal_type_triggered_at_key
         DO UPDATE SET
             last_seen_at = EXCLUDED.last_seen_at,
             strength = EXCLUDED.strength,
