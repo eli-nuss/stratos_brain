@@ -1,5 +1,6 @@
 # Cloud Build configuration for Stratos Brain Signal Worker
 # This file defines the build steps to build the Docker image and deploy to Cloud Run
+# NOTE: Environment variables are managed manually in the Cloud Run console
 
 steps:
   # Build the Docker image
@@ -26,7 +27,7 @@ steps:
       - 'push'
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/stratos-engine/signal-worker:latest'
 
-  # Deploy to Cloud Run Worker Pool (using beta as worker-pools is not yet GA)
+  # Deploy to Cloud Run Worker Pool - only updates image, preserves env vars
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
     args:
