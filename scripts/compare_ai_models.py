@@ -97,7 +97,7 @@ def build_chart_packet(db: Database, target: dict, as_of_date: str) -> dict:
     FROM daily_bars
     WHERE asset_id = %s AND date <= %s
     ORDER BY date DESC
-    LIMIT 60
+    LIMIT 30
     """
     bars = db.fetch_all(ohlcv_query, (asset_id, as_of_date))
     bars = list(reversed(bars))
@@ -192,10 +192,10 @@ def call_gemini(packet: dict, api_key: str) -> dict:
     
     # Use Gemini 2.0 Flash (latest available)
     model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash",
+        model_name="gemini-3-flash-preview",
         generation_config={
             "temperature": 0.2,
-            "max_output_tokens": 1500,
+            "max_output_tokens": 3000,
             "response_mime_type": "application/json",
         }
     )
@@ -223,7 +223,7 @@ def call_gemini(packet: dict, api_key: str) -> dict:
 
 def main():
     print("=" * 80)
-    print("AI Model Comparison: GPT-5.2 vs Gemini 2.0 Flash")
+    print("AI Model Comparison: GPT-5.2 vs Gemini 3 Flash")
     print("=" * 80)
     
     # Configuration
