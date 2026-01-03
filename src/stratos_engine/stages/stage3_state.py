@@ -143,7 +143,9 @@ class Stage3State:
         WHERE id = %s
         """
         result = self.db.fetch_one(query, (as_of_date, instance_id))
-        return result["days_absent"] if result else 0
+        if result and result["days_absent"] is not None:
+            return result["days_absent"]
+        return 0
     
     def process_new_signals(
         self,
