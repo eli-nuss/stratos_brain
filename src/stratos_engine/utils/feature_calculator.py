@@ -225,7 +225,7 @@ class FeatureCalculator:
         
         # P2.1: Coverage fields
         features['bars_available'] = bars_available
-        features['coverage_252'] = has_full_history
+        features['coverage_252'] = bars_available / MAX_LOOKBACK  # Ratio of available bars to max lookback
         
         # Annualization factor (crypto trades 365 days, equities 252)
         ann_factor = 365 if asset_type == 'crypto' else 252
@@ -436,8 +436,10 @@ class FeatureCalculator:
         
         # P0.4 FIX: Squeeze detection with Keltner variant
         features['squeeze_keltner'] = (features['bb_upper'] < kc_upper) & (features['bb_lower'] > kc_lower)
-        features['squeeze_pctile'] = features['bb_width_pctile'] < 10
-        features['squeeze_flag'] = features['squeeze_keltner'] | features['squeeze_pctile']
+        # squeeze_pctile is the actual percentile value (numeric), not a boolean
+        features['squeeze_pctile'] = features['bb_width_pctile']
+        squeeze_by_pctile = features['bb_width_pctile'] < 10  # Boolean for squeeze detection
+        features['squeeze_flag'] = features['squeeze_keltner'] | squeeze_by_pctile
         
         # Squeeze release: was in squeeze, now not
         features['squeeze_release'] = features['squeeze_flag'].shift(1) & (~features['squeeze_flag'])
@@ -602,14 +604,13 @@ class FeatureCalculator:
                 val = row[col]
                 if pd.isna(val):
                     record[col] = None
+                elif isinstance(val, (np.bool_, bool)):
+                    # Handle numpy bool BEFORE numeric types (np.bool_ can be subclass of np.integer)
+                    record[col] = bool(val)
                 elif isinstance(val, (np.integer, np.int64)):
                     record[col] = int(val)
                 elif isinstance(val, (np.floating, np.float64)):
                     record[col] = float(val)
-                elif isinstance(val, np.bool_):
-                    record[col] = bool(val)
-                elif isinstance(val, bool):
-                    record[col] = val
                 else:
                     record[col] = str(val) if not isinstance(val, str) else val
                     
