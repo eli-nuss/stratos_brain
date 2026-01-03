@@ -144,14 +144,6 @@ class Worker:
         try:
             results = {}
             
-            # Freshness Check (only for daily_run which includes data fetching)
-            if job_type in ("daily_run", "evaluate"):
-                passed, stats = self.freshness.check_coverage(as_of_date, universe_id)
-                results["freshness"] = stats
-                
-                if not passed:
-                    raise ValueError(f"Insufficient feature coverage: {stats['actual']}/{stats['expected']} ({stats['coverage']:.1%})")
-
             # Stage 1: Fetch & Evaluate
             # daily_run: Full pipeline with data fetch
             # daily_pipeline: Skip fetch, just evaluate existing data
@@ -160,8 +152,18 @@ class Worker:
                 # Fetch data first (only for daily_run)
                 stage1_fetch = Stage1Fetch(db)
                 results["stage1_fetch"] = stage1_fetch.run(as_of_date, universe_id, config_id)
+            
+            # Freshness Check AFTER data fetch (for self-healing)
+            # This allows the pipeline to fetch data first, then check if we have enough coverage
+            if job_type in ("daily_run", "daily_pipeline", "evaluate"):
+                passed, stats = self.freshness.check_coverage(as_of_date, universe_id)
+                results["freshness"] = stats
                 
-                # Then evaluate
+                if not passed:
+                    raise ValueError(f"Insufficient feature coverage: {stats['actual']}/{stats['expected']} ({stats['coverage']:.1%})")
+            
+            # Stage 1 Evaluate: Run signal template evaluation
+            if job_type in ("daily_run", "stage1_only", "evaluate"):
                 stage1 = Stage1Evaluate(db)
                 results["stage1"] = stage1.run(as_of_date, universe_id, config_id)
             
