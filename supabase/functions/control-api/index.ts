@@ -185,6 +185,118 @@ serve(async (req) => {
         })
       }
 
+      // ==================== DASHBOARD ENDPOINTS ====================
+
+      // GET /dashboard/inflections - Get new breakouts/reversals (high novelty)
+      case req.method === 'GET' && path === '/dashboard/inflections': {
+        const limit = url.searchParams.get('limit') || '25'
+        const asOfDate = url.searchParams.get('as_of_date')
+        const universeId = url.searchParams.get('universe_id')
+        const configId = url.searchParams.get('config_id')
+        
+        let query = supabase
+          .from('v_dashboard_inflections')
+          .select('*')
+          .limit(parseInt(limit))
+          
+        if (asOfDate) {
+          query = query.eq('as_of_date', asOfDate)
+        }
+        
+        if (universeId) {
+          query = query.eq('universe_id', universeId)
+        }
+        
+        if (configId) {
+          query = query.eq('config_id', configId)
+        }
+        
+        // Order by absolute inflection score (biggest moves first)
+        query = query.order('abs_inflection', { ascending: false })
+        
+        const { data, error } = await query
+        
+        if (error) throw error
+        
+        return new Response(JSON.stringify(data), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /dashboard/trends - Get ongoing bullish trends (ACTIVE signals)
+      case req.method === 'GET' && path === '/dashboard/trends': {
+        const limit = url.searchParams.get('limit') || '25'
+        const asOfDate = url.searchParams.get('as_of_date')
+        const universeId = url.searchParams.get('universe_id')
+        const configId = url.searchParams.get('config_id')
+        
+        let query = supabase
+          .from('v_dashboard_trends')
+          .select('*')
+          .limit(parseInt(limit))
+          
+        if (asOfDate) {
+          query = query.eq('as_of_date', asOfDate)
+        }
+        
+        if (universeId) {
+          query = query.eq('universe_id', universeId)
+        }
+        
+        if (configId) {
+          query = query.eq('config_id', configId)
+        }
+        
+        // Order by weighted score (strongest trends first)
+        query = query.order('weighted_score', { ascending: false })
+        
+        const { data, error } = await query
+        
+        if (error) throw error
+        
+        return new Response(JSON.stringify(data), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /dashboard/risk - Get bearish setups and breakdown risk
+      case req.method === 'GET' && path === '/dashboard/risk': {
+        const limit = url.searchParams.get('limit') || '25'
+        const asOfDate = url.searchParams.get('as_of_date')
+        const universeId = url.searchParams.get('universe_id')
+        const configId = url.searchParams.get('config_id')
+        
+        let query = supabase
+          .from('v_dashboard_risk')
+          .select('*')
+          .limit(parseInt(limit))
+          
+        if (asOfDate) {
+          query = query.eq('as_of_date', asOfDate)
+        }
+        
+        if (universeId) {
+          query = query.eq('universe_id', universeId)
+        }
+        
+        if (configId) {
+          query = query.eq('config_id', configId)
+        }
+        
+        // Order by weighted score ascending (most negative/risky first)
+        query = query.order('weighted_score', { ascending: true })
+        
+        const { data, error } = await query
+        
+        if (error) throw error
+        
+        return new Response(JSON.stringify(data), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // ==================== END DASHBOARD ENDPOINTS ====================
+
       default:
         return new Response(JSON.stringify({ error: 'Not found' }), {
           status: 404,
