@@ -34,9 +34,8 @@ class Stage4Scoring:
         limit = u_params["limit"]
         min_volume = u_params["min_volume"]
         
-        # Calculate yesterday's date for delta scoring
-        as_of_dt = datetime.strptime(as_of_date, '%Y-%m-%d')
-        yesterday = (as_of_dt - timedelta(days=1)).strftime('%Y-%m-%d')
+        # Get the most recent prior score date for delta calculation
+        # This handles weekends/holidays correctly (e.g., Monday compares to Friday)
         
         query = """
         INSERT INTO daily_asset_scores (
@@ -112,13 +111,23 @@ class Stage4Scoring:
             GROUP BY dsf.asset_id
         ),
         
-        -- Get yesterday's scores for delta calculation
-        yesterday_scores AS (
-            SELECT asset_id, score_total as prev_score
+        -- Get the most recent prior score date for this universe/config
+        prev_score_date AS (
+            SELECT MAX(as_of_date) as prev_date
             FROM daily_asset_scores
-            WHERE as_of_date = %(yesterday)s 
+            WHERE as_of_date < %(as_of_date)s
               AND universe_id = %(universe_id)s 
               AND config_id = %(config_id)s
+        ),
+        
+        -- Get previous scores for delta calculation
+        yesterday_scores AS (
+            SELECT das.asset_id, das.score_total as prev_score
+            FROM daily_asset_scores das
+            CROSS JOIN prev_score_date psd
+            WHERE das.as_of_date = psd.prev_date
+              AND das.universe_id = %(universe_id)s 
+              AND das.config_id = %(config_id)s
         ),
         
         -- Calculate final scores with caps
@@ -184,7 +193,6 @@ class Stage4Scoring:
         
         params = {
             'as_of_date': as_of_date,
-            'yesterday': yesterday,
             'asset_type': asset_type,
             'min_volume': min_volume,
             'limit': limit,

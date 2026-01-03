@@ -188,11 +188,13 @@ serve(async (req) => {
       // ==================== DASHBOARD ENDPOINTS ====================
 
       // GET /dashboard/inflections - Get new breakouts/reversals (high novelty)
+      // Supports direction filter: 'bullish' or 'bearish'
       case req.method === 'GET' && path === '/dashboard/inflections': {
         const limit = url.searchParams.get('limit') || '25'
         const asOfDate = url.searchParams.get('as_of_date')
         const universeId = url.searchParams.get('universe_id')
         const configId = url.searchParams.get('config_id')
+        const direction = url.searchParams.get('direction') // 'bullish' or 'bearish'
         
         let query = supabase
           .from('v_dashboard_inflections')
@@ -211,8 +213,20 @@ serve(async (req) => {
           query = query.eq('config_id', configId)
         }
         
+        // Filter by direction if specified
+        if (direction) {
+          query = query.eq('inflection_direction', direction)
+        }
+        
         // Order by absolute inflection score (biggest moves first)
-        query = query.order('abs_inflection', { ascending: false })
+        // For bullish: highest positive first; for bearish: most negative first
+        if (direction === 'bearish') {
+          query = query.order('inflection_score', { ascending: true })
+        } else if (direction === 'bullish') {
+          query = query.order('inflection_score', { ascending: false })
+        } else {
+          query = query.order('abs_inflection', { ascending: false })
+        }
         
         const { data, error } = await query
         
