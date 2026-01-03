@@ -1,0 +1,1332 @@
+{
+  "comparison_date": "2026-01-03T17:37:34.422005",
+  "as_of_date": "2026-01-02",
+  "targets": [
+    {
+      "symbol": "ONDS",
+      "scope": "inflections_bullish"
+    },
+    {
+      "symbol": "CCJ",
+      "scope": "inflections_bullish"
+    },
+    {
+      "symbol": "ASML",
+      "scope": "inflections_bullish"
+    },
+    {
+      "symbol": "FIL",
+      "scope": "inflections_bullish"
+    },
+    {
+      "symbol": "CVX",
+      "scope": "inflections_bullish"
+    },
+    {
+      "symbol": "MO",
+      "scope": "inflections_bearish"
+    },
+    {
+      "symbol": "CRWD",
+      "scope": "inflections_bearish"
+    },
+    {
+      "symbol": "PLTR",
+      "scope": "inflections_bearish"
+    },
+    {
+      "symbol": "NOW",
+      "scope": "inflections_bearish"
+    },
+    {
+      "symbol": "ZS",
+      "scope": "inflections_bearish"
+    }
+  ],
+  "gpt_5_2_results": {
+    "ONDS": {
+      "attention_level": "FOCUS",
+      "direction": "bullish",
+      "setup_type": "breakout",
+      "time_horizon": "days",
+      "summary_text": "ONDS is breaking to new 20/55-day highs (11.06) on elevated volume (rVol20 1.70), with squeeze-release + trend-ignition signals active.",
+      "why_now": [
+        "Fresh 20-day and 55-day Donchian high printed at 11.06 on 2026-01-02, with close at 11.02 (breakout_up_20 = 1.0).",
+        "Volume is elevated: 135.3M shares on 2026-01-02 vs rvol_20 = 1.70 and volume_z_60 = 1.10, supporting breakout participation.",
+        "Strong short-term momentum: roc_5 = 20.70% and roc_20 = 23.54% (trend_ignition signal strength 66).",
+        "Squeeze dynamics flipped: squeeze_release = true with bb_width_pctile = 11.90 and bb_width_pctile_expanding = true (signal strength 77).",
+        "Trend context is supportive: trend_regime = uptrend, price is well above key MAs (close 11.02 vs sma_20 8.84, sma_50 7.69, sma_200 4.34; ma_dist_20 = +24.63%).",
+        "Participation/accumulation is improving: obv_slope_20 = 22.39 alongside rvol_20 = 1.70."
+      ],
+      "key_levels": {
+        "support": [
+          9.76,
+          8.99,
+          8.46,
+          7.28
+        ],
+        "resistance": [
+          11.06,
+          11.5,
+          12.0
+        ],
+        "invalidation": 9.76
+      },
+      "what_to_watch_next": [
+        "Follow-through above 11.06: additional closes above the prior high, ideally without immediately retracing back below 11.06.",
+        "Retest behavior: if price pulls back, watch whether 10.53\u20139.76 (12/31 high and close) holds as support vs a deeper fade toward 8.99\u20138.46.",
+        "Volume confirmation: does upside continuation keep volume at/above the recent baseline (rvol_20 ~1.70) or does it fade sharply on new highs?",
+        "Volatility expansion risk: ATR is high (atr_pct 8.87%); watch for wide-range reversal days after the breakout attempt."
+      ],
+      "risks_and_contradictions": [
+        "Breakout is not yet confirmed by the provided feature flag (breakout_confirmed_up = 0.0), so this could still be a one-day spike.",
+        "Extended from moving averages (ma_dist_20 +24.63%, ma_dist_50 +43.31%) increases pullback risk even in an uptrend.",
+        "Recent history shows sharp air-pockets: e.g., 2025-11-17 fell from 7.51 open to 6.255 close after a 7.515 high, and 2025-11-20 closed 6.27 after a 7.97 high\u2014volatility can cut both ways.",
+        "RSI is constructive but not extreme (rsi_14 = 62.41); momentum could stall without continued volume/price expansion."
+      ],
+      "confidence": 0.74,
+      "_tokens_in": 5124,
+      "_tokens_out": 771,
+      "_model": "gpt-5.2"
+    },
+    "CCJ": {
+      "attention_level": "FOCUS",
+      "direction": "bullish",
+      "setup_type": "breakout",
+      "time_horizon": "weeks",
+      "summary_text": "CCJ tagged a 20D Donchian high (99.08) on 1.45x RVOL, signaling a fresh upside breakout attempt after a tight-volatility phase.",
+      "why_now": [
+        "Price hit the 20-day Donchian high at 99.08 on 2026-01-02 (donchian_high_20=99.08; breakout_up_20=1.0), a clear \u201crange-high test/trigger\u201d day.",
+        "Large expansion day: 2026-01-02 closed 98.56 vs 91.49 prior close (+7.73% day-over-day), with an intraday range of 6.26 (99.08\u201392.82), consistent with an inflection attempt.",
+        "Participation improved: volume 4.77M vs rvol_20=1.45 (above average), supporting the breakout attempt rather than a low-liquidity poke.",
+        "Volatility regime shifted from tight to expanding: bb_width_pctile 24.21 with bb_width_pctile_expanding=1.0 and squeeze_release=true (signal strength 77), often a \u201cmove starting\u201d condition.",
+        "Trend backdrop is supportive: trend_regime=uptrend, price is above rising averages (close 98.56 vs sma_20 91.77 and sma_50 90.97; ma_slope_20=1.38, ma_slope_50=0.62).",
+        "Momentum is constructive but not stretched: RSI-14 is 54.92 and MACD histogram is positive at 0.52, suggesting upside room if follow-through appears."
+      ],
+      "key_levels": {
+        "support": [
+          93.34,
+          91.49,
+          89.99,
+          84.29
+        ],
+        "resistance": [
+          99.08,
+          110.155
+        ],
+        "invalidation": 91.49
+      },
+      "what_to_watch_next": [
+        "Follow-through above 99.08: a close above the 99.08 breakout level (not just an intraday tag) would improve odds that this is a real breakout attempt rather than a one-day spike.",
+        "Retest behavior: if price pulls back, watch whether 93.34\u201392.84 (recent late-Dec closes) holds as support; holding that zone would keep the breakout structure intact.",
+        "Volume confirmation: look for continued above-average participation (rvol_20 staying ~>1.0) on up days; fading volume after the tag can signal a failed breakout.",
+        "Upside targets/overhead supply: if 99.08 clears, the next major reference is the 55-day Donchian high at 110.155 (prior swing/overhead area)."
+      ],
+      "risks_and_contradictions": [
+        "Breakout is not confirmed in the provided features (breakout_confirmed_up=0.0), so this may still be an initial \u201ctag\u201d that can fail without additional closes above resistance.",
+        "Overhead resistance is meaningful: the 55-day Donchian high is 110.155, and the broader lookback shows prior highs near 109.66 (2025-10-29), implying potential supply above.",
+        "Recent volatility can cut both ways: ATR% is 3.89 and the 1/2 bar had a wide range (99.08\u201392.82); sharp reversals are plausible if the breakout stalls.",
+        "RSI is only mid-range (54.92): momentum is improving but not decisively strong; a quick drop back below the 20D area (sma_20 ~91.77) would weaken the bullish inflection read."
+      ],
+      "confidence": 0.74,
+      "_tokens_in": 5182,
+      "_tokens_out": 847,
+      "_model": "gpt-5.2"
+    },
+    "ASML": {
+      "attention_level": "FOCUS",
+      "direction": "bullish",
+      "setup_type": "breakout",
+      "time_horizon": "days",
+      "summary_text": "ASML gapped up +8.78% on 2.31x RVOL, tagging a fresh 20/55-day high (1172.77) and confirming an upside breakout.",
+      "why_now": [
+        "Breakout trigger: 2026-01-02 printed a new 20-day and 55-day Donchian high at 1172.77 with breakout_up_20=1 and breakout_confirmed_up=1.",
+        "Volatility shock + gap: gap_up=true with gap_pct=5.97% and a strong 1-day return of +8.78% (return_1d=0.0878; return_z=3.07).",
+        "Participation/volume confirmation: rvol_20=2.31 and volume_z_60=2.10 on 2026-01-02 (volume 2,694,258 vs much lower late-Dec volumes), supporting the breakout move.",
+        "Trend context is supportive: trend_regime='bullish' with price extended above key averages (ma_dist_20=+7.44%, ma_dist_50=+10.17%, ma_dist_200=+37.96%).",
+        "Momentum is constructive but not overheated: RSI-14=57.11 and MACD histogram is positive (3.63), suggesting room for follow-through if the breakout holds."
+      ],
+      "key_levels": {
+        "support": [
+          1133.48,
+          1110.08,
+          1077.19,
+          1065.52,
+          1010.01
+        ],
+        "resistance": [
+          1172.77
+        ],
+        "invalidation": 1110.08
+      },
+      "what_to_watch_next": [
+        "Hold vs. fail of the breakout zone: watch whether price can stay above ~1172.77 (the new 20/55-day high) on a closing basis after the gap-driven surge.",
+        "Gap integrity: monitor whether the 2026-01-02 gap area (roughly 1069.86 prior close to 1133.76 open) remains unfilled; fast gap-fills often reduce breakout quality.",
+        "Volume follow-through: after the 2.31x RVOL day, look for at least average volume on any continuation attempts; weak volume on pushes higher can signal exhaustion.",
+        "Pullback quality: if it consolidates, watch for higher lows above ~1133.48 (day\u2019s low) and then a re-test/clear of 1172.77."
+      ],
+      "risks_and_contradictions": [
+        "Single-day extension risk: the move was large (+8.78% in one session) and price is +7.44% above the 20-day SMA (1083.21), increasing odds of near-term mean reversion.",
+        "Overhead supply not yet tested: the breakout is driven by a gap/volatility shock; if price cannot build acceptance above 1172.77, it can revert into the prior range quickly.",
+        "Recent sharp drawdown memory: the 20-day Donchian low is 1010.01 (from 2025-12-17), showing the stock recently experienced deep downside volatility\u2014breakouts can be prone to whipsaw in that context."
+      ],
+      "confidence": 0.74,
+      "_tokens_in": 4905,
+      "_tokens_out": 754,
+      "_model": "gpt-5.2"
+    },
+    "FIL": {
+      "attention_level": "FOCUS",
+      "direction": "bullish",
+      "setup_type": "breakout",
+      "time_horizon": "days",
+      "summary_text": "FIL printed a 20D breakout to 1.4958 on ~1.79x RVOL, signaling a fresh upside inflection after a multi-week base.",
+      "why_now": [
+        "20-day Donchian breakout: close on 2026-01-02 is 1.4958, matching the 20D high (donchian_high_20 = 1.4958) with breakout_confirmed_up = 1.0.",
+        "Participation expanded: rvol_20 = 1.7875 with volume 195.23M vs dollar_volume_sma_20 ~142.57M, supporting the breakout move.",
+        "Momentum flipped up quickly: 5D ROC = +13.91% and 20D ROC = +11.51% (squeeze_release evidence), with MACD histogram positive at +0.0325.",
+        "Price reclaimed the 20D average decisively: sma_20 = 1.2993 and ma_dist_20 = +0.1513 (\u2248 +15.1% above the 20D).",
+        "RSI is near \u201chot\u201d but not extreme: rsi_14 = 69.75, consistent with early breakout thrust but also near typical short-term exhaustion zones.",
+        "Volatility expansion from a relatively tight state: bb_width_pctile = 29.76 with bb_width_pctile_expanding = true, consistent with a squeeze-release style move."
+      ],
+      "key_levels": {
+        "support": [
+          1.33510471,
+          1.31316246,
+          1.299257141,
+          1.27135574
+        ],
+        "resistance": [
+          1.49581774,
+          1.5172543944,
+          1.59899141
+        ],
+        "invalidation": 1.299257141
+      },
+      "what_to_watch_next": [
+        "Follow-through vs. failure: does price hold above the prior breakout area (1.4958) or quickly slip back below it on rising volume?",
+        "Retest quality: a pullback that holds 1.3351\u20131.3132 (recent late-Dec closes) would keep the breakout constructive; losing that zone increases odds of a bull-trap.",
+        "Volume confirmation: watch whether rvol_20 stays elevated (>~1.0) on up days; fading volume while price stalls near 1.4958\u20131.5173 would be a caution.",
+        "Momentum cooling without breakdown: RSI(14) is 69.75\u2014watch if RSI can stay elevated while price consolidates above the 20D SMA (1.2993)."
+      ],
+      "risks_and_contradictions": [
+        "Bigger-picture trend is still damaged: price remains below the 200D (sma_200 = 2.0861; ma_dist_200 = -0.2829), so overhead supply risk is high on rallies.",
+        "Still below the 50D: sma_50 = 1.5173 with ma_dist_50 = -0.0141 (\u22481.4% below), meaning immediate resistance is close and could reject the move.",
+        "RSI near 70 (69.75) raises near-term pullback risk right after a sharp daily jump (1.2964 to 1.4958).",
+        "OHLC data quality is limited (many days have open/high/low = null or equal to close), reducing confidence in intraday level precision and pattern reads."
+      ],
+      "confidence": 0.66,
+      "_tokens_in": 4916,
+      "_tokens_out": 802,
+      "_model": "gpt-5.2"
+    },
+    "CVX": {
+      "attention_level": "FOCUS",
+      "direction": "bullish",
+      "setup_type": "breakout",
+      "time_horizon": "weeks",
+      "summary_text": "CVX tagged a 20-day high at 155.90 on a squeeze release; watch for follow-through above 155.9 vs. failure back under ~152.",
+      "why_now": [
+        "Fresh 20-day upside breakout: close 155.90 equals the 20D Donchian high (155.9) with breakout_up_20=1 and breakout_confirmed_up=1.",
+        "Strong near-term momentum: roc_5 = +3.59% and roc_20 = +2.84% (trend_ignition evidence), aligning with the breakout day.",
+        "Squeeze release is flagged true with bb_width_pctile at 18.25 (still relatively tight), suggesting volatility expansion just started rather than already extended.",
+        "Momentum confirmation: MACD histogram is positive at +0.7549 and RSI-14 is 64.58 (bullish but not extreme).",
+        "Price reclaimed/held above key long-term reference: close 155.90 is above the 200SMA 148.26 (ma_dist_200 = +5.15%).",
+        "Drawdown context is mild: drawdown_63d = -1.15% and drawdown_252d = -4.23%, so this breakout is not coming from a deeply damaged chart."
+      ],
+      "key_levels": {
+        "support": [
+          152.41,
+          150.0,
+          146.49
+        ],
+        "resistance": [
+          155.9,
+          157.95,
+          159.18
+        ],
+        "invalidation": 151.25
+      },
+      "what_to_watch_next": [
+        "Follow-through condition: additional closes above 155.90 (20D high) rather than an immediate fade back below that level.",
+        "Retest behavior: if price pulls back, watch whether 152.31\u2013152.41 (12/30\u201312/31 closes) holds as first support vs. a deeper drop toward 150.00.",
+        "Upside targets/overhead supply: watch reactions near 157.95 (11/14 high) and then 159.18 (55D Donchian high).",
+        "Participation check: rvol_20 is only 0.84 and volume_z_60 is -0.35 on the breakout day\u2014watch for volume to expand on up-days to validate demand."
+      ],
+      "risks_and_contradictions": [
+        "Breakout occurred on below-average participation (rvol_20 = 0.84; volume_z_60 = -0.35), increasing risk of a false breakout.",
+        "Trend backdrop is mixed: trend_regime is 'neutral' and the 50SMA slope is slightly negative (ma_slope_50 = -0.0021), so the move may need more time to prove a sustained uptrend.",
+        "Immediate downside risk is non-trivial given the day\u2019s range: low 151.25 is ~3.0% below the close 155.90; a quick reversal could trap late breakout buyers."
+      ],
+      "confidence": 0.72,
+      "_tokens_in": 4794,
+      "_tokens_out": 705,
+      "_model": "gpt-5.2"
+    },
+    "MO": {
+      "attention_level": "FOCUS",
+      "direction": "bearish",
+      "setup_type": "breakdown",
+      "time_horizon": "days",
+      "summary_text": "MO is pressing fresh 20D lows (57.05) with price below falling 20/50/200 SMAs; watch for follow-through under 57.05 vs. failed breakdown reclaiming ~58.35.",
+      "why_now": [
+        "Breakout_down_20 triggered: 2026-01-02 printed a 20-day Donchian low at 57.05 and closed near it at 57.31 (donchian_low_20=57.05; close=57.31).",
+        "Trend breakdown alignment: close 57.31 is below all key averages (sma_20=58.357, sma_50=58.831, sma_200=59.7818) with negative distances (ma_dist_20=-1.79%, ma_dist_50=-2.59%, ma_dist_200=-4.13%).",
+        "Downtrend regime + weakening participation: trend_regime='downtrend' and OBV slope is negative (obv_slope_20=-0.3346), consistent with distribution during the decline.",
+        "Momentum is bearish but not capitulated: RSI(14)=35.28 and MACD histogram is negative (-0.0752), suggesting downside pressure with room for either continuation or a reflex bounce.",
+        "Volume picked up on the breakdown attempt: rvol_20=1.31 and volume 12.11M on 2026-01-02 vs. recent typical levels (volume_z_60=0.71), increasing the odds the 57.05 level matters.",
+        "Compression/expansion context: BB width is relatively tight (bb_width_pctile=18.25) while flagged as expanding (bb_width_pctile_expanding=1.0), often coinciding with directional moves after a squeeze."
+      ],
+      "key_levels": {
+        "support": [
+          57.05,
+          56.18
+        ],
+        "resistance": [
+          58.35,
+          58.83,
+          59.81
+        ],
+        "invalidation": 58.357
+      },
+      "what_to_watch_next": [
+        "Follow-through: a daily close below 57.05 (20D low) would confirm downside continuation risk toward the 55D low at 56.18.",
+        "Failure signal: reclaiming and holding above the 20D SMA (~58.36) would argue this was a breakdown attempt that failed (near-term bearish thesis weakened).",
+        "Volume confirmation: if additional down days occur, watch whether volume stays elevated (rvol_20 currently 1.31) and OBV slope remains negative\u2014this would support sustained selling pressure.",
+        "Overhead supply test: any bounce into 58.83 (50D SMA) to 59.81 (20D Donchian high) that stalls/rolls over would reinforce the breakdown structure."
+      ],
+      "risks_and_contradictions": [
+        "Not yet a confirmed breakdown by close: breakout_confirmed_down=0.0 and the close (57.31) is still above the 20D low (57.05), so this could remain a probe rather than a decisive break.",
+        "Mean-reversion risk: RSI(14)=35.28 is near oversold territory; sharp bounces are possible even within downtrends, especially if price snaps back above ~58.36.",
+        "Volatility is currently low (atr_pct=1.19; atr_pctile=6.35), which can produce whipsaws around key levels (57.05 / 58.36) before direction resolves."
+      ],
+      "confidence": 0.74,
+      "_tokens_in": 4802,
+      "_tokens_out": 815,
+      "_model": "gpt-5.2"
+    },
+    "CRWD": {
+      "attention_level": "URGENT",
+      "direction": "bearish",
+      "setup_type": "breakdown",
+      "time_horizon": "days",
+      "summary_text": "CRWD broke to new 20/55-day lows on heavy volume; momentum is washed out (RSI 18) but trend damage is active below key MAs.",
+      "why_now": [
+        "Fresh downside breakout: breakout_down_20=1.0 with breakout_confirmed_down=1.0, and price tagged the Donchian low (low 449.455 equals donchian_low_20/55=449.455).",
+        "Major distribution day: 2026-01-02 closed 453.58 after trading down to 449.455, on 3,276,356 shares (rvol_20=1.55; volume_z_60=1.11).",
+        "Trend breakdown signal aligns with price under key averages: close 453.58 vs sma_20 489.95 (-7.42%) and sma_50 512.05 (-11.42%), and also below sma_200 461.71 (-1.76%).",
+        "Momentum is extremely oversold: RSI_14=18.15 with MACD histogram -2.39, consistent with downside acceleration rather than a stable base.",
+        "Drawdown is meaningful and recent: drawdown_63d = -18.64% (same as drawdown_252d), suggesting this is a notable swing breakdown, not a minor pullback.",
+        "Volume/flow confirms weakness: obv_slope_20 = -0.117, indicating net selling pressure over the last month."
+      ],
+      "key_levels": {
+        "support": [
+          449.455,
+          469.835,
+          477.11
+        ],
+        "resistance": [
+          475.91,
+          489.205,
+          504.78
+        ],
+        "invalidation": 461.70865
+      },
+      "what_to_watch_next": [
+        "Follow-through vs. the breakdown level: does price hold below ~475.9 (12/29 close 475.91) or reclaim it quickly after the 449.455 low tag?",
+        "Reaction at the 449.455 low: another close near/through 449.455 would keep the breakdown active; a strong bounce that fails under ~489.2 (12/19 high 489.205) would look like a bear flag.",
+        "Mean-reversion attempt: with RSI_14 at 18.15, watch for a 1\u20133 day snapback\u2014quality matters (higher close with lower rvol_20 than 1.55 would be less convincing).",
+        "Overhead supply zones: monitor whether rallies stall near ~481.2 (12/26 close 481.19) and ~504.8 (12/12 close 504.78), which were prior support before the selloff."
+      ],
+      "risks_and_contradictions": [
+        "Oversold risk: RSI_14=18.15 is extreme and can produce sharp counter-trend bounces that temporarily negate short-term bearish follow-through.",
+        "Price is only ~1.76% below the 200-day (sma_200=461.71); a quick reclaim/hold above the 200-day could shift this from breakdown to failed-breakdown.",
+        "Trend_regime is labeled \"neutral\" despite the breakdown signals, implying mixed higher-level context and increasing the chance of whipsaw around the 200-day area.",
+        "The day\u2019s low (449.455) matched the 20/55-day Donchian low exactly; that can act as a mechanical support where buyers step in, so confirmation requires additional closes below/failed retests."
+      ],
+      "confidence": 0.74,
+      "_tokens_in": 4819,
+      "_tokens_out": 817,
+      "_model": "gpt-5.2"
+    },
+    "PLTR": {
+      "attention_level": "FOCUS",
+      "direction": "bearish",
+      "setup_type": "breakdown",
+      "time_horizon": "days",
+      "summary_text": "PLTR triggered a confirmed 20D downside breakout on heavy volume, closing near the 20D low (167.86 vs 166.35) with weak momentum (RSI 34.2).",
+      "why_now": [
+        "Confirmed downside breakout: breakout_down_20=1.0 and breakout_confirmed_down=1.0 with price pressing the 20D Donchian low (close 167.86 vs donchian_low_20 166.35).",
+        "Large single-day selloff: 2026-01-02 close fell from 177.75 to 167.86 (-5.56%) and traded down to 166.35 intraday (new 20D low).",
+        "Participation/volume expanded on the break: rvol_20=1.66 and 2026-01-02 volume 60.06M vs 20D dollar-volume SMA ~6.68B (elevated activity relative to recent).",
+        "Momentum/pressure is bearish: RSI_14=34.24 and MACD histogram=-1.95, consistent with downside follow-through risk after the break.",
+        "Price lost key moving averages: close 167.86 is -9.04% below SMA20 (184.55) and -7.23% below SMA50 (180.94), turning prior support into overhead supply.",
+        "Volatility expansion from a tight regime: BB width percentile is low (11.90) but expanding (bb_width_pctile_expanding=1.0) alongside a bearish squeeze_release signal (strength 63)."
+      ],
+      "key_levels": {
+        "support": [
+          166.35,
+          162.42,
+          154.85,
+          147.56
+        ],
+        "resistance": [
+          177.25,
+          181.35,
+          184.73,
+          188.71,
+          195.0
+        ],
+        "invalidation": 184.55
+      },
+      "what_to_watch_next": [
+        "Follow-through vs. snapback: does price hold below ~177.25 (12/31 low) after the breakdown, or reclaim it quickly (failed breakdown risk)?",
+        "Support reaction at 166.35 (20D low): a decisive daily close below 166.35 would open room toward prior pivots 162.42 then 154.85.",
+        "Volume on down days vs up days: after 60.06M shares on 1/2, watch whether additional declines come with sustained elevated volume (rvol_20 staying >1).",
+        "Overhead supply zones: any bounce into 180.94 (SMA50) to 184.55 (SMA20) \u2014 does it stall/reject there or regain those averages?",
+        "Volatility expansion behavior: with atr_pct ~4.43% and BB width expanding, monitor whether ranges stay wide (trend continuation) or compress again (range/mean reversion)."
+      ],
+      "risks_and_contradictions": [
+        "Longer-term trend not fully broken: close remains above SMA200 (151.04) by +11.14%, so this can still resolve as a pullback within a bigger uptrend rather than a full trend reversal.",
+        "OBV slope over 20D is slightly positive (obv_slope_20=0.0044), which can conflict with a clean distribution narrative and raises the odds of a sharp rebound if selling exhausts.",
+        "Breakdown occurred after a prior high near 195.00 (12/19) and 198.88 (20D high): strong mean-reversion bounces are possible after a -13.55% 5-day ROC (signal evidence roc_5=-0.1355).",
+        "Trend regime is labeled neutral, so directional conviction relies heavily on the fresh breakout/volatility expansion; if price reclaims 180\u2013185 quickly, bearish edge degrades."
+      ],
+      "confidence": 0.74,
+      "_tokens_in": 4792,
+      "_tokens_out": 891,
+      "_model": "gpt-5.2"
+    },
+    "NOW": {
+      "attention_level": "FOCUS",
+      "direction": "bearish",
+      "setup_type": "breakdown",
+      "time_horizon": "days",
+      "summary_text": "NOW is pressing fresh 20/55-day lows on elevated volume; downtrend intact with oversold momentum\u2014watch for breakdown follow-through vs. snapback.",
+      "why_now": [
+        "Price closed at 147.45 on 2026-01-02 after printing a new 20/55-day Donchian low at 145.64 (breakout_down_20 = 1.0).",
+        "Bearish trend breakdown conditions are strong: close 147.45 is below SMA20 159.95 (-7.81%), SMA50 167.85 (-12.15%), and SMA200 181.35 (-18.69%).",
+        "Volume expanded on the selloff: rvol_20 = 1.66 and volume_z_60 = 1.73, with 9.61M shares on 2026-01-02 vs. recent ~5\u20137M days.",
+        "Momentum is deeply oversold (RSI-14 = 20.06) while MACD histogram remains negative (-0.507), consistent with downside pressure but also raising snapback risk.",
+        "Volatility regime is elevated/expanding: bb_width = 21.64 with bb_width_pctile = 82.94 and atr_pct = 128.65, implying larger-than-normal daily ranges around this breakdown.",
+        "Downtrend participation is confirmed by negative OBV slope (obv_slope_20 = -73.44) and trend_regime = downtrend, suggesting distribution rather than a clean capitulation reversal."
+      ],
+      "key_levels": {
+        "support": [
+          145.64,
+          151.15,
+          152.54
+        ],
+        "resistance": [
+          154.58,
+          159.95,
+          167.85
+        ],
+        "invalidation": 159.95
+      },
+      "what_to_watch_next": [
+        "Follow-through vs. failure at the breakdown level: does price hold below 145.64 (20/55-day low) or reclaim it quickly?",
+        "Reaction to the 151\u2013154 zone (recent lows/highs: 151.15 on 12-18; 154.58 on 12-29): rejection there would reinforce the breakdown; acceptance would hint at a base attempt.",
+        "Volume behavior on down days vs. up days: with rvol_20 already 1.66 and OBV slope negative, continued heavy volume on red candles would confirm distribution.",
+        "Mean-reversion trigger: given RSI-14 = 20.06, watch for a sharp bounce that stalls below SMA20 (159.95)\u2014a common spot for bear-market rallies to fail."
+      ],
+      "risks_and_contradictions": [
+        "Oversold conditions are extreme (RSI-14 ~20), increasing the odds of a sharp counter-trend bounce that can invalidate short-term bearish timing even if the larger trend stays down.",
+        "The dataset shows a major price-scale discontinuity in mid-December (prices shift from ~800s to ~150s), which can distort moving averages/volatility features and reduces reliability of longer lookbacks.",
+        "Breakout is not confirmed by the provided flag (breakout_confirmed_down = 0.0), so this may be an initial push to new lows that still needs follow-through.",
+        "Very high volatility (atr_pct 128.65; bb_width_pctile 82.94) raises whipsaw risk around key levels (145.64 and 159.95)."
+      ],
+      "confidence": 0.62,
+      "_tokens_in": 4806,
+      "_tokens_out": 797,
+      "_model": "gpt-5.2"
+    },
+    "ZS": {
+      "attention_level": "FOCUS",
+      "direction": "bearish",
+      "setup_type": "breakdown",
+      "time_horizon": "days",
+      "summary_text": "ZS is pressing fresh 20/55-day lows (220.57 close; 217.23 low) with price well below key MAs\u2014bearish inflection needs follow-through or quick reclaim.",
+      "why_now": [
+        "New downside breakout condition is present: breakout_down_20 = 1.0 with price tagging the 20/55-day Donchian low at 217.2341 (day low 217.2341 on 2026-01-02).",
+        "Trend damage is clear: close 220.57 is below SMA20 233.48 (ma_dist_20 = -5.53%), far below SMA50 273.95 (ma_dist_50 = -19.48%) and SMA200 269.27 (ma_dist_200 = -18.08%).",
+        "Momentum is washed out: RSI_14 = 23.83 (oversold territory), consistent with a bearish inflection but also raises snapback risk.",
+        "Participation is not absent: rvol_20 = 1.05 on the breakdown day (volume 1,644,451 vs typical), suggesting the move isn\u2019t purely illiquid drift.",
+        "Large drawdown context: drawdown_63d = -34.41% (same as drawdown_252d), so this breakdown is occurring within a sustained decline rather than a fresh uptrend pullback.",
+        "Signal stack aligns bearish: breakout_participation (67) + trend_breakdown (69) with weighted_score = -136 and inflection_score = -176.8."
+      ],
+      "key_levels": {
+        "support": [
+          217.2341,
+          224.8778,
+          226.5
+        ],
+        "resistance": [
+          231.06,
+          233.4825,
+          243.66
+        ],
+        "invalidation": 233.4825
+      },
+      "what_to_watch_next": [
+        "Follow-through vs. failed breakdown: does price hold below ~224.88 (12/31 low) and especially below 217.23 (Donchian low), or does it reclaim back above 226.50\u2013228.00 quickly?",
+        "Reaction at first overhead supply: any bounce that stalls near 231.06 (12/26 high) or the SMA20 at 233.48 would keep the breakdown thesis intact; a clean close back above 233.48 would weaken it.",
+        "Volume/participation on the next red day: rvol_20 is only ~1.05 on the break\u2014watch for expanding volume if 217.23 breaks (would suggest stronger downside acceptance).",
+        "Given RSI_14 = 23.83, monitor for a sharp mean-reversion day that closes back above 228\u2013230; that would signal sellers may be exhausting short-term."
+      ],
+      "risks_and_contradictions": [
+        "Oversold risk: RSI_14 at 23.83 increases odds of a short-term snapback/whipsaw even if the larger trend is down.",
+        "MACD histogram is positive (macd_histogram = 1.41) despite the breakdown signals, hinting at potential loss of downside momentum or a developing divergence (needs confirmation in price).",
+        "Breakout is not confirmed by the provided flags: breakout_confirmed_down = 0.0, so this could still become a failed breakdown if price reclaims the prior range quickly.",
+        "Trend_regime is labeled neutral, which reduces confidence that this is a clean, persistent trend move versus a volatile range-to-down transition."
+      ],
+      "confidence": 0.68,
+      "_tokens_in": 4809,
+      "_tokens_out": 810,
+      "_model": "gpt-5.2"
+    }
+  },
+  "gemini_3_flash_results": {
+    "ONDS": {
+      "attention_level": "URGENT",
+      "direction": "bullish",
+      "setup_type": "breakout",
+      "time_horizon": "days",
+      "summary_text": "Explosive breakout to multi-month highs on high relative volume following a squeeze release.",
+      "why_now": [
+        "Price closed at $11.02 on 2026-01-02, marking a 12.9% single-day gain and a fresh 20-day high (Donchian High $11.06).",
+        "Relative volume (RVOL_20) of 1.69 confirms high conviction behind the move, with 135M shares traded vs. the 20-day average.",
+        "A 'squeeze_release' signal (strength 77) triggered as Bollinger Bands began expanding from a low-volatility period (BB width percentile 11.9%).",
+        "The 'trend_ignition' signal (strength 66) is supported by a 20.7% price increase over the last 5 trading sessions.",
+        "Price has cleared significant overhead resistance at $9.86 (Dec 09 high) and $10.53 (Dec 31 high) on an accelerating slope.",
+        "Momentum is confirmed by the MACD histogram rising to 0.15 and the 20-day SMA slope increasing to 3.51."
+      ],
+      "key_levels": {
+        "support": [
+          9.76,
+          9.13,
+          8.84
+        ],
+        "resistance": [
+          11.06,
+          12.0
+        ],
+        "invalidation": 8.84
+      },
+      "what_to_watch_next": [
+        "Monitor for follow-through above the $11.06 high on the next trading session to confirm the breakout.",
+        "Watch for a successful retest of the $9.80-$10.00 breakout zone as new support.",
+        "Observe RSI (currently 62.4) for a move into the overbought 70+ territory which may precede a pause."
+      ],
+      "risks_and_contradictions": [
+        "Extreme extension from long-term averages: price is currently 153.9% above the 200-day SMA ($4.33).",
+        "High volatility risk: the ATR % is 8.87%, suggesting wide daily price swings are likely.",
+        "The rapid vertical move (24.6% above the 20-day SMA) increases the probability of a sharp mean-reversion pullback."
+      ],
+      "confidence": 0.9,
+      "_tokens_in": 6616,
+      "_tokens_out": 632,
+      "_model": "gemini-3-flash-preview"
+    },
+    "CCJ": {
+      "attention_level": "FOCUS",
+      "direction": "bullish",
+      "setup_type": "breakout",
+      "time_horizon": "weeks",
+      "summary_text": "CCJ triggers a bullish squeeze release and 20-day breakout on elevated volume, signaling a potential trend acceleration.",
+      "why_now": [
+        "Price closed at 98.56 on 2026-01-02, marking a fresh 20-day breakout (breakout_up_20: 1.0) and approaching the 55-day high of 110.15.",
+        "A high-strength 'squeeze_release' signal (strength: 77) fired as Bollinger Band width began expanding from a low-volatility period (bb_width_pctile_expanding: true).",
+        "Relative volume (rvol_20) of 1.45 indicates significant participation in the move, with volume on the breakout day (4,768,223) well above the recent average.",
+        "The 'trend_ignition' signal (strength: 66) is supported by a bullish moving average structure, with the SMA 20 (91.77) trending above the SMA 50 (90.97).",
+        "MACD histogram has turned positive (0.52) and the RSI (54.92) has room to run before reaching overbought territory."
+      ],
+      "key_levels": {
+        "support": [
+          91.49,
+          84.29
+        ],
+        "resistance": [
+          99.08,
+          106.46,
+          110.15
+        ],
+        "invalidation": 90.89
+      },
+      "what_to_watch_next": [
+        "Immediate follow-through above the 99.08 high to confirm the breakout validity.",
+        "Maintenance of relative volume above 1.0 to ensure institutional support for the new trend.",
+        "RSI progression toward the 60-70 zone, which would indicate accelerating bullish momentum."
+      ],
+      "risks_and_contradictions": [
+        "The asset is significantly extended from its long-term mean, trading 35.9% above the SMA 200 (72.51).",
+        "Historical overhead supply exists near the 106.46 level (Oct 29 close) which may stall the current advance.",
+        "A close back below the breakout base of 91.49 would suggest a 'bull trap' or failed breakout."
+      ],
+      "confidence": 0.85,
+      "_tokens_in": 6860,
+      "_tokens_out": 619,
+      "_model": "gemini-3-flash-preview"
+    },
+    "ASML": {
+      "attention_level": "URGENT",
+      "direction": "bullish",
+      "setup_type": "breakout",
+      "time_horizon": "weeks",
+      "summary_text": "ASML gapped up 6% on 2.3x relative volume, clearing December resistance to hit new 55-day highs.",
+      "why_now": [
+        "Price gapped up 5.97% on 2026-01-02, opening at 1133.76 and closing strongly at 1163.78.",
+        "Relative volume (RVOL_20) is 2.30, indicating massive institutional participation in the breakout.",
+        "The move cleared the previous multi-week resistance of 1141.72 (Dec 3 high) and established a new 55-day Donchian high of 1172.77.",
+        "RSI is at 57.11, suggesting the move has significant room to run before reaching overbought territory.",
+        "The asset is in a confirmed bullish trend regime, trading 37.9% above its 200-day SMA of 843.55."
+      ],
+      "key_levels": {
+        "support": [
+          1133.76,
+          1069.86,
+          1010.01
+        ],
+        "resistance": [
+          1172.77,
+          1200.0
+        ],
+        "invalidation": 1069.86
+      },
+      "what_to_watch_next": [
+        "Monitor if price holds above the gap-up open of 1133.76 on the next 3 trading sessions.",
+        "Watch for a continuation of high volume to confirm institutional accumulation.",
+        "Observe RSI for a move toward 70, which would indicate the start of a parabolic phase."
+      ],
+      "risks_and_contradictions": [
+        "The 5.97% gap creates a 'liquidity vacuum' below that could be filled if momentum fails.",
+        "Price is significantly extended from the 200-day SMA (37.9%), increasing the risk of a mean-reversion event later in the quarter.",
+        "Short-term extension from the 20-day SMA (7.4%) may lead to a brief consolidation or 'retest' of the breakout point."
+      ],
+      "confidence": 0.92,
+      "_tokens_in": 6513,
+      "_tokens_out": 584,
+      "_model": "gemini-3-flash-preview"
+    },
+    "FIL": {
+      "attention_level": "FOCUS",
+      "direction": "bullish",
+      "setup_type": "breakout",
+      "time_horizon": "days",
+      "summary_text": "FIL triggers high-strength bullish breakout from a volatility squeeze on 1.78x relative volume.",
+      "why_now": [
+        "Price surged 15.3% on 2026-01-02 to close at 1.4958, marking a confirmed 20-day Donchian channel breakout.",
+        "Relative volume (RVol_20) reached 1.78, indicating significant market participation during the price expansion.",
+        "A 'squeeze_release' signal (strength 73) fired as Bollinger Bands began expanding from a low-volatility state (29.7 percentile).",
+        "The 'breakout_participation' signal (strength 89) is supported by a sharp increase in the 20-day MA distance to +15.1%.",
+        "Short-term momentum has shifted positive with the MACD histogram rising to 0.032 and RSI climbing to 69.75.",
+        "The asset shows strong relative strength versus the benchmark (1.66e-05) during this inflection."
+      ],
+      "key_levels": {
+        "support": [
+          1.296,
+          1.188
+        ],
+        "resistance": [
+          1.517,
+          2.086
+        ],
+        "invalidation": 1.277
+      },
+      "what_to_watch_next": [
+        "Monitor for a daily close above the 50-day SMA (1.517) to confirm intermediate-term trend reversal.",
+        "Watch for a successful retest of the 1.30 breakout level on declining volume.",
+        "Observe if RSI enters and holds the overbought zone (>70) or if it triggers a mean-reversion pullback."
+      ],
+      "risks_and_contradictions": [
+        "The long-term trend remains bearish as price is still 28.3% below the 200-day SMA (2.086).",
+        "Immediate overhead supply is expected at the 50-day SMA (1.517), which is only 1.4% above current price.",
+        "The rapid 15% move in a single day increases the risk of a 'stop-run' or temporary exhaustion."
+      ],
+      "confidence": 0.85,
+      "_tokens_in": 6822,
+      "_tokens_out": 588,
+      "_model": "gemini-3-flash-preview"
+    },
+    "CVX": {
+      "attention_level": "FOCUS",
+      "direction": "bullish",
+      "setup_type": "breakout",
+      "time_horizon": "weeks",
+      "summary_text": "CVX triggers a bullish breakout and squeeze release, clearing the 152.50 resistance zone on strong momentum.",
+      "why_now": [
+        "Price closed at 155.90 on 2026-01-02, marking a confirmed 20-day breakout and the highest close since early November.",
+        "A 'Squeeze Release' signal (Strength 72) fired as Bollinger Band width (18.25 percentile) begins to expand from a low-volatility period.",
+        "The 'Trend Ignition' signal (Strength 76) is supported by a 5-day Rate of Change (ROC) of 3.58%, indicating a sharp acceleration in price.",
+        "Price has moved 3.7% above the 20-day SMA (150.27) and 5.1% above the 200-day SMA (148.26), establishing a bullish multi-timeframe alignment.",
+        "MACD Histogram has shifted positive to 0.75, confirming that short-term momentum is now favoring buyers."
+      ],
+      "key_levels": {
+        "support": [
+          152.41,
+          150.27,
+          146.49
+        ],
+        "resistance": [
+          156.17,
+          157.99,
+          159.18
+        ],
+        "invalidation": 149.64
+      },
+      "what_to_watch_next": [
+        "Monitor for follow-through above the November 7 high of 156.17 to confirm the breakout's validity.",
+        "Watch for an increase in Relative Volume (currently 0.84) to confirm institutional conviction behind the move.",
+        "Observe RSI (currently 64.58) for a potential push into overbought territory (>70) which would signal strong trend strength."
+      ],
+      "risks_and_contradictions": [
+        "Relative Volume (RVOL) of 0.84 is below 1.0, suggesting the breakout occurred on lighter-than-average participation.",
+        "The 50-day SMA slope remains slightly negative (-0.002), indicating the medium-term trend is still in the process of bottoming.",
+        "Significant overhead supply exists between 158.00 and 159.18, representing the peaks from late October."
+      ],
+      "confidence": 0.85,
+      "_tokens_in": 6456,
+      "_tokens_out": 623,
+      "_model": "gemini-3-flash-preview"
+    },
+    "MO": {
+      "attention_level": "FOCUS",
+      "direction": "bearish",
+      "setup_type": "breakdown",
+      "time_horizon": "days",
+      "summary_text": "MO confirms a bearish trend breakdown, closing at new 20-day lows on elevated volume as it nears critical support at 56.18.",
+      "why_now": [
+        "Price closed at 57.31, marking a fresh 20-day breakdown with the day's low hitting the Donchian Low of 57.05.",
+        "Relative volume (rvol_20) of 1.31 indicates increased selling participation during the breakdown move.",
+        "The trend_breakdown signal carries high strength (78), reflecting price trading below the 20, 50, and 200-day SMAs.",
+        "The stock is currently -4.13% below its 200-day SMA (59.78), confirming a sustained bearish regime.",
+        "RSI (14) has dropped to 35.28, showing accelerating bearish momentum without being fully oversold yet."
+      ],
+      "key_levels": {
+        "support": [
+          57.05,
+          56.18
+        ],
+        "resistance": [
+          58.36,
+          59.81
+        ],
+        "invalidation": 58.98
+      },
+      "what_to_watch_next": [
+        "Monitor for a daily close below the 55-day Donchian low of 56.18 to confirm a larger-scale breakdown.",
+        "Watch for a volume spike exceeding 1.5x relative volume to signal either capitulation or a reversal attempt.",
+        "Observe if the 20-day SMA (58.36) acts as dynamic resistance on any short-term relief rallies."
+      ],
+      "risks_and_contradictions": [
+        "Price is approaching major historical support at 56.18 (Nov 2025 low), which may trigger a mean-reversion bounce.",
+        "ATR percentage is relatively low at 1.19%, suggesting the breakdown may be a slow grind rather than a high-volatility event.",
+        "RSI is nearing the 30 level, where technical buyers often look for temporary exhaustion of selling pressure."
+      ],
+      "confidence": 0.85,
+      "_tokens_in": 6273,
+      "_tokens_out": 561,
+      "_model": "gemini-3-flash-preview"
+    },
+    "CRWD": {
+      "attention_level": "URGENT",
+      "direction": "bearish",
+      "setup_type": "breakdown",
+      "time_horizon": "weeks",
+      "summary_text": "CRWD has decisively broken below its 200-day SMA and multi-month support on high relative volume, signaling a major trend inflection.",
+      "why_now": [
+        "Price closed at 453.58, representing a significant breach of the 200-day SMA (461.71) and a new 55-day low.",
+        "High relative volume (RVOL 1.55) on the breakdown day (3.27M shares) confirms aggressive selling pressure.",
+        "The 'breakout_participation' signal is active with a strength of 71, supported by a confirmed 20-day Donchian channel breakdown.",
+        "Momentum is accelerating to the downside with the price now -11.4% below its 50-day SMA (512.05).",
+        "RSI has collapsed to 18.15, indicating extreme bearish momentum and a lack of immediate buyer support."
+      ],
+      "key_levels": {
+        "support": [
+          449.45,
+          440.0
+        ],
+        "resistance": [
+          461.71,
+          468.76,
+          489.95
+        ],
+        "invalidation": 474.0
+      },
+      "what_to_watch_next": [
+        "Monitor for follow-through selling below the 449.45 low to confirm the start of a new bearish leg.",
+        "Watch for a potential 'dead cat bounce' toward the 200-day SMA (461.71) to see if it now acts as overhead resistance.",
+        "Observe volume on any recovery attempt; low volume would suggest a lack of institutional accumulation."
+      ],
+      "risks_and_contradictions": [
+        "The RSI of 18.15 is deeply oversold, which historically increases the probability of a short-term mean-reversion bounce.",
+        "The 200-day SMA (461.71) is a major psychological level; a 'look-below-and-fail' scenario could trap late sellers if price closes back above it quickly.",
+        "Trend regime is currently classified as 'neutral', suggesting the long-term structure has not yet fully transitioned to a confirmed bear market."
+      ],
+      "confidence": 0.85,
+      "_tokens_in": 6466,
+      "_tokens_out": 592,
+      "_model": "gemini-3-flash-preview"
+    },
+    "PLTR": {
+      "attention_level": "URGENT",
+      "direction": "bearish",
+      "setup_type": "breakdown",
+      "time_horizon": "days",
+      "summary_text": "PLTR has triggered a bearish inflection following a high-volume breakdown below its 20-day range and 50-day SMA.",
+      "why_now": [
+        "Price closed at 167.86, marking a significant -5.56% drop from the previous close and a -13.5% decline over the last 5 trading sessions.",
+        "A confirmed 20-day Donchian Channel breakdown occurred as price breached the 166.35 level on high relative volume (RVOL of 1.66).",
+        "The 'squeeze_release' signal triggered with expanding Bollinger Band width (14.6%), indicating a surge in downward volatility.",
+        "Price has decisively lost both the 20-day SMA (184.55) and 50-day SMA (180.94), now trading 9.04% and 7.23% below them respectively.",
+        "The MACD histogram has deepened to -1.946, confirming accelerating bearish momentum during this breakdown."
+      ],
+      "key_levels": {
+        "support": [
+          166.35,
+          154.39,
+          151.04
+        ],
+        "resistance": [
+          177.25,
+          180.94,
+          184.55
+        ],
+        "invalidation": 181.35
+      },
+      "what_to_watch_next": [
+        "Monitor for follow-through selling below the 166.35 low; a failure to reclaim 177.25 quickly suggests further downside.",
+        "Watch the 200-day SMA at 151.04 as the primary structural target and potential area for a major trend test.",
+        "Observe if RSI (currently 34.24) reaches oversold levels (<30), which may trigger a short-term mean-reversion bounce."
+      ],
+      "risks_and_contradictions": [
+        "The RSI is approaching oversold territory, which could lead to a 'dead cat bounce' that traps late sellers.",
+        "The long-term trend remains technically bullish as price is still 11.1% above the 200-day SMA (151.04).",
+        "The 'neutral' trend regime classification suggests this may be a deep correction within a range rather than a total trend reversal."
+      ],
+      "confidence": 0.85,
+      "_tokens_in": 6471,
+      "_tokens_out": 624,
+      "_model": "gemini-3-flash-preview"
+    },
+    "NOW": {
+      "attention_level": "URGENT",
+      "direction": "bearish",
+      "setup_type": "breakdown",
+      "time_horizon": "days",
+      "summary_text": "NOW has broken below a 2-week consolidation floor at 152 on high volume, signaling a resumption of the aggressive downtrend.",
+      "why_now": [
+        "Price closed at 147.45, marking a fresh 20-day and 55-day low and triggering a 'breakout_down_20' event.",
+        "Relative volume (RVOL) spiked to 1.66 on the breakdown, indicating significant selling pressure and participation.",
+        "The RSI (14) has plunged to 20.06, confirming intense bearish momentum and a lack of immediate buying interest.",
+        "The asset is trading significantly below key moving averages, specifically -7.8% from the 20-day SMA (159.95) and -18.7% from the 200-day SMA (181.35).",
+        "A high-strength 'trend_breakdown' signal (72) is active, supported by a sharply negative OBV slope of -73.44 over the last 20 days."
+      ],
+      "key_levels": {
+        "support": [
+          145.64,
+          140.0
+        ],
+        "resistance": [
+          153.19,
+          156.68
+        ],
+        "invalidation": 157.15
+      },
+      "what_to_watch_next": [
+        "Monitor for a daily close below the 145.64 low to confirm the next leg lower.",
+        "Watch for a low-volume retest of the 152-153 breakdown level as a potential resistance confirmation.",
+        "Observe if RSI remains pinned below 30, which would signal a 'power' downtrend rather than a mean-reversion opportunity."
+      ],
+      "risks_and_contradictions": [
+        "The RSI of 20.06 is deeply oversold, which historically increases the probability of a sharp, short-covering 'dead cat bounce'.",
+        "The ATR % of 128.6 indicates extreme price instability, suggesting that volatility could easily trigger wide stop-losses.",
+        "The significant discrepancy between historical High/Low data and Close prices in the provided OHLCV suggests potential data adjustments or corporate actions that may impact long-term level accuracy."
+      ],
+      "confidence": 0.85,
+      "_tokens_in": 6485,
+      "_tokens_out": 599,
+      "_model": "gemini-3-flash-preview"
+    },
+    "ZS": {
+      "attention_level": "FOCUS",
+      "direction": "bearish",
+      "setup_type": "breakdown",
+      "time_horizon": "weeks",
+      "summary_text": "ZS has collapsed to new 55-day lows at 217.23, confirming a major trend breakdown with significant overhead supply.",
+      "why_now": [
+        "Price established a new 55-day low of 217.23 on 2026-01-02, triggering a 'breakout_down_20' event.",
+        "The asset is trading deep below key moving averages, specifically 18.08% below the 200-day SMA (269.26) and 19.48% below the 50-day SMA (273.94).",
+        "A 'trend_breakdown' signal fired with a strength of 69, following a 34.4% drawdown from the 63-day high of 336.99.",
+        "RSI-14 has reached an extreme oversold level of 23.82, indicating high-velocity selling pressure and a lack of immediate buyers.",
+        "Relative volume (RVOL) of 1.05 on the breakdown day suggests active participation in the move lower compared to the 20-day average."
+      ],
+      "key_levels": {
+        "support": [
+          217.23,
+          210.0
+        ],
+        "resistance": [
+          224.92,
+          233.48,
+          249.64
+        ],
+        "invalidation": 233.5
+      },
+      "what_to_watch_next": [
+        "Monitor for follow-through selling below the 217.23 low to confirm the next leg of the downtrend.",
+        "Watch for a potential mean-reversion bounce toward the 20-day SMA (233.48) due to the extreme oversold RSI.",
+        "Observe volume patterns on any recovery attempts; low-volume bounces would confirm the bearish regime."
+      ],
+      "risks_and_contradictions": [
+        "The RSI of 23.82 is deeply oversold, which historically increases the probability of a short-term relief rally.",
+        "The MACD histogram (1.41) is showing a slight positive divergence as price makes new lows, suggesting a possible slowing of bearish momentum.",
+        "Holiday-season volume (Dec 24-31) was significantly lower than average, which may have exaggerated the recent price weakness."
+      ],
+      "confidence": 0.85,
+      "_tokens_in": 6445,
+      "_tokens_out": 623,
+      "_model": "gemini-3-flash-preview"
+    }
+  },
+  "gemini_3_pro_results": {
+    "ONDS": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "stratos_chart_review_output",
+      "type": "object",
+      "attention_level": "FOCUS",
+      "direction": "bullish",
+      "setup_type": "breakout",
+      "time_horizon": "weeks",
+      "summary_text": "High-volume breakout to new 55-day highs triggered a volatility squeeze release; strong momentum but extended from moving averages.",
+      "why_now": [
+        "Price closed at 11.02, confirming a breakout to new 55-day highs (Donchian High 11.06) and clearing December resistance (~9.86).",
+        "Institutional conviction is evident with back-to-back high volume days (156M and 135M shares) driving an RVOL of 1.70.",
+        "Volatility expansion is underway: 'squeeze_release' signal (strength 77) fired as Bollinger Band width expanded from the 12th percentile.",
+        "Momentum is accelerating with a 5-day Rate of Change > 20% and RSI at 62, leaving room before overbought territory.",
+        "Trend regime is firmly bullish, though price is extended 24.6% above the 20-day SMA."
+      ],
+      "key_levels": {
+        "support": [
+          9.76,
+          9.17
+        ],
+        "resistance": [
+          11.06,
+          12.0
+        ],
+        "invalidation": 9.15
+      },
+      "what_to_watch_next": [
+        "Immediate follow-through above the 11.06 session high.",
+        "Volume behavior on intraday pullbacks (should decrease relative to the 135M breakout volume).",
+        "Ability to hold the 9.76-10.00 psychological zone as new support."
+      ],
+      "risks_and_contradictions": [
+        "Extreme extension: Price is 153% above the 200-day SMA and 24% above the 20-day SMA, increasing mean-reversion risk.",
+        "High volatility (ATR ~8.9%) implies wide intraday ranges that can stop out tight trailing stops."
+      ],
+      "confidence": 0.9,
+      "_tokens_in": 6616,
+      "_tokens_out": 562,
+      "_model": "gemini-3-pro-preview"
+    },
+    "CCJ": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "stratos_chart_review_output",
+      "type": "object",
+      "attention_level": "FOCUS",
+      "direction": "bullish",
+      "setup_type": "breakout",
+      "time_horizon": "weeks",
+      "summary_text": "Strong breakout from 4-week consolidation with volatility expansion and volume confirmation.",
+      "why_now": [
+        "Price surged +7.7% to close at 98.56, decisively clearing the multi-week resistance cluster around 94.50-96.50.",
+        "A 'squeeze_release' signal (strength 77) has fired, indicating a transition from low volatility compression (BB Width %tile ~24) to expansion.",
+        "Volume expanded to 4.77M shares (RVOL 1.45), significantly higher than the recent daily average of ~2M, validating the move.",
+        "The asset hit a new 20-day high (Donchian High 99.08), triggering a 'breakout_participation' signal.",
+        "Moving averages are stacked bullishly (Price > SMA20 > SMA50 > SMA200), with the SMA20 (91.77) providing dynamic support."
+      ],
+      "key_levels": {
+        "support": [
+          96.57,
+          94.53,
+          91.77
+        ],
+        "resistance": [
+          99.08,
+          104.51,
+          109.66
+        ],
+        "invalidation": 91.4
+      },
+      "what_to_watch_next": [
+        "Immediate follow-through above the daily high of 99.08 to confirm buyer commitment.",
+        "Behavior on a retest of the 95.00-96.50 breakout zone; this level must flip to support.",
+        "Continuation of volume expansion; low volume on up days would suggest a lack of institutional conviction.",
+        "RSI approaching overbought levels (currently ~55, plenty of room to run)."
+      ],
+      "risks_and_contradictions": [
+        "While volume increased, an RVOL of 1.45 is solid but not explosive (>2.0), suggesting participation could be stronger.",
+        "The close (98.56) was slightly off the intraday high (99.08), indicating minor profit-taking at the close.",
+        "Overhead supply remains from the October distribution structure between 104 and 109."
+      ],
+      "confidence": 0.85,
+      "_tokens_in": 6860,
+      "_tokens_out": 637,
+      "_model": "gemini-3-pro-preview"
+    },
+    "ASML": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "stratos_chart_review_output",
+      "type": "object",
+      "attention_level": "URGENT",
+      "direction": "bullish",
+      "setup_type": "breakout",
+      "time_horizon": "weeks",
+      "summary_text": "High-conviction gap-and-go breakout (+8.78%) on 2.3x volume, clearing multi-month resistance at 1141.72.",
+      "why_now": [
+        "Massive Volatility Shock: Price gapped up ~6% and closed +8.78% higher, triggering a 'volatility_shock' signal (strength 77).",
+        "Volume Confirmation: The move occurred on 2.69M shares, which is 2.3x the 20-day average (rvol_20: 2.30), confirming institutional participation.",
+        "Structural Breakout: Price decisively cleared the December 3rd swing high of 1141.72, closing at 1163.78.",
+        "New Highs: The asset printed a new 55-day high (donchian_high_55: 1172.77), signaling a regime shift to bullish trend discovery.",
+        "Signal Confluence: 'Breakout_participation' signal is active with high strength (92), supported by a 3-sigma return event (return_z: 3.07)."
+      ],
+      "key_levels": {
+        "support": [
+          1141.72,
+          1133.48,
+          1110.0
+        ],
+        "resistance": [
+          1172.77,
+          1200.0
+        ],
+        "invalidation": 1133.0
+      },
+      "what_to_watch_next": [
+        "Immediate defense of the gap low (1133.48) and the breakout level (1141.72).",
+        "Follow-through volume to confirm the breakout isn't a 'bull trap'.",
+        "Price action around the intraday high of 1172.77 for continuation.",
+        "RSI expansion (currently 57, leaving significant room for upside momentum)."
+      ],
+      "risks_and_contradictions": [
+        "Extended Trend: Price is 38% above the 200-day SMA, suggesting the long-term trend is historically stretched.",
+        "Gap Fill Risk: Large gaps (approx 6% at open) often invite partial fills or retests before true continuation.",
+        "Volatility: ATR percentage is 2.5%, implying wide daily swings that could stop out tight trailing stops."
+      ],
+      "confidence": 0.95,
+      "_tokens_in": 6513,
+      "_tokens_out": 676,
+      "_model": "gemini-3-pro-preview"
+    },
+    "FIL": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "stratos_chart_review_output",
+      "type": "object",
+      "attention_level": "FOCUS",
+      "direction": "bullish",
+      "setup_type": "breakout",
+      "time_horizon": "days",
+      "summary_text": "High-volume breakout from consolidation, reclaiming 20-day highs and triggering volatility expansion signals.",
+      "why_now": [
+        "Price surged ~15% on Jan 02 to 1.496, triggering a confirmed 20-day breakout (Donchian High).",
+        "Volume confirmation is strong with RVOL at 1.79 (nearly double the 20-day average).",
+        "Volatility expansion detected: 'Squeeze Release' signal active as Bollinger Band width expands from the 29th percentile.",
+        "Momentum has shifted rapidly, with RSI rising to 69.75 from oversold conditions in mid-December.",
+        "Price has decisively cleared the 20-day SMA (now +15% above) and is challenging the 50-day SMA."
+      ],
+      "key_levels": {
+        "support": [
+          1.296,
+          1.222
+        ],
+        "resistance": [
+          1.517,
+          1.546,
+          1.672
+        ],
+        "invalidation": 1.188
+      },
+      "what_to_watch_next": [
+        "Daily close above the 50-day SMA (1.517) to confirm medium-term trend shift.",
+        "Volume follow-through on the next candle to validate the breakout leg.",
+        "Reaction at the Dec 10 swing high of 1.546.",
+        "RSI behavior\u2014watching for a push into overbought territory (>70) without immediate rejection."
+      ],
+      "risks_and_contradictions": [
+        "Macro trend remains bearish; price is still 28% below the 200-day SMA.",
+        "The 50-day SMA (1.517) is immediate overhead resistance and may trigger profit-taking.",
+        "RSI near 70 suggests the initial impulse move may be nearing short-term exhaustion."
+      ],
+      "confidence": 0.85,
+      "_tokens_in": 6822,
+      "_tokens_out": 568,
+      "_model": "gemini-3-pro-preview"
+    },
+    "CVX": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "stratos_chart_review_output",
+      "type": "object",
+      "attention_level": "FOCUS",
+      "direction": "bullish",
+      "setup_type": "breakout",
+      "time_horizon": "weeks",
+      "summary_text": "CVX confirms a bullish breakout to new 20-day highs with a squeeze release signal, reclaiming all major moving averages, though volume participation remains light.",
+      "why_now": [
+        "Price closed at the high of the day (155.90), triggering a confirmed `breakout_up_20` and hitting the 20-day Donchian High.",
+        "Volatility expansion detected: `squeeze_release` signal (strength 72) fired as Bollinger Band width expands from the 18th percentile.",
+        "Momentum shift: `trend_ignition` signal (strength 76) active, with RSI rising to 64.58, indicating room before overbought territory.",
+        "Structural reclamation: Price has decisively cleared the SMA 50 (152.18) and SMA 20 (150.28) after consolidating above the SMA 200 (148.26).",
+        "The 2.3% daily move cleared local resistance at 152.67, ending a multi-week consolidation phase."
+      ],
+      "key_levels": {
+        "support": [
+          152.18,
+          150.28,
+          148.26
+        ],
+        "resistance": [
+          156.17,
+          157.95,
+          159.18
+        ],
+        "invalidation": 150.0
+      },
+      "what_to_watch_next": [
+        "Volume expansion: Look for volume > 8M to confirm institutional participation in this breakout.",
+        "Follow-through above 156.17 (Nov 7 high) to open the path toward the 159.18 cycle highs.",
+        "Defense of the breakout zone: Price should ideally hold above 152.50 on any immediate retest."
+      ],
+      "risks_and_contradictions": [
+        "Volume Divergence: The breakout occurred on 6.79M volume (`rvol_20` 0.84), indicating a lack of aggressive buying pressure.",
+        "Overhead Supply: The 156-159 zone represents significant congestion from October/November trading.",
+        "Trend Regime: The `trend_regime` feature is still tagged as 'neutral', suggesting the trend is young and fragile."
+      ],
+      "confidence": 0.85,
+      "_tokens_in": 6456,
+      "_tokens_out": 655,
+      "_model": "gemini-3-pro-preview"
+    },
+    "MO": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "stratos_chart_review_output",
+      "type": "object",
+      "attention_level": "FOCUS",
+      "direction": "bearish",
+      "setup_type": "breakdown",
+      "time_horizon": "days",
+      "summary_text": "MO confirms bearish breakdown hitting fresh 20-day lows on 1.3x relative volume, targeting November structural support.",
+      "why_now": [
+        "Price hit a fresh 20-day low of 57.05, triggering a 'breakout_down_20' feature and confirming the bearish inflection.",
+        "Volume spiked to 12.1M (RVOL 1.31), nearly double the prior day's volume of 5.2M, indicating institutional participation in the move down.",
+        "Active 'trend_breakdown' signal (strength 78) aligns with the 'downtrend' regime classification.",
+        "Price has lost all key moving averages, trading -1.8% below SMA20 and -4.1% below SMA200.",
+        "RSI at 35.28 indicates strong bearish momentum with room to fall before reaching oversold extremes (<30)."
+      ],
+      "key_levels": {
+        "support": [
+          57.05,
+          56.18,
+          56.33
+        ],
+        "resistance": [
+          57.77,
+          58.36,
+          59.09
+        ],
+        "invalidation": 58.36
+      },
+      "what_to_watch_next": [
+        "A daily close below 57.05 to confirm the breakdown continuation.",
+        "Price interaction with the critical 55-day low support at 56.18.",
+        "Persistence of selling volume (current Volume Z-score 0.71).",
+        "RSI behavior as it approaches the 30 level."
+      ],
+      "risks_and_contradictions": [
+        "Major structural support sits just below at 56.18 (Nov 3 low), which may trigger a bounce.",
+        "Intraday recovery from the low of 57.05 to close at 57.31 shows minor buying tails.",
+        "RSI approaching oversold territory increases the risk of a mean-reversion snapback."
+      ],
+      "confidence": 0.85,
+      "_tokens_in": 6273,
+      "_tokens_out": 594,
+      "_model": "gemini-3-pro-preview"
+    },
+    "CRWD": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "stratos_chart_review_output",
+      "type": "object",
+      "attention_level": "URGENT",
+      "direction": "bearish",
+      "setup_type": "breakdown",
+      "time_horizon": "weeks",
+      "summary_text": "CRWD has confirmed a major breakdown below the 200-day SMA and multi-month support on high volume, signaling a potential trend change.",
+      "why_now": [
+        "Critical Structural Failure: Price closed at 453.58, decisively breaking the 200-day SMA (461.71) and the December support floor (~468.76).",
+        "Volume Confirmation: The breakdown was accompanied by 1.55x relative volume (3.27M shares vs ~2M avg), indicating institutional distribution.",
+        "New Lows: The asset hit a 55-day low of 449.46, triggering a 'breakout_participation' signal with high confidence (strength 71).",
+        "Momentum Collapse: RSI has plunged to 18.15, reflecting extreme bearish momentum and a lack of buying interest at previous support.",
+        "Trend Reversal: Price is now below all key moving averages (20, 50, 200), with the 20-day SMA (489.95) beginning to curl downward."
+      ],
+      "key_levels": {
+        "support": [
+          449.46
+        ],
+        "resistance": [
+          461.71,
+          468.76,
+          474.0
+        ],
+        "invalidation": 481.2
+      },
+      "what_to_watch_next": [
+        "Behavior at the broken 200-day SMA (461.71); previous support often turns into resistance.",
+        "Continuation below the session low of 449.46 to confirm the breakdown isn't a 'bear trap'.",
+        "Volume profile on any bounce attempts; low-volume rallies would suggest a 'dead cat bounce'.",
+        "Stabilization of the RSI; staying below 30 signals sustained bearish pressure."
+      ],
+      "risks_and_contradictions": [
+        "Extreme Oversold Condition: RSI at 18.15 is historically low, which often precedes a sharp, volatility-driven snap-back rally.",
+        "Extension Risk: Price is ~7.4% below the 20-day SMA, suggesting the rubber band is stretched to the downside in the short term.",
+        "Lack of Historical Support: Trading at the bottom of the visible lookback window means price discovery is active, making support levels harder to define."
+      ],
+      "confidence": 0.95,
+      "_tokens_in": 6466,
+      "_tokens_out": 672,
+      "_model": "gemini-3-pro-preview"
+    },
+    "PLTR": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "stratos_chart_review_output",
+      "type": "object",
+      "attention_level": "URGENT",
+      "direction": "bearish",
+      "setup_type": "breakdown",
+      "time_horizon": "days",
+      "summary_text": "High-volume breakdown below 177 support confirms a volatility expansion (squeeze release). Price is now seeking lower liquidity zones near the SMA 200.",
+      "why_now": [
+        "Confirmed Breakdown: Price closed at 167.86, triggering a 'breakout_down_20' signal and undercutting the recent consolidation floor of ~177.",
+        "Volume Expansion: The breakdown is supported by significant volume (60.06M shares), with an RVOL of 1.66, indicating institutional distribution.",
+        "Volatility Release: The 'squeeze_release' signal fired (strength 63) from a low Bollinger Band width percentile (11.9), suggesting this is the start of a trend expansion, not just noise.",
+        "Trend Damage: Price has decisively lost both the SMA 20 (184.55) and SMA 50 (180.94), shifting the intermediate trend to bearish.",
+        "Momentum: RSI has dropped to 34.24, indicating strong downside momentum that has room to run before becoming critically oversold."
+      ],
+      "key_levels": {
+        "support": [
+          162.42,
+          154.85,
+          151.04
+        ],
+        "resistance": [
+          177.75,
+          181.35,
+          184.55
+        ],
+        "invalidation": 181.35
+      },
+      "what_to_watch_next": [
+        "Immediate follow-through below today's low of 166.35 to confirm the breakdown.",
+        "Price reaction at the November swing lows (162.42 - 164.50).",
+        "Interaction with the SMA 200 (currently 151.04) if the sell-off accelerates.",
+        "Volume on any intraday bounces; low volume would confirm bearish continuation."
+      ],
+      "risks_and_contradictions": [
+        "RSI at 34.24 is approaching oversold territory, which may trigger a short-term snapback or 'dead cat bounce'.",
+        "The SMA 200 at 151.04 represents major structural support that could arrest the decline.",
+        "The broader 'trend_regime' feature is still flagged as neutral, suggesting this could be a deep correction within a range rather than a full trend reversal."
+      ],
+      "confidence": 0.9,
+      "_tokens_in": 6471,
+      "_tokens_out": 674,
+      "_model": "gemini-3-pro-preview"
+    },
+    "NOW": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "stratos_chart_review_output",
+      "type": "object",
+      "attention_level": "URGENT",
+      "direction": "bearish",
+      "setup_type": "breakdown",
+      "time_horizon": "days",
+      "summary_text": "High-volume breakdown below 152 support zone, hitting multi-month lows with RSI deeply oversold.",
+      "why_now": [
+        "Price decisively broke the 152-156 consolidation floor, closing at 147.45.",
+        "Volume spiked to 9.6M (RVOL 1.66), nearly double the recent average, confirming strong selling pressure.",
+        "The asset hit a new 20-day low (Donchian Low 145.64), triggering a 'trend_breakdown' signal (Strength 72).",
+        "Momentum is intensely bearish with RSI plunging to 20.1.",
+        "Price has detached significantly from the 20-day SMA (-7.8% deviation), indicating a volatile expansion to the downside."
+      ],
+      "key_levels": {
+        "support": [
+          145.64
+        ],
+        "resistance": [
+          152.2,
+          156.6,
+          160.0
+        ],
+        "invalidation": 154.0
+      },
+      "what_to_watch_next": [
+        "Immediate follow-through below the day's low of 145.64.",
+        "Behavior on a retest of the 152 breakdown level (should act as resistance).",
+        "Volume profile on any bounce attempt; low volume would suggest a 'dead cat bounce'.",
+        "RSI stabilization; staying below 30 keeps the crash scenario active."
+      ],
+      "risks_and_contradictions": [
+        "RSI at 20.06 is deeply oversold, which often precedes a sharp mean-reversion snapback.",
+        "Significant data discrepancies in historical Open/High/Low values (trading ~800s vs Close ~170s) make long-term support identification unreliable.",
+        "The 7.8% extension below the 20-day SMA is stretched, increasing the risk of a short-term pause."
+      ],
+      "confidence": 0.85,
+      "_tokens_in": 6485,
+      "_tokens_out": 579,
+      "_model": "gemini-3-pro-preview"
+    },
+    "ZS": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "stratos_chart_review_output",
+      "type": "object",
+      "attention_level": "URGENT",
+      "direction": "bearish",
+      "setup_type": "breakdown",
+      "time_horizon": "days",
+      "summary_text": "ZS has confirmed a breakdown to fresh multi-month lows on expanding volume, violating key support at 225 with RSI deeply oversold indicating strong momentum.",
+      "why_now": [
+        "Fresh breakdown to new 55-day lows (Donchian Low at 217.23), decisively clearing the recent consolidation floor around 224.90.",
+        "Volume expanded to 1.64M (+65% vs prior session) on the breakdown day, validating the move with `rvol_20` > 1.0.",
+        "Active `trend_breakdown` signal (strength 69) triggered as price closes -5.5% below the 20-day SMA.",
+        "Momentum is accelerating downward with RSI (14) at 23.8, indicating intense selling pressure.",
+        "Price is now trading -19.5% below the 50-day SMA, confirming the dominance of the medium-term downtrend."
+      ],
+      "key_levels": {
+        "support": [
+          217.23,
+          210.0
+        ],
+        "resistance": [
+          224.92,
+          226.72,
+          233.48
+        ],
+        "invalidation": 228.75
+      },
+      "what_to_watch_next": [
+        "Immediate follow-through below the 217.23 session low to confirm the breakdown leg.",
+        "Price reaction on a retest of the 225 breakdown level (should now act as resistance).",
+        "Volume profile on any intraday bounces; low volume would suggest a 'dead cat bounce'.",
+        "RSI behavior; watching for it to stay embedded below 30 to confirm crash momentum."
+      ],
+      "risks_and_contradictions": [
+        "RSI at 23.8 is deeply oversold, which increases the risk of a sharp mean-reversion snapback before further downside.",
+        "While volume increased, it is not yet at capitulation levels seen in late November (9.8M), suggesting sellers may not be exhausted.",
+        "The `trend_regime` feature is currently 'neutral', implying the asset was ranging prior to this drop and needs sustained selling to lock in a new trend leg."
+      ],
+      "confidence": 0.9,
+      "_tokens_in": 6445,
+      "_tokens_out": 641,
+      "_model": "gemini-3-pro-preview"
+    }
+  }
+}
