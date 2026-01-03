@@ -269,8 +269,8 @@ def backfill_equities(conn, limit: int = None, start_from: int = 0):
         else:
             print(f"  No bars fetched")
         
-        # AlphaVantage free tier: 5 calls/minute
-        time.sleep(12)  # ~5 calls per minute
+        # AlphaVantage Premium: 75 calls/minute (use 1s delay to be safe)
+        time.sleep(1)  # ~60 calls per minute
     
     print(f"\nEquity backfill complete: {total_bars} total bars inserted")
     return total_bars

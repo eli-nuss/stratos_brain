@@ -1,12 +1,17 @@
 // Supabase Edge Function: Signal Engine Control API
 // Provides REST endpoints for managing the signal engine from the dashboard
+// 
+// Authentication Options:
+// 1. JWT (Supabase Auth): Authorization: Bearer <user_jwt>
+// 2. API Key (scripts/n8n): x-stratos-key: <STRATOS_BRAIN_API_KEY>
+// 3. Supabase Anon Key: apikey: <SUPABASE_ANON_KEY> (for browser clients)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-stratos-key',
 }
 
 interface EnqueueRequest {
@@ -17,6 +22,43 @@ interface EnqueueRequest {
   params?: Record<string, unknown>
 }
 
+// Validate authentication - supports multiple auth methods
+function validateAuth(req: Request): { valid: boolean; error?: string } {
+  // Option 1: Check for x-stratos-key header (API key for scripts/n8n)
+  const stratosKey = req.headers.get('x-stratos-key')
+  const expectedKey = Deno.env.get('STRATOS_BRAIN_API_KEY')
+  
+  if (stratosKey && expectedKey && stratosKey === expectedKey) {
+    return { valid: true }
+  }
+  
+  // Option 2: Check for valid JWT in Authorization header
+  const authHeader = req.headers.get('authorization')
+  if (authHeader?.startsWith('Bearer ')) {
+    // JWT validation is handled by Supabase's verify_jwt setting
+    // If we get here with a Bearer token, it passed Supabase's JWT check
+    return { valid: true }
+  }
+  
+  // Option 3: Check for apikey header (Supabase anon key)
+  const apiKey = req.headers.get('apikey')
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
+  if (apiKey && anonKey && apiKey === anonKey) {
+    return { valid: true }
+  }
+  
+  // If STRATOS_BRAIN_API_KEY is not set, allow all requests (dev mode)
+  if (!expectedKey) {
+    console.warn('STRATOS_BRAIN_API_KEY not set - allowing unauthenticated access')
+    return { valid: true }
+  }
+  
+  return { 
+    valid: false, 
+    error: 'Unauthorized. Provide x-stratos-key header or valid JWT.' 
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -24,6 +66,15 @@ serve(async (req) => {
   }
 
   try {
+    // Validate authentication
+    const auth = validateAuth(req)
+    if (!auth.valid) {
+      return new Response(JSON.stringify({ error: auth.error }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
     // Create Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
