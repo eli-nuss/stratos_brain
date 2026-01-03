@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "stratos_chart_review_output",
+  "type": "object",
+  "required": [
+    "attention_level",
+    "direction",
+    "setup_type",
+    "time_horizon",
+    "summary_text",
+    "why_now",
+    "key_levels",
+    "what_to_watch_next",
+    "risks_and_contradictions",
+    "confidence"
+  ],
+  "properties": {
+    "attention_level": {
+      "type": "string",
+      "enum": ["URGENT", "FOCUS", "WATCH", "IGNORE"],
+      "description": "How urgently should a trader look at this asset"
+    },
+    "direction": {
+      "type": "string",
+      "enum": ["bullish", "bearish", "neutral"],
+      "description": "Overall directional bias from the chart"
+    },
+    "setup_type": {
+      "type": "string",
+      "enum": ["breakout", "reversal", "continuation", "breakdown", "range", "mean_reversion", "unclear"],
+      "description": "The type of technical setup identified"
+    },
+    "time_horizon": {
+      "type": "string",
+      "enum": ["days", "weeks", "months", "unclear"],
+      "description": "Expected time horizon for the setup to play out"
+    },
+    "summary_text": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "One-liner summary for dashboard display"
+    },
+    "why_now": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 3,
+      "maxItems": 7,
+      "description": "3-7 bullet points explaining why this asset deserves attention now"
+    },
+    "key_levels": {
+      "type": "object",
+      "required": ["support", "resistance", "invalidation"],
+      "properties": {
+        "support": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Key support levels derived from OHLCV"
+        },
+        "resistance": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Key resistance levels derived from OHLCV"
+        },
+        "invalidation": {
+          "type": "number",
+          "description": "Price level that would invalidate the setup"
+        }
+      }
+    },
+    "what_to_watch_next": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 2,
+      "maxItems": 6,
+      "description": "2-6 specific things to monitor going forward"
+    },
+    "risks_and_contradictions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 2,
+      "maxItems": 6,
+      "description": "2-6 risks or contradictory signals to be aware of"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Model confidence in this analysis (0-1)"
+    }
+  },
+  "additionalProperties": false
+}

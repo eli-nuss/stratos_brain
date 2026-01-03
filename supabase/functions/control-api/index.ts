@@ -26,9 +26,13 @@ interface EnqueueRequest {
 function validateAuth(req: Request): { valid: boolean; error?: string } {
   // Option 1: Check for x-stratos-key header (API key for scripts/n8n)
   const stratosKey = req.headers.get('x-stratos-key')
-  const expectedKey = Deno.env.get('STRATOS_BRAIN_API_KEY')
+  // Use env var if set, otherwise fall back to hardcoded key
+  const expectedKey = Deno.env.get('STRATOS_BRAIN_API_KEY') || 'stratos_brain_api_key_2024'
+  
+  console.log('Auth check - stratosKey present:', !!stratosKey, 'expectedKey present:', !!expectedKey)
   
   if (stratosKey && expectedKey && stratosKey === expectedKey) {
+    console.log('Auth success via x-stratos-key')
     return { valid: true }
   }
   
@@ -47,11 +51,7 @@ function validateAuth(req: Request): { valid: boolean; error?: string } {
     return { valid: true }
   }
   
-  // If STRATOS_BRAIN_API_KEY is not set, allow all requests (dev mode)
-  if (!expectedKey) {
-    console.warn('STRATOS_BRAIN_API_KEY not set - allowing unauthenticated access')
-    return { valid: true }
-  }
+  // Note: With hardcoded fallback key, expectedKey is always set
   
   return { 
     valid: false, 
@@ -356,6 +356,216 @@ serve(async (req) => {
         if (error) throw error
         
         return new Response(JSON.stringify(data), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // ==================== AI REVIEW ENDPOINTS ====================
+
+      // GET /dashboard/reviews - Get AI reviews for dashboard assets
+      // Supports filtering by scope, attention_level, direction
+      case req.method === 'GET' && path === '/dashboard/reviews': {
+        const limit = url.searchParams.get('limit') || '50'
+        const asOfDate = url.searchParams.get('as_of_date')
+        const universeId = url.searchParams.get('universe_id')
+        const configId = url.searchParams.get('config_id')
+        const scope = url.searchParams.get('scope') // inflections_bullish, inflections_bearish, trends, risk
+        const attentionLevel = url.searchParams.get('attention_level') // URGENT, FOCUS, WATCH, IGNORE
+        const direction = url.searchParams.get('direction') // bullish, bearish, neutral
+        
+        let query = supabase
+          .from('asset_ai_reviews')
+          .select(`
+            asset_id,
+            as_of_date,
+            source_scope,
+            prompt_version,
+            model,
+            review_json,
+            summary_text,
+            attention_level,
+            direction,
+            setup_type,
+            confidence,
+            tokens_in,
+            tokens_out,
+            created_at
+          `)
+          .limit(parseInt(limit))
+          
+        if (asOfDate) {
+          query = query.eq('as_of_date', asOfDate)
+        }
+        
+        if (universeId) {
+          query = query.eq('universe_id', universeId)
+        }
+        
+        if (configId) {
+          query = query.eq('config_id', configId)
+        }
+        
+        if (scope) {
+          query = query.eq('source_scope', scope)
+        }
+        
+        if (attentionLevel) {
+          query = query.eq('attention_level', attentionLevel)
+        }
+        
+        if (direction) {
+          query = query.eq('direction', direction)
+        }
+        
+        // Order by confidence descending, then by attention level priority
+        query = query.order('confidence', { ascending: false })
+        
+        const { data, error } = await query
+        
+        if (error) throw error
+        
+        return new Response(JSON.stringify(data), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /dashboard/reviews/:asset_id - Get AI review for a specific asset
+      case req.method === 'GET' && path.startsWith('/dashboard/reviews/'): {
+        const assetId = decodeURIComponent(path.split('/')[3])
+        const asOfDate = url.searchParams.get('as_of_date')
+        
+        let query = supabase
+          .from('asset_ai_reviews')
+          .select('*')
+          .eq('asset_id', assetId)
+          .order('as_of_date', { ascending: false })
+          .limit(1)
+          
+        if (asOfDate) {
+          query = query.eq('as_of_date', asOfDate)
+        }
+        
+        const { data, error } = await query
+        
+        if (error) throw error
+        
+        if (!data || data.length === 0) {
+          return new Response(JSON.stringify({ error: 'Review not found' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(data[0]), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /dashboard/inflections-with-reviews - Get inflections with AI reviews joined
+      case req.method === 'GET' && path === '/dashboard/inflections-with-reviews': {
+        const limit = url.searchParams.get('limit') || '25'
+        const asOfDate = url.searchParams.get('as_of_date')
+        const universeId = url.searchParams.get('universe_id')
+        const configId = url.searchParams.get('config_id')
+        const direction = url.searchParams.get('direction')
+        
+        // Build the query with a join to AI reviews
+        let baseQuery = `
+          SELECT 
+            i.*,
+            r.summary_text as ai_summary,
+            r.attention_level as ai_attention_level,
+            r.direction as ai_direction,
+            r.setup_type as ai_setup_type,
+            r.confidence as ai_confidence,
+            r.review_json as ai_review
+          FROM v_dashboard_inflections i
+          LEFT JOIN asset_ai_reviews r ON 
+            i.asset_id = r.asset_id 
+            AND i.as_of_date = r.as_of_date
+            AND r.source_scope LIKE 'inflections_%'
+          WHERE 1=1
+        `
+        
+        const params: string[] = []
+        let paramIndex = 1
+        
+        if (asOfDate) {
+          baseQuery += ` AND i.as_of_date = $${paramIndex}`
+          params.push(asOfDate)
+          paramIndex++
+        }
+        
+        if (universeId) {
+          baseQuery += ` AND i.universe_id = $${paramIndex}`
+          params.push(universeId)
+          paramIndex++
+        }
+        
+        if (configId) {
+          baseQuery += ` AND i.config_id = $${paramIndex}::uuid`
+          params.push(configId)
+          paramIndex++
+        }
+        
+        if (direction) {
+          baseQuery += ` AND i.inflection_direction = $${paramIndex}`
+          params.push(direction)
+          paramIndex++
+        }
+        
+        baseQuery += ` ORDER BY i.abs_inflection DESC LIMIT $${paramIndex}`
+        params.push(limit)
+        
+        // Use raw SQL via RPC (requires a helper function)
+        // For now, we'll do two queries and merge
+        let inflectionsQuery = supabase
+          .from('v_dashboard_inflections')
+          .select('*')
+          .limit(parseInt(limit))
+          
+        if (asOfDate) inflectionsQuery = inflectionsQuery.eq('as_of_date', asOfDate)
+        if (universeId) inflectionsQuery = inflectionsQuery.eq('universe_id', universeId)
+        if (configId) inflectionsQuery = inflectionsQuery.eq('config_id', configId)
+        if (direction) inflectionsQuery = inflectionsQuery.eq('inflection_direction', direction)
+        inflectionsQuery = inflectionsQuery.order('abs_inflection', { ascending: false })
+        
+        const { data: inflections, error: inflectionsError } = await inflectionsQuery
+        if (inflectionsError) throw inflectionsError
+        
+        // Get reviews for these assets
+        const assetIds = inflections?.map(i => i.asset_id) || []
+        
+        if (assetIds.length > 0) {
+          let reviewsQuery = supabase
+            .from('asset_ai_reviews')
+            .select('asset_id, summary_text, attention_level, direction, setup_type, confidence, review_json')
+            .in('asset_id', assetIds)
+            .like('source_scope', 'inflections_%')
+            
+          if (asOfDate) reviewsQuery = reviewsQuery.eq('as_of_date', asOfDate)
+          
+          const { data: reviews, error: reviewsError } = await reviewsQuery
+          if (reviewsError) throw reviewsError
+          
+          // Merge reviews into inflections
+          const reviewMap = new Map(reviews?.map(r => [r.asset_id, r]) || [])
+          const merged = inflections?.map(i => ({
+            ...i,
+            ai_summary: reviewMap.get(i.asset_id)?.summary_text || null,
+            ai_attention_level: reviewMap.get(i.asset_id)?.attention_level || null,
+            ai_direction: reviewMap.get(i.asset_id)?.direction || null,
+            ai_setup_type: reviewMap.get(i.asset_id)?.setup_type || null,
+            ai_confidence: reviewMap.get(i.asset_id)?.confidence || null,
+            ai_review: reviewMap.get(i.asset_id)?.review_json || null,
+          }))
+          
+          return new Response(JSON.stringify(merged), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(inflections), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
