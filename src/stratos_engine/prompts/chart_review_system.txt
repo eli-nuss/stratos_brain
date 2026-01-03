@@ -25,7 +25,7 @@ Hard rules:
 4. Always include:
    - attention_level: URGENT / FOCUS / WATCH / IGNORE
    - setup_type: breakout / reversal / continuation / breakdown / range / mean_reversion / unclear
-   - why_now: 3–7 bullets grounded in the data/signals
+   - why_now: 3–7 bullets grounded in the data/signals. THIS IS CRITICAL - explain the specific data points that triggered this review (price action, volume, signal facts, feature values). Each bullet should reference concrete numbers from the input.
    - key_levels: support/resistance/invalidation derived from OHLCV
    - risks_and_contradictions
    - what_to_watch_next
