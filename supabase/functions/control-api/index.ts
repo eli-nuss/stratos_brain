@@ -240,8 +240,10 @@ serve(async (req) => {
 
       // GET /dashboard/inflections - Get new breakouts/reversals (high novelty)
       // Supports direction filter: 'bullish' or 'bearish'
+      // Supports pagination with limit and offset
       case req.method === 'GET' && path === '/dashboard/inflections': {
         const limit = url.searchParams.get('limit') || '25'
+        const offset = url.searchParams.get('offset') || '0'
         const asOfDate = url.searchParams.get('as_of_date')
         const universeId = url.searchParams.get('universe_id')
         const configId = url.searchParams.get('config_id')
@@ -250,7 +252,7 @@ serve(async (req) => {
         let query = supabase
           .from('v_dashboard_inflections')
           .select('*')
-          .limit(parseInt(limit))
+          .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1)
           
         if (asOfDate) {
           query = query.eq('as_of_date', asOfDate)
@@ -364,8 +366,10 @@ serve(async (req) => {
 
       // GET /dashboard/reviews - Get AI reviews for dashboard assets
       // Supports filtering by scope, attention_level, direction
+      // Supports pagination with limit and offset
       case req.method === 'GET' && path === '/dashboard/reviews': {
         const limit = url.searchParams.get('limit') || '50'
+        const offset = url.searchParams.get('offset') || '0'
         const asOfDate = url.searchParams.get('as_of_date')
         const universeId = url.searchParams.get('universe_id')
         const configId = url.searchParams.get('config_id')
@@ -378,7 +382,7 @@ serve(async (req) => {
           .select(`
             asset_id,
             as_of_date,
-            source_scope,
+            scope,
             prompt_version,
             model,
             review_json,
@@ -387,11 +391,17 @@ serve(async (req) => {
             direction,
             setup_type,
             confidence,
+            entry,
+            targets,
+            invalidation,
+            support,
+            resistance,
+            pass1_review,
             tokens_in,
             tokens_out,
             created_at
           `)
-          .limit(parseInt(limit))
+          .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1)
           
         if (asOfDate) {
           query = query.eq('as_of_date', asOfDate)
@@ -406,7 +416,7 @@ serve(async (req) => {
         }
         
         if (scope) {
-          query = query.eq('source_scope', scope)
+          query = query.eq('scope', scope)
         }
         
         if (attentionLevel) {

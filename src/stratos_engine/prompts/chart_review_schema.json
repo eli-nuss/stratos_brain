@@ -10,6 +10,9 @@
     "summary_text",
     "why_now",
     "key_levels",
+    "entry",
+    "targets",
+    "invalidation",
     "what_to_watch_next",
     "risks_and_contradictions",
     "confidence"
@@ -51,27 +54,51 @@
     },
     "key_levels": {
       "type": "object",
-      "required": ["support", "resistance", "invalidation"],
+      "required": ["support", "resistance"],
       "properties": {
         "support": {
           "type": "array",
           "items": {
             "type": "number"
           },
-          "description": "Key support levels derived from OHLCV"
+          "description": "2-3 key support levels derived from OHLCV"
         },
         "resistance": {
           "type": "array",
           "items": {
             "type": "number"
           },
-          "description": "Key resistance levels derived from OHLCV"
-        },
-        "invalidation": {
-          "type": "number",
-          "description": "Price level that would invalidate the setup"
+          "description": "2-3 key resistance levels derived from OHLCV"
         }
       }
+    },
+    "entry": {
+      "type": "object",
+      "required": ["low", "high"],
+      "properties": {
+        "low": {
+          "type": "number",
+          "description": "Lower bound of suggested entry zone"
+        },
+        "high": {
+          "type": "number",
+          "description": "Upper bound of suggested entry zone"
+        }
+      },
+      "description": "Suggested entry price range"
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 1,
+      "maxItems": 3,
+      "description": "1-3 price targets in order of proximity"
+    },
+    "invalidation": {
+      "type": "number",
+      "description": "Price level that would invalidate the setup (stop loss level)"
     },
     "what_to_watch_next": {
       "type": "array",
@@ -87,9 +114,9 @@
       "items": {
         "type": "string"
       },
-      "minItems": 2,
+      "minItems": 1,
       "maxItems": 6,
-      "description": "2-6 risks or contradictory signals to be aware of"
+      "description": "1-6 risks or contradictory signals to be aware of"
     },
     "confidence": {
       "type": "number",
