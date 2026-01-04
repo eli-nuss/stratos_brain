@@ -839,7 +839,7 @@ serve(async (req) => {
         const { data: asset, error: assetError } = await supabase
           .from('assets')
           .select('*')
-          .eq('id', asset_id)
+          .eq('asset_id', asset_id)
           .single()
         
         if (assetError || !asset) {
