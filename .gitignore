@@ -61,3 +61,13 @@ supabase/.temp/
 
 # MCP results (local dev)
 .mcp/
+
+# Node.js / Frontend
+node_modules/
+dist/
+.next/
+out/
+build/
+.DS_Store
+coverage/
+.turbo/

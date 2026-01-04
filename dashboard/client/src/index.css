@@ -1,0 +1,172 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  
+  /* Custom Signal Colors */
+  --color-signal-bullish: var(--signal-bullish);
+  --color-signal-bearish: var(--signal-bearish);
+  --color-signal-neutral: var(--signal-neutral);
+  --color-attention-urgent: var(--attention-urgent);
+  --color-attention-focus: var(--attention-focus);
+  --color-attention-watch: var(--attention-watch);
+}
+
+:root {
+  /* Default to Dark Mode values for "Institutional Fintech" look */
+  --primary: oklch(0.6 0.15 250); /* Electric Blue */
+  --primary-foreground: oklch(0.985 0 0);
+  
+  --background: oklch(0.12 0.01 260); /* Deep Charcoal #0f1115 */
+  --foreground: oklch(0.92 0.005 260); /* Crisp White/Gray */
+  
+  --card: oklch(0.15 0.01 260); /* Slightly lighter charcoal */
+  --card-foreground: oklch(0.92 0.005 260);
+  
+  --popover: oklch(0.15 0.01 260);
+  --popover-foreground: oklch(0.92 0.005 260);
+  
+  --secondary: oklch(0.22 0.01 260);
+  --secondary-foreground: oklch(0.92 0.005 260);
+  
+  --muted: oklch(0.22 0.01 260);
+  --muted-foreground: oklch(0.65 0.01 260);
+  
+  --accent: oklch(0.22 0.01 260);
+  --accent-foreground: oklch(0.92 0.005 260);
+  
+  --destructive: oklch(0.6 0.2 25); /* Hot Red */
+  --destructive-foreground: oklch(0.985 0 0);
+  
+  --border: oklch(0.25 0.01 260);
+  --input: oklch(0.25 0.01 260);
+  --ring: oklch(0.6 0.15 250);
+  
+  --radius: 0.3rem; /* Sharper corners for financial look */
+  
+  --sidebar: oklch(0.10 0.01 260);
+  --sidebar-foreground: oklch(0.92 0.005 260);
+  --sidebar-accent: oklch(0.15 0.01 260);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.25 0.01 260);
+  --sidebar-ring: oklch(0.6 0.15 250);
+  
+  /* Signal Colors */
+  --signal-bullish: oklch(0.75 0.2 145); /* Neon Green */
+  --signal-bearish: oklch(0.65 0.25 25); /* Hot Red */
+  --signal-neutral: oklch(0.7 0.05 260); /* Cool Gray */
+  
+  --attention-urgent: oklch(0.65 0.25 25); /* Red */
+  --attention-focus: oklch(0.85 0.15 85); /* Amber/Orange */
+  --attention-watch: oklch(0.7 0.15 250); /* Blue */
+}
+
+.dark {
+  /* Same as root since we're dark-default */
+  --primary: oklch(0.6 0.15 250);
+  --primary-foreground: oklch(0.985 0 0);
+  --background: oklch(0.12 0.01 260);
+  --foreground: oklch(0.92 0.005 260);
+  --card: oklch(0.15 0.01 260);
+  --card-foreground: oklch(0.92 0.005 260);
+  --popover: oklch(0.15 0.01 260);
+  --popover-foreground: oklch(0.92 0.005 260);
+  --secondary: oklch(0.22 0.01 260);
+  --secondary-foreground: oklch(0.92 0.005 260);
+  --muted: oklch(0.22 0.01 260);
+  --muted-foreground: oklch(0.65 0.01 260);
+  --accent: oklch(0.22 0.01 260);
+  --accent-foreground: oklch(0.92 0.005 260);
+  --destructive: oklch(0.6 0.2 25);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.25 0.01 260);
+  --input: oklch(0.25 0.01 260);
+  --ring: oklch(0.6 0.15 250);
+  --sidebar: oklch(0.10 0.01 260);
+  --sidebar-foreground: oklch(0.92 0.005 260);
+  --sidebar-accent: oklch(0.15 0.01 260);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.25 0.01 260);
+  --sidebar-ring: oklch(0.6 0.15 250);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "ss01", "ss02", "cv01", "cv02";
+  }
+  
+  /* Financial Data Typography */
+  .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  .container {
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    max-width: 1600px; /* Wider for dashboard */
+  }
+  
+  /* Custom Scrollbar for tables */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: var(--muted);
+    border-radius: 3px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: var(--muted-foreground);
+  }
+}
