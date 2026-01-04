@@ -3,22 +3,19 @@
   "buildCommand": "pnpm run build",
   "outputDirectory": "dist/public",
   "framework": "vite",
+  "functions": {
+    "api/**/*.ts": {
+      "runtime": "@vercel/node@3.0.0"
+    }
+  },
   "rewrites": [
     {
       "source": "/api/dashboard/:path*",
-      "destination": "https://wfogbaipiqootjrsprde.supabase.co/functions/v1/control-api/dashboard/:path*"
+      "destination": "/api/dashboard/:path*"
     },
     {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        { "key": "x-stratos-key", "value": "stratos_brain_api_key_2024" }
-      ]
     }
   ]
 }
