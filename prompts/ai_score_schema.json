@@ -22,22 +22,59 @@
       "description": "The expected time horizon for the setup to play out."
     },
     "ai_direction_score": {
-      "type": "number",
+      "type": "integer",
+      "description": "The model's directional conviction score, ranging from -100 (strong bearish) to 100 (strong bullish).",
       "minimum": -100,
-      "maximum": 100,
-      "description": "The AI's directional conviction score (-100 to +100)."
-    },
-    "ai_setup_quality_score": {
-      "type": "number",
-      "minimum": 0,
-      "maximum": 100,
-      "description": "The AI's assessment of the setup's quality (0 to 100)."
+      "maximum": 100
     },
     "confidence": {
       "type": "number",
-      "minimum": 0,
-      "maximum": 1,
-      "description": "The AI's confidence in its analysis (0 to 1)."
+      "description": "The model's confidence in its overall assessment, ranging from 0.0 (low) to 1.0 (high).",
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "subscores": {
+      "type": "object",
+      "description": "A rubric of sub-scores for technical setup quality, each ranging from 0 (poor) to 5 (excellent).",
+      "properties": {
+        "trend_structure": {
+          "type": "integer",
+          "description": "Clarity and strength of the current market structure (e.g., uptrend, consolidation).",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "momentum_alignment": {
+          "type": "integer",
+          "description": "Alignment of short-term and long-term momentum indicators.",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "volatility_regime": {
+          "type": "integer",
+          "description": "Assessment of current volatility (e.g., low-volatility compression, high-volatility expansion).",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "volume_confirmation": {
+          "type": "integer",
+          "description": "Confirmation of price action by volume profile.",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "risk_reward_clarity": {
+          "type": "integer",
+          "description": "How clearly defined the potential entry, stop-loss, and target levels are.",
+          "minimum": 0,
+          "maximum": 5
+        }
+      },
+      "required": [
+        "trend_structure",
+        "momentum_alignment",
+        "volatility_regime",
+        "volume_confirmation",
+        "risk_reward_clarity"
+      ]
     },
     "summary_text": {
       "type": "string",
@@ -129,8 +166,8 @@
     "setup_type",
     "time_horizon",
     "ai_direction_score",
-    "ai_setup_quality_score",
     "confidence",
+    "subscores",
     "summary_text",
     "why_now",
     "key_levels",

@@ -1,6 +1,6 @@
-"""Stage 5: AI Chart Review - Two-pass LLM-powered chart analysis._new
+"""Stage 5: AI Chart Review - Two-pass LLM-powered chart analysis.
 
-Pass A: Independent Chart Score (OHLCV-only, 365 bars) - `ai_direction_score`, `ai_setup_quality_score`
+Pass A: Independent Chart Score (OHLCV-only, 365 bars) - `ai_direction_score`, `subscores`
 Pass B: Reconciliation (optional) - Compares Pass A output with engine scores/signals
 
 Uses Gemini 3 Flash as the primary model.
@@ -14,9 +14,11 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-import google.generativeai as genai
+import google.genai as genai
+import numpy as np
 
 from ..db import Database
+from ..utils.chart_analyzer import ChartAnalyzer, AI_REVIEW_VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +29,8 @@ PROMPT_DIR = Path(__file__).parent.parent / "prompts"
 class Stage5AIReview:
     """Stage 5: Two-pass AI-powered chart review for dashboard-surfaced assets."""
     
-    PROMPT_VERSION = "v5_independent_ai_score"
+    # Use the version from chart_analyzer
+    PROMPT_VERSION = AI_REVIEW_VERSION
     SCOPES = ["inflections_bullish", "inflections_bearish", "trends", "risk"]
     
     # Lookback settings
@@ -37,11 +40,17 @@ class Stage5AIReview:
     DEFAULT_MODEL = "gemini-3-flash"
     FALLBACK_MODEL = "gemini-2.5-pro"
     
+    # Smoothing configuration
+    SIMILARITY_THRESHOLD = 0.98
+    QUALITY_CLAMP = 10.0
+    DIRECTION_CLAMP = 20.0
+    
     # Safety ceiling per scope
     MAX_ASSETS_PER_SCOPE = 500
     
     def __init__(self, db: Database, api_key: Optional[str] = None, model: Optional[str] = None):
         self.db = db
+        self.chart_analyzer = ChartAnalyzer(window_size=60) # Use 60 bars for fingerprinting
         
         # Configure Gemini API
         self.api_key = api_key or os.environ.get("GEMINI_API_KEY")
@@ -62,7 +71,7 @@ class Stage5AIReview:
         )
         
         self._load_prompts()
-        logger.info(f"Stage5AIReview initialized with model: {self.model_name}")
+        logger.info(f"Stage5AIReview initialized with model: {self.model_name}, version: {self.PROMPT_VERSION}")
     
     def _load_prompts(self) -> None:
         """Load system prompts and schemas for Pass A (Independent Score) and Pass B (Reconciliation)."""
@@ -82,15 +91,15 @@ class Stage5AIReview:
         targets = []
         seen_assets = set()
         
-        filters = ["as_of_date = %s"]
+        filters = ["ds.as_of_date = %s"]
         params = [as_of_date]
         
         if universe_id:
-            filters.append("universe_id = %s")
+            filters.append("ds.universe_id = %s")
             params.append(universe_id)
         
         if config_id:
-            filters.append("config_id = %s::uuid")
+            filters.append("ds.config_id = %s::uuid")
             params.append(config_id)
         
         where_clause = " AND ".join(filters)
@@ -98,10 +107,11 @@ class Stage5AIReview:
         
         # Inflections Bullish
         query_bullish = f"""
-        SELECT asset_id, symbol, name, asset_type, universe_id, config_id, weighted_score, score_delta, new_signal_count, inflection_score, components, 'inflections_bullish' as scope
-        FROM v_dashboard_inflections
-        WHERE {where_clause} AND inflection_direction = 'bullish'
-        ORDER BY abs_inflection DESC
+        SELECT ds.asset_id, a.symbol, a.name, a.asset_type, ds.universe_id, ds.config_id, ds.weighted_score, ds.score_delta, ds.inflection_score, ds.components, 'inflections_bullish' as scope
+        FROM daily_scores ds
+        JOIN assets a ON ds.asset_id = a.asset_id
+        WHERE {where_clause} AND ds.inflection_direction = 'bullish'
+        ORDER BY ds.inflection_score DESC
         LIMIT %s
         """
         bullish = self.db.fetch_all(query_bullish, params + [actual_limit])
@@ -112,10 +122,11 @@ class Stage5AIReview:
         
         # Inflections Bearish
         query_bearish = f"""
-        SELECT asset_id, symbol, name, asset_type, universe_id, config_id, weighted_score, score_delta, new_signal_count, inflection_score, components, 'inflections_bearish' as scope
-        FROM v_dashboard_inflections
-        WHERE {where_clause} AND inflection_direction = 'bearish'
-        ORDER BY abs_inflection DESC
+        SELECT ds.asset_id, a.symbol, a.name, a.asset_type, ds.universe_id, ds.config_id, ds.weighted_score, ds.score_delta, ds.inflection_score, ds.components, 'inflections_bearish' as scope
+        FROM daily_scores ds
+        JOIN assets a ON ds.asset_id = a.asset_id
+        WHERE {where_clause} AND ds.inflection_direction = 'bearish'
+        ORDER BY ds.inflection_score DESC
         LIMIT %s
         """
         bearish = self.db.fetch_all(query_bearish, params + [actual_limit])
@@ -126,6 +137,18 @@ class Stage5AIReview:
 
         logger.info(f"Found {len(targets)} flashed assets for review.")
         return targets
+
+    def _get_ohlcv_data(self, asset_id: int, as_of_date: str, limit: int) -> List[Dict[str, Any]]:
+        """Fetches OHLCV data for a given asset and date."""
+        ohlcv_query = """
+        SELECT date, open, high, low, close, volume
+        FROM daily_bars
+        WHERE asset_id = %s AND date <= %s
+        ORDER BY date DESC
+        LIMIT %s
+        """
+        bars = self.db.fetch_all(ohlcv_query, (asset_id, as_of_date, limit))
+        return list(reversed(bars))
 
     def _build_pass_a_packet(
         self, 
@@ -139,15 +162,7 @@ class Stage5AIReview:
         scope: str
     ) -> Dict[str, Any]:
         """Build OHLCV-only packet for Pass A (365 bars) - Independent Chart Score."""
-        ohlcv_query = """
-        SELECT date, open, high, low, close, volume
-        FROM daily_bars
-        WHERE asset_id = %s AND date <= %s
-        ORDER BY date DESC
-        LIMIT %s
-        """
-        bars = self.db.fetch_all(ohlcv_query, (asset_id, as_of_date, self.PASS1_BARS))
-        bars = list(reversed(bars))
+        bars = self._get_ohlcv_data(asset_id, as_of_date, self.PASS1_BARS)
         
         ohlcv_data = [
             [
@@ -203,13 +218,100 @@ class Stage5AIReview:
     def _compute_input_hash(self, pass_a_packet: Dict[str, Any]) -> str:
         """Computes a hash of the inputs to the AI review to ensure idempotency."""
         # Hash last 90 closes and volumes, prompt version, and model name
-        last_90_ohlcv = pass_a_packet['ohlcv'][-90:]
+        # The chart analyzer will use the last 60 bars, so we'll use that for the hash content
+        ohlcv_data = pass_a_packet['ohlcv']
+        
+        # Use the chart analyzer to get the fingerprint, which is a hash of the normalized 60-bar data
+        fingerprint = self.chart_analyzer.calculate_fingerprint(ohlcv_data)
+        
         hash_content = {
-            "ohlcv_90": [(r[4], r[5]) for r in last_90_ohlcv],
+            "fingerprint": fingerprint,
             "prompt_version": self.PROMPT_VERSION,
             "model": self.model_name
         }
         return hashlib.sha256(json.dumps(hash_content, sort_keys=True).encode()).hexdigest()
+
+    def _calculate_scores(
+        self, 
+        asset_id: int, 
+        as_of_date: str, 
+        ohlcv_data: List[Dict[str, Any]], 
+        pass_a_result: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Calculates the raw setup quality score, chart similarity, and smoothed scores.
+        """
+        
+        # 1. Calculate raw setup quality score from subscores
+        subscores = pass_a_result.get("subscores", {})
+        total_subscore = sum(subscores.values())
+        raw_ai_setup_quality_score = total_subscore * 4.0 # 5 subscores * 5 max = 25 max. 25 * 4 = 100 max.
+        
+        # 2. Calculate fingerprint
+        fingerprint = self.chart_analyzer.calculate_fingerprint(ohlcv_data)
+        
+        # 3. Get previous day's smoothed scores and fingerprint
+        prev_date_query = """
+        SELECT as_of_date
+        FROM daily_bars
+        WHERE asset_id = %s AND date < %s
+        ORDER BY date DESC
+        LIMIT 1
+        """
+        prev_date_row = self.db.fetch_one(prev_date_query, (asset_id, as_of_date))
+        
+        prev_smoothed_quality = 0.0
+        prev_smoothed_direction = 0.0
+        similarity_to_prev = 0.0
+        
+        if prev_date_row:
+            prev_date = str(prev_date_row["as_of_date"])
+            
+            # Get previous day's review
+            prev_review_query = """
+            SELECT smoothed_ai_setup_quality_score, smoothed_ai_direction_score, fingerprint
+            FROM asset_ai_reviews
+            WHERE asset_id = %s AND as_of_date = %s
+            ORDER BY ai_review_version DESC, created_at DESC
+            LIMIT 1
+            """
+            prev_review = self.db.fetch_one(prev_review_query, (asset_id, prev_date))
+            
+            if prev_review:
+                prev_smoothed_quality = prev_review.get("smoothed_ai_setup_quality_score") or 0.0
+                prev_smoothed_direction = prev_review.get("smoothed_ai_direction_score") or 0.0
+                
+                # Calculate similarity
+                prev_ohlcv_data = self._get_ohlcv_data(asset_id, prev_date, self.chart_analyzer.window_size)
+                similarity_to_prev = self.chart_analyzer.calculate_similarity(ohlcv_data, prev_ohlcv_data) or 0.0
+
+        # 4. Apply smoothing rule
+        raw_ai_direction_score = pass_a_result.get("ai_direction_score", 0.0)
+        
+        if similarity_to_prev >= self.SIMILARITY_THRESHOLD:
+            # Clamp quality score
+            min_q = prev_smoothed_quality - self.QUALITY_CLAMP
+            max_q = prev_smoothed_quality + self.QUALITY_CLAMP
+            smoothed_ai_setup_quality_score = np.clip(raw_ai_setup_quality_score, min_q, max_q).item()
+            
+            # Clamp direction score
+            min_d = prev_smoothed_direction - self.DIRECTION_CLAMP
+            max_d = prev_smoothed_direction + self.DIRECTION_CLAMP
+            smoothed_ai_direction_score = np.clip(raw_ai_direction_score, min_d, max_d).item()
+        else:
+            # No clamp
+            smoothed_ai_setup_quality_score = raw_ai_setup_quality_score
+            smoothed_ai_direction_score = raw_ai_direction_score
+            
+        return {
+            "fingerprint": fingerprint,
+            "similarity_to_prev": similarity_to_prev,
+            "raw_ai_setup_quality_score": raw_ai_setup_quality_score,
+            "smoothed_ai_setup_quality_score": smoothed_ai_setup_quality_score,
+            "raw_ai_direction_score": raw_ai_direction_score,
+            "smoothed_ai_direction_score": smoothed_ai_direction_score,
+            "subscores": subscores
+        }
 
     def _run_ai_review(
         self, 
@@ -236,17 +338,27 @@ class Stage5AIReview:
         input_hash = self._compute_input_hash(pass_a_packet)
 
         try:
+            # Set the response schema for Pass A
+            self.model.generation_config.response_schema = self.pass_a_schema
+            
             pass_a_response = self.model.generate_content([self.pass_a_prompt, json.dumps(pass_a_packet)])
             pass_a_result = json.loads(pass_a_response.text)
         except Exception as e:
             logger.error(f"Error in Pass A for asset {asset_id}: {e}")
             return None
 
+        # Calculate scores (raw quality, smoothed scores, fingerprint, similarity)
+        ohlcv_data_dicts = self._get_ohlcv_data(asset_id, as_of_date, self.chart_analyzer.window_size)
+        score_data = self._calculate_scores(asset_id, as_of_date, ohlcv_data_dicts, pass_a_result)
+
         # Pass B: Reconciliation (optional)
         pass_b_result = {}
         if run_pass_b:
             pass_b_packet = self._build_pass_b_packet(pass_a_result, asset)
             try:
+                # Set the response schema for Pass B
+                self.model.generation_config.response_schema = self.pass_b_schema
+                
                 pass_b_response = self.model.generate_content([self.pass_b_prompt, json.dumps(pass_b_packet)])
                 pass_b_result = json.loads(pass_b_response.text)
             except Exception as e:
@@ -256,13 +368,14 @@ class Stage5AIReview:
         final_result = {
             **pass_a_result,
             **pass_b_result,
+            **score_data, # Add calculated scores
             "asset_id": asset_id,
             "as_of_date": as_of_date,
             "universe_id": asset["universe_id"],
             "config_id": asset["config_id"],
             "scope": asset["scope"],
             "model": self.model_name,
-            "prompt_version": self.PROMPT_VERSION,
+            "ai_review_version": self.PROMPT_VERSION, # Use new version column
             "input_hash": input_hash,
             "pass_a_packet": json.dumps(pass_a_packet),
             "pass_b_packet": json.dumps(pass_b_packet) if run_pass_b else None,
@@ -282,11 +395,22 @@ class Stage5AIReview:
             "universe_id": result["universe_id"],
             "config_id": result["config_id"],
             "scope": result["scope"],
-            "prompt_version": result["prompt_version"],
+            "ai_review_version": result["ai_review_version"], # New column
             "model": result["model"],
             "input_hash": result["input_hash"],
-            "ai_direction_score": result.get("ai_direction_score"),
-            "ai_setup_quality_score": result.get("ai_setup_quality_score"),
+            
+            # New columns
+            "fingerprint": result.get("fingerprint"),
+            "similarity_to_prev": result.get("similarity_to_prev"),
+            "raw_ai_setup_quality_score": result.get("raw_ai_setup_quality_score"),
+            "smoothed_ai_setup_quality_score": result.get("smoothed_ai_setup_quality_score"),
+            "raw_ai_direction_score": result.get("raw_ai_direction_score"),
+            "smoothed_ai_direction_score": result.get("smoothed_ai_direction_score"),
+            "subscores": json.dumps(result.get("subscores")),
+            
+            # Existing columns
+            "ai_direction_score": result.get("smoothed_ai_direction_score"), # Store smoothed score in old column for compatibility
+            "ai_setup_quality_score": result.get("smoothed_ai_setup_quality_score"), # Store smoothed score in old column for compatibility
             "ai_attention_level": result.get("attention_level"),
             "ai_setup_type": result.get("setup_type"),
             "ai_time_horizon": result.get("time_horizon"),
@@ -304,9 +428,9 @@ class Stage5AIReview:
             "raw_response": json.dumps(result) # Store the full response for debugging
         }
         
-        # Upsert into asset_ai_reviews
-        self.db.upsert("asset_ai_reviews", [db_record], on_conflict=['asset_id', 'as_of_date', 'universe_id', 'config_id', 'scope', 'prompt_version'])
-        logger.info(f"Saved AI review for asset {result['asset_id']}")
+        # Upsert into asset_ai_reviews using the new unique constraint
+        self.db.upsert("asset_ai_reviews", [db_record], on_conflict=['asset_id', 'as_of_date', 'ai_review_version'])
+        logger.info(f"Saved AI review for asset {result['asset_id']} with version {result['ai_review_version']}")
 
     def run(
         self, 

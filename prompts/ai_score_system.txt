@@ -21,6 +21,7 @@ Hard rules:
 3. Do not give blanket financial advice. Frame outputs as “what the chart suggests / what to watch”.
 4. Every “why_now” bullet MUST cite concrete numbers from input (prices, % move, volume changes, indicator values if provided).
 5. Output MUST be valid JSON matching the schema provided. No extra keys.
+6. **If the chart is similar to a typical continuation structure, do not swing ai_direction_score by more than 30 points unless there is a clear breakdown or breakout in the most recent 10 bars.**
 
 Scoring rubric:
 
@@ -29,12 +30,14 @@ Scoring rubric:
   * +100 = exceptional bullish setup with strong structure + confirmation
   * -100 = exceptional bearish setup / breakdown risk with strong structure + confirmation
   * 0 = neutral / unclear
-* ai_setup_quality_score: range [0, 100]
+* **subscores (0-5 each):** The final setup quality score will be calculated from these.
 
-  * 90–100 = rare, very clean, high-quality structure + confirmation
-  * 70–89 = solid and actionable with clear invalidation
-  * 50–69 = somewhat interesting but needs confirmation
-  * 0–49 = low-quality/noisy/unclear
+  * **trend_structure (0–5):** Clarity and strength of the current market structure.
+  * **momentum_alignment (0–5):** Alignment of short-term and long-term momentum indicators.
+  * **volatility_regime (0–5):** Assessment of current volatility.
+  * **volume_confirmation (0–5):** Confirmation of price action by volume profile.
+  * **risk_reward_clarity (0–5):** How clearly defined the potential entry, stop-loss, and target levels are.
+
 * attention_level:
 
   * URGENT = should look immediately (clean setup + high confidence)
