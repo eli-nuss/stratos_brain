@@ -556,6 +556,95 @@ Output valid JSON with:
         result = self.db.fetch_one(query, (str(asset_id), as_of_date, config_id, scope))
         return result is not None
 
+    def process_single_asset(
+        self,
+        target: Dict[str, Any],
+        as_of_date: str,
+        config_id: str,
+        skip_existing: bool = True
+    ) -> Dict[str, Any]:
+        """Process a single asset review (for parallel execution)."""
+        asset_id = target["asset_id"]
+        symbol = target["symbol"]
+        scope = target["scope"]
+        
+        result = {
+            "symbol": symbol,
+            "scope": scope,
+            "status": "failed",
+            "details": None
+        }
+        
+        try:
+            # Check for existing review (idempotent)
+            if skip_existing and self._check_existing_review(
+                asset_id, as_of_date, config_id, scope
+            ):
+                logger.info(f"  Skipping {symbol} - review exists")
+                result["status"] = "skipped"
+                return result
+            
+            # Compute input hash
+            input_hash = self._compute_input_hash(asset_id, as_of_date, scope)
+            
+            # PASS 1: OHLCV-only analysis
+            pass1_packet = self._build_pass1_packet(
+                asset_id=int(asset_id) if isinstance(asset_id, str) else asset_id,
+                as_of_date=as_of_date,
+                symbol=symbol,
+                name=target.get("name"),
+                asset_type=target.get("asset_type")
+            )
+            
+            pass1_result = self._call_pass1(pass1_packet)
+            if not pass1_result:
+                logger.warning(f"  ✗ {symbol}: Pass 1 failed")
+                return result
+            
+            # PASS 2: Enriched analysis
+            pass2_packet = self._build_pass2_packet(
+                asset_id=int(asset_id) if isinstance(asset_id, str) else asset_id,
+                as_of_date=as_of_date,
+                config_id=config_id,
+                universe_id=str(target.get("universe_id", "")),
+                scope=scope,
+                score_data=target,
+                pass1_result=pass1_result
+            )
+            
+            final_result = self._call_pass2(pass2_packet)
+            if not final_result:
+                logger.warning(f"  ✗ {symbol}: Pass 2 failed")
+                return result
+            
+            # Store review
+            self._store_review(
+                asset_id=asset_id,
+                as_of_date=as_of_date,
+                config_id=config_id,
+                scope=scope,
+                input_hash=input_hash,
+                pass1_result=pass1_result,
+                final_result=final_result
+            )
+            
+            result["status"] = "processed"
+            result["details"] = {
+                "attention_level": final_result.get("attention_level"),
+                "direction": final_result.get("direction"),
+                "confidence": final_result.get("confidence"),
+                "setup_type": final_result.get("setup_type"),
+            }
+            
+            logger.info(f"  ✓ {symbol}: {final_result.get('attention_level')} / "
+                       f"{final_result.get('direction')} / conf={final_result.get('confidence')}")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error processing {symbol}: {e}")
+            return result
+
     def run(
         self,
         as_of_date: str,
@@ -599,82 +688,16 @@ Output valid JSON with:
         }
         
         for target in targets:
-            asset_id = target["asset_id"]
-            symbol = target["symbol"]
-            scope = target["scope"]
+            logger.info(f"Processing {target['symbol']} ({target['scope']})")
+            res = self.process_single_asset(target, as_of_date, config_id, skip_existing)
             
-            logger.info(f"Processing {symbol} ({scope})")
-            
-            # Check for existing review (idempotent)
-            if skip_existing and self._check_existing_review(
-                asset_id, as_of_date, config_id, scope
-            ):
-                logger.info(f"  Skipping {symbol} - review exists for this date/scope")
+            if res["status"] == "processed":
+                results["processed"] += 1
+                results["reviews"].append(res["details"])
+            elif res["status"] == "skipped":
                 results["skipped"] += 1
-                continue
-            
-            # Compute input hash
-            input_hash = self._compute_input_hash(asset_id, as_of_date, scope)
-            
-            # PASS 1: OHLCV-only analysis
-            logger.info(f"  Pass 1: OHLCV analysis...")
-            pass1_packet = self._build_pass1_packet(
-                asset_id=int(asset_id) if isinstance(asset_id, str) else asset_id,
-                as_of_date=as_of_date,
-                symbol=symbol,
-                name=target.get("name"),
-                asset_type=target.get("asset_type")
-            )
-            
-            pass1_result = self._call_pass1(pass1_packet)
-            if not pass1_result:
-                logger.warning(f"  ✗ {symbol}: Pass 1 failed")
+            else:
                 results["failed"] += 1
-                continue
-            
-            logger.info(f"    Pass 1: {pass1_result.get('setup_type')} / {pass1_result.get('direction')}")
-            
-            # PASS 2: Enriched analysis
-            logger.info(f"  Pass 2: Enriched analysis...")
-            pass2_packet = self._build_pass2_packet(
-                asset_id=int(asset_id) if isinstance(asset_id, str) else asset_id,
-                as_of_date=as_of_date,
-                config_id=config_id,
-                universe_id=str(target.get("universe_id", "")),
-                scope=scope,
-                score_data=target,
-                pass1_result=pass1_result
-            )
-            
-            final_result = self._call_pass2(pass2_packet)
-            if not final_result:
-                logger.warning(f"  ✗ {symbol}: Pass 2 failed")
-                results["failed"] += 1
-                continue
-            
-            # Store review
-            self._store_review(
-                asset_id=asset_id,
-                as_of_date=as_of_date,
-                config_id=config_id,
-                scope=scope,
-                input_hash=input_hash,
-                pass1_result=pass1_result,
-                final_result=final_result
-            )
-            
-            results["processed"] += 1
-            results["reviews"].append({
-                "symbol": symbol,
-                "scope": scope,
-                "attention_level": final_result.get("attention_level"),
-                "direction": final_result.get("direction"),
-                "confidence": final_result.get("confidence"),
-                "setup_type": final_result.get("setup_type"),
-            })
-            
-            logger.info(f"  ✓ {symbol}: {final_result.get('attention_level')} / "
-                       f"{final_result.get('direction')} / conf={final_result.get('confidence')}")
         
         logger.info(f"Stage 5 complete: {results['processed']} processed, "
                    f"{results['skipped']} skipped, {results['failed']} failed")
