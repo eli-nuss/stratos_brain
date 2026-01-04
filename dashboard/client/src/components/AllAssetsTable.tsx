@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { TrendingUp, TrendingDown, AlertTriangle, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info } from "lucide-react";
 import { useAllAssets, AssetType, SortField, SortOrder } from "@/hooks/useAllAssets";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { COLUMN_DEFINITIONS } from "@/lib/signalDefinitions";
 
 interface AllAssetsTableProps {
   assetType: AssetType;
@@ -54,6 +56,15 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
     }
   };
 
+  const getAttentionTooltip = (level: string) => {
+    switch (level) {
+      case "URGENT": return "Immediate attention warranted. High-conviction setup with favorable risk/reward.";
+      case "FOCUS": return "Monitor closely. Developing setup that may become actionable soon.";
+      case "WATCH": return "On the radar. Keep watching for potential entry opportunities.";
+      default: return "";
+    }
+  };
+
   const getDirectionIcon = (direction: string) => {
     if (direction === "bullish") return <TrendingUp className="w-3 h-3 text-signal-bullish" />;
     if (direction === "bearish") return <TrendingDown className="w-3 h-3 text-signal-bearish" />;
@@ -75,18 +86,76 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
     }
   };
 
-  const SortHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
-    <button
-      onClick={() => handleSort(field)}
-      className="flex items-center gap-1 hover:text-foreground transition-colors"
-    >
-      {children}
-      {sortBy === field ? (
-        sortOrder === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-      ) : (
-        <ArrowUpDown className="w-3 h-3 opacity-50" />
+  const getSignalCategoryTooltip = (category: string) => {
+    switch (category) {
+      case "inflection_bullish":
+        return "Bullish inflection point detected. Price breaking out or reversing higher with strong momentum signals.";
+      case "inflection_bearish":
+        return "Bearish inflection point detected. Price breaking down or reversing lower with negative momentum signals.";
+      case "trend":
+        return "Established trend continuation. Asset showing consistent directional movement with healthy pullbacks.";
+      case "risk":
+        return "Risk warning. Technical deterioration or potential breakdown pattern identified.";
+      default:
+        return "No significant signal category assigned.";
+    }
+  };
+
+  const getSetupTooltip = (setup: string) => {
+    switch (setup) {
+      case "breakout":
+        return "Breakout: Price clearing a key resistance level with volume confirmation, suggesting continuation higher.";
+      case "reversal":
+        return "Reversal: Trend change pattern identified, suggesting a shift in the prevailing direction.";
+      case "mean_reversion":
+        return "Mean Reversion: Extended price likely to return toward moving average. Counter-trend opportunity.";
+      case "continuation":
+        return "Continuation: Pullback within an established trend offering a lower-risk entry point.";
+      default:
+        return "";
+    }
+  };
+
+  // Sort header with tooltip
+  const SortHeader = ({ field, children, tooltip }: { field: SortField; children: React.ReactNode; tooltip?: string }) => (
+    <div className="flex items-center gap-1">
+      <button
+        onClick={() => handleSort(field)}
+        className="flex items-center gap-1 hover:text-foreground transition-colors"
+      >
+        {children}
+        {sortBy === field ? (
+          sortOrder === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+        ) : (
+          <ArrowUpDown className="w-3 h-3 opacity-50" />
+        )}
+      </button>
+      {tooltip && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Info className="w-3 h-3 text-muted-foreground hover:text-foreground cursor-help transition-colors" />
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs text-left">
+            {tooltip}
+          </TooltipContent>
+        </Tooltip>
       )}
-    </button>
+    </div>
+  );
+
+  // Column header with tooltip (non-sortable)
+  const HeaderWithTooltip = ({ children, tooltip }: { children: React.ReactNode; tooltip: string }) => (
+    <div className="flex items-center gap-1">
+      {children}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Info className="w-3 h-3 text-muted-foreground hover:text-foreground cursor-help transition-colors" />
+        </TooltipTrigger>
+        <TooltipContent className="max-w-xs text-left">
+          {tooltip}
+        </TooltipContent>
+      </Tooltip>
+    </div>
   );
 
   return (
@@ -131,17 +200,25 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
                 <SortHeader field="symbol">Asset</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-right">
-                <SortHeader field="weighted_score">Score</SortHeader>
+                <SortHeader field="weighted_score" tooltip={COLUMN_DEFINITIONS.score.description}>Score</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-right">
-                <SortHeader field="score_delta">Δ</SortHeader>
+                <SortHeader field="score_delta" tooltip={COLUMN_DEFINITIONS.score_delta.description}>Δ</SortHeader>
               </th>
-              <th className="px-2 py-2 font-medium">Signal</th>
-              <th className="px-2 py-2 font-medium">Setup</th>
-              <th className="px-2 py-2 font-medium">Attn</th>
-              <th className="px-2 py-2 font-medium">Dir</th>
+              <th className="px-2 py-2 font-medium">
+                <HeaderWithTooltip tooltip={COLUMN_DEFINITIONS.signal.description}>Signal</HeaderWithTooltip>
+              </th>
+              <th className="px-2 py-2 font-medium">
+                <HeaderWithTooltip tooltip={COLUMN_DEFINITIONS.setup.description}>Setup</HeaderWithTooltip>
+              </th>
+              <th className="px-2 py-2 font-medium">
+                <HeaderWithTooltip tooltip={COLUMN_DEFINITIONS.attention.description}>Attn</HeaderWithTooltip>
+              </th>
+              <th className="px-2 py-2 font-medium">
+                <HeaderWithTooltip tooltip={COLUMN_DEFINITIONS.direction.description}>Dir</HeaderWithTooltip>
+              </th>
               <th className="px-4 py-2 font-medium text-right">
-                <SortHeader field="ai_confidence">Conf.</SortHeader>
+                <SortHeader field="ai_confidence" tooltip={COLUMN_DEFINITIONS.confidence.description}>Conf.</SortHeader>
               </th>
             </tr>
           </thead>
@@ -189,27 +266,80 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
                     {row.score_delta > 0 ? "+" : ""}{Math.round(row.score_delta)}
                   </td>
                   <td className="px-2 py-2">
-                    {getSignalCategoryBadge(row.signal_category)}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="cursor-help">
+                          {getSignalCategoryBadge(row.signal_category)}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        {getSignalCategoryTooltip(row.signal_category)}
+                      </TooltipContent>
+                    </Tooltip>
                   </td>
-                  <td className="px-2 py-2 text-xs text-muted-foreground truncate max-w-[80px]">
-                    {row.setup_type || "-"}
+                  <td className="px-2 py-2 text-xs text-muted-foreground">
+                    {row.setup_type ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="cursor-help truncate max-w-[80px] block">
+                            {row.setup_type}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          {getSetupTooltip(row.setup_type)}
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <span>-</span>
+                    )}
                   </td>
                   <td className="px-2 py-2">
                     {row.ai_attention ? (
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${getAttentionColor(row.ai_attention)}`}>
-                        {row.ai_attention}
-                      </span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium cursor-help ${getAttentionColor(row.ai_attention)}`}>
+                            {row.ai_attention}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          {getAttentionTooltip(row.ai_attention)}
+                        </TooltipContent>
+                      </Tooltip>
                     ) : (
                       <span className="text-xs text-muted-foreground">-</span>
                     )}
                   </td>
                   <td className="px-2 py-2">
-                    <div className="flex items-center gap-1">
-                      {getDirectionIcon(row.ai_direction)}
-                    </div>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center gap-1 cursor-help">
+                          {getDirectionIcon(row.ai_direction)}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {row.ai_direction === "bullish" 
+                          ? "Bullish: AI expects higher prices based on technical analysis."
+                          : row.ai_direction === "bearish"
+                          ? "Bearish: AI expects lower prices based on technical analysis."
+                          : "No directional bias assigned."}
+                      </TooltipContent>
+                    </Tooltip>
                   </td>
                   <td className="px-4 py-2 font-mono text-right text-xs text-muted-foreground">
-                    {row.ai_confidence ? `${Math.round(row.ai_confidence * 100)}%` : "-"}
+                    {row.ai_confidence ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="cursor-help">{Math.round(row.ai_confidence * 100)}%</span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {row.ai_confidence >= 0.85 
+                            ? "High conviction: Clear technical patterns with strong evidence."
+                            : row.ai_confidence >= 0.70
+                            ? "Moderate conviction: Reasonable setup with some mixed signals."
+                            : "Lower conviction: Mixed signals or unclear pattern."}
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : "-"}
                   </td>
                 </tr>
               ))

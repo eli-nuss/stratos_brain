@@ -1,13 +1,34 @@
 import useSWR from "swr";
-import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, Activity } from "lucide-react";
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, Activity, Info } from "lucide-react";
+import { Area, AreaChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from "recharts";
 import { format } from "date-fns";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { 
+  SIGNAL_DEFINITIONS, 
+  TRADE_PLAN_DEFINITIONS, 
+  formatSignalType, 
+  getSignalTooltip 
+} from "@/lib/signalDefinitions";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface AssetDetailProps {
   assetId: string;
   onClose: () => void;
+}
+
+// Helper component for info tooltips
+function InfoTooltip({ content, className = "" }: { content: string; className?: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Info className={`w-3.5 h-3.5 text-muted-foreground hover:text-foreground cursor-help transition-colors ${className}`} />
+      </TooltipTrigger>
+      <TooltipContent className="max-w-xs text-left whitespace-pre-wrap">
+        {content}
+      </TooltipContent>
+    </Tooltip>
+  );
 }
 
 export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
@@ -44,14 +65,27 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               {data.as_of_date}
             </span>
             {review && (
-              <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded border ${
-                review.attention_level === "URGENT" 
-                  ? "border-attention-urgent/30 text-attention-urgent bg-attention-urgent/10" 
-                  : "border-border text-muted-foreground"
-              }`}>
-                {review.attention_level === "URGENT" && <AlertTriangle className="w-3 h-3" />}
-                {review.attention_level}
-              </span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded border cursor-help ${
+                    review.attention_level === "URGENT" 
+                      ? "border-attention-urgent/30 text-attention-urgent bg-attention-urgent/10" 
+                      : review.attention_level === "FOCUS"
+                      ? "border-yellow-500/30 text-yellow-500 bg-yellow-500/10"
+                      : "border-border text-muted-foreground"
+                  }`}>
+                    {review.attention_level === "URGENT" && <AlertTriangle className="w-3 h-3" />}
+                    {review.attention_level}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  {review.attention_level === "URGENT" 
+                    ? "Immediate attention warranted. High-conviction setup with favorable risk/reward."
+                    : review.attention_level === "FOCUS"
+                    ? "Monitor closely. Developing setup that may become actionable soon."
+                    : "On the radar. Keep watching for potential entry opportunities."}
+                </TooltipContent>
+              </Tooltip>
             )}
           </div>
         </div>
@@ -93,7 +127,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                   axisLine={false}
                   tickFormatter={(val) => val.toFixed(2)}
                 />
-                <Tooltip 
+                <RechartsTooltip 
                   contentStyle={{ backgroundColor: 'var(--popover)', borderColor: 'var(--border)', color: 'var(--popover-foreground)' }}
                   itemStyle={{ color: 'var(--foreground)' }}
                   labelStyle={{ color: 'var(--muted-foreground)' }}
@@ -118,17 +152,42 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <Activity className="w-5 h-5 text-primary" />
                 AI Analysis
+                <InfoTooltip content="AI-generated analysis based on technical chart patterns, price action, and quantitative signals. The model evaluates multiple timeframes and indicators to form a directional bias." />
               </h3>
               
               <div className="bg-muted/10 border border-border rounded-lg p-4 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className={`text-sm font-bold uppercase ${signalColor}`}>
-                      {review.direction} {review.setup_type}
-                    </span>
-                    <span className="text-xs text-muted-foreground border-l border-border pl-2">
-                      {Math.round(review.confidence * 100)}% Confidence
-                    </span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className={`text-sm font-bold uppercase cursor-help ${signalColor}`}>
+                          {review.direction} {review.setup_type}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <strong>{review.setup_type?.charAt(0).toUpperCase() + review.setup_type?.slice(1)}</strong>: {
+                          review.setup_type === "breakout" 
+                            ? "Price clearing a key resistance level with volume confirmation, suggesting continuation higher."
+                            : review.setup_type === "reversal"
+                            ? "Trend change pattern identified, suggesting a shift in the prevailing direction."
+                            : review.setup_type === "mean_reversion"
+                            ? "Extended price likely to return toward moving average. Counter-trend opportunity."
+                            : review.setup_type === "continuation"
+                            ? "Pullback within an established trend offering a lower-risk entry point."
+                            : "Chart pattern identified by AI analysis."
+                        }
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="text-xs text-muted-foreground border-l border-border pl-2 cursor-help">
+                          {Math.round(review.confidence * 100)}% Confidence
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        AI confidence in this analysis. Above 85% indicates high conviction with clear technical evidence. 70-85% is moderate conviction. Below 70% suggests mixed signals.
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                   <span className="text-xs text-muted-foreground font-mono">
                     {review.model}
@@ -168,8 +227,9 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
         <div className="space-y-6">
           {review && (
             <div className="bg-card border border-border rounded-lg overflow-hidden">
-              <div className="bg-muted/30 px-4 py-3 border-b border-border">
+              <div className="bg-muted/30 px-4 py-3 border-b border-border flex items-center gap-2">
                 <h3 className="font-semibold text-sm">Trade Plan</h3>
+                <InfoTooltip content="AI-generated trade plan with specific entry, target, and stop levels. These are suggestions based on technical analysis - always apply your own risk management." />
               </div>
               
               <div className="p-4 space-y-6">
@@ -178,6 +238,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                   <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-2">
                     <Target className="w-4 h-4" />
                     ENTRY ZONE
+                    <InfoTooltip content={TRADE_PLAN_DEFINITIONS.entry_zone.description} />
                   </div>
                   <div className="font-mono text-xl font-bold">
                     {review.entry 
@@ -191,6 +252,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                   <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-2">
                     <TrendingUp className="w-4 h-4" />
                     TARGETS
+                    <InfoTooltip content={TRADE_PLAN_DEFINITIONS.targets.description} />
                   </div>
                   <div className="space-y-1">
                     {review.targets?.map((target: number, i: number) => (
@@ -207,6 +269,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                   <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-2">
                     <Shield className="w-4 h-4" />
                     INVALIDATION
+                    <InfoTooltip content={TRADE_PLAN_DEFINITIONS.invalidation.description} />
                   </div>
                   <div className="font-mono text-lg font-bold text-destructive">
                     {review.invalidation ? `$${review.invalidation}` : "N/A"}
@@ -218,20 +281,66 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
 
           {/* Signal Facts */}
           <div className="bg-card border border-border rounded-lg overflow-hidden">
-            <div className="bg-muted/30 px-4 py-3 border-b border-border">
+            <div className="bg-muted/30 px-4 py-3 border-b border-border flex items-center gap-2">
               <h3 className="font-semibold text-sm">Signal Drivers</h3>
+              <InfoTooltip content="Quantitative signals that triggered this asset's score. Each signal has a strength from 0-100 based on technical criteria. Multiple strong signals increase conviction." />
             </div>
             <div className="divide-y divide-border">
-              {data.signals?.slice(0, 5).map((signal: any, i: number) => (
-                <div key={i} className="p-3 flex justify-between items-center">
-                  <span className="text-sm font-medium">{signal.signal_name}</span>
-                  <span className={`text-xs font-mono px-1.5 py-0.5 rounded ${
-                    signal.strength > 50 ? "bg-signal-bullish/10 text-signal-bullish" : "bg-signal-bearish/10 text-signal-bearish"
-                  }`}>
-                    {Math.round(signal.strength)}
-                  </span>
+              {data.signals?.length > 0 ? (
+                data.signals.slice(0, 5).map((signal: any, i: number) => {
+                  const signalDef = SIGNAL_DEFINITIONS[signal.signal_type];
+                  return (
+                    <Tooltip key={i}>
+                      <TooltipTrigger asChild>
+                        <div className="p-3 flex justify-between items-center cursor-help hover:bg-muted/20 transition-colors">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium">
+                              {formatSignalType(signal.signal_type)}
+                            </span>
+                            {signalDef && (
+                              <span className="text-xs text-muted-foreground">
+                                {signalDef.shortDescription}
+                              </span>
+                            )}
+                          </div>
+                          <span className={`text-sm font-mono font-bold px-2 py-1 rounded ${
+                            signal.direction === "bullish" 
+                              ? "bg-signal-bullish/10 text-signal-bullish" 
+                              : "bg-signal-bearish/10 text-signal-bearish"
+                          }`}>
+                            {Math.round(signal.strength)}
+                          </span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" className="max-w-sm text-left">
+                        <div className="space-y-2">
+                          <div className="font-semibold">{formatSignalType(signal.signal_type)}</div>
+                          {signalDef ? (
+                            <>
+                              <div className="text-xs">
+                                <strong>Methodology:</strong> {signalDef.methodology}
+                              </div>
+                              <div className="text-xs">
+                                <strong>Interpretation:</strong> {signalDef.interpretation}
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-xs">Signal methodology not available.</div>
+                          )}
+                          <div className="text-xs pt-1 border-t border-border">
+                            <strong>Strength:</strong> {Math.round(signal.strength)}/100 • 
+                            <strong> Direction:</strong> {signal.direction}
+                          </div>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })
+              ) : (
+                <div className="p-4 text-center text-sm text-muted-foreground">
+                  No active signals for this date.
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>
