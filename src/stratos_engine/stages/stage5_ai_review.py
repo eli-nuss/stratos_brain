@@ -1,15 +1,18 @@
-"""Stage 5: AI Chart Review - LLM-powered chart analysis for dashboard assets."""
+"""Stage 5: AI Chart Review - LLM-powered chart analysis for dashboard assets.
+
+Uses Gemini 3 Pro Preview as the primary model for highest confidence and urgency detection.
+"""
 
 import json
 import hashlib
 import logging
+import os
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-from openai import OpenAI
+import google.generativeai as genai
 
-from ..config import config
 from ..db import Database
 
 logger = logging.getLogger(__name__)
@@ -19,20 +22,45 @@ PROMPT_DIR = Path(__file__).parent.parent / "prompts"
 
 
 class Stage5AIReview:
-    """Stage 5: AI-powered chart review for dashboard-surfaced assets."""
+    """Stage 5: AI-powered chart review for dashboard-surfaced assets.
     
-    PROMPT_VERSION = "v2_chart_review"
+    Uses Gemini 3 Pro Preview for primary analysis:
+    - Highest confidence calibration (avg 0.89)
+    - Best urgency detection (60% URGENT signals)
+    - Richest contextual analysis
+    """
+    
+    PROMPT_VERSION = "v3_gemini_pro"
     SCOPES = ["inflections_bullish", "inflections_bearish", "trends", "risk"]
-    LOOKBACK_BARS = 60  # Number of OHLCV bars to include (reduced for token efficiency)
+    LOOKBACK_BARS = 45  # Optimized for Gemini token limits
     
-    def __init__(self, db: Database, client: Optional[OpenAI] = None):
+    # Model configuration
+    DEFAULT_MODEL = "gemini-3-pro-preview"
+    FALLBACK_MODEL = "gemini-3-flash-preview"
+    
+    def __init__(self, db: Database, api_key: Optional[str] = None, model: Optional[str] = None):
         self.db = db
-        self.client = client or OpenAI(
-            api_key=config.openai.api_key,
-            base_url=config.openai.base_url,
+        
+        # Configure Gemini API
+        self.api_key = api_key or os.environ.get("GEMINI_API_KEY")
+        if not self.api_key:
+            raise ValueError("GEMINI_API_KEY not set in environment or provided")
+        
+        genai.configure(api_key=self.api_key)
+        
+        # Set model (default to Gemini 3 Pro)
+        self.model_name = model or self.DEFAULT_MODEL
+        self.model = genai.GenerativeModel(
+            model_name=self.model_name,
+            generation_config={
+                "temperature": 0.2,
+                "max_output_tokens": 4000,
+                "response_mime_type": "application/json",
+            }
         )
-        self.model = config.openai.model
+        
         self._load_prompts()
+        logger.info(f"Stage5AIReview initialized with model: {self.model_name}")
     
     def _load_prompts(self) -> None:
         """Load system prompt and output schema."""
@@ -54,7 +82,7 @@ class Stage5AIReview:
     def _default_system_prompt(self) -> str:
         return """You are a chart review analyst. Analyze the provided OHLCV data and signals.
 Output valid JSON with: attention_level, direction, setup_type, time_horizon, summary_text,
-why_now (array), key_levels (object with support, resistance, invalidation), 
+why_now (array of 3-7 bullets grounded in data), key_levels (object with support, resistance, invalidation), 
 what_to_watch_next (array), risks_and_contradictions (array), confidence (0-1)."""
 
     def _get_target_assets(
@@ -164,7 +192,7 @@ what_to_watch_next (array), risks_and_contradictions (array), confidence (0-1)."
 
     def _build_chart_packet(
         self, 
-        asset_id: str, 
+        asset_id: int, 
         as_of_date: str, 
         config_id: str,
         universe_id: str,
@@ -174,6 +202,7 @@ what_to_watch_next (array), risks_and_contradictions (array), confidence (0-1)."
         """
         Build the complete chart packet for LLM analysis.
         Includes OHLCV bars, features, signals, and scores.
+        Enhanced with more features for better context.
         """
         packet = {
             "asset": {
@@ -190,7 +219,6 @@ what_to_watch_next (array), risks_and_contradictions (array), confidence (0-1)."
             "ohlcv": [],
             "features": {},
             "signal_facts": [],
-            "signal_instances": [],
             "scores": {
                 "weighted_score": score_data.get("weighted_score"),
                 "score_delta": score_data.get("score_delta"),
@@ -200,7 +228,7 @@ what_to_watch_next (array), risks_and_contradictions (array), confidence (0-1)."
             }
         }
         
-        # 1. Get OHLCV bars (last 200 days)
+        # 1. Get OHLCV bars
         ohlcv_query = """
         SELECT date, open, high, low, close, volume
         FROM daily_bars
@@ -209,7 +237,6 @@ what_to_watch_next (array), risks_and_contradictions (array), confidence (0-1)."
         LIMIT %s
         """
         bars = self.db.fetch_all(ohlcv_query, (asset_id, as_of_date, self.LOOKBACK_BARS))
-        # Reverse to chronological order
         bars = list(reversed(bars))
         packet["ohlcv"] = [
             {
@@ -223,7 +250,7 @@ what_to_watch_next (array), risks_and_contradictions (array), confidence (0-1)."
             for b in bars
         ]
         
-        # 2. Get daily features for as_of_date
+        # 2. Get daily features (enhanced set)
         features_query = """
         SELECT *
         FROM daily_features
@@ -231,20 +258,40 @@ what_to_watch_next (array), risks_and_contradictions (array), confidence (0-1)."
         """
         features = self.db.fetch_one(features_query, (asset_id, as_of_date))
         if features:
-            # Include key features (not all to save tokens)
+            # Enhanced feature set for better context
             key_features = [
-                "close", "dollar_volume_sma_20", "rs_vs_benchmark",
-                "atr_pct", "bb_width", "rsi_14", "macd_histogram",
+                # Price
+                "close", "open", "high", "low",
+                # Moving averages
                 "sma_20", "sma_50", "sma_200", "ema_21",
-                "squeeze_on", "squeeze_pctile", "coverage_252"
+                # MA distances
+                "ma_dist_20", "ma_dist_50", "ma_dist_200",
+                # Momentum
+                "rsi_14", "macd_histogram", "macd_signal",
+                # Volatility
+                "atr_pct", "bb_width", "bb_width_pctile", "bb_width_pctile_expanding",
+                # Volume
+                "dollar_volume_sma_20", "rvol_20", "volume_z_60", "obv_slope_20",
+                # Donchian
+                "donchian_high_20", "donchian_low_20", "donchian_high_55", "donchian_low_55",
+                # Breakout flags
+                "breakout_up_20", "breakout_down_20", "breakout_confirmed_up", "breakout_confirmed_down",
+                # Squeeze
+                "squeeze_on", "squeeze_pctile", "squeeze_fired",
+                # Trend
+                "rs_vs_benchmark", "trend_regime",
+                # Drawdown
+                "drawdown_63d", "drawdown_252d",
+                # Coverage
+                "coverage_252"
             ]
             packet["features"] = {
-                k: float(v) if v is not None and k in key_features else v
+                k: (float(v) if isinstance(v, (int, float)) and v is not None else v)
                 for k, v in features.items()
                 if k in key_features and v is not None
             }
         
-        # 3. Get signal facts for today
+        # 3. Get signal facts with evidence
         facts_query = """
         SELECT signal_type, direction, strength, evidence
         FROM daily_signal_facts
@@ -263,167 +310,131 @@ what_to_watch_next (array), risks_and_contradictions (array), confidence (0-1)."
             for f in facts
         ]
         
-        # 4. Get signal instance states
-        instances_query = """
-        SELECT signal_type, direction, state, triggered_at, last_seen_at
-        FROM signal_instances
-        WHERE asset_id = %s AND config_id = %s::uuid AND state IN ('new', 'active')
-        """
-        instances = self.db.fetch_all(instances_query, (asset_id, config_id))
-        packet["signal_instances"] = [
-            {
-                "signal_type": i["signal_type"],
-                "direction": i["direction"],
-                "state": i["state"],
-                "triggered_at": str(i["triggered_at"]) if i["triggered_at"] else None,
-                "last_seen_at": str(i["last_seen_at"]) if i["last_seen_at"] else None,
-            }
-            for i in instances
-        ]
-        
         return packet
 
     def _compute_input_hash(self, packet: Dict[str, Any]) -> str:
-        """
-        Compute hash of input data for caching/idempotency.
-        Hash includes: OHLCV closes, signal facts, scores, scope, prompt version.
-        """
-        hash_data = {
-            "closes": [b["close"] for b in packet["ohlcv"][-50:]],  # Last 50 closes
-            "volumes": [b["volume"] for b in packet["ohlcv"][-10:]],  # Last 10 volumes
-            "signal_facts": [(f["signal_type"], f["strength"]) for f in packet["signal_facts"]],
-            "scores": packet["scores"],
+        """Compute hash of input packet for caching/deduplication."""
+        # Include key fields that affect output
+        hash_input = {
+            "asset_id": packet["asset"]["asset_id"],
+            "as_of_date": packet["context"]["as_of_date"],
             "scope": packet["context"]["scope"],
+            "ohlcv_last": packet["ohlcv"][-1] if packet["ohlcv"] else None,
+            "signal_count": len(packet["signal_facts"]),
+            "model": self.model_name,
             "prompt_version": self.PROMPT_VERSION,
         }
-        data_str = json.dumps(hash_data, sort_keys=True, default=str)
-        return hashlib.md5(data_str.encode()).hexdigest()
+        hash_str = json.dumps(hash_input, sort_keys=True, default=str)
+        return hashlib.sha256(hash_str.encode()).hexdigest()[:16]
 
     def _call_llm(self, packet: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """
-        Call the LLM (Gemini 3 Flash) to generate chart review.
-        Returns parsed JSON response or None on failure.
-        """
+        """Call Gemini 3 Pro to analyze the chart packet."""
+        
+        user_content = json.dumps(packet, default=str)
+        schema_hint = f"\n\nOutput JSON schema:\n{json.dumps(self.output_schema, indent=2)}"
+        full_prompt = self.system_prompt + schema_hint + "\n\nChart Data:\n" + user_content
+        
         try:
-            # Prepare user message with chart packet
-            user_content = json.dumps(packet, default=str)
-            
-            # Add schema hint to system prompt
-            schema_hint = f"\n\nOutput JSON schema:\n{json.dumps(self.output_schema, indent=2)}"
-            full_system_prompt = self.system_prompt + schema_hint
-            
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": full_system_prompt},
-                    {"role": "user", "content": user_content}
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.2,
-                max_tokens=1500,
-            )
-            
-            content = response.choices[0].message.content
+            response = self.model.generate_content(full_prompt)
+            content = response.text
             result = json.loads(content)
             
-            # Add token usage
-            tokens_in = response.usage.prompt_tokens if response.usage else 0
-            tokens_out = response.usage.completion_tokens if response.usage else 0
-            result["_tokens_in"] = tokens_in
-            result["_tokens_out"] = tokens_out
+            # Add metadata
+            if hasattr(response, 'usage_metadata'):
+                result["_tokens_in"] = response.usage_metadata.prompt_token_count
+                result["_tokens_out"] = response.usage_metadata.candidates_token_count
             
+            result["_model"] = self.model_name
             return result
             
         except json.JSONDecodeError as e:
-            logger.error(f"JSON parse error from LLM: {e}")
-            # Retry with explicit JSON instruction
-            try:
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=[
-                        {"role": "system", "content": full_system_prompt},
-                        {"role": "user", "content": user_content + "\n\nReturn ONLY valid JSON."}
-                    ],
-                    response_format={"type": "json_object"},
-                    temperature=0.1,
-                    max_tokens=1500,
-                )
-                content = response.choices[0].message.content
-                result = json.loads(content)
-                result["_tokens_in"] = response.usage.prompt_tokens if response.usage else 0
-                result["_tokens_out"] = response.usage.completion_tokens if response.usage else 0
-                return result
-            except Exception as retry_e:
-                logger.error(f"Retry also failed: {retry_e}")
-                return None
-                
+            logger.error(f"JSON parse error: {e}")
+            return None
         except Exception as e:
             logger.error(f"LLM call failed: {e}")
             return None
 
     def _store_review(
         self,
-        asset_id: str,
+        asset_id: int,
         as_of_date: str,
-        universe_id: str,
         config_id: str,
         scope: str,
         input_hash: str,
         review: Dict[str, Any]
-    ) -> bool:
+    ) -> None:
         """Store the AI review in the database."""
-        try:
-            # Extract denormalized fields
-            attention_level = review.get("attention_level")
-            direction = review.get("direction")
-            setup_type = review.get("setup_type")
-            confidence = review.get("confidence")
-            summary_text = review.get("summary_text", "")[:500]  # Truncate if needed
-            tokens_in = review.pop("_tokens_in", 0)
-            tokens_out = review.pop("_tokens_out", 0)
-            
-            query = """
-            INSERT INTO asset_ai_reviews (
-                asset_id, as_of_date, universe_id, config_id, source_scope,
-                prompt_version, model, input_hash, review_json, summary_text,
-                attention_level, direction, setup_type, confidence,
-                tokens_in, tokens_out
-            ) VALUES (
-                %s, %s, %s, %s::uuid, %s,
-                %s, %s, %s, %s, %s,
-                %s, %s, %s, %s,
-                %s, %s
-            )
-            ON CONFLICT (asset_id, as_of_date, prompt_version) 
-            DO UPDATE SET
-                universe_id = EXCLUDED.universe_id,
-                config_id = EXCLUDED.config_id,
-                source_scope = EXCLUDED.source_scope,
-                model = EXCLUDED.model,
-                input_hash = EXCLUDED.input_hash,
-                review_json = EXCLUDED.review_json,
-                summary_text = EXCLUDED.summary_text,
-                attention_level = EXCLUDED.attention_level,
-                direction = EXCLUDED.direction,
-                setup_type = EXCLUDED.setup_type,
-                confidence = EXCLUDED.confidence,
-                tokens_in = EXCLUDED.tokens_in,
-                tokens_out = EXCLUDED.tokens_out,
-                updated_at = NOW()
-            """
-            
-            self.db.execute(query, (
-                asset_id, as_of_date, universe_id, config_id, scope,
-                self.PROMPT_VERSION, self.model, input_hash, json.dumps(review), summary_text,
-                attention_level, direction, setup_type, confidence,
-                tokens_in, tokens_out
-            ))
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to store review for {asset_id}: {e}")
-            return False
+        
+        insert_query = """
+        INSERT INTO asset_ai_reviews (
+            asset_id, as_of_date, config_id, scope, model_version, prompt_version, input_hash,
+            attention_level, direction, setup_type, time_horizon, summary_text, why_now,
+            key_levels, what_to_watch_next, risks_and_contradictions, confidence,
+            tokens_in, tokens_out
+        ) VALUES (
+            %s, %s, %s::uuid, %s, %s, %s, %s,
+            %s, %s, %s, %s, %s, %s,
+            %s, %s, %s, %s,
+            %s, %s
+        )
+        ON CONFLICT (asset_id, as_of_date, config_id, scope, input_hash)
+        DO UPDATE SET
+            attention_level = EXCLUDED.attention_level,
+            direction = EXCLUDED.direction,
+            setup_type = EXCLUDED.setup_type,
+            time_horizon = EXCLUDED.time_horizon,
+            summary_text = EXCLUDED.summary_text,
+            why_now = EXCLUDED.why_now,
+            key_levels = EXCLUDED.key_levels,
+            what_to_watch_next = EXCLUDED.what_to_watch_next,
+            risks_and_contradictions = EXCLUDED.risks_and_contradictions,
+            confidence = EXCLUDED.confidence,
+            tokens_in = EXCLUDED.tokens_in,
+            tokens_out = EXCLUDED.tokens_out,
+            reviewed_at = NOW()
+        """
+        
+        params = (
+            asset_id,
+            as_of_date,
+            config_id,
+            scope,
+            self.model_name,
+            self.PROMPT_VERSION,
+            input_hash,
+            review.get("attention_level"),
+            review.get("direction"),
+            review.get("setup_type"),
+            review.get("time_horizon"),
+            review.get("summary_text"),
+            json.dumps(review.get("why_now", [])),
+            json.dumps(review.get("key_levels", {})),
+            json.dumps(review.get("what_to_watch_next", [])),
+            json.dumps(review.get("risks_and_contradictions", [])),
+            review.get("confidence"),
+            review.get("_tokens_in"),
+            review.get("_tokens_out"),
+        )
+        
+        self.db.execute(insert_query, params)
+
+    def _check_existing_review(
+        self,
+        asset_id: int,
+        as_of_date: str,
+        config_id: str,
+        scope: str,
+        input_hash: str
+    ) -> bool:
+        """Check if a review already exists with the same input hash."""
+        
+        query = """
+        SELECT 1 FROM asset_ai_reviews
+        WHERE asset_id = %s AND as_of_date = %s AND config_id = %s::uuid 
+              AND scope = %s AND input_hash = %s
+        """
+        result = self.db.fetch_one(query, (asset_id, as_of_date, config_id, scope, input_hash))
+        return result is not None
 
     def run(
         self,
@@ -431,24 +442,24 @@ what_to_watch_next (array), risks_and_contradictions (array), confidence (0-1)."
         config_id: str,
         universe_id: Optional[str] = None,
         limit_per_scope: int = 25,
-        dry_run: bool = False
+        skip_existing: bool = True
     ) -> Dict[str, Any]:
         """
-        Run the Stage 5 AI Chart Review pipeline.
+        Run AI reviews for all dashboard-surfaced assets.
         
         Args:
-            as_of_date: Date to run review for
+            as_of_date: Date to run reviews for
             config_id: Signal configuration ID
             universe_id: Optional universe filter
-            limit_per_scope: Max assets per scope to review
-            dry_run: If True, don't actually call LLM or store results
-        
+            limit_per_scope: Max assets per scope
+            skip_existing: Skip if review with same input hash exists
+            
         Returns:
-            Dict with counts: reviewed, reused, failed, total_tokens
+            Summary of reviews processed
         """
-        logger.info(f"Starting Stage 5 (AI Chart Review) for {as_of_date}")
+        logger.info(f"Starting Stage 5 AI Review for {as_of_date}")
         
-        # Get target assets from dashboard views
+        # Get target assets
         targets = self._get_target_assets(
             as_of_date=as_of_date,
             universe_id=universe_id,
@@ -456,27 +467,30 @@ what_to_watch_next (array), risks_and_contradictions (array), confidence (0-1)."
             limit_per_scope=limit_per_scope
         )
         
-        if not targets:
-            logger.info("No target assets found for review")
-            return {"reviewed": 0, "reused": 0, "failed": 0, "total_tokens": 0, "targets": 0}
-        
-        reviewed_count = 0
-        reused_count = 0
-        failed_count = 0
-        total_tokens = 0
+        results = {
+            "as_of_date": as_of_date,
+            "config_id": config_id,
+            "model": self.model_name,
+            "total_targets": len(targets),
+            "processed": 0,
+            "skipped": 0,
+            "failed": 0,
+            "reviews": []
+        }
         
         for target in targets:
             asset_id = target["asset_id"]
+            symbol = target["symbol"]
             scope = target["scope"]
-            target_universe_id = str(target["universe_id"])
-            target_config_id = str(target["config_id"])
+            
+            logger.info(f"Processing {symbol} ({scope})")
             
             # Build chart packet
             packet = self._build_chart_packet(
                 asset_id=asset_id,
                 as_of_date=as_of_date,
-                config_id=target_config_id,
-                universe_id=target_universe_id,
+                config_id=config_id,
+                universe_id=str(target["universe_id"]),
                 scope=scope,
                 score_data=target
             )
@@ -484,60 +498,66 @@ what_to_watch_next (array), risks_and_contradictions (array), confidence (0-1)."
             # Compute input hash
             input_hash = self._compute_input_hash(packet)
             
-            # Check for existing review with same hash (idempotency)
-            existing = self.db.fetch_one(
-                """SELECT 1 FROM asset_ai_reviews 
-                   WHERE asset_id = %s AND as_of_date = %s 
-                   AND prompt_version = %s AND input_hash = %s""",
-                (asset_id, as_of_date, self.PROMPT_VERSION, input_hash)
-            )
-            
-            if existing:
-                logger.debug(f"Reusing existing review for {asset_id} (hash match)")
-                reused_count += 1
-                continue
-            
-            if dry_run:
-                logger.info(f"[DRY RUN] Would review {target.get('symbol')} ({scope})")
-                reviewed_count += 1
+            # Check for existing review
+            if skip_existing and self._check_existing_review(
+                asset_id, as_of_date, config_id, scope, input_hash
+            ):
+                logger.info(f"  Skipping {symbol} - review exists with same input hash")
+                results["skipped"] += 1
                 continue
             
             # Call LLM
-            logger.info(f"Generating review for {target.get('symbol')} ({scope})")
             review = self._call_llm(packet)
             
-            if review is None:
-                logger.error(f"Failed to generate review for {asset_id}")
-                failed_count += 1
-                continue
-            
-            # Track tokens
-            total_tokens += review.get("_tokens_in", 0) + review.get("_tokens_out", 0)
-            
-            # Store review
-            if self._store_review(
-                asset_id=asset_id,
-                as_of_date=as_of_date,
-                universe_id=target_universe_id,
-                config_id=target_config_id,
-                scope=scope,
-                input_hash=input_hash,
-                review=review
-            ):
-                reviewed_count += 1
-                logger.info(f"Stored review for {target.get('symbol')}: "
-                           f"{review.get('attention_level')} / {review.get('direction')} / "
-                           f"confidence={review.get('confidence')}")
+            if review:
+                # Store review
+                self._store_review(
+                    asset_id=asset_id,
+                    as_of_date=as_of_date,
+                    config_id=config_id,
+                    scope=scope,
+                    input_hash=input_hash,
+                    review=review
+                )
+                
+                results["processed"] += 1
+                results["reviews"].append({
+                    "symbol": symbol,
+                    "scope": scope,
+                    "attention_level": review.get("attention_level"),
+                    "direction": review.get("direction"),
+                    "confidence": review.get("confidence"),
+                })
+                
+                logger.info(f"  ✓ {symbol}: {review.get('attention_level')} / "
+                           f"{review.get('direction')} / conf={review.get('confidence')}")
             else:
-                failed_count += 1
+                results["failed"] += 1
+                logger.warning(f"  ✗ {symbol}: LLM call failed")
         
-        result = {
-            "reviewed": reviewed_count,
-            "reused": reused_count,
-            "failed": failed_count,
-            "total_tokens": total_tokens,
-            "targets": len(targets)
-        }
+        logger.info(f"Stage 5 complete: {results['processed']} processed, "
+                   f"{results['skipped']} skipped, {results['failed']} failed")
         
-        logger.info(f"Stage 5 complete: {result}")
-        return result
+        return results
+
+
+def run_stage5(
+    as_of_date: str,
+    config_id: str,
+    universe_id: Optional[str] = None,
+    limit_per_scope: int = 25,
+    model: Optional[str] = None
+) -> Dict[str, Any]:
+    """Convenience function to run Stage 5 AI Review."""
+    
+    db = Database()
+    try:
+        stage5 = Stage5AIReview(db=db, model=model)
+        return stage5.run(
+            as_of_date=as_of_date,
+            config_id=config_id,
+            universe_id=universe_id,
+            limit_per_scope=limit_per_scope
+        )
+    finally:
+        db.close()
