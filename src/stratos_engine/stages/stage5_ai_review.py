@@ -14,7 +14,8 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-import google.genai as genai
+from google import genai
+from google.genai import types
 import numpy as np
 
 from ..db import Database
@@ -23,7 +24,7 @@ from ..utils.chart_analyzer import ChartAnalyzer, AI_REVIEW_VERSION
 logger = logging.getLogger(__name__)
 
 # Load prompts
-PROMPT_DIR = Path(__file__).parent.parent / "prompts"
+PROMPT_DIR = Path(__file__).parent.parent.parent.parent / "prompts"
 
 
 class Stage5AIReview:
@@ -52,23 +53,16 @@ class Stage5AIReview:
         self.db = db
         self.chart_analyzer = ChartAnalyzer(window_size=60) # Use 60 bars for fingerprinting
         
-        # Configure Gemini API
+        # Configure Gemini API using the new google.genai SDK
         self.api_key = api_key or os.environ.get("GEMINI_API_KEY")
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY not set in environment or provided")
         
-        genai.configure(api_key=self.api_key)
+        # Initialize the client with API key
+        self.client = genai.Client(api_key=self.api_key)
         
         # Set model
         self.model_name = model or os.environ.get("GEMINI_MODEL") or self.DEFAULT_MODEL
-        self.model = genai.GenerativeModel(
-            model_name=self.model_name,
-            generation_config={
-                "temperature": 0.2,
-                "max_output_tokens": 4000,
-                "response_mime_type": "application/json",
-            }
-        )
         
         self._load_prompts()
         logger.info(f"Stage5AIReview initialized with model: {self.model_name}, version: {self.PROMPT_VERSION}")
@@ -105,35 +99,37 @@ class Stage5AIReview:
         where_clause = " AND ".join(filters)
         actual_limit = min(limit_per_scope, self.MAX_ASSETS_PER_SCOPE)
         
-        # Inflections Bullish
+        # Inflections Bullish (positive inflection_score)
         query_bullish = f"""
-        SELECT ds.asset_id, a.symbol, a.name, a.asset_type, ds.universe_id, ds.config_id, ds.weighted_score, ds.score_delta, ds.inflection_score, ds.components, 'inflections_bullish' as scope
-        FROM daily_scores ds
-        JOIN assets a ON ds.asset_id = a.asset_id
-        WHERE {where_clause} AND ds.inflection_direction = 'bullish'
+        SELECT ds.asset_id::bigint as asset_id, a.symbol, a.name, a.asset_type, ds.universe_id, ds.config_id::text, ds.weighted_score, ds.score_delta, ds.inflection_score, ds.components, 'inflections_bullish' as scope
+        FROM daily_asset_scores ds
+        JOIN assets a ON ds.asset_id::bigint = a.asset_id
+        WHERE {where_clause} AND ds.inflection_score > 0
         ORDER BY ds.inflection_score DESC
         LIMIT %s
         """
         bullish = self.db.fetch_all(query_bullish, params + [actual_limit])
         for row in bullish:
-            if row["asset_id"] not in seen_assets:
-                targets.append(row)
-                seen_assets.add(row["asset_id"])
+            row_dict = dict(row)
+            if row_dict["asset_id"] not in seen_assets:
+                targets.append(row_dict)
+                seen_assets.add(row_dict["asset_id"])
         
-        # Inflections Bearish
+        # Inflections Bearish (negative inflection_score)
         query_bearish = f"""
-        SELECT ds.asset_id, a.symbol, a.name, a.asset_type, ds.universe_id, ds.config_id, ds.weighted_score, ds.score_delta, ds.inflection_score, ds.components, 'inflections_bearish' as scope
-        FROM daily_scores ds
-        JOIN assets a ON ds.asset_id = a.asset_id
-        WHERE {where_clause} AND ds.inflection_direction = 'bearish'
-        ORDER BY ds.inflection_score DESC
+        SELECT ds.asset_id::bigint as asset_id, a.symbol, a.name, a.asset_type, ds.universe_id, ds.config_id::text, ds.weighted_score, ds.score_delta, ds.inflection_score, ds.components, 'inflections_bearish' as scope
+        FROM daily_asset_scores ds
+        JOIN assets a ON ds.asset_id::bigint = a.asset_id
+        WHERE {where_clause} AND ds.inflection_score < 0
+        ORDER BY ds.inflection_score ASC
         LIMIT %s
         """
         bearish = self.db.fetch_all(query_bearish, params + [actual_limit])
         for row in bearish:
-            if row["asset_id"] not in seen_assets:
-                targets.append(row)
-                seen_assets.add(row["asset_id"])
+            row_dict = dict(row)
+            if row_dict["asset_id"] not in seen_assets:
+                targets.append(row_dict)
+                seen_assets.add(row_dict["asset_id"])
 
         logger.info(f"Found {len(targets)} flashed assets for review.")
         return targets
@@ -252,7 +248,7 @@ class Stage5AIReview:
         
         # 3. Get previous day's smoothed scores and fingerprint
         prev_date_query = """
-        SELECT as_of_date
+        SELECT date
         FROM daily_bars
         WHERE asset_id = %s AND date < %s
         ORDER BY date DESC
@@ -265,17 +261,17 @@ class Stage5AIReview:
         similarity_to_prev = 0.0
         
         if prev_date_row:
-            prev_date = str(prev_date_row["as_of_date"])
+            prev_date = str(prev_date_row["date"])
             
             # Get previous day's review
             prev_review_query = """
             SELECT smoothed_ai_setup_quality_score, smoothed_ai_direction_score, fingerprint
             FROM asset_ai_reviews
-            WHERE asset_id = %s AND as_of_date = %s
+            WHERE asset_id = %s::text AND as_of_date = %s
             ORDER BY ai_review_version DESC, created_at DESC
             LIMIT 1
             """
-            prev_review = self.db.fetch_one(prev_review_query, (asset_id, prev_date))
+            prev_review = self.db.fetch_one(prev_review_query, (str(asset_id), prev_date))
             
             if prev_review:
                 prev_smoothed_quality = prev_review.get("smoothed_ai_setup_quality_score") or 0.0
@@ -338,10 +334,19 @@ class Stage5AIReview:
         input_hash = self._compute_input_hash(pass_a_packet)
 
         try:
-            # Set the response schema for Pass A
-            self.model.generation_config.response_schema = self.pass_a_schema
+            # Include schema in the prompt
+            prompt_with_schema = f"{self.pass_a_prompt}\n\nYou MUST respond with valid JSON matching this schema:\n{json.dumps(self.pass_a_schema, indent=2)}"
             
-            pass_a_response = self.model.generate_content([self.pass_a_prompt, json.dumps(pass_a_packet)])
+            # Use the new google.genai SDK
+            pass_a_response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=[prompt_with_schema, json.dumps(pass_a_packet)],
+                config=types.GenerateContentConfig(
+                    temperature=0.2,
+                    max_output_tokens=4000,
+                    response_mime_type="application/json",
+                )
+            )
             pass_a_result = json.loads(pass_a_response.text)
         except Exception as e:
             logger.error(f"Error in Pass A for asset {asset_id}: {e}")
@@ -356,10 +361,19 @@ class Stage5AIReview:
         if run_pass_b:
             pass_b_packet = self._build_pass_b_packet(pass_a_result, asset)
             try:
-                # Set the response schema for Pass B
-                self.model.generation_config.response_schema = self.pass_b_schema
+                # Include schema in the prompt
+                prompt_with_schema = f"{self.pass_b_prompt}\n\nYou MUST respond with valid JSON matching this schema:\n{json.dumps(self.pass_b_schema, indent=2)}"
                 
-                pass_b_response = self.model.generate_content([self.pass_b_prompt, json.dumps(pass_b_packet)])
+                # Use the new google.genai SDK
+                pass_b_response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=[prompt_with_schema, json.dumps(pass_b_packet)],
+                    config=types.GenerateContentConfig(
+                        temperature=0.2,
+                        max_output_tokens=4000,
+                        response_mime_type="application/json",
+                    )
+                )
                 pass_b_result = json.loads(pass_b_response.text)
             except Exception as e:
                 logger.error(f"Error in Pass B for asset {asset_id}: {e}")
@@ -380,7 +394,7 @@ class Stage5AIReview:
             "pass_a_packet": json.dumps(pass_a_packet),
             "pass_b_packet": json.dumps(pass_b_packet) if run_pass_b else None,
             "created_at": datetime.utcnow().isoformat(),
-            "token_usage": pass_a_response.usage_metadata
+            "token_usage": None  # Skip usage metadata to avoid serialization issues
         }
         
         self._save_review(final_result)
@@ -390,14 +404,31 @@ class Stage5AIReview:
         """Saves the AI review to the database."""
         # Map result keys to DB columns
         db_record = {
-            "asset_id": result["asset_id"],
+            "asset_id": str(result["asset_id"]),  # asset_id is text in the table
             "as_of_date": result["as_of_date"],
+            "prompt_version": result["ai_review_version"],  # Primary key column
             "universe_id": result["universe_id"],
             "config_id": result["config_id"],
             "scope": result["scope"],
+            "source_scope": result["scope"],  # Required column
             "ai_review_version": result["ai_review_version"], # New column
             "model": result["model"],
             "input_hash": result["input_hash"],
+            "review_json": json.dumps({
+                "ai_direction_score": result.get("ai_direction_score"),
+                "subscores": result.get("subscores"),
+                "attention_level": result.get("attention_level"),
+                "setup_type": result.get("setup_type"),
+                "time_horizon": result.get("time_horizon"),
+                "confidence": result.get("confidence"),
+                "summary_text": result.get("summary_text"),
+                "key_levels": result.get("key_levels"),
+                "entry_zone": result.get("entry_zone"),
+                "targets": result.get("targets"),
+                "why_now": result.get("why_now"),
+                "risks_and_contradictions": result.get("risks_and_contradictions"),
+                "what_to_watch_next": result.get("what_to_watch_next"),
+            }),
             
             # New columns
             "fingerprint": result.get("fingerprint"),
@@ -425,11 +456,27 @@ class Stage5AIReview:
             "agreement_with_engine": result.get("agreement_with_engine"),
             "engine_notes": json.dumps(result.get("engine_notes")),
             "confidence_adjustment": result.get("confidence_adjustment"),
-            "raw_response": json.dumps(result) # Store the full response for debugging
+            # Don't store raw_response to avoid serialization issues with non-JSON objects
         }
         
-        # Upsert into asset_ai_reviews using the new unique constraint
-        self.db.upsert("asset_ai_reviews", [db_record], on_conflict=['asset_id', 'as_of_date', 'ai_review_version'])
+        # Build the INSERT ON CONFLICT statement
+        columns = list(db_record.keys())
+        placeholders = ', '.join(['%s'] * len(columns))
+        column_names = ', '.join(columns)
+        update_clause = ', '.join([f"{col} = EXCLUDED.{col}" for col in columns if col not in ['asset_id', 'as_of_date', 'ai_review_version']])
+        
+        # Use the primary key columns for ON CONFLICT (asset_id, as_of_date, prompt_version)
+        update_clause = ', '.join([f"{col} = EXCLUDED.{col}" for col in columns if col not in ['asset_id', 'as_of_date', 'prompt_version']])
+        
+        query = f"""
+        INSERT INTO asset_ai_reviews ({column_names})
+        VALUES ({placeholders})
+        ON CONFLICT (asset_id, as_of_date, prompt_version)
+        DO UPDATE SET {update_clause}, updated_at = NOW()
+        """
+        
+        values = [db_record[col] for col in columns]
+        self.db.execute(query, tuple(values))
         logger.info(f"Saved AI review for asset {result['asset_id']} with version {result['ai_review_version']}")
 
     def run(

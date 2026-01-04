@@ -12,18 +12,34 @@ class ChartAnalyzer:
     def __init__(self, window_size: int = 60):
         self.window_size = window_size
 
-    def _prepare_data(self, ohlcv_data: List[Dict[str, Any]]) -> Optional[pd.DataFrame]:
-        """Converts OHLCV list to DataFrame and calculates log returns and volume changes."""
+    def _prepare_data(self, ohlcv_data: List[Any]) -> Optional[pd.DataFrame]:
+        """Converts OHLCV list to DataFrame and calculates log returns and volume changes.
+        
+        Handles both formats:
+        - List of dicts: [{"date": ..., "open": ..., ...}]
+        - List of lists: [[date, open, high, low, close, volume], ...]
+        """
         if not ohlcv_data or len(ohlcv_data) < self.window_size:
             return None
 
-        df = pd.DataFrame(ohlcv_data).sort_values(by='date').tail(self.window_size)
+        # Check if data is list of lists or list of dicts
+        if isinstance(ohlcv_data[0], list):
+            # Convert list of lists to list of dicts
+            df = pd.DataFrame(ohlcv_data, columns=['date', 'open', 'high', 'low', 'close', 'volume'])
+        else:
+            df = pd.DataFrame(ohlcv_data)
+        
+        # Ensure numeric columns are properly typed
+        for col in ['open', 'high', 'low', 'close', 'volume']:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        df = df.sort_values(by='date').tail(self.window_size)
         
         # 1. Calculate log returns
-        df['log_return'] = np.log(df['close'] / df['close'].shift(1))
+        df['log_return'] = np.log(df['close'].astype(float) / df['close'].shift(1).astype(float))
         
         # 2. Calculate log volume changes
-        df['log_volume_change'] = np.log(df['volume'] / df['volume'].shift(1))
+        df['log_volume_change'] = np.log(df['volume'].astype(float) / df['volume'].shift(1).astype(float))
         
         # Drop the first row which will have NaNs from shift(1)
         df = df.iloc[1:].copy()

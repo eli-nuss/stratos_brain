@@ -739,8 +739,29 @@ serve(async (req) => {
           reviewQuery = reviewQuery.eq('config_id', configId)
         }
         
-        const { data: reviews } = await reviewQuery.order('created_at', { ascending: false }).limit(1)
-        const review = reviews?.[0] || null
+        const { data: reviews } = await reviewQuery.order('ai_review_version', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false }).limit(1)
+        const rawReview = reviews?.[0] || null
+        
+        // Transform review to match frontend expected field names
+        const review = rawReview ? {
+          ...rawReview,
+          // Map ai_ prefixed columns to expected names
+          direction: rawReview.ai_direction_score > 0 ? 'bullish' : rawReview.ai_direction_score < 0 ? 'bearish' : 'neutral',
+          confidence: rawReview.ai_confidence,
+          summary_text: rawReview.ai_summary_text,
+          setup_type: rawReview.ai_setup_type,
+          attention_level: rawReview.ai_attention_level,
+          time_horizon: rawReview.ai_time_horizon,
+          model_id: rawReview.model,
+          key_levels: rawReview.ai_key_levels,
+          entry: rawReview.ai_entry,
+          targets: rawReview.ai_targets,
+          // Extract invalidation from ai_key_levels if not set at top level
+          invalidation: rawReview.invalidation || rawReview.ai_key_levels?.invalidation || null,
+          why_now: rawReview.ai_why_now,
+          risks: rawReview.ai_risks,
+          what_to_watch_next: rawReview.ai_what_to_watch_next,
+        } : null
         
         return new Response(JSON.stringify({
           asset,
