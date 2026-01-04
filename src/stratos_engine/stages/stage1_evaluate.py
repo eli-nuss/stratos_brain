@@ -41,6 +41,7 @@ class SignalFact:
     signal_type: str  # Maps to template_name from evaluation
     direction: str
     strength: float
+    weight: float  # NEW: weight multiplier (base_weight / 20.0)
     strength_components: Dict[str, Any]
     evidence: Dict[str, Any]
     config_id: Optional[str] = None
@@ -121,6 +122,11 @@ class Stage1Evaluate:
             
             # Create signal facts
             for signal in signals:
+                # Calculate weight multiplier from base_weight
+                # base_weight is typically 15-30, we normalize to 0.75-1.5 range
+                base_weight = signal.get("base_weight", 20)
+                weight_multiplier = base_weight / 20.0
+                
                 # Sanitize Decimal values before storing
                 facts.append(SignalFact(
                     asset_id=asset_id,
@@ -128,6 +134,7 @@ class Stage1Evaluate:
                     signal_type=signal["template_name"],  # Map template_name to signal_type
                     direction=signal["direction"],
                     strength=float(signal["strength"]) if isinstance(signal["strength"], Decimal) else signal["strength"],
+                    weight=weight_multiplier,  # NEW: store the weight multiplier
                     strength_components=sanitize_for_json(signal["strength_components"]),
                     evidence=sanitize_for_json(signal["evidence"]),
                     config_id=config_id,
@@ -142,16 +149,18 @@ class Stage1Evaluate:
             return 0
         
         # Use signal_type to match existing database schema
+        # NOW includes weight column
         query = """
         INSERT INTO daily_signal_facts 
-            (asset_id, date, signal_type, direction, strength, 
+            (asset_id, date, signal_type, direction, strength, weight,
              strength_components, evidence, config_id)
         VALUES 
-            (%s, %s, %s, %s, %s, %s, %s, %s)
+            (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (asset_id, date, signal_type) 
         DO UPDATE SET 
             direction = EXCLUDED.direction,
             strength = EXCLUDED.strength,
+            weight = EXCLUDED.weight,
             strength_components = EXCLUDED.strength_components,
             evidence = EXCLUDED.evidence,
             config_id = EXCLUDED.config_id
@@ -164,6 +173,7 @@ class Stage1Evaluate:
                 f.signal_type,
                 f.direction,
                 f.strength,
+                f.weight,  # NEW: include weight in insert
                 json.dumps(f.strength_components),
                 json.dumps(f.evidence),
                 f.config_id,

@@ -151,6 +151,17 @@ class TemplateEngine:
         else:
             return self.evaluate_condition(item, row)
     
+    def _evaluate_booster_condition(self, when: Dict[str, Any], row: Dict[str, Any]) -> bool:
+        """
+        Evaluate a booster/penalty condition.
+        Supports both simple conditions and compound conditions (all/any).
+        """
+        # Check if this is a compound condition (all/any)
+        if "all" in when or "any" in when:
+            return self.evaluate_gate(when, row)
+        else:
+            return self.evaluate_condition(when, row)
+    
     def compute_strength(self, template: Dict[str, Any], row: Dict[str, Any]) -> Tuple[float, Dict[str, Any]]:
         """Compute strength score and components."""
         strength_config = template.get("strength", {})
@@ -159,16 +170,16 @@ class TemplateEngine:
         components = {"base": base}
         score = base
         
-        # Add boosters
+        # Add boosters - now supports compound conditions (all/any)
         for booster in strength_config.get("add", []):
-            if self.evaluate_condition(booster["when"], row):
+            if self._evaluate_booster_condition(booster["when"], row):
                 points = booster["points"]
                 score += points
                 components[booster["name"]] = points
         
-        # Subtract penalties
+        # Subtract penalties - now supports compound conditions (all/any)
         for penalty in strength_config.get("subtract", []):
-            if self.evaluate_condition(penalty["when"], row):
+            if self._evaluate_booster_condition(penalty["when"], row):
                 points = penalty["points"]
                 score -= points
                 components[penalty["name"]] = -points
@@ -176,13 +187,13 @@ class TemplateEngine:
         # Apply global adjustments
         global_adj = self.global_config.get("global_strength_adjustments", {})
         for adj in global_adj.get("add", []):
-            if self.evaluate_condition(adj["when"], row):
+            if self._evaluate_booster_condition(adj["when"], row):
                 points = adj["points"]
                 score += points
                 components[f"global:{adj['name']}"] = points
         
         for adj in global_adj.get("subtract", []):
-            if self.evaluate_condition(adj["when"], row):
+            if self._evaluate_booster_condition(adj["when"], row):
                 points = adj["points"]
                 score -= points
                 components[f"global:{adj['name']}"] = -points

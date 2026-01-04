@@ -420,8 +420,13 @@ templates:
         - { name: "ma_dist_50_extended_low", when: { feature: "ma_dist_50", op: "<=", value: -0.20 }, points: 6 }
         - { name: "bb_position_low", when: { feature: "bb_pct", op: "<=", value: 0.10 }, points: 4 }
         # FIX 2: accel_turn_up only for bullish exhaustion (oversold)
-        # This is handled by the condition: only award if RSI <= 30 (oversold)
-        - { name: "accel_turn_up_oversold", when: { feature: "rsi_14", op: "<=", value: 30 }, points: 5 }
+        # Requires BOTH: RSI <= 30 (oversold) AND accel_turn_up == true
+        - name: "accel_turn_up_oversold"
+          when:
+            all:
+              - { feature: "rsi_14", op: "<=", value: 30 }
+              - { feature: "accel_turn_up", op: "==", value: true }
+          points: 5
         - { name: "no_new_lows_confirm", when: { feature: "no_new_5d_lows", op: "==", value: true }, points: 4 }
       subtract:
         - { name: "still_high_volume", when: { feature: "rvol_20", op: ">=", value: 1.5 }, points: 6 }

@@ -11,6 +11,7 @@ MAX_BULLISH_CAP = 300        # Maximum capped bullish score
 MAX_BEARISH_CAP = 300        # Maximum capped bearish score
 DELTA_WEIGHT = 0.3           # Weight for score_delta in inflection_score
 NEW_SIGNAL_WEIGHT = 0.2      # Weight for new_signal_count in inflection_score
+STRENGTH_BASELINE = 50       # Baseline to subtract from strength (strength - 50)
 
 
 class Stage4Scoring:
@@ -21,10 +22,12 @@ class Stage4Scoring:
         """
         Aggregates daily_signal_facts into daily_asset_scores with improved scoring:
         
-        1. Weighted scoring: contribution = strength * weight
-        2. Stacking caps: max bullish/bearish to prevent signal spam
-        3. Novelty scoring: NEW signals get boost, delta from yesterday
-        4. Inflection score: combines novelty factors for ranking
+        1. Baseline subtraction: contribution = max(strength - 50, 0) * weight
+        2. Weight propagation: weight comes from daily_signal_facts (base_weight/20)
+        3. Stacking caps: max bullish/bearish to prevent signal spam
+        4. Novelty scoring: NEW signals get boost, delta from yesterday
+        5. Weighted delta: delta calculated from weighted_score, not raw score
+        6. Inflection score: combines novelty factors for ranking
         """
         logger.info(f"Starting Stage 4 (Scoring) for {as_of_date} universe={universe_id}")
         
@@ -73,33 +76,42 @@ class Stage4Scoring:
         ),
         
         -- Aggregate signals with weights and state boost
+        -- KEY CHANGE: Use max(strength - 50, 0) as baseline-adjusted strength
         signal_agg AS (
             SELECT 
                 dsf.asset_id,
-                -- Raw scores (sum of strength)
+                -- Raw scores (sum of strength) - kept for backwards compatibility
                 SUM(CASE WHEN dsf.direction = 'bullish' THEN dsf.strength ELSE 0 END) as raw_bullish,
                 SUM(CASE WHEN dsf.direction = 'bearish' THEN dsf.strength ELSE 0 END) as raw_bearish,
                 
-                -- Weighted scores (strength * weight * state_multiplier)
+                -- Weighted scores with baseline subtraction:
+                -- contribution = max(strength - 50, 0) * weight * state_multiplier
                 SUM(CASE WHEN dsf.direction = 'bullish' 
-                    THEN dsf.strength * COALESCE(dsf.weight, 1.0) * COALESCE(ss.state_multiplier, 1.0)
+                    THEN GREATEST(dsf.strength - %(strength_baseline)s, 0) 
+                         * COALESCE(dsf.weight, 1.0) 
+                         * COALESCE(ss.state_multiplier, 1.0)
                     ELSE 0 END) as weighted_bullish,
                 SUM(CASE WHEN dsf.direction = 'bearish' 
-                    THEN dsf.strength * COALESCE(dsf.weight, 1.0) * COALESCE(ss.state_multiplier, 1.0)
+                    THEN GREATEST(dsf.strength - %(strength_baseline)s, 0) 
+                         * COALESCE(dsf.weight, 1.0) 
+                         * COALESCE(ss.state_multiplier, 1.0)
                     ELSE 0 END) as weighted_bearish,
                 
                 -- Count of NEW signals (triggered today)
                 COUNT(CASE WHEN ss.state = 'new' AND ss.state_multiplier > 1.0 THEN 1 END) as new_signal_count,
                 
-                -- Components JSON with full details
+                -- Components JSON with full details including baseline-adjusted contribution
                 jsonb_agg(
                     jsonb_build_object(
                         'signal_type', dsf.signal_type,
                         'direction', dsf.direction,
                         'strength', dsf.strength,
+                        'strength_adjusted', GREATEST(dsf.strength - %(strength_baseline)s, 0),
                         'weight', COALESCE(dsf.weight, 1.0),
                         'state', COALESCE(ss.state, 'unknown'),
-                        'contribution', dsf.strength * COALESCE(dsf.weight, 1.0) * COALESCE(ss.state_multiplier, 1.0)
+                        'contribution', GREATEST(dsf.strength - %(strength_baseline)s, 0) 
+                                       * COALESCE(dsf.weight, 1.0) 
+                                       * COALESCE(ss.state_multiplier, 1.0)
                     )
                 ) as components
             FROM daily_signal_facts dsf
@@ -120,9 +132,10 @@ class Stage4Scoring:
               AND config_id = %(config_id)s
         ),
         
-        -- Get previous scores for delta calculation
+        -- Get previous WEIGHTED scores for delta calculation
+        -- KEY CHANGE: Use weighted_score instead of score_total for delta
         yesterday_scores AS (
-            SELECT das.asset_id, das.score_total as prev_score
+            SELECT das.asset_id, das.weighted_score as prev_weighted_score
             FROM daily_asset_scores das
             CROSS JOIN prev_score_date psd
             WHERE das.as_of_date = psd.prev_date
@@ -134,16 +147,16 @@ class Stage4Scoring:
         scored AS (
             SELECT 
                 ua.asset_id,
-                -- Capped raw scores
+                -- Capped raw scores (kept for backwards compatibility)
                 LEAST(COALESCE(sa.raw_bullish, 0), %(max_bullish_cap)s) as score_bullish,
                 LEAST(COALESCE(sa.raw_bearish, 0), %(max_bearish_cap)s) as score_bearish,
-                -- Capped weighted scores
+                -- Capped weighted scores (baseline-adjusted)
                 LEAST(COALESCE(sa.weighted_bullish, 0), %(max_bullish_cap)s) - 
                 LEAST(COALESCE(sa.weighted_bearish, 0), %(max_bearish_cap)s) as weighted_score,
-                -- Score delta from yesterday
-                (LEAST(COALESCE(sa.raw_bullish, 0), %(max_bullish_cap)s) - 
-                 LEAST(COALESCE(sa.raw_bearish, 0), %(max_bearish_cap)s)) - 
-                COALESCE(ys.prev_score, 0) as score_delta,
+                -- KEY CHANGE: Score delta from WEIGHTED score, not raw
+                (LEAST(COALESCE(sa.weighted_bullish, 0), %(max_bullish_cap)s) - 
+                 LEAST(COALESCE(sa.weighted_bearish, 0), %(max_bearish_cap)s)) - 
+                COALESCE(ys.prev_weighted_score, 0) as score_delta,
                 -- New signal count
                 COALESCE(sa.new_signal_count, 0) as new_signal_count,
                 -- Components
@@ -158,7 +171,7 @@ class Stage4Scoring:
             s.asset_id,
             %(universe_id)s as universe_id,
             %(config_id)s as config_id,
-            -- score_total = capped bullish - capped bearish
+            -- score_total = capped bullish - capped bearish (raw, for backwards compat)
             s.score_bullish - s.score_bearish as score_total,
             s.score_bullish,
             s.score_bearish,
@@ -203,6 +216,7 @@ class Stage4Scoring:
             'max_bearish_cap': MAX_BEARISH_CAP,
             'delta_weight': DELTA_WEIGHT,
             'new_signal_weight': NEW_SIGNAL_WEIGHT,
+            'strength_baseline': STRENGTH_BASELINE,
         }
         
         with self.db.cursor() as cur:
