@@ -46,8 +46,8 @@ class Stage5AIReview:
     PASS2_BARS = 90   # Last 90 days for Pass 2 (with Pass 1 context)
     
     # Model configuration
-    DEFAULT_MODEL = "gemini-2.0-flash-exp"
-    FALLBACK_MODEL = "gemini-3-flash-preview"
+    DEFAULT_MODEL = "gemini-3-pro-preview"
+    FALLBACK_MODEL = "gemini-2.5-pro"
     
     # Safety ceiling per scope
     MAX_ASSETS_PER_SCOPE = 500
