@@ -54,7 +54,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
 
   return (
     <>
-      <div className={`flex flex-col h-full bg-card text-foreground overflow-hidden transition-all duration-300 ${isChatOpen ? 'mr-96' : ''}`}>
+      <div className="flex flex-col h-full bg-card text-foreground overflow-hidden">
         {/* Header */}
         <div className="p-6 border-b border-border flex justify-between items-start bg-muted/10">
           <div>
