@@ -245,7 +245,7 @@ class Stage1Fetch:
         rate_limited = 0
         
         # Limit batch size to avoid excessive API calls
-        max_batch = 100 if asset_type == 'equity' else 200
+        max_batch = 100 if asset_type == 'equity' else 1000
         assets = assets[:max_batch]
         
         for asset in assets:

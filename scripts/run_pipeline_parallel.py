@@ -58,7 +58,7 @@ def main():
     # 1. Run Stage 4: Signal Scoring (Sequential is fine/fast)
     print("\n[Stage 4] Running Signal Scoring...")
     stage4 = Stage4Scoring(db)
-    universes = ["crypto_top100", "equities_top500"]
+    universes = ["crypto_all", "equities_top500"]
     
     for universe in universes:
         print(f"  > Scoring universe: {universe}")
