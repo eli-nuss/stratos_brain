@@ -1,6 +1,6 @@
 import { useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
-import DataTable from "@/components/DataTable";
+import AllAssetsTable from "@/components/AllAssetsTable";
 import AssetDetail from "@/components/AssetDetail";
 import useSWR from "swr";
 
@@ -16,38 +16,13 @@ export default function Home() {
 
   const handleAssetClick = (assetId: string) => {
     setSelectedAssetId(assetId);
-    // TODO: Open detail modal
-    console.log("Clicked asset:", assetId);
   };
 
   return (
     <DashboardLayout activeTab={activeTab} onTabChange={setActiveTab}>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-8rem)]">
-        {/* Left: Bullish Inflections */}
-        <DataTable
-          key={`bullish-${activeTab}`}
-          title="Bullish Inflections"
-          type="inflections_bullish"
-          assetType={activeTab}
-          date={date}
-          onAssetClick={handleAssetClick}
-        />
-
-        {/* Center: Trends */}
-        <DataTable
-          key={`trends-${activeTab}`}
-          title="Strong Trends"
-          type="trends"
-          assetType={activeTab}
-          date={date}
-          onAssetClick={handleAssetClick}
-        />
-
-        {/* Right: Risk */}
-        <DataTable
-          key={`risk-${activeTab}`}
-          title="Risk / Breakdowns"
-          type="risk"
+      <div className="h-[calc(100vh-8rem)]">
+        <AllAssetsTable
+          key={`all-${activeTab}`}
           assetType={activeTab}
           date={date}
           onAssetClick={handleAssetClick}
