@@ -22,13 +22,18 @@ interface EnqueueRequest {
   params?: Record<string, unknown>
 }
 
-// Check if the request is for a public dashboard endpoint (read-only)
+// Check if the request is for a public dashboard endpoint (read-only or chat)
 function isPublicDashboardEndpoint(req: Request): boolean {
   const url = new URL(req.url)
   const path = url.pathname.replace('/control-api', '')
   
-  // Allow public read access to dashboard endpoints
+  // Allow public read access to dashboard GET endpoints
   if (req.method === 'GET' && path.startsWith('/dashboard/')) {
+    return true
+  }
+  
+  // Allow public access to dashboard chat endpoint (POST)
+  if (req.method === 'POST' && path === '/dashboard/chat') {
     return true
   }
   
