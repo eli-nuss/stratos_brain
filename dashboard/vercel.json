@@ -3,12 +3,11 @@
   "buildCommand": "pnpm run build",
   "outputDirectory": "dist/public",
   "framework": "vite",
-  "functions": {
-    "api/**/*.ts": {
-      "runtime": "@vercel/node@3.0.0"
-    }
-  },
   "rewrites": [
+    {
+      "source": "/api/dashboard/:path*",
+      "destination": "https://wfogbaipiqootjrsprde.supabase.co/functions/v1/control-api/dashboard/:path*"
+    },
     {
       "source": "/((?!api/).*)",
       "destination": "/index.html"

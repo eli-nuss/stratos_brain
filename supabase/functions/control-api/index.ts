@@ -22,8 +22,27 @@ interface EnqueueRequest {
   params?: Record<string, unknown>
 }
 
+// Check if the request is for a public dashboard endpoint (read-only)
+function isPublicDashboardEndpoint(req: Request): boolean {
+  const url = new URL(req.url)
+  const path = url.pathname.replace('/control-api', '')
+  
+  // Allow public read access to dashboard endpoints
+  if (req.method === 'GET' && path.startsWith('/dashboard/')) {
+    return true
+  }
+  
+  return false
+}
+
 // Validate authentication - supports multiple auth methods
 function validateAuth(req: Request): { valid: boolean; error?: string } {
+  // Allow public access to dashboard read endpoints
+  if (isPublicDashboardEndpoint(req)) {
+    console.log('Auth bypassed for public dashboard endpoint')
+    return { valid: true }
+  }
+
   // Option 1: Check for x-stratos-key header (API key for scripts/n8n)
   const stratosKey = req.headers.get('x-stratos-key')
   // Use env var if set, otherwise fall back to hardcoded key
