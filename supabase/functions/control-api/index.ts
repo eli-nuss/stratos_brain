@@ -818,6 +818,206 @@ serve(async (req) => {
         })
       }
 
+      // POST /dashboard/chat - Chat with AI about an asset's analysis
+      case req.method === 'POST' && path === '/dashboard/chat': {
+        const body = await req.json()
+        const { asset_id, as_of_date, message, conversation_history } = body
+        
+        if (!asset_id || !message) {
+          return new Response(JSON.stringify({ error: 'asset_id and message are required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Get asset info
+        const { data: asset, error: assetError } = await supabase
+          .from('assets')
+          .select('*')
+          .eq('id', asset_id)
+          .single()
+        
+        if (assetError || !asset) {
+          return new Response(JSON.stringify({ error: 'Asset not found' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Determine target date
+        const targetDate = as_of_date || new Date().toISOString().split('T')[0]
+        
+        // Get 365 days of OHLCV data
+        const { data: ohlcv } = await supabase
+          .from('daily_bars')
+          .select('date, open, high, low, close, volume')
+          .eq('asset_id', asset_id)
+          .lte('date', targetDate)
+          .order('date', { ascending: false })
+          .limit(365)
+        
+        // Get features/indicators
+        const { data: features } = await supabase
+          .from('daily_features')
+          .select('*')
+          .eq('asset_id', asset_id)
+          .eq('date', targetDate)
+          .single()
+        
+        // Get signal facts
+        const { data: signals } = await supabase
+          .from('daily_signal_facts')
+          .select('signal_type, direction, strength, evidence')
+          .eq('asset_id', asset_id)
+          .eq('date', targetDate)
+          .order('strength', { ascending: false })
+          .limit(10)
+        
+        // Get AI review if exists
+        const { data: reviews } = await supabase
+          .from('asset_ai_reviews')
+          .select('*')
+          .eq('asset_id', asset_id)
+          .eq('as_of_date', targetDate)
+          .order('created_at', { ascending: false })
+          .limit(1)
+        
+        const review = reviews?.[0] || null
+        
+        // Build context for the LLM
+        const context = {
+          asset: {
+            symbol: asset.symbol,
+            name: asset.name,
+            asset_type: asset.asset_type
+          },
+          as_of_date: targetDate,
+          ohlcv: ohlcv?.reverse().map(b => ({
+            date: b.date,
+            open: b.open,
+            high: b.high,
+            low: b.low,
+            close: b.close,
+            volume: b.volume
+          })) || [],
+          features: features ? {
+            trend_regime: features.trend_regime,
+            rsi_14: features.rsi_14,
+            macd_histogram: features.macd_histogram,
+            bb_width: features.bb_width,
+            squeeze_on: features.squeeze_on,
+            ma_dist_20: features.ma_dist_20,
+            ma_dist_50: features.ma_dist_50,
+            ma_dist_200: features.ma_dist_200,
+            dist_52w_high: features.dist_52w_high,
+            dist_52w_low: features.dist_52w_low,
+            rvol_20: features.rvol_20,
+            roc_20: features.roc_20,
+            roc_63: features.roc_63
+          } : {},
+          signals: signals || [],
+          ai_review: review ? {
+            attention_level: review.attention_level,
+            direction: review.direction,
+            setup_type: review.setup_type,
+            summary: review.summary_text,
+            entry: review.entry,
+            targets: review.targets,
+            invalidation: review.invalidation,
+            confidence: review.confidence
+          } : null
+        }
+        
+        // Build the system prompt
+        const systemPrompt = `You are a technical analysis assistant for Stratos Brain, a trading signal platform.
+You have access to the following data for ${asset.symbol} (${asset.name}) as of ${targetDate}:
+
+## OHLCV Data (365 days)
+${JSON.stringify(context.ohlcv.slice(-30), null, 2)}
+... (${context.ohlcv.length} total bars available)
+
+## Current Technical Indicators
+${JSON.stringify(context.features, null, 2)}
+
+## Active Signals
+${JSON.stringify(context.signals, null, 2)}
+
+## AI Analysis Summary
+${context.ai_review ? JSON.stringify(context.ai_review, null, 2) : 'No AI review available'}
+
+You can reference any of this data to answer questions about:
+- Price action and chart patterns
+- Support/resistance levels
+- Entry/exit strategies
+- Risk management
+- Signal interpretation
+- Technical indicator readings
+
+Be concise but thorough. Reference specific price levels and data points when relevant.
+If asked about something not in the data, acknowledge the limitation.`
+
+        // Build conversation messages
+        const messages = [
+          { role: 'user', parts: [{ text: systemPrompt }] },
+          { role: 'model', parts: [{ text: `I understand. I have access to 365 days of OHLCV data, technical indicators, active signals, and the AI analysis for ${asset.symbol}. How can I help you analyze this asset?` }] }
+        ]
+        
+        // Add conversation history if provided
+        if (conversation_history && Array.isArray(conversation_history)) {
+          for (const msg of conversation_history) {
+            messages.push({
+              role: msg.role === 'user' ? 'user' : 'model',
+              parts: [{ text: msg.content }]
+            })
+          }
+        }
+        
+        // Add current message
+        messages.push({ role: 'user', parts: [{ text: message }] })
+        
+        // Call Gemini API
+        const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || 'AIzaSyAHg70im-BbB9HYZm7TOzr3cKRQp7RWY1Q'
+        const geminiResponse = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: messages,
+              generationConfig: {
+                temperature: 0.7,
+                maxOutputTokens: 2000
+              }
+            })
+          }
+        )
+        
+        if (!geminiResponse.ok) {
+          const errorText = await geminiResponse.text()
+          console.error('Gemini API error:', errorText)
+          return new Response(JSON.stringify({ error: 'AI service error', details: errorText }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const geminiData = await geminiResponse.json()
+        const aiResponse = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated'
+        
+        return new Response(JSON.stringify({
+          response: aiResponse,
+          context_summary: {
+            symbol: asset.symbol,
+            as_of_date: targetDate,
+            ohlcv_bars: context.ohlcv.length,
+            signals_count: context.signals.length,
+            has_ai_review: !!context.ai_review
+          }
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
       // ==================== END DASHBOARD ENDPOINTS ====================
 
       default:
