@@ -46,7 +46,7 @@ class Stage5AIReview:
     PASS2_BARS = 90   # Last 90 days for Pass 2 (with Pass 1 context)
     
     # Model configuration
-    DEFAULT_MODEL = "gemini-3-pro-preview"
+    DEFAULT_MODEL = "gemini-2.0-flash-exp"
     FALLBACK_MODEL = "gemini-3-flash-preview"
     
     # Safety ceiling per scope
@@ -62,8 +62,8 @@ class Stage5AIReview:
         
         genai.configure(api_key=self.api_key)
         
-        # Set model (default to Gemini 3 Pro)
-        self.model_name = model or self.DEFAULT_MODEL
+        # Set model (default to Gemini 2.0 Flash, override with env var)
+        self.model_name = model or os.environ.get("GEMINI_MODEL") or self.DEFAULT_MODEL
         self.model = genai.GenerativeModel(
             model_name=self.model_name,
             generation_config={
@@ -276,15 +276,16 @@ Output valid JSON with:
         bars = self.db.fetch_all(ohlcv_query, (asset_id, as_of_date, self.PASS1_BARS))
         bars = list(reversed(bars))
         
+        # Optimized token format: [date, o, h, l, c, v]
         packet["ohlcv"] = [
-            {
-                "date": str(b["date"]),
-                "open": float(b["open"]) if b["open"] else None,
-                "high": float(b["high"]) if b["high"] else None,
-                "low": float(b["low"]) if b["low"] else None,
-                "close": float(b["close"]) if b["close"] else None,
-                "volume": float(b["volume"]) if b["volume"] else None,
-            }
+            [
+                str(b["date"]),
+                float(b["open"]) if b["open"] else None,
+                float(b["high"]) if b["high"] else None,
+                float(b["low"]) if b["low"] else None,
+                float(b["close"]) if b["close"] else None,
+                float(b["volume"]) if b["volume"] else None,
+            ]
             for b in bars
         ]
         
@@ -402,12 +403,14 @@ Output valid JSON with:
         
         return packet
 
-    def _compute_input_hash(self, asset_id: Any, as_of_date: str, scope: str) -> str:
+    def _compute_input_hash(self, asset_id: Any, as_of_date: str, scope: str, config_id: str, universe_id: str) -> str:
         """Compute hash for idempotency check."""
         hash_input = {
             "asset_id": str(asset_id),
             "as_of_date": as_of_date,
             "scope": scope,
+            "config_id": config_id,
+            "universe_id": universe_id,
             "model": self.model_name,
             "prompt_version": self.PROMPT_VERSION,
         }
@@ -459,6 +462,7 @@ Output valid JSON with:
         asset_id: Any,
         as_of_date: str,
         config_id: str,
+        universe_id: str,
         scope: str,
         input_hash: str,
         pass1_result: Dict[str, Any],
@@ -474,13 +478,13 @@ Output valid JSON with:
         
         insert_query = """
         INSERT INTO asset_ai_reviews (
-            asset_id, as_of_date, config_id, scope, model, prompt_version, input_hash,
+            asset_id, as_of_date, config_id, universe_id, source_scope, scope, model, prompt_version, input_hash,
             attention_level, direction, setup_type, summary_text, confidence,
             entry, targets, invalidation, support, resistance,
             pass1_review, review_json,
             tokens_in, tokens_out
         ) VALUES (
-            %s, %s, %s::uuid, %s, %s, %s, %s,
+            %s, %s, %s::uuid, %s, %s, %s, %s, %s, %s,
             %s, %s, %s, %s, %s,
             %s, %s, %s, %s, %s,
             %s, %s,
@@ -519,7 +523,9 @@ Output valid JSON with:
             str(asset_id),
             as_of_date,
             config_id,
-            scope,
+            universe_id,
+            scope, # source_scope
+            scope, # scope (canonical)
             self.model_name,
             self.PROMPT_VERSION,
             input_hash,
@@ -585,7 +591,8 @@ Output valid JSON with:
                 return result
             
             # Compute input hash
-            input_hash = self._compute_input_hash(asset_id, as_of_date, scope)
+            universe_id = str(target.get("universe_id", ""))
+            input_hash = self._compute_input_hash(asset_id, as_of_date, scope, config_id, universe_id)
             
             # PASS 1: OHLCV-only analysis
             pass1_packet = self._build_pass1_packet(
@@ -622,6 +629,7 @@ Output valid JSON with:
                 asset_id=asset_id,
                 as_of_date=as_of_date,
                 config_id=config_id,
+                universe_id=universe_id,
                 scope=scope,
                 input_hash=input_hash,
                 pass1_result=pass1_result,

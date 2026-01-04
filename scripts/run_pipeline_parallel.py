@@ -50,7 +50,7 @@ def main():
 
     target_date = "2026-01-02"
     config_id = "6a6cd5d6-1f43-475b-a0e7-2fe6fdffe714"
-    max_workers = 10  # Run 10 parallel workers
+    max_workers = 2  # Run 2 parallel workers (safe for 10 RPM limit)
     
     print(f"--- Starting PARALLEL Pipeline Run for {target_date} ---")
     print(f"Workers: {max_workers}")
@@ -58,7 +58,7 @@ def main():
     # 1. Run Stage 4: Signal Scoring (Sequential is fine/fast)
     print("\n[Stage 4] Running Signal Scoring...")
     stage4 = Stage4Scoring(db)
-    universes = ["crypto_all", "equities_top500"]
+    universes = ["crypto_all", "equities_all"]
     
     for universe in universes:
         print(f"  > Scoring universe: {universe}")
