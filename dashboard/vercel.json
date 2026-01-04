@@ -10,10 +10,6 @@
   },
   "rewrites": [
     {
-      "source": "/api/dashboard/:path*",
-      "destination": "/api/dashboard/:path*"
-    },
-    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
