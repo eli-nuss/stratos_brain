@@ -1,0 +1,30 @@
+{
+  "type": "object",
+  "properties": {
+    "agreement_with_engine": {
+      "type": "string",
+      "enum": ["agree", "partial", "disagree"],
+      "description": "The level of agreement between the independent AI score and the Stratos Engine's scores/signals."
+    },
+    "engine_notes": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 6,
+      "items": {
+        "type": "string"
+      },
+      "description": "2-6 bullet points describing what the Stratos Engine missed or overweighted compared to the independent AI analysis."
+    },
+    "confidence_adjustment": {
+      "type": "number",
+      "minimum": -0.10,
+      "maximum": 0.10,
+      "description": "An optional adjustment to the Pass A confidence score, between -0.10 and +0.10, based on the engine context."
+    }
+  },
+  "required": [
+    "agreement_with_engine",
+    "engine_notes",
+    "confidence_adjustment"
+  ]
+}
