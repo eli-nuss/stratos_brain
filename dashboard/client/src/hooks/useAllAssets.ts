@@ -3,7 +3,7 @@ import useSWR from "swr";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export type AssetType = "crypto" | "equity";
-export type SortField = "weighted_score" | "symbol" | "score_delta" | "inflection_score" | "ai_confidence";
+export type SortField = "weighted_score" | "symbol" | "score_delta" | "inflection_score" | "ai_confidence" | "ai_setup_quality_score" | "ai_direction_score";
 export type SortOrder = "asc" | "desc";
 
 interface UseAllAssetsParams {
@@ -28,7 +28,7 @@ export function useAllAssets({
   date,
   limit = 50,
   offset = 0,
-  sortBy = "weighted_score",
+  sortBy = "ai_setup_quality_score", // Default to AI quality score
   sortOrder = "desc",
   search,
 }: UseAllAssetsParams) {
@@ -36,7 +36,7 @@ export function useAllAssets({
     limit: limit.toString(),
     offset: offset.toString(),
     universe_id: assetType === "crypto" ? "crypto_all" : "equities_all",
-    sort_by: sortBy,
+    sort_by: sortBy || "ai_setup_quality_score", // Default to AI score
     sort_order: sortOrder,
   });
 

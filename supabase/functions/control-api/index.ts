@@ -805,8 +805,15 @@ serve(async (req) => {
           case 'ai_confidence':
             query = query.order('ai_confidence', { ascending, nullsFirst: false })
             break
+          case 'ai_setup_quality_score':
+            query = query.order('ai_setup_quality_score', { ascending, nullsFirst: false })
+            break
+          case 'ai_direction_score':
+            query = query.order('ai_direction_score', { ascending, nullsFirst: false })
+            break
           default:
-            query = query.order('weighted_score', { ascending })
+            query = query.order('ai_setup_quality_score', { ascending: false, nullsFirst: false })
+            break
         }
         
         const { data, error, count } = await query
