@@ -9,6 +9,9 @@ export interface SignalDefinition {
 }
 
 export const SIGNAL_DEFINITIONS: Record<string, SignalDefinition> = {
+  // ============================================
+  // BULLISH SIGNALS
+  // ============================================
   breakout_participation: {
     name: "Breakout Participation",
     shortDescription: "Price breaking above key resistance with volume confirmation",
@@ -56,6 +59,64 @@ export const SIGNAL_DEFINITIONS: Record<string, SignalDefinition> = {
     shortDescription: "Pullback within established trend offering entry",
     methodology: "Identifies pullbacks to key moving averages (20, 50 SMA) within an established trend. Requires price above MA200 for bullish, below for bearish. Strength based on trend strength and pullback depth.",
     interpretation: "Lower-risk entry within existing trend. Best when pullback holds above prior support. Higher strength indicates healthier trend structure."
+  },
+
+  // ============================================
+  // BEARISH SIGNALS
+  // ============================================
+  trend_breakdown: {
+    name: "Trend Breakdown",
+    shortDescription: "Price breaking below key support with momentum confirmation",
+    methodology: "Triggers when price breaks below the 20-day Donchian low with expanding volatility and negative OBV slope. Confirms with price closing below key moving averages (20, 50 SMA). Strength increases with volume confirmation and consecutive closes below support.",
+    interpretation: "Indicates potential start of a downtrend or acceleration of existing weakness. Higher scores suggest stronger breakdown conviction. Watch for failed bounces and lower highs as confirmation."
+  },
+  exhaustion: {
+    name: "Exhaustion",
+    shortDescription: "Signs of trend fatigue and potential reversal",
+    methodology: "Detects late-stage trend behavior including RSI divergence, declining momentum despite new highs/lows, volume dry-up on advances, and extended distance from moving averages. Evaluates multiple timeframe alignment for exhaustion signals.",
+    interpretation: "Warning signal that current trend may be losing steam. Not a timing signal - exhaustion can persist. Best used to tighten stops or reduce position size rather than immediate reversal trades."
+  },
+  breakdown_participation: {
+    name: "Breakdown Participation",
+    shortDescription: "Price breaking below key support with volume confirmation",
+    methodology: "Triggers when price breaks below the 20-day Donchian low with expanding Bollinger Band width and negative OBV confirmation. Base strength of 60 is adjusted by volume, volatility expansion, and breakdown confirmation factors.",
+    interpretation: "Higher scores indicate stronger breakdown conviction. Scores above 70 suggest high-probability continuation lower. Look for follow-through selling volume in subsequent sessions."
+  },
+  distribution: {
+    name: "Distribution",
+    shortDescription: "Institutional selling detected in price/volume patterns",
+    methodology: "Identifies accumulation/distribution patterns using OBV divergence, high volume down days vs low volume up days, and price action failing at resistance. Evaluates the ratio of distribution days to accumulation days over 20-day period.",
+    interpretation: "Suggests smart money may be exiting positions. Price can remain elevated during distribution. Watch for eventual breakdown below support as distribution completes."
+  },
+  failed_breakout: {
+    name: "Failed Breakout",
+    shortDescription: "Price reversal after breaking above resistance",
+    methodology: "Detects when price breaks above resistance but fails to hold, closing back below the breakout level within 1-3 sessions. Evaluates volume on breakout vs reversal and RSI divergence at highs.",
+    interpretation: "Bull trap signal indicating potential reversal. Failed breakouts often lead to sharp moves in the opposite direction. Higher strength indicates more convincing failure pattern."
+  },
+  bearish_divergence: {
+    name: "Bearish Divergence",
+    shortDescription: "Price making higher highs while momentum weakens",
+    methodology: "Detects when price makes a higher high but RSI/MACD makes a lower high. Evaluates divergence across multiple indicators (RSI, MACD histogram, OBV) for confirmation. Strength increases with divergence duration and indicator alignment.",
+    interpretation: "Early warning of potential top formation. Requires price confirmation (break of support) before acting. Multiple timeframe divergence increases reliability significantly."
+  },
+  support_break: {
+    name: "Support Break",
+    shortDescription: "Price closing below established support level",
+    methodology: "Triggers when price closes below a significant support level (prior lows, moving averages, trendlines). Evaluates the significance of the support level and volume on the break. Strength based on support importance and break magnitude.",
+    interpretation: "Key technical damage signal. Broken support often becomes resistance. Watch for retest of broken support from below as potential short entry or confirmation of breakdown."
+  },
+  death_cross: {
+    name: "Death Cross",
+    shortDescription: "Short-term moving average crossing below long-term average",
+    methodology: "Triggers when the 50-day SMA crosses below the 200-day SMA. Evaluates the angle of the cross and price position relative to both averages. Strength modified by trend context and momentum indicators.",
+    interpretation: "Classic bearish signal indicating potential longer-term trend change. Often a lagging indicator - much of the move may have already occurred. Best used for trend confirmation rather than timing."
+  },
+  lower_high: {
+    name: "Lower High",
+    shortDescription: "Price failing to reach prior high, indicating weakening momentum",
+    methodology: "Identifies when price rallies but fails to exceed the prior swing high. Evaluates the depth of the lower high relative to prior high and volume characteristics on the rally attempt.",
+    interpretation: "Bearish market structure signal. Sequence of lower highs and lower lows confirms downtrend. Higher strength indicates more significant failure relative to prior high."
   }
 };
 
