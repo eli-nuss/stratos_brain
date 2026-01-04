@@ -580,6 +580,158 @@ serve(async (req) => {
         })
       }
 
+      // ==================== HEALTH & DETAIL ENDPOINTS ====================
+
+      // GET /dashboard/health - Get dashboard health/status for UI header
+      case req.method === 'GET' && path === '/dashboard/health': {
+        // Get latest dates
+        const { data: equityDate } = await supabase.rpc('resolve_latest_date', { asset_type_param: 'equity' })
+        const { data: cryptoDate } = await supabase.rpc('resolve_latest_date', { asset_type_param: 'crypto' })
+        
+        // Get eligible asset counts
+        const { data: equityCounts } = await supabase
+          .from('v_dashboard_base')
+          .select('asset_id', { count: 'exact', head: true })
+          .eq('asset_type', 'equity')
+          .eq('as_of_date', equityDate)
+        
+        const { data: cryptoCounts } = await supabase
+          .from('v_dashboard_base')
+          .select('asset_id', { count: 'exact', head: true })
+          .eq('asset_type', 'crypto')
+          .eq('as_of_date', cryptoDate)
+        
+        // Get AI review counts for today
+        const { data: aiReviewCounts } = await supabase
+          .from('asset_ai_reviews')
+          .select('scope, attention_level')
+          .gte('created_at', new Date().toISOString().split('T')[0])
+        
+        const reviewsByScope = (aiReviewCounts || []).reduce((acc: Record<string, number>, r: any) => {
+          acc[r.scope] = (acc[r.scope] || 0) + 1
+          return acc
+        }, {})
+        
+        const urgentCount = (aiReviewCounts || []).filter((r: any) => r.attention_level === 'URGENT').length
+        
+        return new Response(JSON.stringify({
+          latest_dates: {
+            equity: equityDate,
+            crypto: cryptoDate
+          },
+          eligible_assets: {
+            equity: equityCounts?.length || 0,
+            crypto: cryptoCounts?.length || 0
+          },
+          ai_reviews_today: {
+            total: aiReviewCounts?.length || 0,
+            urgent: urgentCount,
+            by_scope: reviewsByScope
+          },
+          timestamp: new Date().toISOString()
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /dashboard/asset - Get full detail for one asset (click-through page)
+      case req.method === 'GET' && path === '/dashboard/asset': {
+        const assetId = url.searchParams.get('asset_id')
+        const asOfDate = url.searchParams.get('as_of_date')
+        const configId = url.searchParams.get('config_id')
+        
+        if (!assetId) {
+          return new Response(JSON.stringify({ error: 'asset_id required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Get asset info
+        const { data: asset, error: assetError } = await supabase
+          .from('assets')
+          .select('*')
+          .eq('asset_id', assetId)
+          .single()
+        
+        if (assetError) throw assetError
+        
+        // Determine date to use
+        const targetDate = asOfDate || (asset.asset_type === 'crypto' 
+          ? (await supabase.rpc('resolve_latest_date', { asset_type_param: 'crypto' })).data
+          : (await supabase.rpc('resolve_latest_date', { asset_type_param: 'equity' })).data)
+        
+        // Get OHLCV (365 bars)
+        const { data: ohlcv } = await supabase
+          .from('daily_bars')
+          .select('date, open, high, low, close, volume')
+          .eq('asset_id', assetId)
+          .lte('date', targetDate)
+          .order('date', { ascending: false })
+          .limit(365)
+        
+        // Get features snapshot
+        const { data: features } = await supabase
+          .from('daily_features')
+          .select('*')
+          .eq('asset_id', assetId)
+          .eq('date', targetDate)
+          .single()
+        
+        // Get score row
+        let scoreQuery = supabase
+          .from('daily_asset_scores')
+          .select('*')
+          .eq('asset_id', assetId)
+          .eq('as_of_date', targetDate)
+        
+        if (configId) {
+          scoreQuery = scoreQuery.eq('config_id', configId)
+        }
+        
+        const { data: scores } = await scoreQuery.limit(1).single()
+        
+        // Get signal facts
+        let signalQuery = supabase
+          .from('daily_signal_facts')
+          .select('*')
+          .eq('asset_id', assetId)
+          .eq('date', targetDate)
+        
+        if (configId) {
+          signalQuery = signalQuery.eq('config_id', configId)
+        }
+        
+        const { data: signals } = await signalQuery.order('strength', { ascending: false })
+        
+        // Get AI review (latest for this asset/date)
+        let reviewQuery = supabase
+          .from('asset_ai_reviews')
+          .select('*')
+          .eq('asset_id', assetId)
+          .eq('as_of_date', targetDate)
+        
+        if (configId) {
+          reviewQuery = reviewQuery.eq('config_id', configId)
+        }
+        
+        const { data: reviews } = await reviewQuery.order('created_at', { ascending: false }).limit(1)
+        const review = reviews?.[0] || null
+        
+        return new Response(JSON.stringify({
+          asset,
+          as_of_date: targetDate,
+          ohlcv: ohlcv?.reverse() || [],
+          features,
+          scores,
+          signals: signals || [],
+          review,
+          review_status: review ? 'ready' : 'missing'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
       // ==================== END DASHBOARD ENDPOINTS ====================
 
       default:
