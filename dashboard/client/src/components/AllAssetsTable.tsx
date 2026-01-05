@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { TrendingUp, TrendingDown, AlertTriangle, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, ExternalLink } from "lucide-react";
 import { useAllAssets, AssetType, SortField, SortOrder } from "@/hooks/useAllAssets";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { COLUMN_DEFINITIONS } from "@/lib/signalDefinitions";
@@ -98,6 +98,17 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
         return "Risk warning. Technical deterioration or potential breakdown pattern identified.";
       default:
         return "No significant signal category assigned.";
+    }
+  };
+
+  // Generate TradingView URL for an asset
+  const getTradingViewUrl = (symbol: string, assetType: string) => {
+    if (assetType === 'crypto') {
+      // For crypto, use BINANCE exchange with USDT pair
+      return `https://www.tradingview.com/chart/?symbol=BINANCE:${symbol}USDT`;
+    } else {
+      // For equities, just use the symbol
+      return `https://www.tradingview.com/chart/?symbol=${symbol}`;
     }
   };
 
@@ -223,6 +234,9 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
               <th className="px-2 py-2 font-medium text-center">
                 <HeaderWithTooltip tooltip={COLUMN_DEFINITIONS.attention.description}>Attn</HeaderWithTooltip>
               </th>
+              <th className="px-2 py-2 font-medium text-center">
+                <HeaderWithTooltip tooltip="Open chart on TradingView">Chart</HeaderWithTooltip>
+              </th>
 
             </tr>
           </thead>
@@ -242,7 +256,7 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
               ))
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
                   {search ? `No assets found matching "${search}"` : "No data available"}
                 </td>
               </tr>
@@ -310,6 +324,18 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
                     ) : (
                       <span className="text-xs text-muted-foreground">-</span>
                     )}
+                  </td>
+                  <td className="px-2 py-2 text-center">
+                    <a
+                      href={getTradingViewUrl(row.symbol, assetType)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center justify-center p-1 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                      title="Open on TradingView"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
                   </td>
 
                 </tr>

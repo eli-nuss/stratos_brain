@@ -1,6 +1,6 @@
 import useSWR from "swr";
 import { useState } from "react";
-import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, Activity, Info, MessageCircle } from "lucide-react";
+import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, Activity, Info, MessageCircle, ExternalLink } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from "recharts";
 import { format } from "date-fns";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -52,6 +52,17 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
   const signalColor = isBullish ? "text-signal-bullish" : "text-signal-bearish";
   const signalBg = isBullish ? "bg-signal-bullish/10" : "bg-signal-bearish/10";
 
+  // Generate TradingView URL for an asset
+  const getTradingViewUrl = (symbol: string, assetType: string) => {
+    if (assetType === 'crypto') {
+      // For crypto, use BINANCE exchange with USDT pair
+      return `https://www.tradingview.com/chart/?symbol=BINANCE:${symbol}USDT`;
+    } else {
+      // For equities, just use the symbol
+      return `https://www.tradingview.com/chart/?symbol=${symbol}`;
+    }
+  };
+
   return (
     <>
       <div className="flex flex-col h-full bg-card text-foreground overflow-hidden">
@@ -94,6 +105,22 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* TradingView link */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <a
+                  href={getTradingViewUrl(asset.symbol, asset.asset_type)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 rounded-full transition-colors text-muted-foreground hover:text-primary hover:bg-primary/10"
+                >
+                  <ExternalLink className="w-5 h-5" />
+                </a>
+              </TooltipTrigger>
+              <TooltipContent>
+                Open chart on TradingView
+              </TooltipContent>
+            </Tooltip>
             {/* Chat button */}
             <Tooltip>
               <TooltipTrigger asChild>
