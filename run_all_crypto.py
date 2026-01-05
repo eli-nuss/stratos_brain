@@ -2,6 +2,11 @@
 """
 Run AI analysis for all crypto assets using parallel processing.
 Uses gemini-3-pro-preview model with concurrent API calls for faster execution.
+
+This is the simplified v2 approach:
+- No dependency on Stage 4 (daily_asset_scores)
+- Processes ALL crypto assets
+- Includes features from Stage 2 and signals from Stage 3 as context
 """
 
 import os
@@ -27,7 +32,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Configuration
-AI_REVIEW_VERSION = "v2.0"
+AI_REVIEW_VERSION = "v2.1"
 MAX_CONCURRENT_REQUESTS = 10  # Number of parallel API calls
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 MODEL_NAME = "gemini-3-pro-preview"
@@ -56,8 +61,47 @@ def get_ohlcv_data(asset_id: int, as_of_date: str) -> list:
     return list(reversed(bars)) if bars else []
 
 
-def build_prompt(symbol: str, name: str, bars: list) -> str:
-    """Build the analysis prompt for an asset."""
+def get_features(asset_id: int, as_of_date: str) -> dict:
+    """Fetch calculated features from daily_features."""
+    db = get_db()
+    query = """
+    SELECT 
+        sma_20, sma_50, sma_200,
+        ma_dist_20, ma_dist_50, ma_dist_200,
+        rsi_14, macd_line, macd_signal, macd_histogram,
+        bb_upper, bb_lower, bb_width, bb_pct,
+        atr_14, atr_pct,
+        realized_vol_20, realized_vol_60,
+        return_1d, return_5d, return_21d, return_63d,
+        roc_5, roc_10, roc_20,
+        rvol_20, volume_z_60,
+        squeeze_flag, trend_regime
+    FROM daily_features
+    WHERE asset_id = %s AND date = %s
+    """
+    row = db.fetch_one(query, (asset_id, as_of_date))
+    if row:
+        return {k: float(v) if v is not None and isinstance(v, (int, float)) else v 
+                for k, v in dict(row).items() if v is not None}
+    return {}
+
+
+def get_signals(asset_id: int, as_of_date: str) -> list:
+    """Fetch signals from daily_signal_facts."""
+    db = get_db()
+    query = """
+    SELECT signal_type, direction, strength, weight
+    FROM daily_signal_facts
+    WHERE asset_id = %s AND date = %s
+    ORDER BY strength DESC
+    LIMIT 10
+    """
+    signals = db.fetch_all(query, (asset_id, as_of_date))
+    return [dict(s) for s in signals] if signals else []
+
+
+def build_prompt(symbol: str, name: str, bars: list, features: dict, signals: list) -> str:
+    """Build the analysis prompt for an asset with features and signals context."""
     if not bars:
         return None
     
@@ -69,6 +113,25 @@ def build_prompt(symbol: str, name: str, bars: list) -> str:
         ohlcv_lines.append(f"{b['date']},{b['open']},{b['high']},{b['low']},{b['close']},{b['volume']}")
     ohlcv_text = "\n".join(ohlcv_lines)
     
+    # Format features
+    features_text = ""
+    if features:
+        features_lines = []
+        for k, v in features.items():
+            if isinstance(v, float):
+                features_lines.append(f"  {k}: {v:.4f}")
+            else:
+                features_lines.append(f"  {k}: {v}")
+        features_text = "\nTECHNICAL INDICATORS:\n" + "\n".join(features_lines)
+    
+    # Format signals
+    signals_text = ""
+    if signals:
+        signals_lines = []
+        for s in signals:
+            signals_lines.append(f"  {s['signal_type']}: {s['direction']} (strength: {s['strength']}, weight: {s.get('weight', 1.0)})")
+        signals_text = "\nACTIVE SIGNALS:\n" + "\n".join(signals_lines)
+    
     prompt = f"""Analyze this cryptocurrency chart and return a JSON assessment.
 
 ASSET: {symbol} ({name})
@@ -76,6 +139,8 @@ CURRENT PRICE: {current_price}
 
 OHLCV DATA (Date,Open,High,Low,Close,Volume):
 {ohlcv_text}
+{features_text}
+{signals_text}
 
 Return ONLY a valid JSON object with this exact structure:
 {{
@@ -249,8 +314,12 @@ async def process_asset(session: aiohttp.ClientSession, semaphore: asyncio.Semap
                 progress['skipped'] += 1
                 return {'symbol': symbol, 'status': 'skipped', 'reason': 'no data'}
             
-            # Build prompt
-            prompt = build_prompt(symbol, name, bars)
+            # Get features and signals
+            features = await loop.run_in_executor(None, get_features, asset_id, as_of_date)
+            signals = await loop.run_in_executor(None, get_signals, asset_id, as_of_date)
+            
+            # Build prompt with features and signals
+            prompt = build_prompt(symbol, name, bars, features, signals)
             if not prompt:
                 progress['skipped'] += 1
                 return {'symbol': symbol, 'status': 'skipped', 'reason': 'no prompt'}
@@ -301,13 +370,14 @@ async def main():
     logger.info(f"Using model: {MODEL_NAME}")
     logger.info(f"Max concurrent requests: {MAX_CONCURRENT_REQUESTS}")
     
-    # Get all crypto assets
+    # Get all crypto assets with data for the date (no Stage 4 dependency)
     query = """
     SELECT DISTINCT a.asset_id, a.symbol, a.name
     FROM assets a
     JOIN daily_bars db ON a.asset_id = db.asset_id
     WHERE a.asset_type = 'crypto'
-    AND db.date = %s
+      AND a.is_active = true
+      AND db.date = %s
     ORDER BY a.symbol
     """
     assets = db.fetch_all(query, (as_of_date,))
