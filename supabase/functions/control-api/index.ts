@@ -950,14 +950,29 @@ serve(async (req) => {
           } : {},
           signals: signals || [],
           ai_review: review ? {
-            attention_level: review.attention_level,
+            // Core analysis
+            attention_level: review.ai_attention_level || review.attention_level,
             direction: review.direction,
-            setup_type: review.setup_type,
-            summary: review.summary_text,
-            entry: review.entry,
-            targets: review.targets,
-            invalidation: review.invalidation,
-            confidence: review.confidence
+            direction_score: review.ai_direction_score,
+            setup_type: review.ai_setup_type || review.setup_type,
+            setup_quality_score: review.ai_setup_quality_score,
+            time_horizon: review.ai_time_horizon,
+            confidence: review.ai_confidence || review.confidence,
+            summary: review.ai_summary_text || review.summary_text,
+            // Trade plan
+            entry_zone: review.ai_entry || review.entry,
+            targets: review.ai_targets || review.targets,
+            key_levels: review.ai_key_levels,
+            invalidation: review.ai_key_levels?.invalidation || review.invalidation,
+            // Context
+            why_now: review.ai_why_now,
+            risks: review.ai_risks,
+            what_to_watch_next: review.ai_what_to_watch_next,
+            // Subscores breakdown
+            subscores: review.subscores,
+            // Model info
+            model: review.model,
+            review_version: review.ai_review_version
           } : null
         }
         
@@ -976,7 +991,28 @@ ${JSON.stringify(context.features, null, 2)}
 ${JSON.stringify(context.signals, null, 2)}
 
 ## AI Analysis Summary
-${context.ai_review ? JSON.stringify(context.ai_review, null, 2) : 'No AI review available'}
+${context.ai_review ? `
+Attention Level: ${context.ai_review.attention_level}
+Direction: ${context.ai_review.direction} (score: ${context.ai_review.direction_score})
+Setup Type: ${context.ai_review.setup_type} (quality score: ${context.ai_review.setup_quality_score})
+Time Horizon: ${context.ai_review.time_horizon || 'Not specified'}
+Confidence: ${(context.ai_review.confidence * 100).toFixed(0)}%
+
+Summary: ${context.ai_review.summary}
+
+Trade Plan:
+- Entry Zone: $${context.ai_review.entry_zone?.low || 'N/A'} - $${context.ai_review.entry_zone?.high || 'N/A'}
+- Targets: ${JSON.stringify(context.ai_review.targets)}
+- Invalidation: $${context.ai_review.invalidation || 'N/A'}
+- Key Levels: ${JSON.stringify(context.ai_review.key_levels)}
+
+Why Now: ${JSON.stringify(context.ai_review.why_now)}
+Risks: ${JSON.stringify(context.ai_review.risks)}
+What to Watch: ${JSON.stringify(context.ai_review.what_to_watch_next)}
+
+Subscores: ${JSON.stringify(context.ai_review.subscores)}
+Model: ${context.ai_review.model} (v${context.ai_review.review_version})
+` : 'No AI review available'}
 
 You can reference any of this data to answer questions about:
 - Price action and chart patterns
