@@ -211,10 +211,6 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
                 <SortHeader field="symbol">Asset</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
-                <SortHeader field="close" tooltip="Latest closing price">Price</SortHeader>
-              </th>
-
-              <th className="px-2 py-2 font-medium text-center">
                 <SortHeader field="ai_direction_score" tooltip="AI-determined directional conviction (-100 to +100). Positive = bullish, Negative = bearish.">AI Dir</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
@@ -222,6 +218,9 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
               </th>
               <th className="px-2 py-2 font-medium text-center">
                 <SortHeader field="market_cap" tooltip="Market capitalization (Close Price × Circulating Supply)">Mkt Cap</SortHeader>
+              </th>
+              <th className="px-2 py-2 font-medium text-center">
+                <SortHeader field="close" tooltip="Latest closing price">Price</SortHeader>
               </th>
 
               <th className="px-2 py-2 font-medium text-center">
@@ -278,15 +277,6 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
                       <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{row.name}</span>
                     </div>
                   </td>
-                  <td className="px-2 py-2 font-mono text-center text-xs text-foreground">
-                    {row.close != null ? (
-                      row.close >= 1000 ? `$${row.close.toLocaleString(undefined, {maximumFractionDigits: 0})}` :
-                      row.close >= 1 ? `$${row.close.toFixed(2)}` :
-                      row.close >= 0.01 ? `$${row.close.toFixed(4)}` :
-                      `$${row.close.toPrecision(3)}`
-                    ) : "-"}
-                  </td>
-
                   <td className={`px-2 py-2 font-mono text-center text-xs rounded ${
                     row.ai_direction_score > 0 ? "text-signal-bullish bg-signal-bullish/10" : row.ai_direction_score < 0 ? "text-signal-bearish bg-signal-bearish/10" : "text-muted-foreground bg-muted/10"
                   }`}>
@@ -301,6 +291,14 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
                       row.market_cap >= 1e9 ? `$${(row.market_cap / 1e9).toFixed(1)}B` :
                       row.market_cap >= 1e6 ? `$${(row.market_cap / 1e6).toFixed(1)}M` :
                       `$${row.market_cap.toLocaleString()}`
+                    ) : "-"}
+                  </td>
+                  <td className="px-2 py-2 font-mono text-center text-xs text-foreground">
+                    {row.close != null ? (
+                      row.close >= 1000 ? `$${row.close.toLocaleString(undefined, {maximumFractionDigits: 0})}` :
+                      row.close >= 1 ? `$${row.close.toFixed(2)}` :
+                      row.close >= 0.01 ? `$${row.close.toFixed(4)}` :
+                      `$${row.close.toPrecision(3)}`
                     ) : "-"}
                   </td>
 
