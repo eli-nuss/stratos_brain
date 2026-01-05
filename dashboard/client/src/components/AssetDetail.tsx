@@ -12,6 +12,7 @@ import {
 } from "@/lib/signalDefinitions";
 import { ChatSidebar } from "./ChatSidebar";
 import { NotesHistory } from "./NotesHistory";
+import { FilesSection } from "./FilesSection";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -314,6 +315,9 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
 
             {/* Notes History */}
             <NotesHistory assetId={parseInt(assetId)} />
+
+            {/* Files Section */}
+            <FilesSection assetId={parseInt(assetId)} />
 
             {/* Signal Facts */}
             <div className="bg-card border border-border rounded-lg overflow-hidden">

@@ -38,7 +38,7 @@ function isPublicDashboardEndpoint(req: Request): boolean {
   }
   
   // Allow public access to notes endpoints (all methods)
-  if (path.startsWith('/dashboard/notes')) {
+  if (path.startsWith('/dashboard/notes') || path.startsWith('/dashboard/files')) {
     return true
   }
   
@@ -1360,6 +1360,154 @@ If asked about something not in the data, acknowledge the limitation.`
           .from('asset_notes')
           .delete()
           .eq('note_id', noteId)
+        
+        if (deleteError) {
+          return new Response(JSON.stringify({ error: deleteError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /dashboard/files/:asset_id - Get files for an asset
+      case req.method === 'GET' && /^\/dashboard\/files\/\d+$/.test(path): {
+        const assetId = parseInt(path.split('/').pop() || '0')
+        
+        if (!assetId) {
+          return new Response(JSON.stringify({ error: 'asset_id is required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Get all files for this asset
+        const { data: files, error: filesError } = await supabase
+          .from('asset_files')
+          .select('file_id, file_name, file_path, file_size, file_type, description, created_at')
+          .eq('asset_id', assetId)
+          .order('created_at', { ascending: false })
+        
+        if (filesError) {
+          return new Response(JSON.stringify({ error: filesError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify({ asset_id: assetId, files: files || [] }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // POST /dashboard/files - Upload a file for an asset
+      case req.method === 'POST' && path === '/dashboard/files': {
+        const formData = await req.formData()
+        const file = formData.get('file') as File
+        const assetId = parseInt(formData.get('asset_id') as string)
+        const description = formData.get('description') as string || ''
+        
+        if (!file || !assetId) {
+          return new Response(JSON.stringify({ error: 'file and asset_id are required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Generate unique file path
+        const timestamp = Date.now()
+        const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
+        const filePath = `assets/${assetId}/${timestamp}_${safeName}`
+        
+        // Upload to Supabase Storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('asset-files')
+          .upload(filePath, file, {
+            contentType: file.type,
+            upsert: false
+          })
+        
+        if (uploadError) {
+          return new Response(JSON.stringify({ error: uploadError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Get public URL
+        const { data: urlData } = supabase.storage
+          .from('asset-files')
+          .getPublicUrl(filePath)
+        
+        // Save file metadata to database
+        const { data: fileRecord, error: dbError } = await supabase
+          .from('asset_files')
+          .insert({
+            asset_id: assetId,
+            file_name: file.name,
+            file_path: urlData.publicUrl,
+            file_size: file.size,
+            file_type: file.type,
+            description: description
+          })
+          .select()
+          .single()
+        
+        if (dbError) {
+          // Try to delete the uploaded file if DB insert fails
+          await supabase.storage.from('asset-files').remove([filePath])
+          return new Response(JSON.stringify({ error: dbError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(fileRecord), {
+          status: 201,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // DELETE /dashboard/files/:file_id - Delete a file
+      case req.method === 'DELETE' && /^\/dashboard\/files\/\d+$/.test(path): {
+        const fileId = parseInt(path.split('/').pop() || '0')
+        
+        if (!fileId) {
+          return new Response(JSON.stringify({ error: 'file_id is required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Get file info first
+        const { data: fileInfo, error: fetchError } = await supabase
+          .from('asset_files')
+          .select('file_path')
+          .eq('file_id', fileId)
+          .single()
+        
+        if (fetchError || !fileInfo) {
+          return new Response(JSON.stringify({ error: 'File not found' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Extract storage path from URL and delete from storage
+        const urlParts = fileInfo.file_path.split('/asset-files/')
+        if (urlParts.length > 1) {
+          const storagePath = urlParts[1]
+          await supabase.storage.from('asset-files').remove([storagePath])
+        }
+        
+        // Delete from database
+        const { error: deleteError } = await supabase
+          .from('asset_files')
+          .delete()
+          .eq('file_id', fileId)
         
         if (deleteError) {
           return new Response(JSON.stringify({ error: deleteError.message }), {
