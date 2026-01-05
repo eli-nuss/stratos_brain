@@ -210,6 +210,9 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
               <th className="px-4 py-2 font-medium">
                 <SortHeader field="symbol">Asset</SortHeader>
               </th>
+              <th className="px-2 py-2 font-medium text-center">
+                <SortHeader field="close" tooltip="Latest closing price">Price</SortHeader>
+              </th>
 
               <th className="px-2 py-2 font-medium text-center">
                 <SortHeader field="ai_direction_score" tooltip="AI-determined directional conviction (-100 to +100). Positive = bullish, Negative = bearish.">AI Dir</SortHeader>
@@ -258,7 +261,7 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
               ))
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={11} className="px-4 py-8 text-center text-muted-foreground">
                   {search ? `No assets found matching "${search}"` : "No data available"}
                 </td>
               </tr>
@@ -274,6 +277,14 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
                       <span className="font-mono font-medium text-foreground">{row.symbol}</span>
                       <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{row.name}</span>
                     </div>
+                  </td>
+                  <td className="px-2 py-2 font-mono text-center text-xs text-foreground">
+                    {row.close != null ? (
+                      row.close >= 1000 ? `$${row.close.toLocaleString(undefined, {maximumFractionDigits: 0})}` :
+                      row.close >= 1 ? `$${row.close.toFixed(2)}` :
+                      row.close >= 0.01 ? `$${row.close.toFixed(4)}` :
+                      `$${row.close.toPrecision(3)}`
+                    ) : "-"}
                   </td>
 
                   <td className={`px-2 py-2 font-mono text-center text-xs rounded ${
