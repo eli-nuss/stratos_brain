@@ -207,21 +207,14 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
                 <SortHeader field="ai_direction_score" tooltip="AI-determined directional conviction (-100 to +100). Positive = bullish, Negative = bearish.">AI Dir</SortHeader>
               </th>
 
-              <th className="px-2 py-2 font-medium">
-                <HeaderWithTooltip tooltip={COLUMN_DEFINITIONS.signal.description}>Signal</HeaderWithTooltip>
-              </th>
+
               <th className="px-2 py-2 font-medium">
                 <HeaderWithTooltip tooltip={COLUMN_DEFINITIONS.setup.description}>Setup</HeaderWithTooltip>
               </th>
               <th className="px-2 py-2 font-medium">
                 <HeaderWithTooltip tooltip={COLUMN_DEFINITIONS.attention.description}>Attn</HeaderWithTooltip>
               </th>
-              <th className="px-2 py-2 font-medium">
-                <HeaderWithTooltip tooltip={COLUMN_DEFINITIONS.direction.description}>Dir</HeaderWithTooltip>
-              </th>
-              <th className="px-4 py-2 font-medium text-right">
-                <SortHeader field="ai_confidence" tooltip={COLUMN_DEFINITIONS.confidence.description}>Conf.</SortHeader>
-              </th>
+
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -231,17 +224,13 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
                   <td className="px-4 py-3"><div className="h-4 w-16 bg-muted rounded" /></td>
                   <td className="px-2 py-3"><div className="h-4 w-10 bg-muted rounded ml-auto" /></td>
                   <td className="px-2 py-3"><div className="h-4 w-10 bg-muted rounded ml-auto" /></td>
-                  <td className="px-2 py-3"><div className="h-4 w-10 bg-muted rounded ml-auto" /></td>
-                  <td className="px-2 py-3"><div className="h-4 w-8 bg-muted rounded ml-auto" /></td>
-                  <td className="px-2 py-3"><div className="h-4 w-16 bg-muted rounded" /></td>
                   <td className="px-2 py-3"><div className="h-4 w-16 bg-muted rounded" /></td>
                   <td className="px-2 py-3"><div className="h-4 w-12 bg-muted rounded" /></td>
-                  <td className="px-4 py-3"><div className="h-4 w-8 bg-muted rounded ml-auto" /></td>
                 </tr>
               ))
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
                   {search ? `No assets found matching "${search}"` : "No data available"}
                 </td>
               </tr>
@@ -268,18 +257,7 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
                     {row.ai_direction_score ? Math.round(row.ai_direction_score) : "-"}
                   </td>
 
-                  <td className="px-2 py-2">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="cursor-help">
-                          {getSignalCategoryBadge(row.signal_category)}
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        {getSignalCategoryTooltip(row.signal_category)}
-                      </TooltipContent>
-                    </Tooltip>
-                  </td>
+
                   <td className="px-2 py-2 text-xs text-muted-foreground">
                     {row.setup_type ? (
                       <Tooltip>
@@ -312,38 +290,7 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
                       <span className="text-xs text-muted-foreground">-</span>
                     )}
                   </td>
-                  <td className="px-2 py-2">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center gap-1 cursor-help">
-                          {getDirectionIcon(row.ai_direction)}
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {row.ai_direction === "bullish" 
-                          ? "Bullish: AI expects higher prices based on technical analysis."
-                          : row.ai_direction === "bearish"
-                          ? "Bearish: AI expects lower prices based on technical analysis."
-                          : "No directional bias assigned."}
-                      </TooltipContent>
-                    </Tooltip>
-                  </td>
-                  <td className="px-4 py-2 font-mono text-right text-xs text-muted-foreground">
-                    {row.ai_confidence ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="cursor-help">{Math.round(row.ai_confidence * 100)}%</span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {row.ai_confidence >= 0.85 
-                            ? "High conviction: Clear technical patterns with strong evidence."
-                            : row.ai_confidence >= 0.70
-                            ? "Moderate conviction: Reasonable setup with some mixed signals."
-                            : "Lower conviction: Mixed signals or unclear pattern."}
-                        </TooltipContent>
-                      </Tooltip>
-                    ) : "-"}
-                  </td>
+
                 </tr>
               ))
             )}

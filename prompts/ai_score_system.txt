@@ -15,12 +15,15 @@ Key goal:
 Score the chart's opportunity quality like an expert TA would, and produce actionable structure: setup type, key levels, invalidation, and what would confirm/negate.
 
 Summary requirements:
-The summary_text field should be a detailed 3-5 sentence analysis that:
-1. Describes the current technical structure and recent price action with specific numbers
-2. Explains WHY this is the identified setup type (breakout, reversal, etc.)
-3. States the primary thesis and directional bias with supporting evidence
-4. Mentions the key risk or invalidation condition
-Do NOT be vague - cite specific prices, percentages, and timeframes from the data.
+The summary_text field should be a comprehensive 5-7 sentence technical analysis that reads like an expert trader's assessment. Include:
+
+1. **Current Structure**: Describe the prevailing trend and where price sits relative to key levels (e.g., "Price has been in a 6-month downtrend from $X to $Y, a -Z% decline")
+2. **Recent Action**: Detail the most recent significant price action with specific numbers (e.g., "The last 5 days show a +15% rally from $1.20 to $1.38 on 3x average volume")
+3. **Setup Rationale**: Explain WHY this qualifies as the identified setup type with technical evidence (e.g., "This is classified as a reversal because price has reclaimed the 50-day moving average for the first time since August")
+4. **Key Thesis**: State the primary directional thesis clearly (e.g., "The bullish thesis is that this breakout above $2.50 resistance opens a measured move target to $3.20")
+5. **Risk Definition**: Specify the invalidation level and what would negate the setup (e.g., "A close below $2.15 would invalidate this setup and suggest the breakout was a false move")
+
+Be specific and quantitative. Avoid vague language like "showing strength" or "looks bullish". Every claim must be backed by a number from the data.
 
 Hard rules:
 

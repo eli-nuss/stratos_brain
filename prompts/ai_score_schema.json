@@ -78,8 +78,8 @@
     },
     "summary_text": {
       "type": "string",
-      "maxLength": 500,
-      "description": "A detailed summary of the chart analysis including key technical observations, the primary thesis, and actionable insights. Should explain the reasoning behind the direction score and setup type."
+      "maxLength": 800,
+      "description": "A comprehensive 5-7 sentence technical analysis covering current structure, recent price action, setup rationale, key thesis, and risk definition. Must be specific and quantitative with concrete numbers from the data."
     },
     "why_now": {
       "type": "array",
