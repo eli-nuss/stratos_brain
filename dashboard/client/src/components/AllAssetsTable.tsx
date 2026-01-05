@@ -118,7 +118,7 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
 
   // Sort header with tooltip
   const SortHeader = ({ field, children, tooltip }: { field: SortField; children: React.ReactNode; tooltip?: string }) => (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center justify-center gap-1">
       <button
         onClick={() => handleSort(field)}
         className="flex items-center gap-1 hover:text-foreground transition-colors"
@@ -145,7 +145,7 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
 
   // Column header with tooltip (non-sortable)
   const HeaderWithTooltip = ({ children, tooltip }: { children: React.ReactNode; tooltip: string }) => (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center justify-center gap-1">
       {children}
       <Tooltip>
         <TooltipTrigger asChild>
