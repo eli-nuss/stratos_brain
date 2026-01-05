@@ -4,16 +4,20 @@ import { useAllAssets, AssetType, SortField, SortOrder } from "@/hooks/useAllAss
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { COLUMN_DEFINITIONS } from "@/lib/signalDefinitions";
 import { NoteCell } from "@/components/NoteCell";
+import WatchlistToggle from "@/components/WatchlistToggle";
+import { useWatchlist } from "@/hooks/useWatchlist";
 
 interface AllAssetsTableProps {
   assetType: AssetType;
   date?: string;
   onAssetClick: (assetId: string) => void;
+  showWatchlistColumn?: boolean;
 }
 
 const PAGE_SIZE = 50;
 
-export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAssetsTableProps) {
+export default function AllAssetsTable({ assetType, date, onAssetClick, showWatchlistColumn = true }: AllAssetsTableProps) {
+  const { isInWatchlist, toggleWatchlist } = useWatchlist();
   const [page, setPage] = useState(0);
   const [sortBy, setSortBy] = useState<SortField>("ai_direction_score"); // Default to AI direction score
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
@@ -245,6 +249,11 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
               <th className="px-2 py-2 font-medium text-center">
                 <HeaderWithTooltip tooltip="Your personal notes for this asset. Click to add or edit.">Notes</HeaderWithTooltip>
               </th>
+              {showWatchlistColumn && (
+                <th className="px-2 py-2 font-medium text-center">
+                  <HeaderWithTooltip tooltip="Add or remove from your watchlist">★</HeaderWithTooltip>
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -361,6 +370,15 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
                     </a>
                   </td>
                   <NoteCell assetId={row.asset_id} />
+                  {showWatchlistColumn && (
+                    <td className="px-2 py-2 text-center">
+                      <WatchlistToggle
+                        assetId={row.asset_id}
+                        isInWatchlist={isInWatchlist(row.asset_id)}
+                        onToggle={toggleWatchlist}
+                      />
+                    </td>
+                  )}
                 </tr>
               ))
             )}

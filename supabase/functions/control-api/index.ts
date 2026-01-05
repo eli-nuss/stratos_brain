@@ -43,6 +43,11 @@ function isPublicDashboardEndpoint(req: Request): boolean {
     return true
   }
   
+  // Allow public access to watchlist endpoints (all methods)
+  if (path.startsWith('/dashboard/watchlist')) {
+    return true
+  }
+  
   return false
 }
 
@@ -1518,6 +1523,168 @@ If asked about something not in the data, acknowledge the limitation.`
         }
         
         return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /dashboard/watchlist - Get all watchlist items
+      case req.method === 'GET' && path === '/dashboard/watchlist': {
+        const { data: watchlist, error } = await supabase
+          .from('watchlist')
+          .select('asset_id, created_at')
+          .order('created_at', { ascending: false })
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(watchlist || []), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // POST /dashboard/watchlist - Add asset to watchlist
+      case req.method === 'POST' && path === '/dashboard/watchlist': {
+        const body = await req.json()
+        const { asset_id } = body
+        
+        if (!asset_id) {
+          return new Response(JSON.stringify({ error: 'asset_id is required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const { data, error } = await supabase
+          .from('watchlist')
+          .insert({ asset_id })
+          .select()
+          .single()
+        
+        if (error) {
+          // If already exists, return success
+          if (error.code === '23505') {
+            return new Response(JSON.stringify({ success: true, already_exists: true }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            })
+          }
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(data), {
+          status: 201,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // DELETE /dashboard/watchlist/:asset_id - Remove asset from watchlist
+      case req.method === 'DELETE' && /^\/dashboard\/watchlist\/\d+$/.test(path): {
+        const assetId = parseInt(path.split('/').pop()!)
+        
+        const { error } = await supabase
+          .from('watchlist')
+          .delete()
+          .eq('asset_id', assetId)
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /dashboard/watchlist/assets - Get watchlist with full asset data
+      case req.method === 'GET' && path === '/dashboard/watchlist/assets': {
+        // Get watchlist asset IDs
+        const { data: watchlistItems, error: watchlistError } = await supabase
+          .from('watchlist')
+          .select('asset_id')
+        
+        if (watchlistError) {
+          return new Response(JSON.stringify({ error: watchlistError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        if (!watchlistItems || watchlistItems.length === 0) {
+          return new Response(JSON.stringify([]), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const assetIds = watchlistItems.map(w => w.asset_id)
+        
+        // Get the latest dates for each asset type
+        const { data: latestDates } = await supabase
+          .from('latest_dates')
+          .select('asset_type, latest_date')
+        
+        const dateMap: Record<string, string> = {}
+        latestDates?.forEach(d => { dateMap[d.asset_type] = d.latest_date })
+        
+        // Get assets with their features and AI reviews
+        const { data: assets, error: assetsError } = await supabase
+          .from('assets')
+          .select('asset_id, symbol, name, asset_type, sector')
+          .in('asset_id', assetIds)
+        
+        if (assetsError || !assets) {
+          return new Response(JSON.stringify({ error: assetsError?.message || 'Failed to fetch assets' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Enrich with features and AI reviews
+        const enrichedAssets = await Promise.all(assets.map(async (asset) => {
+          const targetDate = dateMap[asset.asset_type] || new Date().toISOString().split('T')[0]
+          
+          const [featuresResult, reviewResult] = await Promise.all([
+            supabase
+              .from('daily_features')
+              .select('close, return_1d, return_5d, return_21d, rsi_14, dollar_volume')
+              .eq('asset_id', asset.asset_id)
+              .eq('date', targetDate)
+              .single(),
+            supabase
+              .from('asset_ai_reviews')
+              .select('direction, ai_direction_score, ai_setup_quality_score, attention_level, confidence')
+              .eq('asset_id', asset.asset_id)
+              .eq('as_of_date', targetDate)
+              .single()
+          ])
+          
+          return {
+            ...asset,
+            as_of_date: targetDate,
+            close: featuresResult.data?.close,
+            return_1d: featuresResult.data?.return_1d,
+            return_5d: featuresResult.data?.return_5d,
+            return_21d: featuresResult.data?.return_21d,
+            rsi_14: featuresResult.data?.rsi_14,
+            dollar_volume: featuresResult.data?.dollar_volume,
+            direction: reviewResult.data?.direction,
+            ai_direction_score: reviewResult.data?.ai_direction_score,
+            ai_setup_quality_score: reviewResult.data?.ai_setup_quality_score,
+            attention_level: reviewResult.data?.attention_level,
+            confidence: reviewResult.data?.confidence,
+            in_watchlist: true
+          }
+        }))
+        
+        return new Response(JSON.stringify(enrichedAssets), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }

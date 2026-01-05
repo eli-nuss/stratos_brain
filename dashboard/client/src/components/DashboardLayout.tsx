@@ -8,8 +8,8 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface DashboardLayoutProps {
   children: ReactNode;
-  activeTab: "crypto" | "equity";
-  onTabChange: (tab: "crypto" | "equity") => void;
+  activeTab: "watchlist" | "crypto" | "equity";
+  onTabChange: (tab: "watchlist" | "crypto" | "equity") => void;
 }
 
 export default function DashboardLayout({ children, activeTab, onTabChange }: DashboardLayoutProps) {
@@ -108,6 +108,23 @@ export default function DashboardLayout({ children, activeTab, onTabChange }: Da
             </Tooltip>
             <div className="h-4 w-px bg-border" />
             <div className="flex items-center bg-muted/50 p-1 rounded-lg">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => onTabChange("watchlist")}
+                  className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+                    activeTab === "watchlist"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  ⭐ Watchlist
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Your personal watchlist. Add assets from Crypto or Equities tabs.
+              </TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
