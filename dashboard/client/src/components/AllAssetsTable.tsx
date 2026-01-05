@@ -104,8 +104,8 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
   // Generate TradingView URL for an asset
   const getTradingViewUrl = (symbol: string, assetType: string) => {
     if (assetType === 'crypto') {
-      // For crypto, use BINANCE exchange with USDT pair
-      return `https://www.tradingview.com/chart/?symbol=BINANCE:${symbol}USDT`;
+      // For crypto, use CRYPTO exchange with USD pair
+      return `https://www.tradingview.com/chart/?symbol=CRYPTO:${symbol}USD`;
     } else {
       // For equities, just use the symbol
       return `https://www.tradingview.com/chart/?symbol=${symbol}`;
