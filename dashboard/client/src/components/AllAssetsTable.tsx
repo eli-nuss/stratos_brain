@@ -208,6 +208,15 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
               </th>
 
 
+              <th className="px-2 py-2 font-medium text-right">
+                <SortHeader field="return_1d" tooltip="Price change over the last 24 hours">24h</SortHeader>
+              </th>
+              <th className="px-2 py-2 font-medium text-right">
+                <SortHeader field="return_7d" tooltip="Price change over the last 7 days">7d</SortHeader>
+              </th>
+              <th className="px-2 py-2 font-medium text-right">
+                <SortHeader field="return_30d" tooltip="Price change over the last 30 days">30d</SortHeader>
+              </th>
               <th className="px-2 py-2 font-medium">
                 <HeaderWithTooltip tooltip={COLUMN_DEFINITIONS.setup.description}>Setup</HeaderWithTooltip>
               </th>
@@ -224,13 +233,16 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
                   <td className="px-4 py-3"><div className="h-4 w-16 bg-muted rounded" /></td>
                   <td className="px-2 py-3"><div className="h-4 w-10 bg-muted rounded ml-auto" /></td>
                   <td className="px-2 py-3"><div className="h-4 w-10 bg-muted rounded ml-auto" /></td>
+                  <td className="px-2 py-3"><div className="h-4 w-10 bg-muted rounded ml-auto" /></td>
+                  <td className="px-2 py-3"><div className="h-4 w-10 bg-muted rounded ml-auto" /></td>
+                  <td className="px-2 py-3"><div className="h-4 w-10 bg-muted rounded ml-auto" /></td>
                   <td className="px-2 py-3"><div className="h-4 w-16 bg-muted rounded" /></td>
                   <td className="px-2 py-3"><div className="h-4 w-12 bg-muted rounded" /></td>
                 </tr>
               ))
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
                   {search ? `No assets found matching "${search}"` : "No data available"}
                 </td>
               </tr>
@@ -257,6 +269,15 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
                     {row.ai_setup_quality_score ? Math.round(row.ai_setup_quality_score) : "-"}
                   </td>
 
+                  <td className={`px-2 py-2 font-mono text-right text-xs ${row.return_1d > 0 ? "text-signal-bullish" : row.return_1d < 0 ? "text-signal-bearish" : "text-muted-foreground"}`}>
+                    {row.return_1d != null ? `${row.return_1d > 0 ? "+" : ""}${(row.return_1d * 100).toFixed(1)}%` : "-"}
+                  </td>
+                  <td className={`px-2 py-2 font-mono text-right text-xs ${row.return_7d > 0 ? "text-signal-bullish" : row.return_7d < 0 ? "text-signal-bearish" : "text-muted-foreground"}`}>
+                    {row.return_7d != null ? `${row.return_7d > 0 ? "+" : ""}${(row.return_7d * 100).toFixed(1)}%` : "-"}
+                  </td>
+                  <td className={`px-2 py-2 font-mono text-right text-xs ${row.return_30d > 0 ? "text-signal-bullish" : row.return_30d < 0 ? "text-signal-bearish" : "text-muted-foreground"}`}>
+                    {row.return_30d != null ? `${row.return_30d > 0 ? "+" : ""}${(row.return_30d * 100).toFixed(1)}%` : "-"}
+                  </td>
 
                   <td className="px-2 py-2 text-xs text-muted-foreground">
                     {row.setup_type ? (
