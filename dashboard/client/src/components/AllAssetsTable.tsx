@@ -217,7 +217,9 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
               <th className="px-2 py-2 font-medium text-center">
                 <SortHeader field="ai_setup_quality_score" tooltip="AI-determined setup quality score (0-100). Higher = better technical setup.">AI Quality</SortHeader>
               </th>
-
+              <th className="px-2 py-2 font-medium text-center">
+                <SortHeader field="market_cap" tooltip="Market capitalization (Close Price × Circulating Supply)">Mkt Cap</SortHeader>
+              </th>
 
               <th className="px-2 py-2 font-medium text-center">
                 <SortHeader field="return_1d" tooltip="Price change over the last 24 hours">24h</SortHeader>
@@ -256,7 +258,7 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
               ))
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">
                   {search ? `No assets found matching "${search}"` : "No data available"}
                 </td>
               </tr>
@@ -281,6 +283,14 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
                   </td>
                   <td className="px-2 py-2 font-mono text-center text-xs bg-blue-500/10 text-blue-400 rounded">
                     {row.ai_setup_quality_score ? Math.round(row.ai_setup_quality_score) : "-"}
+                  </td>
+                  <td className="px-2 py-2 font-mono text-center text-xs text-muted-foreground">
+                    {row.market_cap ? (
+                      row.market_cap >= 1e12 ? `$${(row.market_cap / 1e12).toFixed(1)}T` :
+                      row.market_cap >= 1e9 ? `$${(row.market_cap / 1e9).toFixed(1)}B` :
+                      row.market_cap >= 1e6 ? `$${(row.market_cap / 1e6).toFixed(1)}M` :
+                      `$${row.market_cap.toLocaleString()}`
+                    ) : "-"}
                   </td>
 
                   <td className={`px-2 py-2 font-mono text-center text-xs ${row.return_1d > 0 ? "text-signal-bullish" : row.return_1d < 0 ? "text-signal-bearish" : "text-muted-foreground"}`}>
