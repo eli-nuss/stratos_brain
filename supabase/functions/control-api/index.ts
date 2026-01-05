@@ -745,19 +745,19 @@ serve(async (req) => {
         // Transform review to match frontend expected field names
         const review = rawReview ? {
           ...rawReview,
-          // Map ai_ prefixed columns to expected names
-          direction: rawReview.ai_direction_score > 0 ? 'bullish' : rawReview.ai_direction_score < 0 ? 'bearish' : 'neutral',
-          confidence: rawReview.ai_confidence,
-          summary_text: rawReview.ai_summary_text,
-          setup_type: rawReview.ai_setup_type,
-          attention_level: rawReview.ai_attention_level,
+          // Map ai_ prefixed columns to expected names (with fallbacks for v2/v3 schema differences)
+          direction: rawReview.direction || (rawReview.ai_direction_score > 0 ? 'bullish' : rawReview.ai_direction_score < 0 ? 'bearish' : 'neutral'),
+          confidence: rawReview.ai_confidence || rawReview.confidence,
+          summary_text: rawReview.ai_summary_text || rawReview.summary_text,
+          setup_type: rawReview.ai_setup_type || rawReview.setup_type,
+          attention_level: rawReview.ai_attention_level || rawReview.attention_level,
           time_horizon: rawReview.ai_time_horizon,
           model_id: rawReview.model,
-          key_levels: rawReview.ai_key_levels,
+          key_levels: rawReview.ai_key_levels || rawReview.review_json?.key_levels,
           entry: rawReview.ai_entry,
           targets: rawReview.ai_targets,
-          // Extract invalidation from ai_key_levels if not set at top level
-          invalidation: rawReview.invalidation || rawReview.ai_key_levels?.invalidation || null,
+          // Extract invalidation from multiple possible locations
+          invalidation: rawReview.invalidation || rawReview.ai_key_levels?.invalidation || rawReview.review_json?.key_levels?.invalidation || null,
           why_now: rawReview.ai_why_now,
           risks: rawReview.ai_risks,
           what_to_watch_next: rawReview.ai_what_to_watch_next,
