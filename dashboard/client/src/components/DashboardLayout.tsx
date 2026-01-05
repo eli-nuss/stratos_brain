@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import useSWR from "swr";
-import { Activity, Database, Brain, Clock, AlertTriangle, Info } from "lucide-react";
+import { Activity, Database, Brain, Clock, AlertTriangle, Info, BookOpen } from "lucide-react";
 import { format } from "date-fns";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -91,7 +91,23 @@ export default function DashboardLayout({ children, activeTab, onTabChange }: Da
           </div>
 
           {/* Tab Navigation */}
-          <div className="flex items-center bg-muted/50 p-1 rounded-lg">
+          <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <a
+                  href="/docs"
+                  className="px-3 py-1.5 text-sm font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all flex items-center gap-1.5"
+                >
+                  <BookOpen className="w-4 h-4" />
+                  Docs
+                </a>
+              </TooltipTrigger>
+              <TooltipContent>
+                AI Analysis system documentation and methodology
+              </TooltipContent>
+            </Tooltip>
+            <div className="h-4 w-px bg-border" />
+            <div className="flex items-center bg-muted/50 p-1 rounded-lg">
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -126,6 +142,7 @@ export default function DashboardLayout({ children, activeTab, onTabChange }: Da
                 US equity stocks. Data updates after market close (4 PM ET).
               </TooltipContent>
             </Tooltip>
+            </div>
           </div>
         </div>
       </header>
