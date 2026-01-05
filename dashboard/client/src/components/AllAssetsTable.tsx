@@ -200,27 +200,27 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
                 <SortHeader field="symbol">Asset</SortHeader>
               </th>
 
-              <th className="px-2 py-2 font-medium text-right">
+              <th className="px-2 py-2 font-medium text-center">
                 <SortHeader field="ai_direction_score" tooltip="AI-determined directional conviction (-100 to +100). Positive = bullish, Negative = bearish.">AI Dir</SortHeader>
               </th>
-              <th className="px-2 py-2 font-medium text-right">
+              <th className="px-2 py-2 font-medium text-center">
                 <SortHeader field="ai_setup_quality_score" tooltip="AI-determined setup quality score (0-100). Higher = better technical setup.">AI Quality</SortHeader>
               </th>
 
 
-              <th className="px-2 py-2 font-medium text-right">
+              <th className="px-2 py-2 font-medium text-center">
                 <SortHeader field="return_1d" tooltip="Price change over the last 24 hours">24h</SortHeader>
               </th>
-              <th className="px-2 py-2 font-medium text-right">
+              <th className="px-2 py-2 font-medium text-center">
                 <SortHeader field="return_7d" tooltip="Price change over the last 7 days">7d</SortHeader>
               </th>
-              <th className="px-2 py-2 font-medium text-right">
+              <th className="px-2 py-2 font-medium text-center">
                 <SortHeader field="return_30d" tooltip="Price change over the last 30 days">30d</SortHeader>
               </th>
-              <th className="px-2 py-2 font-medium">
+              <th className="px-2 py-2 font-medium text-center">
                 <HeaderWithTooltip tooltip={COLUMN_DEFINITIONS.setup.description}>Setup</HeaderWithTooltip>
               </th>
-              <th className="px-2 py-2 font-medium">
+              <th className="px-2 py-2 font-medium text-center">
                 <HeaderWithTooltip tooltip={COLUMN_DEFINITIONS.attention.description}>Attn</HeaderWithTooltip>
               </th>
 
@@ -260,26 +260,26 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
                     </div>
                   </td>
 
-                  <td className={`px-2 py-2 font-mono text-right text-xs rounded ${
+                  <td className={`px-2 py-2 font-mono text-center text-xs rounded ${
                     row.ai_direction_score > 0 ? "text-signal-bullish bg-signal-bullish/10" : row.ai_direction_score < 0 ? "text-signal-bearish bg-signal-bearish/10" : "text-muted-foreground bg-muted/10"
                   }`}>
                     {row.ai_direction_score ? Math.round(row.ai_direction_score) : "-"}
                   </td>
-                  <td className="px-2 py-2 font-mono text-right text-xs bg-blue-500/10 text-blue-400 rounded">
+                  <td className="px-2 py-2 font-mono text-center text-xs bg-blue-500/10 text-blue-400 rounded">
                     {row.ai_setup_quality_score ? Math.round(row.ai_setup_quality_score) : "-"}
                   </td>
 
-                  <td className={`px-2 py-2 font-mono text-right text-xs ${row.return_1d > 0 ? "text-signal-bullish" : row.return_1d < 0 ? "text-signal-bearish" : "text-muted-foreground"}`}>
+                  <td className={`px-2 py-2 font-mono text-center text-xs ${row.return_1d > 0 ? "text-signal-bullish" : row.return_1d < 0 ? "text-signal-bearish" : "text-muted-foreground"}`}>
                     {row.return_1d != null ? `${row.return_1d > 0 ? "+" : ""}${(row.return_1d * 100).toFixed(1)}%` : "-"}
                   </td>
-                  <td className={`px-2 py-2 font-mono text-right text-xs ${row.return_7d > 0 ? "text-signal-bullish" : row.return_7d < 0 ? "text-signal-bearish" : "text-muted-foreground"}`}>
+                  <td className={`px-2 py-2 font-mono text-center text-xs ${row.return_7d > 0 ? "text-signal-bullish" : row.return_7d < 0 ? "text-signal-bearish" : "text-muted-foreground"}`}>
                     {row.return_7d != null ? `${row.return_7d > 0 ? "+" : ""}${(row.return_7d * 100).toFixed(1)}%` : "-"}
                   </td>
-                  <td className={`px-2 py-2 font-mono text-right text-xs ${row.return_30d > 0 ? "text-signal-bullish" : row.return_30d < 0 ? "text-signal-bearish" : "text-muted-foreground"}`}>
+                  <td className={`px-2 py-2 font-mono text-center text-xs ${row.return_30d > 0 ? "text-signal-bullish" : row.return_30d < 0 ? "text-signal-bearish" : "text-muted-foreground"}`}>
                     {row.return_30d != null ? `${row.return_30d > 0 ? "+" : ""}${(row.return_30d * 100).toFixed(1)}%` : "-"}
                   </td>
 
-                  <td className="px-2 py-2 text-xs text-muted-foreground">
+                  <td className="px-2 py-2 text-xs text-muted-foreground text-center">
                     {row.setup_type ? (
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -295,7 +295,7 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
                       <span>-</span>
                     )}
                   </td>
-                  <td className="px-2 py-2">
+                  <td className="px-2 py-2 text-center">
                     {row.ai_attention ? (
                       <Tooltip>
                         <TooltipTrigger asChild>
