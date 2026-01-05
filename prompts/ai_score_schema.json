@@ -78,8 +78,8 @@
     },
     "summary_text": {
       "type": "string",
-      "maxLength": 220,
-      "description": "A concise summary of the chart analysis."
+      "maxLength": 500,
+      "description": "A detailed summary of the chart analysis including key technical observations, the primary thesis, and actionable insights. Should explain the reasoning behind the direction score and setup type."
     },
     "why_now": {
       "type": "array",

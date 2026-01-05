@@ -12,7 +12,15 @@ Produce an independent technical assessment based ONLY on the provided OHLCV (+ 
 You MUST NOT assume any external info. No news. No fundamentals. No catalysts.
 
 Key goal:
-Score the chart’s opportunity quality like an expert TA would, and produce actionable structure: setup type, key levels, invalidation, and what would confirm/negate.
+Score the chart's opportunity quality like an expert TA would, and produce actionable structure: setup type, key levels, invalidation, and what would confirm/negate.
+
+Summary requirements:
+The summary_text field should be a detailed 3-5 sentence analysis that:
+1. Describes the current technical structure and recent price action with specific numbers
+2. Explains WHY this is the identified setup type (breakout, reversal, etc.)
+3. States the primary thesis and directional bias with supporting evidence
+4. Mentions the key risk or invalidation condition
+Do NOT be vague - cite specific prices, percentages, and timeframes from the data.
 
 Hard rules:
 

@@ -14,7 +14,7 @@ const PAGE_SIZE = 50;
 
 export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAssetsTableProps) {
   const [page, setPage] = useState(0);
-  const [sortBy, setSortBy] = useState<SortField>("ai_setup_quality_score"); // Default to AI quality score
+  const [sortBy, setSortBy] = useState<SortField>("ai_direction_score"); // Default to AI direction score
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
@@ -199,18 +199,14 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
               <th className="px-4 py-2 font-medium">
                 <SortHeader field="symbol">Asset</SortHeader>
               </th>
-              <th className="px-2 py-2 font-medium text-right">
-                <SortHeader field="weighted_score" tooltip="Raw deterministic signal score from the Stratos Engine">Raw Score</SortHeader>
-              </th>
+
               <th className="px-2 py-2 font-medium text-right">
                 <SortHeader field="ai_setup_quality_score" tooltip="AI-determined setup quality score (0-100). Higher = better technical setup.">AI Quality</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-right">
                 <SortHeader field="ai_direction_score" tooltip="AI-determined directional conviction (-100 to +100). Positive = bullish, Negative = bearish.">AI Dir</SortHeader>
               </th>
-              <th className="px-2 py-2 font-medium text-right">
-                <SortHeader field="score_delta" tooltip={COLUMN_DEFINITIONS.score_delta.description}>Δ</SortHeader>
-              </th>
+
               <th className="px-2 py-2 font-medium">
                 <HeaderWithTooltip tooltip={COLUMN_DEFINITIONS.signal.description}>Signal</HeaderWithTooltip>
               </th>
@@ -245,7 +241,7 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
               ))
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
                   {search ? `No assets found matching "${search}"` : "No data available"}
                 </td>
               </tr>
@@ -262,11 +258,7 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
                       <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{row.name}</span>
                     </div>
                   </td>
-                  <td className={`px-2 py-2 font-mono text-right text-xs ${
-                    row.weighted_score > 0 ? "text-signal-bullish" : row.weighted_score < 0 ? "text-signal-bearish" : "text-muted-foreground"
-                  }`}>
-                    {Math.round(row.weighted_score)}
-                  </td>
+
                   <td className="px-2 py-2 font-mono text-right text-xs bg-blue-500/10 text-blue-400 rounded">
                     {row.ai_setup_quality_score ? Math.round(row.ai_setup_quality_score) : "-"}
                   </td>
@@ -275,11 +267,7 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
                   }`}>
                     {row.ai_direction_score ? Math.round(row.ai_direction_score) : "-"}
                   </td>
-                  <td className={`px-2 py-2 font-mono text-right text-xs ${
-                    row.score_delta > 0 ? "text-signal-bullish" : row.score_delta < 0 ? "text-signal-bearish" : "text-muted-foreground"
-                  }`}>
-                    {row.score_delta > 0 ? "+" : ""}{Math.round(row.score_delta)}
-                  </td>
+
                   <td className="px-2 py-2">
                     <Tooltip>
                       <TooltipTrigger asChild>
