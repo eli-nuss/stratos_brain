@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { TrendingUp, TrendingDown, AlertTriangle, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, ExternalLink } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, ExternalLink, StickyNote } from "lucide-react";
 import { useAllAssets, AssetType, SortField, SortOrder } from "@/hooks/useAllAssets";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { COLUMN_DEFINITIONS } from "@/lib/signalDefinitions";
+import { NoteCell } from "@/components/NoteCell";
 
 interface AllAssetsTableProps {
   assetType: AssetType;
@@ -241,7 +242,9 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
               <th className="px-2 py-2 font-medium text-center">
                 <HeaderWithTooltip tooltip="Open chart on TradingView">Chart</HeaderWithTooltip>
               </th>
-
+              <th className="px-2 py-2 font-medium text-center">
+                <HeaderWithTooltip tooltip="Your personal notes for this asset. Click to add or edit.">Notes</HeaderWithTooltip>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -256,11 +259,12 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
                   <td className="px-2 py-3"><div className="h-4 w-10 bg-muted rounded ml-auto" /></td>
                   <td className="px-2 py-3"><div className="h-4 w-16 bg-muted rounded" /></td>
                   <td className="px-2 py-3"><div className="h-4 w-12 bg-muted rounded" /></td>
+                  <td className="px-2 py-3"><div className="h-4 w-16 bg-muted rounded" /></td>
                 </tr>
               ))
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={11} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={12} className="px-4 py-8 text-center text-muted-foreground">
                   {search ? `No assets found matching "${search}"` : "No data available"}
                 </td>
               </tr>
@@ -356,7 +360,7 @@ export default function AllAssetsTable({ assetType, date, onAssetClick }: AllAss
                       <ExternalLink className="w-3.5 h-3.5" />
                     </a>
                   </td>
-
+                  <NoteCell assetId={row.asset_id} />
                 </tr>
               ))
             )}

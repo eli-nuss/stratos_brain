@@ -37,6 +37,11 @@ function isPublicDashboardEndpoint(req: Request): boolean {
     return true
   }
   
+  // Allow public access to notes endpoints (all methods)
+  if (path.startsWith('/dashboard/notes')) {
+    return true
+  }
+  
   return false
 }
 
@@ -1233,6 +1238,137 @@ If asked about something not in the data, acknowledge the limitation.`
             has_ai_review: !!context.ai_review
           }
         }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /dashboard/notes/:asset_id - Get notes for an asset
+      case req.method === 'GET' && /^\/dashboard\/notes\/\d+$/.test(path): {
+        const assetId = parseInt(path.split('/').pop() || '0')
+        
+        if (!assetId) {
+          return new Response(JSON.stringify({ error: 'asset_id is required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Get all notes for this asset, ordered by most recent first
+        const { data: notes, error: notesError } = await supabase
+          .from('asset_notes')
+          .select('note_id, note_text, created_at, updated_at')
+          .eq('asset_id', assetId)
+          .order('updated_at', { ascending: false })
+        
+        if (notesError) {
+          return new Response(JSON.stringify({ error: notesError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify({
+          asset_id: assetId,
+          notes: notes || [],
+          latest: notes?.[0] || null
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // POST /dashboard/notes - Create a new note for an asset
+      case req.method === 'POST' && path === '/dashboard/notes': {
+        const body = await req.json()
+        const { asset_id, note_text } = body
+        
+        if (!asset_id || !note_text?.trim()) {
+          return new Response(JSON.stringify({ error: 'asset_id and note_text are required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const { data: note, error: insertError } = await supabase
+          .from('asset_notes')
+          .insert({
+            asset_id,
+            note_text: note_text.trim()
+          })
+          .select()
+          .single()
+        
+        if (insertError) {
+          return new Response(JSON.stringify({ error: insertError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(note), {
+          status: 201,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // PUT /dashboard/notes/:note_id - Update a note
+      case req.method === 'PUT' && /^\/dashboard\/notes\/\d+$/.test(path): {
+        const noteId = parseInt(path.split('/').pop() || '0')
+        const body = await req.json()
+        const { note_text } = body
+        
+        if (!noteId || !note_text?.trim()) {
+          return new Response(JSON.stringify({ error: 'note_id and note_text are required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const { data: note, error: updateError } = await supabase
+          .from('asset_notes')
+          .update({
+            note_text: note_text.trim(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('note_id', noteId)
+          .select()
+          .single()
+        
+        if (updateError) {
+          return new Response(JSON.stringify({ error: updateError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(note), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // DELETE /dashboard/notes/:note_id - Delete a note
+      case req.method === 'DELETE' && /^\/dashboard\/notes\/\d+$/.test(path): {
+        const noteId = parseInt(path.split('/').pop() || '0')
+        
+        if (!noteId) {
+          return new Response(JSON.stringify({ error: 'note_id is required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const { error: deleteError } = await supabase
+          .from('asset_notes')
+          .delete()
+          .eq('note_id', noteId)
+        
+        if (deleteError) {
+          return new Response(JSON.stringify({ error: deleteError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
