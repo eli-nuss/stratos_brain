@@ -238,6 +238,9 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                 <SortHeader field="return_30d" tooltip="Price change over the last 30 days">30d</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
+                <SortHeader field="dollar_volume_7d" tooltip="7-day dollar volume divided by market cap. Higher values indicate more trading activity relative to asset size.">Vol/MC</SortHeader>
+              </th>
+              <th className="px-2 py-2 font-medium text-center">
                 <HeaderWithTooltip tooltip={COLUMN_DEFINITIONS.setup.description}>Setup</HeaderWithTooltip>
               </th>
               <th className="px-2 py-2 font-medium text-center">
@@ -323,6 +326,24 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                   </td>
                   <td className={`px-2 py-2 font-mono text-center text-xs ${row.return_30d > 0 ? "text-signal-bullish" : row.return_30d < 0 ? "text-signal-bearish" : "text-muted-foreground"}`}>
                     {row.return_30d != null ? `${row.return_30d > 0 ? "+" : ""}${(row.return_30d * 100).toFixed(1)}%` : "-"}
+                  </td>
+                  <td className="px-2 py-2 font-mono text-center text-xs text-purple-400">
+                    {row.dollar_volume_7d && row.market_cap && row.market_cap > 0 ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="cursor-help">
+                            {(row.dollar_volume_7d / row.market_cap).toFixed(1)}x
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs text-left">
+                          <div className="text-xs space-y-1">
+                            <div>7d $ Volume: ${(row.dollar_volume_7d / 1e9).toFixed(2)}B</div>
+                            <div>Market Cap: ${(row.market_cap / 1e9).toFixed(2)}B</div>
+                            <div>Ratio: {(row.dollar_volume_7d / row.market_cap).toFixed(2)}x</div>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : "-"}
                   </td>
 
                   <td className="px-2 py-2 text-xs text-muted-foreground text-center">

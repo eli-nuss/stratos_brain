@@ -858,6 +858,13 @@ serve(async (req) => {
           case 'return_30d':
             query = query.order('return_30d', { ascending, nullsFirst: false })
             break
+          case 'dollar_volume_7d':
+            query = query.order('dollar_volume_7d', { ascending, nullsFirst: false })
+            break
+          case 'vol_mc_ratio':
+            // Sort by calculated ratio - we'll handle this in the response
+            query = query.order('dollar_volume_7d', { ascending, nullsFirst: false })
+            break
           default:
             query = query.order('ai_setup_quality_score', { ascending: false, nullsFirst: false })
             break
