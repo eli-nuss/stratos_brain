@@ -917,6 +917,24 @@ serve(async (req) => {
         
         const review = reviews?.[0] || null
         
+        // Get sector/category average performance for comparison
+        const { data: sectorStats } = await supabase
+          .from('daily_features')
+          .select('return_1d, return_5d, return_21d, dollar_volume_sma_20')
+          .eq('date', targetDate)
+          .in('asset_id', 
+            supabase.from('assets').select('asset_id').eq('asset_type', asset.asset_type).eq('is_active', true)
+          )
+        
+        // Calculate sector averages
+        const sectorAvg = sectorStats && sectorStats.length > 0 ? {
+          count: sectorStats.length,
+          avg_return_1d: sectorStats.reduce((sum, s) => sum + (s.return_1d || 0), 0) / sectorStats.length,
+          avg_return_5d: sectorStats.reduce((sum, s) => sum + (s.return_5d || 0), 0) / sectorStats.length,
+          avg_return_21d: sectorStats.reduce((sum, s) => sum + (s.return_21d || 0), 0) / sectorStats.length,
+          total_volume: sectorStats.reduce((sum, s) => sum + (s.dollar_volume_sma_20 || 0), 0)
+        } : null
+        
         // Build context for the LLM
         const context = {
           asset: {
@@ -933,6 +951,76 @@ serve(async (req) => {
             close: b.close,
             volume: b.volume
           })) || [],
+          // Computed OHLCV summary stats
+          ohlcv_summary: ohlcv && ohlcv.length > 0 ? (() => {
+            const bars = ohlcv.slice().reverse() // chronological order
+            const closes = bars.map(b => b.close)
+            const volumes = bars.map(b => b.volume)
+            const highs = bars.map(b => b.high)
+            const lows = bars.map(b => b.low)
+            
+            // Price stats
+            const currentClose = closes[closes.length - 1]
+            const high52w = Math.max(...highs)
+            const low52w = Math.min(...lows)
+            const avgClose = closes.reduce((a, b) => a + b, 0) / closes.length
+            
+            // Volume stats
+            const avgVolume = volumes.reduce((a, b) => a + b, 0) / volumes.length
+            const recentVolume = volumes.slice(-5).reduce((a, b) => a + b, 0) / 5
+            const volumeSpike = recentVolume / avgVolume
+            const maxVolume = Math.max(...volumes)
+            const maxVolumeDate = bars[volumes.indexOf(maxVolume)]?.date
+            
+            // Volatility - Average True Range approximation
+            const ranges = bars.map(b => b.high - b.low)
+            const avgRange = ranges.reduce((a, b) => a + b, 0) / ranges.length
+            const recentRange = ranges.slice(-5).reduce((a, b) => a + b, 0) / 5
+            const rangeExpansion = recentRange / avgRange
+            
+            // Returns at different periods
+            const return7d = closes.length >= 7 ? (currentClose - closes[closes.length - 7]) / closes[closes.length - 7] : null
+            const return30d = closes.length >= 30 ? (currentClose - closes[closes.length - 30]) / closes[closes.length - 30] : null
+            const return90d = closes.length >= 90 ? (currentClose - closes[closes.length - 90]) / closes[closes.length - 90] : null
+            const return365d = closes.length >= 365 ? (currentClose - closes[0]) / closes[0] : null
+            
+            return {
+              bars_available: bars.length,
+              current_close: currentClose,
+              high_52w: high52w,
+              low_52w: low52w,
+              pct_from_high: ((currentClose - high52w) / high52w) * 100,
+              pct_from_low: ((currentClose - low52w) / low52w) * 100,
+              avg_close_365d: avgClose,
+              // Volume
+              avg_volume_365d: avgVolume,
+              recent_volume_5d: recentVolume,
+              volume_spike_ratio: volumeSpike,
+              max_volume: maxVolume,
+              max_volume_date: maxVolumeDate,
+              // Volatility
+              avg_daily_range: avgRange,
+              recent_daily_range_5d: recentRange,
+              range_expansion_ratio: rangeExpansion,
+              avg_range_pct: (avgRange / avgClose) * 100,
+              // Returns
+              return_7d_pct: return7d ? return7d * 100 : null,
+              return_30d_pct: return30d ? return30d * 100 : null,
+              return_90d_pct: return90d ? return90d * 100 : null,
+              return_365d_pct: return365d ? return365d * 100 : null
+            }
+          })() : null,
+          // Sector comparison
+          sector_comparison: sectorAvg ? {
+            asset_type: asset.asset_type,
+            assets_in_sector: sectorAvg.count,
+            sector_avg_return_1d: sectorAvg.avg_return_1d * 100,
+            sector_avg_return_5d: sectorAvg.avg_return_5d * 100,
+            sector_avg_return_21d: sectorAvg.avg_return_21d * 100,
+            asset_vs_sector_1d: features ? (features.return_1d - sectorAvg.avg_return_1d) * 100 : null,
+            asset_vs_sector_5d: features ? (features.return_5d - sectorAvg.avg_return_5d) * 100 : null,
+            outperforming_1d: features ? features.return_1d > sectorAvg.avg_return_1d : null
+          } : null,
           features: features ? {
             trend_regime: features.trend_regime,
             rsi_14: features.rsi_14,
@@ -980,9 +1068,46 @@ serve(async (req) => {
         const systemPrompt = `You are a technical analysis assistant for Stratos Brain, a trading signal platform.
 You have access to the following data for ${asset.symbol} (${asset.name}) as of ${targetDate}:
 
-## OHLCV Data (365 days)
+## Price Summary (${context.ohlcv_summary?.bars_available || 0} days of data)
+${context.ohlcv_summary ? `
+Current Price: $${context.ohlcv_summary.current_close?.toFixed(2)}
+52-Week High: $${context.ohlcv_summary.high_52w?.toFixed(2)} (${context.ohlcv_summary.pct_from_high?.toFixed(1)}% from high)
+52-Week Low: $${context.ohlcv_summary.low_52w?.toFixed(2)} (+${context.ohlcv_summary.pct_from_low?.toFixed(1)}% from low)
+
+Returns:
+- 7 days: ${context.ohlcv_summary.return_7d_pct?.toFixed(1)}%
+- 30 days: ${context.ohlcv_summary.return_30d_pct?.toFixed(1)}%
+- 90 days: ${context.ohlcv_summary.return_90d_pct?.toFixed(1)}%
+- 365 days: ${context.ohlcv_summary.return_365d_pct?.toFixed(1) || 'N/A'}%
+` : 'No price data available'}
+
+## Volume Analysis
+${context.ohlcv_summary ? `
+Average Daily Volume (365d): ${context.ohlcv_summary.avg_volume_365d?.toLocaleString()}
+Recent Volume (5d avg): ${context.ohlcv_summary.recent_volume_5d?.toLocaleString()}
+Volume Spike Ratio: ${context.ohlcv_summary.volume_spike_ratio?.toFixed(2)}x average
+Max Volume: ${context.ohlcv_summary.max_volume?.toLocaleString()} on ${context.ohlcv_summary.max_volume_date}
+` : 'No volume data available'}
+
+## Volatility Analysis
+${context.ohlcv_summary ? `
+Average Daily Range: $${context.ohlcv_summary.avg_daily_range?.toFixed(4)} (${context.ohlcv_summary.avg_range_pct?.toFixed(2)}% of price)
+Recent Daily Range (5d): $${context.ohlcv_summary.recent_daily_range_5d?.toFixed(4)}
+Range Expansion: ${context.ohlcv_summary.range_expansion_ratio?.toFixed(2)}x average ${context.ohlcv_summary.range_expansion_ratio > 1.5 ? '(ELEVATED VOLATILITY)' : context.ohlcv_summary.range_expansion_ratio < 0.7 ? '(COMPRESSED)' : '(NORMAL)'}
+` : 'No volatility data available'}
+
+## ${asset.asset_type === 'crypto' ? 'Crypto' : 'Equity'} Sector Comparison
+${context.sector_comparison ? `
+Comparing to ${context.sector_comparison.assets_in_sector} ${context.sector_comparison.asset_type} assets:
+- Sector avg 1d return: ${context.sector_comparison.sector_avg_return_1d?.toFixed(2)}%
+- Sector avg 5d return: ${context.sector_comparison.sector_avg_return_5d?.toFixed(2)}%
+- Sector avg 21d return: ${context.sector_comparison.sector_avg_return_21d?.toFixed(2)}%
+- ${asset.symbol} vs sector (1d): ${context.sector_comparison.asset_vs_sector_1d > 0 ? '+' : ''}${context.sector_comparison.asset_vs_sector_1d?.toFixed(2)}% ${context.sector_comparison.outperforming_1d ? '(OUTPERFORMING)' : '(UNDERPERFORMING)'}
+- ${asset.symbol} vs sector (5d): ${context.sector_comparison.asset_vs_sector_5d > 0 ? '+' : ''}${context.sector_comparison.asset_vs_sector_5d?.toFixed(2)}%
+` : 'No sector data available'}
+
+## Recent OHLCV (Last 30 bars)
 ${JSON.stringify(context.ohlcv.slice(-30), null, 2)}
-... (${context.ohlcv.length} total bars available)
 
 ## Current Technical Indicators
 ${JSON.stringify(context.features, null, 2)}
