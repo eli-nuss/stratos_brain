@@ -933,13 +933,23 @@ serve(async (req) => {
         const review = reviews?.[0] || null
         
         // Get sector/category average performance for comparison
-        const { data: sectorStats } = await supabase
+        // First get asset IDs for the same asset type
+        const { data: sectorAssets } = await supabase
+          .from('assets')
+          .select('asset_id')
+          .eq('asset_type', asset.asset_type)
+          .eq('is_active', true)
+          .limit(500)
+        
+        const sectorAssetIds = sectorAssets?.map(a => a.asset_id) || []
+        
+        // Then get features for those assets
+        const { data: sectorStats } = sectorAssetIds.length > 0 ? await supabase
           .from('daily_features')
           .select('return_1d, return_5d, return_21d, dollar_volume_sma_20')
           .eq('date', targetDate)
-          .in('asset_id', 
-            supabase.from('assets').select('asset_id').eq('asset_type', asset.asset_type).eq('is_active', true)
-          )
+          .in('asset_id', sectorAssetIds)
+        : { data: null }
         
         // Calculate sector averages
         const sectorAvg = sectorStats && sectorStats.length > 0 ? {
