@@ -214,42 +214,94 @@ export default function Documentation() {
             icon={<Brain className="w-4 h-4 text-cyan-400" />}
             defaultOpen={true}
           >
-            <div className="mt-4 space-y-4">
-              <div className="p-4 bg-muted/30 rounded-lg border border-border">
-                <div className="text-xs font-mono text-yellow-400 mb-2">[CRITICAL INDEPENDENCE MANDATE]</div>
-                <p className="text-sm text-muted-foreground mb-3">
-                  The prompt is designed to <strong className="text-foreground">decouple direction from quality</strong> - 
-                  a key improvement to prevent the AI from conflating "bullish = good setup":
-                </p>
-                <ul className="text-sm space-y-2 text-muted-foreground">
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-400">✓</span>
-                    <span>A <strong className="text-red-400">BEARISH</strong> asset with a clean breakdown pattern MUST have <strong className="text-green-400">HIGH quality (80+)</strong></span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-400">✓</span>
-                    <span>A <strong className="text-green-400">BULLISH</strong> asset with a messy chart MUST have <strong className="text-red-400">LOW quality (&lt;50)</strong></span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-400">✓</span>
-                    <span>Quality measures <strong className="text-foreground">STRUCTURAL CLARITY</strong>, not directional conviction</span>
-                  </li>
-                </ul>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-gradient-to-br from-green-500/10 to-transparent rounded-lg border border-green-500/20">
-                  <div className="text-sm font-semibold text-green-400 mb-2">Task 1: Direction</div>
-                  <p className="text-xs text-muted-foreground">
-                    Evaluate probability and magnitude of price movement. Score from -100 (max bearish) to +100 (max bullish).
-                  </p>
+            <div className="mt-4">
+              <div className="bg-[#0d1117] rounded-lg border border-border overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-2 bg-muted/30 border-b border-border">
+                  <span className="text-xs font-mono text-muted-foreground">system_prompt.txt</span>
+                  <span className="text-xs text-muted-foreground">v3.0</span>
                 </div>
-                <div className="p-4 bg-gradient-to-br from-blue-500/10 to-transparent rounded-lg border border-blue-500/20">
-                  <div className="text-sm font-semibold text-blue-400 mb-2">Task 2: Quality</div>
-                  <p className="text-xs text-muted-foreground">
-                    Evaluate structural integrity and tradability. INDEPENDENT of direction. Score from 0 to 100.
-                  </p>
-                </div>
+                <pre className="p-4 text-xs font-mono text-gray-300 overflow-x-auto whitespace-pre-wrap leading-relaxed">
+                  <code>
+{`You are a professional technical analyst. Analyze this equity chart and return a JSON assessment.
+
+[CRITICAL INDEPENDENCE MANDATE]
+You MUST evaluate TWO SEPARATE dimensions:
+1. DIRECTION: Where is price likely to go? (bullish/bearish conviction)
+2. QUALITY: How clean and tradeable is the chart structure? (INDEPENDENT of direction!)
+
+IMPORTANT RULES:
+- A BEARISH asset with a clean breakdown pattern MUST have HIGH quality (80+)
+- A BULLISH asset with a messy chart MUST have LOW quality (below 50)
+- Quality measures STRUCTURAL CLARITY, not directional conviction
+- Quality = How easy is it to define entry, stop-loss, and targets?
+
+ASSET: {symbol} ({name})
+CURRENT PRICE: {current_price}
+
+OHLCV DATA (Date,Open,High,Low,Close,Volume):
+{60 days of OHLCV data}
+
+TECHNICAL INDICATORS:
+  sma_20: {value}
+  sma_50: {value}
+  sma_200: {value}
+  rsi_14: {value}
+  macd_line: {value}
+  macd_signal: {value}
+  bb_upper: {value}
+  bb_lower: {value}
+  atr_14: {value}
+  return_1d: {value}
+  return_5d: {value}
+  return_21d: {value}
+  ma_dist_20: {value}
+  ma_dist_50: {value}
+  ma_dist_200: {value}
+  rvol_20: {value}
+
+TASK 1 - DIRECTIONAL ANALYSIS:
+Evaluate the probability and magnitude of price movement. Score from -100 (max bearish) to +100 (max bullish).
+
+TASK 2 - STRUCTURAL QUALITY (Direction-Agnostic):
+Evaluate the chart's structural integrity and tradability. This is INDEPENDENT of direction.
+- Boundary Definition: How precisely defined are support/resistance levels?
+- Structural Compliance: Does the pattern conform to textbook technical analysis?
+- Volatility Profile: Is price action clean or choppy/noisy?
+- Volume Coherence: Does volume confirm the pattern?
+- Risk-Reward Clarity: How easy is it to place a logical stop-loss?
+
+Return ONLY a valid JSON object with this exact structure:
+{
+  "direction": "bullish" or "bearish" or "neutral",
+  "ai_direction_score": integer from -100 to +100,
+  "ai_setup_quality_score": integer from 0 to 100,
+  "setup_type": "breakout" or "reversal" or "continuation" or "range",
+  "attention_level": "URGENT" or "FOCUS" or "WATCH" or "IGNORE",
+  "confidence": float from 0.0 to 1.0,
+  "summary_text": "5-7 sentence technical analysis. Include: 1) Current trend context, 2) Recent price action with levels, 3) Pattern identification, 4) Trade thesis, 5) Risk definition. Use specific prices.",
+  "key_levels": {
+    "support": [price1, price2],
+    "resistance": [price1, price2],
+    "invalidation": price
+  },
+  "entry_zone": {
+    "low": price,
+    "high": price
+  },
+  "targets": [price1, price2, price3],
+  "why_now": "1-2 sentences on why this setup is relevant today",
+  "risks": ["risk1", "risk2"],
+  "what_to_watch": "Key thing to monitor",
+  "quality_subscores": {
+    "boundary_definition": 1-5,
+    "structural_compliance": 1-5,
+    "volatility_profile": 1-5,
+    "volume_coherence": 1-5,
+    "risk_reward_clarity": 1-5
+  }
+}`}
+                  </code>
+                </pre>
               </div>
             </div>
           </CollapsibleSection>
