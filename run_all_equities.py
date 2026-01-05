@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Run AI analysis for all crypto assets using parallel processing.
+Run AI analysis for top 500 equities by volume using parallel processing.
 Uses gemini-3-pro-preview model with concurrent API calls for faster execution.
 
 VERSION 3: Improved prompting to decouple direction score from quality score.
@@ -16,9 +16,13 @@ import aiohttp
 from datetime import datetime, date
 from concurrent.futures import ThreadPoolExecutor
 import threading
+import hashlib
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+
+from dotenv import load_dotenv
+load_dotenv()
 
 from stratos_engine.db import Database
 
@@ -45,92 +49,84 @@ def get_db():
     return thread_local.db
 
 
-def get_ohlcv_data(asset_id: int, as_of_date: str) -> list:
+def get_ohlcv_data(asset_id: str, as_of_date: str) -> list:
     """Fetch OHLCV data for an asset."""
     db = get_db()
     query = """
-    SELECT date, open, high, low, close, volume
-    FROM daily_bars
-    WHERE asset_id = %s AND date <= %s
-    ORDER BY date DESC
-    LIMIT 60
+        SELECT date, open, high, low, close, volume
+        FROM daily_bars
+        WHERE asset_id = %s AND date <= %s
+        ORDER BY date DESC
+        LIMIT 365
     """
-    bars = db.fetch_all(query, (asset_id, as_of_date))
-    return list(reversed(bars)) if bars else []
+    rows = db.fetch_all(query, (asset_id, as_of_date))
+    return list(reversed(rows))
 
 
-def get_features(asset_id: int, as_of_date: str) -> dict:
-    """Fetch calculated features from daily_features."""
+def get_features(asset_id: str, as_of_date: str) -> dict:
+    """Fetch technical features for an asset."""
     db = get_db()
     query = """
-    SELECT 
-        sma_20, sma_50, sma_200,
-        ma_dist_20, ma_dist_50, ma_dist_200,
-        rsi_14, macd_line, macd_signal, macd_histogram,
-        bb_upper, bb_lower, bb_width, bb_pct,
-        atr_14, atr_pct,
-        realized_vol_20, realized_vol_60,
-        return_1d, return_5d, return_21d, return_63d,
-        roc_5, roc_10, roc_20,
-        rvol_20, volume_z_60,
-        squeeze_flag, trend_regime
-    FROM daily_features
-    WHERE asset_id = %s AND date = %s
+        SELECT * FROM daily_features
+        WHERE asset_id = %s AND date = %s
     """
     row = db.fetch_one(query, (asset_id, as_of_date))
     if row:
-        return {k: float(v) if v is not None and isinstance(v, (int, float)) else v 
-                for k, v in dict(row).items() if v is not None}
+        # Convert to regular dict and filter out None values
+        return {k: float(v) if isinstance(v, (int, float)) and v is not None else v 
+                for k, v in dict(row).items() 
+                if v is not None and k not in ['asset_id', 'date', 'created_at', 'updated_at']}
     return {}
 
 
-def get_signals(asset_id: int, as_of_date: str) -> list:
-    """Fetch signals from daily_signal_facts."""
+def get_top_equities(as_of_date: str, limit: int = 500) -> list:
+    """Get top equities by dollar volume."""
     db = get_db()
     query = """
-    SELECT signal_type, direction, strength, weight
-    FROM daily_signal_facts
-    WHERE asset_id = %s AND date = %s
-    ORDER BY strength DESC
-    LIMIT 10
+        SELECT a.asset_id, a.symbol, a.name
+        FROM daily_features df
+        JOIN assets a ON df.asset_id = a.asset_id
+        WHERE a.asset_type = 'equity' 
+          AND df.date = %s 
+          AND a.is_active = true
+        ORDER BY df.dollar_volume DESC NULLS LAST
+        LIMIT %s
     """
-    signals = db.fetch_all(query, (asset_id, as_of_date))
-    return [dict(s) for s in signals] if signals else []
+    return db.fetch_all(query, (as_of_date, limit))
 
 
-def build_prompt(symbol: str, name: str, bars: list, features: dict, signals: list) -> str:
+def build_prompt(symbol: str, name: str, bars: list, features: dict) -> str:
     """Build the analysis prompt with improved decoupling of direction and quality."""
     if not bars:
         return None
     
     current_price = float(bars[-1]['close'])
     
-    # Format OHLCV data
+    # Format OHLCV data (last 60 bars)
+    recent_bars = bars[-60:] if len(bars) > 60 else bars
     ohlcv_lines = []
-    for b in bars:
+    for b in recent_bars:
         ohlcv_lines.append(f"{b['date']},{b['open']},{b['high']},{b['low']},{b['close']},{b['volume']}")
     ohlcv_text = "\n".join(ohlcv_lines)
     
-    # Format features
+    # Format features (key ones only)
     features_text = ""
     if features:
+        key_features = ['sma_20', 'sma_50', 'sma_200', 'rsi_14', 'macd_line', 'macd_signal',
+                       'bb_upper', 'bb_lower', 'atr_14', 'return_1d', 'return_5d', 'return_21d',
+                       'ma_dist_20', 'ma_dist_50', 'ma_dist_200', 'rvol_20']
         features_lines = []
-        for k, v in features.items():
-            if isinstance(v, float):
-                features_lines.append(f"  {k}: {v:.4f}")
-            else:
-                features_lines.append(f"  {k}: {v}")
-        features_text = "\nTECHNICAL INDICATORS:\n" + "\n".join(features_lines)
+        for k in key_features:
+            if k in features and features[k] is not None:
+                v = features[k]
+                if isinstance(v, float):
+                    features_lines.append(f"  {k}: {v:.4f}")
+                else:
+                    features_lines.append(f"  {k}: {v}")
+        if features_lines:
+            features_text = "\nTECHNICAL INDICATORS:\n" + "\n".join(features_lines)
     
-    # Format signals
-    signals_text = ""
-    if signals:
-        signals_lines = []
-        for s in signals:
-            signals_lines.append(f"  {s['signal_type']}: {s['direction']} (strength: {s['strength']}, weight: {s.get('weight', 1.0)})")
-        signals_text = "\nACTIVE SIGNALS:\n" + "\n".join(signals_lines)
-    
-    prompt = f"""You are a professional technical analyst. Analyze this cryptocurrency chart and return a JSON assessment.
+    prompt = f"""You are a professional technical analyst. Analyze this equity chart and return a JSON assessment.
 
 [CRITICAL INDEPENDENCE MANDATE]
 You MUST evaluate TWO SEPARATE dimensions:
@@ -143,13 +139,12 @@ IMPORTANT RULES:
 - Quality measures STRUCTURAL CLARITY, not directional conviction
 - Quality = How easy is it to define entry, stop-loss, and targets?
 
-ASSET: {symbol} ({name})
+ASSET: {symbol} ({name or symbol})
 CURRENT PRICE: {current_price}
 
 OHLCV DATA (Date,Open,High,Low,Close,Volume):
 {ohlcv_text}
 {features_text}
-{signals_text}
 
 TASK 1 - DIRECTIONAL ANALYSIS:
 Evaluate the probability and magnitude of price movement. Score from -100 (max bearish) to +100 (max bullish).
@@ -181,23 +176,17 @@ Return ONLY a valid JSON object with this exact structure:
     "high": price
   }},
   "targets": [price1, price2, price3],
-  "subscores": {{
-    "boundary_definition": integer 0-5 (clarity of S/R levels),
-    "structural_compliance": integer 0-5 (textbook pattern adherence),
-    "volatility_profile": integer 0-5 (clean vs choppy price action),
-    "volume_coherence": integer 0-5 (volume confirms pattern),
-    "risk_reward_clarity": integer 0-5 (ease of placing SL/TP)
-  }},
-  "why_now": ["reason1", "reason2"],
-  "risks": ["risk1", "risk2"]
-}}
-
-EXAMPLES OF CORRECT SCORING:
-- Bearish (-85) + High Quality (90): Clean head-and-shoulders breakdown with defined neckline
-- Bullish (+80) + Low Quality (35): Strong momentum but messy chart, no clear levels
-- Neutral (0) + High Quality (80): Clean range consolidation with clear boundaries
-
-Return ONLY the JSON object, no additional text or markdown."""
+  "why_now": "1-2 sentences on why this setup is relevant today",
+  "risks": ["risk1", "risk2"],
+  "what_to_watch": "Key thing to monitor",
+  "quality_subscores": {{
+    "boundary_definition": 1-5,
+    "structural_compliance": 1-5,
+    "volatility_profile": 1-5,
+    "volume_coherence": 1-5,
+    "risk_reward_clarity": 1-5
+  }}
+}}"""
 
     return prompt
 
@@ -241,7 +230,7 @@ async def call_gemini_api(session: aiohttp.ClientSession, prompt: str) -> dict:
     return None
 
 
-def save_to_database(asset_id: int, as_of_date: str, result: dict) -> bool:
+def save_to_database(asset_id: str, as_of_date: str, result: dict) -> bool:
     """Save analysis result to database."""
     db = get_db()
     
@@ -262,8 +251,7 @@ def save_to_database(asset_id: int, as_of_date: str, result: dict) -> bool:
     targets = result.get('targets', [])
     ai_targets = json.dumps(targets) if targets else None
     
-    # Generate input_hash from OHLCV data for cache detection
-    import hashlib
+    # Generate input_hash
     input_hash = hashlib.md5(f"{asset_id}_{as_of_date}_{json.dumps(result)[:100]}".encode()).hexdigest()
     
     query = """
@@ -288,18 +276,18 @@ def save_to_database(asset_id: int, as_of_date: str, result: dict) -> bool:
         model = EXCLUDED.model,
         prompt_version = EXCLUDED.prompt_version,
         input_hash = EXCLUDED.input_hash,
-        created_at = NOW()
+        updated_at = NOW()
     """
     
     try:
         db.execute(query, (
-            str(asset_id), as_of_date, direction, direction_score, quality_score,
+            asset_id, as_of_date, direction, direction_score, quality_score,
             setup_type, attention_level, confidence, summary, ai_entry, ai_targets,
-            json.dumps(result), MODEL_NAME, 'v3.0', input_hash, 'crypto'
+            json.dumps(result), MODEL_NAME, AI_REVIEW_VERSION, input_hash, "equity_top500"
         ))
         return True
     except Exception as e:
-        logger.error(f"Database error for asset {asset_id}: {e}")
+        logger.error(f"Database error for {asset_id}: {e}")
         return False
 
 
@@ -308,79 +296,91 @@ async def process_asset(session: aiohttp.ClientSession, asset: dict, as_of_date:
     async with semaphore:
         asset_id = asset['asset_id']
         symbol = asset['symbol']
-        name = asset['name']
+        name = asset.get('name', symbol)
         
         # Get data (run in thread pool to avoid blocking)
         loop = asyncio.get_event_loop()
         bars = await loop.run_in_executor(None, get_ohlcv_data, asset_id, as_of_date)
         features = await loop.run_in_executor(None, get_features, asset_id, as_of_date)
-        signals = await loop.run_in_executor(None, get_signals, asset_id, as_of_date)
         
-        if not bars:
-            logger.warning(f"No OHLCV data for {symbol}")
-            return {'asset_id': asset_id, 'symbol': symbol, 'success': False, 'reason': 'no_data'}
+        if len(bars) < 20:
+            logger.warning(f"✗ {symbol}: Insufficient data ({len(bars)} bars)")
+            return {"success": False, "symbol": symbol, "error": "Insufficient data"}
         
-        # Build prompt and call API
-        prompt = build_prompt(symbol, name, bars, features, signals)
+        # Build prompt
+        prompt = build_prompt(symbol, name, bars, features)
+        if not prompt:
+            return {"success": False, "symbol": symbol, "error": "Failed to build prompt"}
+        
+        # Call API
         result = await call_gemini_api(session, prompt)
         
         if result:
             # Save to database
-            success = await loop.run_in_executor(None, save_to_database, asset_id, as_of_date, result)
-            if success:
-                dir_score = result.get('ai_direction_score', 0)
-                qual_score = result.get('ai_setup_quality_score', 0)
-                logger.info(f"✓ {symbol}: dir={dir_score:+d}, qual={qual_score}, {result.get('direction')}")
-                return {'asset_id': asset_id, 'symbol': symbol, 'success': True, 'result': result}
+            saved = await loop.run_in_executor(None, save_to_database, asset_id, as_of_date, result)
+            if saved:
+                direction_score = result.get('ai_direction_score', 0)
+                quality_score = result.get('ai_setup_quality_score', 50)
+                direction = result.get('direction', 'neutral')
+                logger.info(f"✓ {symbol}: dir={direction_score:+d}, qual={quality_score}, {direction}")
+                return {"success": True, "symbol": symbol, "direction_score": direction_score, "quality_score": quality_score}
         
         logger.warning(f"✗ {symbol}: API call failed")
-        return {'asset_id': asset_id, 'symbol': symbol, 'success': False, 'reason': 'api_error'}
+        return {"success": False, "symbol": symbol, "error": "API call failed"}
 
 
-async def main():
-    """Main async function to process all crypto assets."""
-    # Get target date
-    as_of_date = os.environ.get('AS_OF_DATE', str(date.today()))
-    logger.info(f"Starting AI analysis for {as_of_date} (v3 - improved prompting)")
+async def main_async():
+    """Main async function."""
+    as_of_date = "2026-01-02"  # Latest equity data
     
-    # Get all active crypto assets
-    db = Database()
-    query = """
-    SELECT a.asset_id, a.symbol, a.name
-    FROM assets a
-    WHERE a.asset_type = 'crypto'
-    AND a.is_active = true
-    ORDER BY a.symbol
-    """
-    assets = db.fetch_all(query)
-    logger.info(f"Found {len(assets)} active crypto assets")
+    logger.info(f"Running AI analysis for top 500 equities as of {as_of_date}")
+    logger.info(f"Using model: {MODEL_NAME}")
     
-    # Process with rate limiting
+    # Get top 500 equities
+    equities = get_top_equities(as_of_date, limit=500)
+    logger.info(f"Found {len(equities)} equities to analyze")
+    
+    # Create semaphore for rate limiting
     semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
     
-    async with aiohttp.ClientSession() as session:
-        tasks = [process_asset(session, dict(a), as_of_date, semaphore) for a in assets]
-        results = await asyncio.gather(*tasks)
+    # Process all assets
+    successful = 0
+    failed = 0
+    direction_scores = []
+    quality_scores = []
     
-    # Summary
-    successful = sum(1 for r in results if r.get('success'))
-    failed = len(results) - successful
+    async with aiohttp.ClientSession() as session:
+        tasks = [process_asset(session, asset, as_of_date, semaphore) for asset in equities]
+        results = await asyncio.gather(*tasks)
+        
+        for result in results:
+            if result["success"]:
+                successful += 1
+                direction_scores.append(result["direction_score"])
+                quality_scores.append(result["quality_score"])
+            else:
+                failed += 1
+    
     logger.info(f"Completed: {successful} successful, {failed} failed")
     
-    # Check correlation improvement
-    if successful > 10:
-        dir_scores = [r['result']['ai_direction_score'] for r in results if r.get('success') and r.get('result')]
-        qual_scores = [r['result']['ai_setup_quality_score'] for r in results if r.get('success') and r.get('result')]
-        if dir_scores and qual_scores:
-            import numpy as np
-            corr = np.corrcoef(dir_scores, qual_scores)[0,1]
-            abs_corr = np.corrcoef([abs(d) for d in dir_scores], qual_scores)[0,1]
-            logger.info(f"Correlation check: dir vs qual = {corr:.3f}, |dir| vs qual = {abs_corr:.3f}")
+    # Calculate correlation
+    if len(direction_scores) > 10:
+        import numpy as np
+        dir_arr = np.array(direction_scores)
+        qual_arr = np.array(quality_scores)
+        corr = np.corrcoef(dir_arr, qual_arr)[0, 1]
+        abs_corr = np.corrcoef(np.abs(dir_arr), qual_arr)[0, 1]
+        logger.info(f"Correlation check: dir vs qual = {corr:.3f}, |dir| vs qual = {abs_corr:.3f}")
+
+
+def main():
+    """Entry point."""
+    if not GEMINI_API_KEY:
+        logger.error("GEMINI_API_KEY not set in environment")
+        sys.exit(1)
+    
+    asyncio.run(main_async())
 
 
 if __name__ == "__main__":
-    if not GEMINI_API_KEY:
-        print("Error: GEMINI_API_KEY environment variable not set")
-        sys.exit(1)
-    
-    asyncio.run(main())
+    main()

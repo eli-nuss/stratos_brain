@@ -254,25 +254,21 @@ def save_to_database(asset_id: int, as_of_date: str, result: dict) -> bool:
     confidence = result.get('confidence', 0.5)
     summary = result.get('summary_text', '')
     
-    # Extract entry zone as JSON
+    # Extract entry zone
     entry_zone = result.get('entry_zone', {})
-    ai_entry = json.dumps(entry_zone) if entry_zone else None
+    ai_entry = f"{entry_zone.get('low', 0)}-{entry_zone.get('high', 0)}" if entry_zone else None
     
-    # Extract targets as JSON
+    # Extract targets
     targets = result.get('targets', [])
-    ai_targets = json.dumps(targets) if targets else None
-    
-    # Generate input_hash from OHLCV data for cache detection
-    import hashlib
-    input_hash = hashlib.md5(f"{asset_id}_{as_of_date}_{json.dumps(result)[:100]}".encode()).hexdigest()
+    ai_targets = ','.join([str(t) for t in targets]) if targets else None
     
     query = """
     INSERT INTO asset_ai_reviews (
         asset_id, as_of_date, direction, ai_direction_score, ai_setup_quality_score,
         setup_type, attention_level, confidence, summary_text, ai_entry, ai_targets,
-        review_json, model, prompt_version, input_hash, scope, created_at
+        review_json, model, review_version, created_at
     ) VALUES (
-        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW()
+        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW()
     )
     ON CONFLICT (asset_id, as_of_date) DO UPDATE SET
         direction = EXCLUDED.direction,
@@ -286,8 +282,7 @@ def save_to_database(asset_id: int, as_of_date: str, result: dict) -> bool:
         ai_targets = EXCLUDED.ai_targets,
         review_json = EXCLUDED.review_json,
         model = EXCLUDED.model,
-        prompt_version = EXCLUDED.prompt_version,
-        input_hash = EXCLUDED.input_hash,
+        review_version = EXCLUDED.review_version,
         created_at = NOW()
     """
     
@@ -295,7 +290,7 @@ def save_to_database(asset_id: int, as_of_date: str, result: dict) -> bool:
         db.execute(query, (
             str(asset_id), as_of_date, direction, direction_score, quality_score,
             setup_type, attention_level, confidence, summary, ai_entry, ai_targets,
-            json.dumps(result), MODEL_NAME, 'v3.0', input_hash, 'crypto'
+            json.dumps(result), MODEL_NAME, AI_REVIEW_VERSION
         ))
         return True
     except Exception as e:
