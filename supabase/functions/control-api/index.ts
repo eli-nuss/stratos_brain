@@ -832,6 +832,21 @@ serve(async (req) => {
           case 'ai_direction_score':
             query = query.order('ai_direction_score', { ascending, nullsFirst: false })
             break
+          case 'market_cap':
+            query = query.order('market_cap', { ascending, nullsFirst: false })
+            break
+          case 'close':
+            query = query.order('close', { ascending, nullsFirst: false })
+            break
+          case 'return_1d':
+            query = query.order('return_1d', { ascending, nullsFirst: false })
+            break
+          case 'return_7d':
+            query = query.order('return_7d', { ascending, nullsFirst: false })
+            break
+          case 'return_30d':
+            query = query.order('return_30d', { ascending, nullsFirst: false })
+            break
           default:
             query = query.order('ai_setup_quality_score', { ascending: false, nullsFirst: false })
             break
