@@ -21,8 +21,13 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
   const [page, setPage] = useState(0);
   const [sortBy, setSortBy] = useState<SortField>("ai_direction_score"); // Default to AI direction score
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+  const [secondarySortBy, setSecondarySortBy] = useState<SortField | null>(null);
+  const [secondarySortOrder, setSecondarySortOrder] = useState<SortOrder>("desc");
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  const [minMarketCap, setMinMarketCap] = useState<string>("");
+  const [maxMarketCap, setMaxMarketCap] = useState<string>("");
+  const [selectedIndustry, setSelectedIndustry] = useState<string>("all");
 
   const { data, total, isLoading } = useAllAssets({
     assetType,
@@ -31,17 +36,31 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
     offset: page * PAGE_SIZE,
     sortBy,
     sortOrder,
+    secondarySortBy,
+    secondarySortOrder,
     search: search || undefined,
+    minMarketCap: minMarketCap ? parseFloat(minMarketCap) : undefined,
+    maxMarketCap: maxMarketCap ? parseFloat(maxMarketCap) : undefined,
+    industry: selectedIndustry !== "all" ? selectedIndustry : undefined,
   });
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
-  const handleSort = (field: SortField) => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+  const handleSort = (field: SortField, isSecondary: boolean = false) => {
+    if (isSecondary) {
+      if (secondarySortBy === field) {
+        setSecondarySortOrder(secondarySortOrder === "asc" ? "desc" : "asc");
+      } else {
+        setSecondarySortBy(field);
+        setSecondarySortOrder("desc");
+      }
     } else {
-      setSortBy(field);
-      setSortOrder("desc");
+      if (sortBy === field) {
+        setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+      } else {
+        setSortBy(field);
+        setSortOrder("desc");
+      }
     }
     setPage(0);
   };
@@ -136,12 +155,21 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
   const SortHeader = ({ field, children, tooltip }: { field: SortField; children: React.ReactNode; tooltip?: string }) => (
     <div className="flex items-center justify-center gap-1">
       <button
-        onClick={() => handleSort(field)}
-        className="flex items-center gap-1 hover:text-foreground transition-colors"
+        onClick={(e) => handleSort(field, e.shiftKey)}
+        className={`flex items-center gap-1 hover:text-foreground transition-colors ${sortBy === field || secondarySortBy === field ? "text-foreground font-bold" : ""}`}
+        title={sortBy === field ? "Click to toggle order, Shift+Click for secondary sort" : "Click to sort, Shift+Click for secondary sort"}
       >
         {children}
         {sortBy === field ? (
-          sortOrder === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+          <span className="flex items-center">
+            {sortOrder === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+            <span className="text-[8px] ml-0.5">1</span>
+          </span>
+        ) : secondarySortBy === field ? (
+          <span className="flex items-center">
+            {secondarySortOrder === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+            <span className="text-[8px] ml-0.5">2</span>
+          </span>
         ) : (
           <ArrowUpDown className="w-3 h-3 opacity-50" />
         )}
@@ -183,28 +211,70 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
           <span className="text-xs text-muted-foreground">({total} total)</span>
         </h3>
         
-        {/* Search */}
-        <form onSubmit={handleSearch} className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search symbol..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="pl-7 pr-2 py-1 text-xs bg-background border border-border rounded w-32 focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-          </div>
-          {search && (
-            <button
-              type="button"
-              onClick={() => { setSearch(""); setSearchInput(""); setPage(0); }}
-              className="text-xs text-muted-foreground hover:text-foreground"
+        {/* Filters & Search */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-muted-foreground uppercase font-bold">Filters:</span>
+            <select 
+              value={selectedIndustry} 
+              onChange={(e) => { setSelectedIndustry(e.target.value); setPage(0); }}
+              className="text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none"
             >
-              Clear
-            </button>
-          )}
-        </form>
+              <option value="all">All Industries</option>
+              <option value="Technology">Technology</option>
+              <option value="Financial">Financial</option>
+              <option value="Healthcare">Healthcare</option>
+              <option value="Energy">Energy</option>
+              <option value="Consumer">Consumer</option>
+            </select>
+            <div className="flex items-center gap-1">
+              <input
+                type="number"
+                placeholder="Min MC (B)"
+                value={minMarketCap}
+                onChange={(e) => { setMinMarketCap(e.target.value); setPage(0); }}
+                className="w-16 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none"
+              />
+              <span className="text-[10px] text-muted-foreground">-</span>
+              <input
+                type="number"
+                placeholder="Max MC (B)"
+                value={maxMarketCap}
+                onChange={(e) => { setMaxMarketCap(e.target.value); setPage(0); }}
+                className="w-16 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <form onSubmit={handleSearch} className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search symbol..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="pl-7 pr-2 py-1 text-xs bg-background border border-border rounded w-32 focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            {(search || selectedIndustry !== "all" || minMarketCap || maxMarketCap) && (
+              <button
+                type="button"
+                onClick={() => { 
+                  setSearch(""); 
+                  setSearchInput(""); 
+                  setSelectedIndustry("all");
+                  setMinMarketCap("");
+                  setMaxMarketCap("");
+                  setPage(0); 
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Clear
+              </button>
+            )}
+          </form>
+        </div>
       </div>
 
       {/* Table */}
@@ -222,7 +292,15 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                 <SortHeader field="ai_setup_quality_score" tooltip="AI-determined setup quality score (0-100). Higher = better technical setup.">AI Quality</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
-                <SortHeader field="market_cap" tooltip="Market capitalization (Close Price × Circulating Supply)">Mkt Cap</SortHeader>
+                <SortHeader field="market_cap" tooltip={COLUMN_DEFINITIONS.market_cap.description}>Mkt Cap</SortHeader>
+              </th>
+              {assetType === "equity" && (
+                <th className="px-2 py-2 font-medium text-center">
+                  <SortHeader field="pe_ratio" tooltip={COLUMN_DEFINITIONS.pe_ratio.description}>P/E</SortHeader>
+                </th>
+              )}
+              <th className="px-2 py-2 font-medium text-center">
+                <SortHeader field="dollar_volume_7d" tooltip={COLUMN_DEFINITIONS.volume.description}>Vol (7d)</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
                 <SortHeader field="close" tooltip="Latest closing price">Price</SortHeader>
@@ -304,6 +382,19 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                       row.market_cap >= 1e9 ? `$${(row.market_cap / 1e9).toFixed(1)}B` :
                       row.market_cap >= 1e6 ? `$${(row.market_cap / 1e6).toFixed(1)}M` :
                       `$${row.market_cap.toLocaleString()}`
+                    ) : "-"}
+                  </td>
+                  {assetType === "equity" && (
+                    <td className="px-2 py-2 font-mono text-center text-xs text-muted-foreground">
+                      {row.pe_ratio ? row.pe_ratio.toFixed(1) : "-"}
+                    </td>
+                  )}
+                  <td className="px-2 py-2 font-mono text-center text-xs text-muted-foreground">
+                    {row.dollar_volume_7d ? (
+                      row.dollar_volume_7d >= 1e12 ? `$${(row.dollar_volume_7d / 1e12).toFixed(1)}T` :
+                      row.dollar_volume_7d >= 1e9 ? `$${(row.dollar_volume_7d / 1e9).toFixed(1)}B` :
+                      row.dollar_volume_7d >= 1e6 ? `$${(row.dollar_volume_7d / 1e6).toFixed(1)}M` :
+                      `$${row.dollar_volume_7d.toLocaleString()}`
                     ) : "-"}
                   </td>
                   <td className="px-2 py-2 font-mono text-center text-xs text-foreground">

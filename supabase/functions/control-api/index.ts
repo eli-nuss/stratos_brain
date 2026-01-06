@@ -798,7 +798,12 @@ serve(async (req) => {
         const configId = url.searchParams.get('config_id')
         const sortBy = url.searchParams.get('sort_by') || 'weighted_score'
         const sortOrder = url.searchParams.get('sort_order') || 'desc'
+        const secondarySortBy = url.searchParams.get('secondary_sort_by')
+        const secondarySortOrder = url.searchParams.get('secondary_sort_order') || 'desc'
         const search = url.searchParams.get('search') // Optional symbol search
+        const minMarketCap = url.searchParams.get('min_market_cap')
+        const maxMarketCap = url.searchParams.get('max_market_cap')
+        const industry = url.searchParams.get('industry')
         
         let query = supabase
           .from('v_dashboard_all_assets')
@@ -821,53 +826,47 @@ serve(async (req) => {
         if (search) {
           query = query.ilike('symbol', `%${search}%`)
         }
+
+        // Apply filters
+        if (minMarketCap) {
+          query = query.gte('market_cap', parseFloat(minMarketCap))
+        }
+        if (maxMarketCap) {
+          query = query.lte('market_cap', parseFloat(maxMarketCap))
+        }
+        if (industry) {
+          query = query.eq('industry', industry)
+        }
         
-        // Apply sorting
-        const ascending = sortOrder === 'asc'
-        switch (sortBy) {
-          case 'symbol':
-            query = query.order('symbol', { ascending })
-            break
-          case 'score_delta':
-            query = query.order('score_delta', { ascending })
-            break
-          case 'inflection_score':
-            query = query.order('inflection_score', { ascending })
-            break
-          case 'ai_confidence':
-            query = query.order('ai_confidence', { ascending, nullsFirst: false })
-            break
-          case 'ai_setup_quality_score':
-            query = query.order('ai_setup_quality_score', { ascending, nullsFirst: false })
-            break
-          case 'ai_direction_score':
-            query = query.order('ai_direction_score', { ascending, nullsFirst: false })
-            break
-          case 'market_cap':
-            query = query.order('market_cap', { ascending, nullsFirst: false })
-            break
-          case 'close':
-            query = query.order('close', { ascending, nullsFirst: false })
-            break
-          case 'return_1d':
-            query = query.order('return_1d', { ascending, nullsFirst: false })
-            break
-          case 'return_7d':
-            query = query.order('return_7d', { ascending, nullsFirst: false })
-            break
-          case 'return_30d':
-            query = query.order('return_30d', { ascending, nullsFirst: false })
-            break
-          case 'dollar_volume_7d':
-            query = query.order('dollar_volume_7d', { ascending, nullsFirst: false })
-            break
-          case 'vol_mc_ratio':
-            // Sort by calculated ratio - we'll handle this in the response
-            query = query.order('dollar_volume_7d', { ascending, nullsFirst: false })
-            break
-          default:
-            query = query.order('ai_setup_quality_score', { ascending: false, nullsFirst: false })
-            break
+        // Helper to apply sorting
+        const applySort = (q: any, field: string, order: string) => {
+          const ascending = order === 'asc'
+          switch (field) {
+            case 'symbol': return q.order('symbol', { ascending })
+            case 'score_delta': return q.order('score_delta', { ascending })
+            case 'inflection_score': return q.order('inflection_score', { ascending })
+            case 'ai_confidence': return q.order('ai_confidence', { ascending, nullsFirst: false })
+            case 'ai_setup_quality_score': return q.order('ai_setup_quality_score', { ascending, nullsFirst: false })
+            case 'ai_direction_score': return q.order('ai_direction_score', { ascending, nullsFirst: false })
+            case 'market_cap': return q.order('market_cap', { ascending, nullsFirst: false })
+            case 'close': return q.order('close', { ascending, nullsFirst: false })
+            case 'return_1d': return q.order('return_1d', { ascending, nullsFirst: false })
+            case 'return_7d': return q.order('return_7d', { ascending, nullsFirst: false })
+            case 'return_30d': return q.order('return_30d', { ascending, nullsFirst: false })
+            case 'dollar_volume_7d': return q.order('dollar_volume_7d', { ascending, nullsFirst: false })
+            case 'industry': return q.order('industry', { ascending, nullsFirst: false })
+            case 'pe_ratio': return q.order('pe_ratio', { ascending, nullsFirst: false })
+            case 'vol_mc_ratio': return q.order('dollar_volume_7d', { ascending, nullsFirst: false })
+            default: return q.order('ai_setup_quality_score', { ascending: false, nullsFirst: false })
+          }
+        }
+
+        // Apply primary sorting
+        query = applySort(query, sortBy, sortOrder)
+
+        // Apply secondary sorting if provided
+        if (secondarySortBy && secondarySortBy !== sortBy) {
+          query = applySort(query, secondarySortBy, secondarySortOrder)
         }
         
         const { data, error, count } = await query

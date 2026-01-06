@@ -69,7 +69,42 @@ SELECT
         WHERE r.asset_id = ds.asset_id AND r.as_of_date = ds.as_of_date
         ORDER BY r.ai_review_version DESC, r.created_at DESC
         LIMIT 1
-    ) AS ai_confidence
+    ) AS ai_confidence,
+    -- Include fundamental data from assets and daily_features
+    a.industry,
+    a.description,
+    a.pe_ratio,
+    (
+        SELECT df.dollar_volume_sma_20
+        FROM daily_features df
+        WHERE df.asset_id = ds.asset_id AND df.date = ds.as_of_date
+        LIMIT 1
+    ) AS dollar_volume_7d,
+    (
+        SELECT df.close
+        FROM daily_features df
+        WHERE df.asset_id = ds.asset_id AND df.date = ds.as_of_date
+        LIMIT 1
+    ) AS close,
+    (
+        SELECT df.return_1d
+        FROM daily_features df
+        WHERE df.asset_id = ds.asset_id AND df.date = ds.as_of_date
+        LIMIT 1
+    ) AS return_1d,
+    (
+        SELECT df.return_5d
+        FROM daily_features df
+        WHERE df.asset_id = ds.asset_id AND df.date = ds.as_of_date
+        LIMIT 1
+    ) AS return_7d,
+    (
+        SELECT df.return_21d
+        FROM daily_features df
+        WHERE df.asset_id = ds.asset_id AND df.date = ds.as_of_date
+        LIMIT 1
+    ) AS return_30d,
+    a.market_cap
 FROM
     daily_scores ds
 JOIN

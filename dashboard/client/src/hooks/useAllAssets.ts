@@ -3,7 +3,7 @@ import useSWR from "swr";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export type AssetType = "crypto" | "equity";
-export type SortField = "weighted_score" | "symbol" | "score_delta" | "inflection_score" | "ai_confidence" | "ai_setup_quality_score" | "ai_direction_score" | "market_cap" | "return_1d" | "return_7d" | "return_30d" | "close";
+export type SortField = "weighted_score" | "symbol" | "score_delta" | "inflection_score" | "ai_confidence" | "ai_setup_quality_score" | "ai_direction_score" | "market_cap" | "return_1d" | "return_7d" | "return_30d" | "close" | "dollar_volume_7d" | "industry" | "pe_ratio";
 export type SortOrder = "asc" | "desc";
 
 interface UseAllAssetsParams {
@@ -13,7 +13,12 @@ interface UseAllAssetsParams {
   offset?: number;
   sortBy?: SortField;
   sortOrder?: SortOrder;
+  secondarySortBy?: SortField | null;
+  secondarySortOrder?: SortOrder;
   search?: string;
+  minMarketCap?: number;
+  maxMarketCap?: number;
+  industry?: string;
 }
 
 interface AllAssetsResponse {
@@ -30,7 +35,12 @@ export function useAllAssets({
   offset = 0,
   sortBy = "ai_setup_quality_score", // Default to AI quality score
   sortOrder = "desc",
+  secondarySortBy = null,
+  secondarySortOrder = "desc",
   search,
+  minMarketCap,
+  maxMarketCap,
+  industry,
 }: UseAllAssetsParams) {
   const params = new URLSearchParams({
     limit: limit.toString(),
@@ -40,12 +50,29 @@ export function useAllAssets({
     sort_order: sortOrder,
   });
 
+  if (secondarySortBy) {
+    params.append("secondary_sort_by", secondarySortBy);
+    params.append("secondary_sort_order", secondarySortOrder);
+  }
+
   if (date) {
     params.append("as_of_date", date);
   }
 
   if (search) {
     params.append("search", search);
+  }
+
+  if (minMarketCap !== undefined) {
+    params.append("min_market_cap", (minMarketCap * 1e9).toString()); // Convert B to actual
+  }
+
+  if (maxMarketCap !== undefined) {
+    params.append("max_market_cap", (maxMarketCap * 1e9).toString()); // Convert B to actual
+  }
+
+  if (industry) {
+    params.append("industry", industry);
   }
 
   const url = `/api/dashboard/all-assets?${params.toString()}`;

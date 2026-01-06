@@ -149,6 +149,26 @@ export const COLUMN_DEFINITIONS: Record<string, { title: string; description: st
   confidence: {
     title: "AI Confidence",
     description: "The AI's confidence level in its analysis (0-100%). Higher confidence indicates clearer chart patterns and stronger technical evidence. Above 85% is high conviction."
+  },
+  market_cap: {
+    title: "Market Cap",
+    description: "Total market value of the asset's circulating supply. Helps filter for size and liquidity."
+  },
+  volume: {
+    title: "Volume",
+    description: "Total trading volume over the last 24 hours. High volume indicates strong participation and liquidity."
+  },
+  industry: {
+    title: "Industry",
+    description: "The specific sector or industry classification for the asset. Useful for thematic filtering."
+  },
+  description: {
+    title: "Description",
+    description: "A brief overview of the asset's business model or purpose."
+  },
+  pe_ratio: {
+    title: "P/E Ratio",
+    description: "Price-to-Earnings ratio (Forward). A key fundamental valuation metric for equities."
   }
 };
 
