@@ -74,7 +74,7 @@ class RateLimiter:
 
 # Global rate limiters
 av_limiter = RateLimiter(rate_per_min=75)  # AlphaVantage Premium
-cg_limiter = RateLimiter(rate_per_min=30)  # CoinGecko Pro (conservative)
+cg_limiter = RateLimiter(rate_per_min=500)  # CoinGecko Pro API (500 calls/min)
 
 
 def init_db_pool(min_conn=2, max_conn=15):
@@ -182,14 +182,16 @@ def fetch_coingecko_market_chart(session: requests.Session, coingecko_id: str, d
         
         data = resp.json()
         
-        prices = {datetime.utcfromtimestamp(p[0]/1000).strftime("%Y-%m-%d"): p[1] for p in data.get("prices", [])}
-        volumes = {datetime.utcfromtimestamp(v[0]/1000).strftime("%Y-%m-%d"): v[1] for v in data.get("total_volumes", [])}
+        # IMPORTANT: CoinGecko 00:00 UTC timestamp is the CLOSE of the PREVIOUS day
+        # So we subtract 1 day to get the correct close date
+        prices = {(datetime.utcfromtimestamp(p[0]/1000) - timedelta(days=1)).strftime("%Y-%m-%d"): p[1] for p in data.get("prices", [])}
+        volumes = {(datetime.utcfromtimestamp(v[0]/1000) - timedelta(days=1)).strftime("%Y-%m-%d"): v[1] for v in data.get("total_volumes", [])}
         
         bars = []
         for date_str, price in prices.items():
             volume = volumes.get(date_str, 0)
             bars.append({
-                "date": date_str,
+                "date": date_str,  # Now correctly represents the close date
                 "open": Decimal(str(price)),
                 "high": Decimal(str(price)),
                 "low": Decimal(str(price)),
