@@ -228,6 +228,9 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
                 <HeaderWithTooltip tooltip="Industry (equities) or category (crypto)">Industry</HeaderWithTooltip>
               </th>
               <th className="px-2 py-2 font-medium text-center">
+                <HeaderWithTooltip tooltip="Brief description of the asset">Description</HeaderWithTooltip>
+              </th>
+              <th className="px-2 py-2 font-medium text-center">
                 <HeaderWithTooltip tooltip="Your personal notes">Notes</HeaderWithTooltip>
               </th>
               <th className="px-2 py-2 font-medium text-center">
@@ -240,14 +243,14 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
               [...Array(5)].map((_, i) => (
                 <tr key={i} className="animate-pulse">
                   <td className="px-3 py-3"><div className="h-4 w-20 bg-muted rounded" /></td>
-                  {[...Array(13)].map((_, j) => (
+                  {[...Array(14)].map((_, j) => (
                     <td key={j} className="px-2 py-3"><div className="h-4 w-12 bg-muted rounded mx-auto" /></td>
                   ))}
                 </tr>
               ))
             ) : paginatedAssets.length === 0 ? (
               <tr>
-                <td colSpan={14} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={15} className="px-4 py-8 text-center text-muted-foreground">
                   {search ? `No assets found matching "${search}"` : "Your watchlist is empty. Add assets from the Crypto or Equities tabs."}
                 </td>
               </tr>
@@ -318,6 +321,18 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
                   </td>
                   <td className="px-2 py-2 text-center text-xs text-muted-foreground truncate max-w-[80px]">
                     {row.industry || row.sector || "-"}
+                  </td>
+                  <td className="px-2 py-2 text-left text-xs text-muted-foreground">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="truncate block max-w-[150px] cursor-help">
+                          {row.short_description ? row.short_description.substring(0, 50) + (row.short_description.length > 50 ? "..." : "") : "-"}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-md text-left">
+                        {row.short_description || "No description available"}
+                      </TooltipContent>
+                    </Tooltip>
                   </td>
                   <NoteCell assetId={row.asset_id} />
                   <td className="px-2 py-2 text-center">
