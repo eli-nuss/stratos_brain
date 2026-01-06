@@ -466,7 +466,17 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                   )}
                   <td className="px-2 py-2 font-mono text-sm font-bold text-foreground">{row.symbol}</td>
                   <td className="px-2 py-2 font-mono text-center text-xs">{row.weighted_score?.toFixed(1) || "-"}</td>
-                  <td className="px-2 py-2 text-center">{getDirectionIcon(row.ai_direction_score > 0 ? "bullish" : "bearish")}</td>
+                  <td className="px-2 py-2 text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      {getDirectionIcon(row.ai_direction_score > 0 ? "bullish" : row.ai_direction_score < 0 ? "bearish" : "neutral")}
+                      <span className={`font-mono text-xs ${
+                        row.ai_direction_score > 0 ? "text-signal-bullish" : 
+                        row.ai_direction_score < 0 ? "text-signal-bearish" : "text-muted-foreground"
+                      }`}>
+                        {row.ai_direction_score != null ? (row.ai_direction_score > 0 ? "+" : "") + row.ai_direction_score : "-"}
+                      </span>
+                    </div>
+                  </td>
                   <td className="px-2 py-2 font-mono text-center text-xs">{row.ai_setup_quality_score?.toFixed(0) || "-"}</td>
                   <td className="px-2 py-2 font-mono text-center text-xs">{row.ai_confidence?.toFixed(0) || "-"}%</td>
                   <td className={`px-2 py-2 font-mono text-center text-xs ${(row.return_1d || 0) > 0 ? "text-signal-bullish" : "text-signal-bearish"}`}>
