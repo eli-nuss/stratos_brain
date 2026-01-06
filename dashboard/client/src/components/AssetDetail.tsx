@@ -1,7 +1,7 @@
 import useSWR from "swr";
 import { useState } from "react";
 import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, Activity, Info, MessageCircle, ExternalLink } from "lucide-react";
-import { Area, AreaChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from "recharts";
+import { Area, Line, ComposedChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis, Legend } from "recharts";
 import { format } from "date-fns";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
@@ -49,7 +49,16 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
 
   if (!data || !data.asset) return null;
 
-  const { asset, ohlcv, review, review_status } = data;
+  const { asset, ohlcv, ai_score_history, review, review_status } = data;
+
+  // Merge OHLCV data with AI score history for chart overlay
+  const chartData = ohlcv?.map((bar: any) => {
+    const aiScore = ai_score_history?.find((s: any) => s.as_of_date === bar.date);
+    return {
+      ...bar,
+      ai_direction_score: aiScore?.ai_direction_score ?? null
+    };
+  }) || [];
   const isBullish = review?.direction === "bullish";
   const signalColor = isBullish ? "text-signal-bullish" : "text-signal-bearish";
   const signalBg = isBullish ? "bg-signal-bullish/10" : "bg-signal-bearish/10";
@@ -168,7 +177,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               </div>
               <div className="h-[300px] w-full bg-muted/5 rounded-lg border border-border p-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={ohlcv}>
+                  <ComposedChart data={chartData}>
                     <defs>
                       <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3}/>
@@ -185,29 +194,64 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                       minTickGap={30}
                     />
                     <YAxis 
+                      yAxisId="price"
                       domain={['auto', 'auto']}
                       stroke="var(--muted-foreground)"
                       fontSize={12}
                       tickLine={false}
                       axisLine={false}
                       tickFormatter={(val) => val.toFixed(2)}
+                      orientation="left"
+                    />
+                    <YAxis 
+                      yAxisId="ai"
+                      domain={[-100, 100]}
+                      stroke="#f59e0b"
+                      fontSize={10}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(val) => `${val > 0 ? '+' : ''}${val}`}
+                      orientation="right"
+                      ticks={[-100, -50, 0, 50, 100]}
                     />
                     <RechartsTooltip 
                       contentStyle={{ backgroundColor: 'var(--popover)', borderColor: 'var(--border)', color: 'var(--popover-foreground)' }}
                       itemStyle={{ color: 'var(--foreground)' }}
                       labelStyle={{ color: 'var(--muted-foreground)' }}
-                      formatter={(val: number) => [val.toFixed(2), "Price"]}
+                      formatter={(val: number, name: string) => {
+                        if (name === 'ai_direction_score') {
+                          return val !== null ? [`${val > 0 ? '+' : ''}${val}`, 'AI Dir'] : ['-', 'AI Dir'];
+                        }
+                        return [val?.toFixed(2) ?? '-', 'Price'];
+                      }}
                       labelFormatter={(label) => format(new Date(label), "MMM d, yyyy")}
                     />
+                    <Legend 
+                      verticalAlign="top" 
+                      height={36}
+                      formatter={(value) => value === 'close' ? 'Price' : 'AI Direction'}
+                    />
                     <Area 
+                      yAxisId="price"
                       type="monotone" 
                       dataKey="close" 
                       stroke="var(--primary)" 
                       fillOpacity={1} 
                       fill="url(#colorPrice)" 
                       strokeWidth={2}
+                      name="close"
                     />
-                  </AreaChart>
+                    <Line 
+                      yAxisId="ai"
+                      type="stepAfter" 
+                      dataKey="ai_direction_score" 
+                      stroke="#f59e0b" 
+                      strokeWidth={2}
+                      dot={false}
+                      connectNulls={false}
+                      name="ai_direction_score"
+                    />
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
             </div>
