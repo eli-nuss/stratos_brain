@@ -254,6 +254,9 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                     </div>
                     <span className="text-xs text-muted-foreground font-mono">
                       {review.model_id || "gemini-2.0-flash-exp"}
+                      {review.as_of_date && (
+                        <span className="ml-2 text-muted-foreground/70">• {review.as_of_date}</span>
+                      )}
                     </span>
                   </div>
                   
