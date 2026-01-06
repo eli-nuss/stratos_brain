@@ -739,6 +739,15 @@ serve(async (req) => {
         
         const { data: signals } = await signalQuery.order('strength', { ascending: false })
         
+        // Get historical AI scores (for chart overlay)
+        const { data: aiScoreHistory } = await supabase
+          .from('asset_ai_reviews')
+          .select('as_of_date, ai_direction_score, ai_setup_quality_score')
+          .eq('asset_id', assetId)
+          .lte('as_of_date', targetDate)
+          .order('as_of_date', { ascending: true })
+          .limit(365)
+        
         // Get AI review (latest for this asset/date)
         let reviewQuery = supabase
           .from('asset_ai_reviews')
@@ -778,6 +787,7 @@ serve(async (req) => {
           asset,
           as_of_date: targetDate,
           ohlcv: ohlcv?.reverse() || [],
+          ai_score_history: aiScoreHistory || [],
           features,
           scores,
           signals: signals || [],
