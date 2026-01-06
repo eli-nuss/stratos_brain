@@ -62,7 +62,8 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   // Apply threshold filters to data client-side
-  const filteredData = data.filter(row => {
+  const assetsToFilter = Array.isArray(data) ? data : [];
+  const filteredData = assetsToFilter.filter(row => {
     if (filterThresholds.aiDirScore) {
       const score = row.ai_direction_score || 0;
       if (filterThresholds.aiDirScore.min !== undefined && score < filterThresholds.aiDirScore.min) return false;
