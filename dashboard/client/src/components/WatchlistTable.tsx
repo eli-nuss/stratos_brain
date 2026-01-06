@@ -9,7 +9,7 @@ interface WatchlistTableProps {
   onAssetClick: (assetId: string) => void;
 }
 
-type SortField = "symbol" | "ai_direction_score" | "ai_setup_quality_score" | "close" | "return_1d" | "return_5d" | "return_21d";
+type SortField = "symbol" | "ai_direction_score" | "ai_setup_quality_score" | "market_cap" | "close" | "return_1d" | "return_7d" | "return_30d" | "return_365d" | "dollar_volume_7d" | "dollar_volume_30d";
 type SortOrder = "asc" | "desc";
 
 const PAGE_SIZE = 50;
@@ -69,15 +69,6 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
     mutateWatchlist();
   };
 
-  const getAttentionColor = (level: string) => {
-    switch (level) {
-      case "URGENT": return "text-red-400 border-red-400/30 bg-red-400/10";
-      case "FOCUS": return "text-yellow-400 border-yellow-400/30 bg-yellow-400/10";
-      case "WATCH": return "text-blue-400 border-blue-400/30 bg-blue-400/10";
-      default: return "text-muted-foreground border-border bg-muted/10";
-    }
-  };
-
   const getDirectionIcon = (direction: string) => {
     if (direction === "bullish") return <TrendingUp className="w-3 h-3 text-signal-bullish" />;
     if (direction === "bearish") return <TrendingDown className="w-3 h-3 text-signal-bearish" />;
@@ -92,16 +83,36 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
     }
   };
 
-  const formatNumber = (num: number | null | undefined, decimals = 2) => {
+  const formatPrice = (num: number | null | undefined) => {
     if (num === null || num === undefined) return "-";
-    return num.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    if (num < 0.0001) return num.toExponential(2);
+    if (num < 1) return num.toFixed(6);
+    if (num < 100) return num.toFixed(2);
+    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   const formatPercent = (num: number | null | undefined) => {
-    if (num === null || num === undefined) return "-";
+    if (num === null || num === undefined) return <span className="text-muted-foreground">-</span>;
     const pct = num * 100;
     const color = pct >= 0 ? "text-signal-bullish" : "text-signal-bearish";
-    return <span className={color}>{pct >= 0 ? "+" : ""}{pct.toFixed(2)}%</span>;
+    return <span className={color}>{pct >= 0 ? "+" : ""}{pct.toFixed(1)}%</span>;
+  };
+
+  const formatVolume = (num: number | null | undefined) => {
+    if (num === null || num === undefined) return "-";
+    if (num >= 1e12) return `$${(num / 1e12).toFixed(1)}T`;
+    if (num >= 1e9) return `$${(num / 1e9).toFixed(1)}B`;
+    if (num >= 1e6) return `$${(num / 1e6).toFixed(1)}M`;
+    if (num >= 1e3) return `$${(num / 1e3).toFixed(1)}K`;
+    return `$${num.toFixed(0)}`;
+  };
+
+  const formatMarketCap = (num: number | null | undefined) => {
+    if (num === null || num === undefined) return "-";
+    if (num >= 1e12) return `$${(num / 1e12).toFixed(2)}T`;
+    if (num >= 1e9) return `$${(num / 1e9).toFixed(2)}B`;
+    if (num >= 1e6) return `$${(num / 1e6).toFixed(1)}M`;
+    return `$${num.toLocaleString()}`;
   };
 
   const SortHeader = ({ field, children, tooltip }: { field: SortField; children: React.ReactNode; tooltip?: string }) => (
@@ -180,17 +191,17 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
         <table className="w-full text-sm text-left">
           <thead className="text-xs text-muted-foreground bg-muted/10 sticky top-0 z-10 backdrop-blur-sm">
             <tr>
-              <th className="px-4 py-2 font-medium">
+              <th className="px-3 py-2 font-medium">
                 <SortHeader field="symbol">Asset</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
-                <HeaderWithTooltip tooltip="Asset type: Crypto or Equity">Type</HeaderWithTooltip>
+                <SortHeader field="ai_direction_score" tooltip="AI-determined directional conviction (-100 to +100)">Dir</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
-                <SortHeader field="ai_direction_score" tooltip="AI-determined directional conviction (-100 to +100)">AI Dir</SortHeader>
+                <SortHeader field="ai_setup_quality_score" tooltip="AI-determined setup quality score (0-100)">Quality</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
-                <SortHeader field="ai_setup_quality_score" tooltip="AI-determined setup quality score (0-100)">AI Quality</SortHeader>
+                <SortHeader field="market_cap" tooltip="Market capitalization">Mkt Cap</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
                 <SortHeader field="close" tooltip="Latest closing price">Price</SortHeader>
@@ -199,10 +210,22 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
                 <SortHeader field="return_1d" tooltip="Price change over the last 24 hours">24h</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
-                <HeaderWithTooltip tooltip="Attention level from AI analysis">Attn</HeaderWithTooltip>
+                <SortHeader field="return_7d" tooltip="Price change over the last 7 days">7d</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
-                <HeaderWithTooltip tooltip="Open chart on TradingView">Chart</HeaderWithTooltip>
+                <SortHeader field="return_30d" tooltip="Price change over the last 30 days">30d</SortHeader>
+              </th>
+              <th className="px-2 py-2 font-medium text-center">
+                <SortHeader field="return_365d" tooltip="Price change over the last 365 days">365d</SortHeader>
+              </th>
+              <th className="px-2 py-2 font-medium text-center">
+                <SortHeader field="dollar_volume_7d" tooltip="Trading volume over the last 7 days">Vol 7d</SortHeader>
+              </th>
+              <th className="px-2 py-2 font-medium text-center">
+                <SortHeader field="dollar_volume_30d" tooltip="Trading volume over the last 30 days">Vol 30d</SortHeader>
+              </th>
+              <th className="px-2 py-2 font-medium text-center">
+                <HeaderWithTooltip tooltip="Industry (equities) or category (crypto)">Industry</HeaderWithTooltip>
               </th>
               <th className="px-2 py-2 font-medium text-center">
                 <HeaderWithTooltip tooltip="Your personal notes">Notes</HeaderWithTooltip>
@@ -216,21 +239,15 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
             {isLoading ? (
               [...Array(5)].map((_, i) => (
                 <tr key={i} className="animate-pulse">
-                  <td className="px-4 py-3"><div className="h-4 w-16 bg-muted rounded" /></td>
-                  <td className="px-2 py-3"><div className="h-4 w-10 bg-muted rounded mx-auto" /></td>
-                  <td className="px-2 py-3"><div className="h-4 w-10 bg-muted rounded mx-auto" /></td>
-                  <td className="px-2 py-3"><div className="h-4 w-10 bg-muted rounded mx-auto" /></td>
-                  <td className="px-2 py-3"><div className="h-4 w-10 bg-muted rounded mx-auto" /></td>
-                  <td className="px-2 py-3"><div className="h-4 w-10 bg-muted rounded mx-auto" /></td>
-                  <td className="px-2 py-3"><div className="h-4 w-12 bg-muted rounded mx-auto" /></td>
-                  <td className="px-2 py-3"><div className="h-4 w-6 bg-muted rounded mx-auto" /></td>
-                  <td className="px-2 py-3"><div className="h-4 w-16 bg-muted rounded mx-auto" /></td>
-                  <td className="px-2 py-3"><div className="h-4 w-6 bg-muted rounded mx-auto" /></td>
+                  <td className="px-3 py-3"><div className="h-4 w-20 bg-muted rounded" /></td>
+                  {[...Array(13)].map((_, j) => (
+                    <td key={j} className="px-2 py-3"><div className="h-4 w-12 bg-muted rounded mx-auto" /></td>
+                  ))}
                 </tr>
               ))
             ) : paginatedAssets.length === 0 ? (
               <tr>
-                <td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={14} className="px-4 py-8 text-center text-muted-foreground">
                   {search ? `No assets found matching "${search}"` : "Your watchlist is empty. Add assets from the Crypto or Equities tabs."}
                 </td>
               </tr>
@@ -241,20 +258,20 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
                   onClick={() => onAssetClick(row.asset_id)}
                   className="hover:bg-muted/20 cursor-pointer transition-colors group"
                 >
-                  <td className="px-4 py-2">
-                    <div className="flex flex-col">
-                      <span className="font-mono font-medium text-foreground">{row.symbol}</span>
-                      <span className="text-xs text-muted-foreground truncate max-w-[120px]">{row.name}</span>
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] px-1 py-0.5 rounded ${
+                        row.asset_type === 'crypto' 
+                          ? 'text-orange-400 bg-orange-400/10' 
+                          : 'text-blue-400 bg-blue-400/10'
+                      }`}>
+                        {row.asset_type === 'crypto' ? '🪙' : '📈'}
+                      </span>
+                      <div className="flex flex-col">
+                        <span className="font-mono font-medium text-foreground">{row.symbol}</span>
+                        <span className="text-xs text-muted-foreground truncate max-w-[100px]">{row.name}</span>
+                      </div>
                     </div>
-                  </td>
-                  <td className="px-2 py-2 text-center">
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${
-                      row.asset_type === 'crypto' 
-                        ? 'text-orange-400 border-orange-400/30 bg-orange-400/10' 
-                        : 'text-blue-400 border-blue-400/30 bg-blue-400/10'
-                    }`}>
-                      {row.asset_type === 'crypto' ? '🪙' : '📈'}
-                    </span>
                   </td>
                   <td className="px-2 py-2 text-center">
                     <div className="flex items-center justify-center gap-1">
@@ -263,7 +280,7 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
                         row.ai_direction_score > 0 ? "text-signal-bullish" : 
                         row.ai_direction_score < 0 ? "text-signal-bearish" : "text-muted-foreground"
                       }`}>
-                        {row.ai_direction_score > 0 ? "+" : ""}{row.ai_direction_score ?? "-"}
+                        {row.ai_direction_score != null ? (row.ai_direction_score > 0 ? "+" : "") + row.ai_direction_score : "-"}
                       </span>
                     </div>
                   </td>
@@ -276,31 +293,31 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
                     </span>
                   </td>
                   <td className="px-2 py-2 text-right font-mono text-xs">
-                    ${formatNumber(row.close, row.close < 1 ? 6 : 2)}
+                    {formatMarketCap(row.market_cap)}
+                  </td>
+                  <td className="px-2 py-2 text-right font-mono text-xs">
+                    ${formatPrice(row.close)}
                   </td>
                   <td className="px-2 py-2 text-right font-mono text-xs">
                     {formatPercent(row.return_1d)}
                   </td>
-                  <td className="px-2 py-2 text-center">
-                    {row.attention_level ? (
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${getAttentionColor(row.attention_level)}`}>
-                        {row.attention_level}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">-</span>
-                    )}
+                  <td className="px-2 py-2 text-right font-mono text-xs">
+                    {formatPercent(row.return_7d)}
                   </td>
-                  <td className="px-2 py-2 text-center">
-                    <a
-                      href={getTradingViewUrl(row.symbol, row.asset_type)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center justify-center p-1 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                      title="Open on TradingView"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
+                  <td className="px-2 py-2 text-right font-mono text-xs">
+                    {formatPercent(row.return_30d)}
+                  </td>
+                  <td className="px-2 py-2 text-right font-mono text-xs">
+                    {formatPercent(row.return_365d)}
+                  </td>
+                  <td className="px-2 py-2 text-right font-mono text-xs text-muted-foreground">
+                    {formatVolume(row.dollar_volume_7d)}
+                  </td>
+                  <td className="px-2 py-2 text-right font-mono text-xs text-muted-foreground">
+                    {formatVolume(row.dollar_volume_30d)}
+                  </td>
+                  <td className="px-2 py-2 text-center text-xs text-muted-foreground truncate max-w-[80px]">
+                    {row.industry || row.sector || "-"}
                   </td>
                   <NoteCell assetId={row.asset_id} />
                   <td className="px-2 py-2 text-center">
