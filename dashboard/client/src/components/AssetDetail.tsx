@@ -1,6 +1,6 @@
 import useSWR from "swr";
 import { useState } from "react";
-import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, Activity, Info, MessageCircle, ExternalLink, Tag, FileText } from "lucide-react";
+import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, Activity, Info, MessageCircle, ExternalLink, Tag, FileText, ChevronDown, ChevronUp, Maximize2, Minimize2 } from "lucide-react";
 import { Area, Line, ComposedChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis, Legend } from "recharts";
 import { format } from "date-fns";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -40,6 +40,12 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
   const { data, isLoading } = useSWR(`/api/dashboard/asset?asset_id=${assetId}`, fetcher);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chartView, setChartView] = useState<'ai_score' | 'tradingview'>('ai_score');
+  const [isChartFullscreen, setIsChartFullscreen] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+
+  const toggleSection = (section: string) => {
+    setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
 
   if (isLoading) {
     return (
@@ -193,18 +199,27 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                     </button>
                   </div>
                 </div>
-                <a
-                  href={getTradingViewUrl(asset.symbol, asset.asset_type)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
-                >
-                  Open in TradingView <ExternalLink className="w-3 h-3" />
-                </a>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setIsChartFullscreen(!isChartFullscreen)}
+                    className="p-1 rounded hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
+                    title={isChartFullscreen ? "Exit fullscreen" : "Fullscreen"}
+                  >
+                    {isChartFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                  </button>
+                  <a
+                    href={getTradingViewUrl(asset.symbol, asset.asset_type)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
+                  >
+                    Open in TradingView <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
               </div>
               
               {chartView === 'ai_score' ? (
-                <div className="h-[300px] w-full bg-muted/5 rounded-lg border border-border p-4">
+                <div className={`${isChartFullscreen ? 'h-[600px]' : 'h-[300px]'} w-full bg-muted/5 rounded-lg border border-border p-4 transition-all duration-300`}>
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={chartData}>
                       <defs>
@@ -284,13 +299,13 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <div className="h-[300px] w-full rounded-lg border border-border overflow-hidden">
+                <div className={`${isChartFullscreen ? 'h-[600px]' : 'h-[300px]'} w-full rounded-lg border border-border overflow-hidden transition-all duration-300`}>
                   <TradingViewWidget
                     symbol={asset.symbol}
                     assetType={asset.asset_type === 'crypto' ? 'crypto' : 'equity'}
                     theme="dark"
                     interval="D"
-                    height={300}
+                    height={isChartFullscreen ? 600 : 300}
                   />
                 </div>
               )}
@@ -361,12 +376,19 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
 
           {/* Right Column: Asset Info, Trade Plan & Notes */}
           <div className="space-y-4">
-            {/* Asset Info Card - NEW */}
+            {/* Asset Info Card - Collapsible */}
             <div className="bg-card border border-border rounded-lg overflow-hidden">
-              <div className="bg-muted/30 px-4 py-2.5 border-b border-border flex items-center gap-2">
-                <FileText className="w-4 h-4 text-muted-foreground" />
-                <h3 className="font-semibold text-sm">About</h3>
-              </div>
+              <button
+                onClick={() => toggleSection('about')}
+                className="w-full bg-muted/30 px-4 py-2.5 border-b border-border flex items-center justify-between hover:bg-muted/40 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-muted-foreground" />
+                  <h3 className="font-semibold text-sm">About</h3>
+                </div>
+                {collapsedSections['about'] ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronUp className="w-4 h-4 text-muted-foreground" />}
+              </button>
+              {!collapsedSections['about'] && (
               <div className="p-4 space-y-3">
                 {/* Category Badge */}
                 {asset.category && (
@@ -405,16 +427,24 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                   </div>
                 )}
               </div>
+              )}
             </div>
 
-            {/* Trade Plan - Compact */}
+            {/* Trade Plan - Collapsible */}
             {review && (
               <div className="bg-card border border-border rounded-lg overflow-hidden">
-                <div className="bg-muted/30 px-4 py-2.5 border-b border-border flex items-center gap-2">
-                  <Target className="w-4 h-4 text-muted-foreground" />
-                  <h3 className="font-semibold text-sm">Trade Plan</h3>
-                  <InfoTooltip content="AI-generated trade plan with specific price levels. Entry zone is where to consider initiating positions. Targets are profit-taking levels. Invalidation is where the thesis fails." />
-                </div>
+                <button
+                  onClick={() => toggleSection('tradePlan')}
+                  className="w-full bg-muted/30 px-4 py-2.5 border-b border-border flex items-center justify-between hover:bg-muted/40 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Target className="w-4 h-4 text-muted-foreground" />
+                    <h3 className="font-semibold text-sm">Trade Plan</h3>
+                    <InfoTooltip content="AI-generated trade plan with specific price levels. Entry zone is where to consider initiating positions. Targets are profit-taking levels. Invalidation is where the thesis fails." />
+                  </div>
+                  {collapsedSections['tradePlan'] ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronUp className="w-4 h-4 text-muted-foreground" />}
+                </button>
+                {!collapsedSections['tradePlan'] && (
                 <div className="p-3 space-y-3">
                   {/* Entry Zone - Compact */}
                   <div className="flex items-center justify-between">
@@ -444,6 +474,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                     </span>
                   </div>
                 </div>
+                )}
               </div>
             )}
 
@@ -453,13 +484,20 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
             {/* Files Section */}
             <FilesSection assetId={parseInt(assetId)} />
 
-            {/* Signal Facts - Compact */}
+            {/* Signal Facts - Collapsible */}
             <div className="bg-card border border-border rounded-lg overflow-hidden">
-              <div className="bg-muted/30 px-4 py-2.5 border-b border-border flex items-center gap-2">
-                <Activity className="w-4 h-4 text-muted-foreground" />
-                <h3 className="font-semibold text-sm">Signals</h3>
-                <InfoTooltip content="Quantitative signals that triggered this asset's score. Each signal has a strength from 0-100 based on technical criteria." />
-              </div>
+              <button
+                onClick={() => toggleSection('signals')}
+                className="w-full bg-muted/30 px-4 py-2.5 border-b border-border flex items-center justify-between hover:bg-muted/40 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-muted-foreground" />
+                  <h3 className="font-semibold text-sm">Signals</h3>
+                  <InfoTooltip content="Quantitative signals that triggered this asset's score. Each signal has a strength from 0-100 based on technical criteria." />
+                </div>
+                {collapsedSections['signals'] ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronUp className="w-4 h-4 text-muted-foreground" />}
+              </button>
+              {!collapsedSections['signals'] && (
               <div className="divide-y divide-border">
                 {data.signals?.length > 0 ? (
                   data.signals.slice(0, 4).map((signal: any, i: number) => {
@@ -510,6 +548,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                   </div>
                 )}
               </div>
+              )}
             </div>
           </div>
         </div>
