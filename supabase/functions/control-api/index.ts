@@ -696,6 +696,22 @@ serve(async (req) => {
           ? (await supabase.rpc('resolve_latest_date', { asset_type_param: 'crypto' })).data
           : (await supabase.rpc('resolve_latest_date', { asset_type_param: 'equity' })).data)
         
+        // Get enriched asset data from view (category, description, market_cap)
+        const { data: enrichedAsset } = await supabase
+          .from('v_dashboard_all_assets')
+          .select('category, short_description, market_cap')
+          .eq('asset_id', assetId)
+          .eq('as_of_date', targetDate)
+          .limit(1)
+          .single()
+        
+        // Merge enriched data into asset
+        if (enrichedAsset) {
+          asset.category = enrichedAsset.category
+          asset.short_description = enrichedAsset.short_description
+          asset.market_cap = enrichedAsset.market_cap
+        }
+        
         // Get OHLCV (365 bars)
         const { data: ohlcv } = await supabase
           .from('daily_bars')

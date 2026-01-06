@@ -1,6 +1,6 @@
 import useSWR from "swr";
 import { useState } from "react";
-import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, Activity, Info, MessageCircle, ExternalLink } from "lucide-react";
+import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, Activity, Info, MessageCircle, ExternalLink, Tag, FileText } from "lucide-react";
 import { Area, Line, ComposedChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis, Legend } from "recharts";
 import { format } from "date-fns";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -160,7 +160,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column: Chart & Key Levels */}
+          {/* Left Column: Chart & AI Analysis */}
           <div className="lg:col-span-2 space-y-6">
             {/* Chart */}
             <div className="space-y-2">
@@ -319,55 +319,89 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
             )}
           </div>
 
-          {/* Right Column: Trade Plan & Signals */}
-          <div className="space-y-6">
-            {/* Trade Plan */}
+          {/* Right Column: Asset Info, Trade Plan & Notes */}
+          <div className="space-y-4">
+            {/* Asset Info Card - NEW */}
+            <div className="bg-card border border-border rounded-lg overflow-hidden">
+              <div className="bg-muted/30 px-4 py-2.5 border-b border-border flex items-center gap-2">
+                <FileText className="w-4 h-4 text-muted-foreground" />
+                <h3 className="font-semibold text-sm">About</h3>
+              </div>
+              <div className="p-4 space-y-3">
+                {/* Category Badge */}
+                {asset.category && (
+                  <div className="flex items-center gap-2">
+                    <Tag className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-xs font-medium px-2 py-0.5 rounded bg-primary/10 text-primary">
+                      {asset.category}
+                    </span>
+                  </div>
+                )}
+                
+                {/* Description */}
+                {asset.short_description ? (
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {asset.short_description}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground/60 italic">
+                    No description available
+                  </p>
+                )}
+
+                {/* Quick Stats */}
+                {asset.market_cap && (
+                  <div className="pt-2 border-t border-border/50">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Market Cap</span>
+                      <span className="font-mono">
+                        ${asset.market_cap >= 1e9 
+                          ? (asset.market_cap / 1e9).toFixed(2) + 'B' 
+                          : asset.market_cap >= 1e6 
+                          ? (asset.market_cap / 1e6).toFixed(2) + 'M' 
+                          : asset.market_cap.toFixed(0)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Trade Plan - Compact */}
             {review && (
               <div className="bg-card border border-border rounded-lg overflow-hidden">
-                <div className="bg-muted/30 px-4 py-3 border-b border-border flex items-center gap-2">
+                <div className="bg-muted/30 px-4 py-2.5 border-b border-border flex items-center gap-2">
+                  <Target className="w-4 h-4 text-muted-foreground" />
                   <h3 className="font-semibold text-sm">Trade Plan</h3>
                   <InfoTooltip content="AI-generated trade plan with specific price levels. Entry zone is where to consider initiating positions. Targets are profit-taking levels. Invalidation is where the thesis fails." />
                 </div>
-                <div className="p-4 space-y-4">
-                  {/* Entry Zone */}
-                  <div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                      <Target className="w-3 h-3" />
-                      ENTRY ZONE
-                      <InfoTooltip content={TRADE_PLAN_DEFINITIONS.entry_zone.description} />
-                    </div>
-                    <div className="text-xl font-mono font-bold text-primary">
+                <div className="p-3 space-y-3">
+                  {/* Entry Zone - Compact */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Entry</span>
+                    <span className="font-mono text-sm font-semibold text-primary">
                       ${review.entry?.low?.toFixed(2) || "—"} - ${review.entry?.high?.toFixed(2) || "—"}
-                    </div>
+                    </span>
                   </div>
 
-                  {/* Targets */}
-                  <div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                      <TrendingUp className="w-3 h-3" />
-                      TARGETS
-                      <InfoTooltip content={TRADE_PLAN_DEFINITIONS.targets.description} />
-                    </div>
-                    <div className="space-y-1">
+                  {/* Targets - Inline */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Targets</span>
+                    <div className="flex gap-2">
                       {review.targets?.slice(0, 3).map((target: number, i: number) => (
-                        <div key={i} className="flex justify-between items-center">
-                          <span className="text-xs text-muted-foreground">TP{i + 1}</span>
-                          <span className="font-mono text-signal-bullish">${target?.toFixed(2) || "—"}</span>
-                        </div>
+                        <span key={i} className="font-mono text-xs text-signal-bullish">
+                          ${target?.toFixed(2) || "—"}
+                        </span>
                       ))}
                     </div>
                   </div>
 
-                  {/* Invalidation */}
-                  <div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                      <Shield className="w-3 h-3" />
-                      INVALIDATION
-                      <InfoTooltip content={TRADE_PLAN_DEFINITIONS.invalidation.description} />
-                    </div>
-                    <div className="text-lg font-mono font-bold text-signal-bearish">
+                  {/* Invalidation - Compact */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Stop</span>
+                    <span className="font-mono text-sm font-semibold text-signal-bearish">
                       ${review.invalidation?.toFixed(2) || "—"}
-                    </div>
+                    </span>
                   </div>
                 </div>
               </div>
@@ -379,31 +413,25 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
             {/* Files Section */}
             <FilesSection assetId={parseInt(assetId)} />
 
-            {/* Signal Facts */}
+            {/* Signal Facts - Compact */}
             <div className="bg-card border border-border rounded-lg overflow-hidden">
-              <div className="bg-muted/30 px-4 py-3 border-b border-border flex items-center gap-2">
-                <h3 className="font-semibold text-sm">Signal Drivers</h3>
-                <InfoTooltip content="Quantitative signals that triggered this asset's score. Each signal has a strength from 0-100 based on technical criteria. Multiple strong signals increase conviction." />
+              <div className="bg-muted/30 px-4 py-2.5 border-b border-border flex items-center gap-2">
+                <Activity className="w-4 h-4 text-muted-foreground" />
+                <h3 className="font-semibold text-sm">Signals</h3>
+                <InfoTooltip content="Quantitative signals that triggered this asset's score. Each signal has a strength from 0-100 based on technical criteria." />
               </div>
               <div className="divide-y divide-border">
                 {data.signals?.length > 0 ? (
-                  data.signals.slice(0, 5).map((signal: any, i: number) => {
+                  data.signals.slice(0, 4).map((signal: any, i: number) => {
                     const signalDef = SIGNAL_DEFINITIONS[signal.signal_type];
                     return (
                       <Tooltip key={i}>
                         <TooltipTrigger asChild>
-                          <div className="p-3 flex justify-between items-center cursor-help hover:bg-muted/20 transition-colors">
-                            <div className="flex flex-col">
-                              <span className="text-sm font-medium">
-                                {formatSignalType(signal.signal_type)}
-                              </span>
-                              {signalDef && (
-                                <span className="text-xs text-muted-foreground">
-                                  {signalDef.shortDescription}
-                                </span>
-                              )}
-                            </div>
-                            <span className={`text-sm font-mono font-bold px-2 py-1 rounded ${
+                          <div className="px-3 py-2 flex justify-between items-center cursor-help hover:bg-muted/20 transition-colors">
+                            <span className="text-xs font-medium truncate max-w-[140px]">
+                              {formatSignalType(signal.signal_type)}
+                            </span>
+                            <span className={`text-xs font-mono font-bold px-1.5 py-0.5 rounded ${
                               signal.direction === "bullish" 
                                 ? "bg-signal-bullish/10 text-signal-bullish" 
                                 : "bg-signal-bearish/10 text-signal-bearish"
@@ -437,8 +465,8 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                     );
                   })
                 ) : (
-                  <div className="p-4 text-center text-sm text-muted-foreground">
-                    No active signals for this date.
+                  <div className="p-3 text-center text-xs text-muted-foreground">
+                    No active signals
                   </div>
                 )}
               </div>
