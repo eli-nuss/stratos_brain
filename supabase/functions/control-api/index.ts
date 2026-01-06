@@ -1650,54 +1650,32 @@ If asked about something not in the data, acknowledge the limitation.`
         const dateMap: Record<string, string> = {}
         latestDates?.forEach(d => { dateMap[d.asset_type] = d.latest_date })
         
-        // Get assets with their features and AI reviews
-        const { data: assets, error: assetsError } = await supabase
-          .from('assets')
-          .select('asset_id, symbol, name, asset_type, sector')
-          .in('asset_id', assetIds)
+        // Get assets from dashboard view filtered by latest dates
+        // We need to query separately for crypto and equity since they have different latest dates
+        const cryptoDate = dateMap['crypto'] || new Date().toISOString().split('T')[0]
+        const equityDate = dateMap['equity'] || new Date().toISOString().split('T')[0]
         
-        if (assetsError || !assets) {
-          return new Response(JSON.stringify({ error: assetsError?.message || 'Failed to fetch assets' }), {
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-        }
+        const [cryptoResult, equityResult] = await Promise.all([
+          supabase
+            .from('v_dashboard_all_assets')
+            .select('*')
+            .in('asset_id', assetIds)
+            .eq('as_of_date', cryptoDate)
+            .eq('universe_id', 'crypto_all'),
+          supabase
+            .from('v_dashboard_all_assets')
+            .select('*')
+            .in('asset_id', assetIds)
+            .eq('as_of_date', equityDate)
+            .eq('universe_id', 'equity_all')
+        ])
         
-        // Enrich with features and AI reviews
-        const enrichedAssets = await Promise.all(assets.map(async (asset) => {
-          const targetDate = dateMap[asset.asset_type] || new Date().toISOString().split('T')[0]
-          
-          const [featuresResult, reviewResult] = await Promise.all([
-            supabase
-              .from('daily_features')
-              .select('close, return_1d, return_5d, return_21d, rsi_14, dollar_volume')
-              .eq('asset_id', asset.asset_id)
-              .eq('date', targetDate)
-              .single(),
-            supabase
-              .from('asset_ai_reviews')
-              .select('direction, ai_direction_score, ai_setup_quality_score, attention_level, confidence')
-              .eq('asset_id', asset.asset_id)
-              .eq('as_of_date', targetDate)
-              .single()
-          ])
-          
-          return {
-            ...asset,
-            as_of_date: targetDate,
-            close: featuresResult.data?.close,
-            return_1d: featuresResult.data?.return_1d,
-            return_5d: featuresResult.data?.return_5d,
-            return_21d: featuresResult.data?.return_21d,
-            rsi_14: featuresResult.data?.rsi_14,
-            dollar_volume: featuresResult.data?.dollar_volume,
-            direction: reviewResult.data?.direction,
-            ai_direction_score: reviewResult.data?.ai_direction_score,
-            ai_setup_quality_score: reviewResult.data?.ai_setup_quality_score,
-            attention_level: reviewResult.data?.attention_level,
-            confidence: reviewResult.data?.confidence,
-            in_watchlist: true
-          }
+        const assets = [...(cryptoResult.data || []), ...(equityResult.data || [])]
+        
+        // Add in_watchlist flag
+        const enrichedAssets = assets.map(asset => ({
+          ...asset,
+          in_watchlist: true
         }))
         
         return new Response(JSON.stringify(enrichedAssets), {
