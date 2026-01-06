@@ -225,7 +225,7 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
                 <SortHeader field="dollar_volume_30d" tooltip="Trading volume over the last 30 days">Vol 30d</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
-                <HeaderWithTooltip tooltip="Industry (equities) or category (crypto)">Industry</HeaderWithTooltip>
+                <HeaderWithTooltip tooltip="Category (crypto) or Sector (equities)">Cat/Sector</HeaderWithTooltip>
               </th>
               <th className="px-2 py-2 font-medium text-center">
                 <HeaderWithTooltip tooltip="Brief description of the asset">Description</HeaderWithTooltip>
@@ -320,7 +320,7 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
                     {formatVolume(row.dollar_volume_30d)}
                   </td>
                   <td className="px-2 py-2 text-center text-xs text-muted-foreground truncate max-w-[80px]">
-                    {row.industry || row.sector || "-"}
+                    {row.category || row.industry || row.sector || "-"}
                   </td>
                   <td className="px-2 py-2 text-left text-xs text-muted-foreground">
                     <Tooltip>
