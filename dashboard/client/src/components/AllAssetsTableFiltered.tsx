@@ -22,7 +22,9 @@ const CATEGORIES = [
   "Infrastructure", "RWA", "CeFi", "Stablecoins", "Payment Solutions",
   "Exchange-based Tokens", "Launchpad", "Smart Contract", "Wallets",
   "Yield-Bearing", "Bridge Governance Tokens", "Bridged-Tokens",
-  "Ethereum Ecosystem", "Solana Ecosystem", "BNB Chain Ecosystem"
+  "Ethereum Ecosystem", "Solana Ecosystem", "BNB Chain Ecosystem",
+  "GMCI 30 Index", "GMCI DePIN Index", "Gambling (GambleFi)", "IP Meme",
+  "Chain Abstraction", "ZkSync Ecosystem", "Coinbase 50 Index"
 ];
 
 interface FilterThresholds {
