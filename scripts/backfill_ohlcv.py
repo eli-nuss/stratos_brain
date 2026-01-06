@@ -2,6 +2,24 @@
 """
 OHLCV Backfill Script for Stratos Brain
 Fetches daily bars from CoinGecko (crypto) and AlphaVantage (equities)
+
+IMPORTANT - CRYPTO DATE HANDLING:
+================================
+CoinGecko returns prices at 00:00 UTC timestamps. For crypto markets that trade 24/7,
+the price at 00:00 UTC on a given date is actually the CLOSE of the PREVIOUS day,
+not the close of that day.
+
+Example:
+- CoinGecko timestamp 2026-01-05 00:00 UTC = Close price of Jan 4
+- CoinGecko timestamp 2026-01-06 00:00 UTC = Close price of Jan 5
+
+When storing crypto OHLCV data, you must SUBTRACT 1 DAY from the CoinGecko timestamp
+to get the correct date for the close price.
+
+Incorrect: Store 00:00 UTC price as that date's close (e.g., Jan 5 00:00 -> Jan 5 close) ❌
+Correct:   Store 00:00 UTC price as previous date's close (e.g., Jan 5 00:00 -> Jan 4 close) ✓
+
+This does NOT apply to equities, which have defined market hours and clear daily closes.
 """
 
 import os
@@ -70,7 +88,13 @@ def fetch_alphavantage_daily(symbol: str) -> list:
         return []
 
 def fetch_coingecko_daily(coingecko_id: str, days: int = 30) -> list:
-    """Fetch daily OHLCV from CoinGecko Pro API."""
+    """
+    Fetch daily OHLCV from CoinGecko Pro API.
+    
+    WARNING: CoinGecko timestamps are at 00:00 UTC, which represents the CLOSE
+    of the PREVIOUS day. When storing this data, subtract 1 day from the date.
+    See module docstring for detailed explanation.
+    """
     url = f"https://pro-api.coingecko.com/api/v3/coins/{coingecko_id}/ohlc"
     params = {
         "vs_currency": "usd",
@@ -116,7 +140,13 @@ def fetch_coingecko_daily(coingecko_id: str, days: int = 30) -> list:
         return []
 
 def fetch_coingecko_market_chart(coingecko_id: str, days: int = 30) -> list:
-    """Fetch market chart data from CoinGecko Pro API (includes volume)."""
+    """
+    Fetch market chart data from CoinGecko Pro API (includes volume).
+    
+    WARNING: CoinGecko timestamps are at 00:00 UTC, which represents the CLOSE
+    of the PREVIOUS day. When storing this data, subtract 1 day from the date.
+    See module docstring for detailed explanation.
+    """
     url = f"https://pro-api.coingecko.com/api/v3/coins/{coingecko_id}/market_chart"
     params = {
         "vs_currency": "usd",
