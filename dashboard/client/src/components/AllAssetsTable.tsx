@@ -49,7 +49,7 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
     marketCapMin: "",
   });
 
-  const { data, total, isLoading } = useAllAssets({
+  const { data = [], total, isLoading } = useAllAssets({
     assetType,
     date,
     limit: PAGE_SIZE,
@@ -62,8 +62,7 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   // Apply threshold filters to data client-side
-  const assetsToFilter = Array.isArray(data) ? data : [];
-  const filteredData = assetsToFilter.filter(row => {
+  const filteredData = data.filter(row => {
     if (filterThresholds.aiDirScore) {
       const score = row.ai_direction_score || 0;
       if (filterThresholds.aiDirScore.min !== undefined && score < filterThresholds.aiDirScore.min) return false;
