@@ -154,49 +154,62 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
           {/* Left Column: Chart & Key Levels */}
           <div className="lg:col-span-2 space-y-6">
             {/* Chart */}
-            <div className="h-[300px] w-full bg-muted/5 rounded-lg border border-border p-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={ohlcv}>
-                  <defs>
-                    <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <XAxis 
-                    dataKey="date" 
-                    tickFormatter={(str) => format(new Date(str), "MMM d")}
-                    stroke="var(--muted-foreground)"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                    minTickGap={30}
-                  />
-                  <YAxis 
-                    domain={['auto', 'auto']}
-                    stroke="var(--muted-foreground)"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(val) => val.toFixed(2)}
-                  />
-                  <RechartsTooltip 
-                    contentStyle={{ backgroundColor: 'var(--popover)', borderColor: 'var(--border)', color: 'var(--popover-foreground)' }}
-                    itemStyle={{ color: 'var(--foreground)' }}
-                    labelStyle={{ color: 'var(--muted-foreground)' }}
-                    formatter={(val: number) => [val.toFixed(2), "Price"]}
-                    labelFormatter={(label) => format(new Date(label), "MMM d, yyyy")}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="close" 
-                    stroke="var(--primary)" 
-                    fillOpacity={1} 
-                    fill="url(#colorPrice)" 
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold">Price Chart</h3>
+                <a
+                  href={getTradingViewUrl(asset.symbol, asset.asset_type)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
+                >
+                  Open in TradingView <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+              <div className="h-[300px] w-full bg-muted/5 rounded-lg border border-border p-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={ohlcv}>
+                    <defs>
+                      <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <XAxis 
+                      dataKey="date" 
+                      tickFormatter={(str) => format(new Date(str), "MMM d")}
+                      stroke="var(--muted-foreground)"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                      minTickGap={30}
+                    />
+                    <YAxis 
+                      domain={['auto', 'auto']}
+                      stroke="var(--muted-foreground)"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(val) => val.toFixed(2)}
+                    />
+                    <RechartsTooltip 
+                      contentStyle={{ backgroundColor: 'var(--popover)', borderColor: 'var(--border)', color: 'var(--popover-foreground)' }}
+                      itemStyle={{ color: 'var(--foreground)' }}
+                      labelStyle={{ color: 'var(--muted-foreground)' }}
+                      formatter={(val: number) => [val.toFixed(2), "Price"]}
+                      labelFormatter={(label) => format(new Date(label), "MMM d, yyyy")}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="close" 
+                      stroke="var(--primary)" 
+                      fillOpacity={1} 
+                      fill="url(#colorPrice)" 
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
             </div>
 
             {/* AI Reasoning */}
