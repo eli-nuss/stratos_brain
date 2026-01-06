@@ -15,6 +15,14 @@ interface AllAssetsTableProps {
 
 const PAGE_SIZE = 50;
 
+// Available categories for filtering
+const CATEGORIES = [
+  "AI", "DeFi", "Meme", "L1", "L2", "L0", "Privacy", "Gaming", "NFT", 
+  "Infrastructure", "RWA", "CeFi", "Stablecoins", "Payment Solutions",
+  "Exchange-based Tokens", "Launchpad", "Smart Contract", "Wallets",
+  "Yield-Bearing", "Bridge Governance Tokens", "Bridged-Tokens"
+];
+
 interface FilterThresholds {
   aiDirScore?: { min?: number; max?: number };
   aiQualityScore?: { min?: number; max?: number };
@@ -42,6 +50,7 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
     return1dMax: "",
     volume7dMin: "",
     marketCapMin: "",
+    category: "",
   });
 
   const { data = [], total, isLoading } = useAllAssets({
@@ -79,6 +88,10 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
     if (filterThresholds.marketCap) {
       const mc = row.market_cap || 0;
       if (filterThresholds.marketCap.min !== undefined && mc < filterThresholds.marketCap.min) return false;
+    }
+    // Category filter
+    if (filterInputs.category && row.category !== filterInputs.category) {
+      return false;
     }
     return true;
   });
@@ -140,11 +153,12 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
       return1dMax: "",
       volume7dMin: "",
       marketCapMin: "",
+      category: "",
     });
     setPage(0);
   };
 
-  const hasActiveFilters = Object.keys(filterThresholds).length > 0;
+  const hasActiveFilters = Object.keys(filterThresholds).length > 0 || filterInputs.category !== "";
 
   const getDirectionIcon = (direction: string) => {
     if (direction === "bullish") return <TrendingUp className="w-3 h-3 text-signal-bullish" />;
@@ -267,7 +281,20 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
         {/* Threshold Filters Panel */}
         {showFilters && (
           <div className="border-t border-border pt-3 space-y-3">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-muted-foreground uppercase">Category</label>
+                <select
+                  value={filterInputs.category}
+                  onChange={(e) => setFilterInputs({...filterInputs, category: e.target.value})}
+                  className="w-full text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none"
+                >
+                  <option value="">All</option>
+                  {CATEGORIES.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
               <div className="space-y-1">
                 <label className="text-[9px] font-bold text-muted-foreground uppercase">Dir Score</label>
                 <div className="flex gap-1">
