@@ -68,6 +68,7 @@ interface FilterThresholds {
   return1d?: { min?: number; max?: number };
   volume7d?: { min?: number; max?: number };
   marketCap?: { min?: number; max?: number };
+  peRatio?: { min?: number; max?: number };
 }
 
 export default function AllAssetsTable({ assetType, date, onAssetClick, showWatchlistColumn = true }: AllAssetsTableProps) {
@@ -89,6 +90,8 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
     return1dMax: "",
     volume7dMin: "",
     marketCapMin: "",
+    peRatioMin: "",  // For equity
+    peRatioMax: "",  // For equity
     category: "",  // For crypto
     industry: "",  // For equity
   });
@@ -129,6 +132,12 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
     if (filterThresholds.marketCap) {
       const mc = row.market_cap || 0;
       if (filterThresholds.marketCap.min !== undefined && mc < filterThresholds.marketCap.min) return false;
+    }
+    if (filterThresholds.peRatio) {
+      const pe = row.pe_ratio;
+      if (pe === null || pe === undefined) return false; // Exclude assets without P/E if filter is set
+      if (filterThresholds.peRatio.min !== undefined && pe < filterThresholds.peRatio.min) return false;
+      if (filterThresholds.peRatio.max !== undefined && pe > filterThresholds.peRatio.max) return false;
     }
     // Category filter
     if (filterInputs.category && row.category !== filterInputs.category) {
@@ -179,6 +188,12 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
     if (filterInputs.marketCapMin) {
       newThresholds.marketCap = { min: parseFloat(filterInputs.marketCapMin) * 1e9 };
     }
+    if (filterInputs.peRatioMin || filterInputs.peRatioMax) {
+      newThresholds.peRatio = {
+        min: filterInputs.peRatioMin ? parseFloat(filterInputs.peRatioMin) : undefined,
+        max: filterInputs.peRatioMax ? parseFloat(filterInputs.peRatioMax) : undefined,
+      };
+    }
     setFilterThresholds(newThresholds);
     setPage(0);
   };
@@ -194,6 +209,8 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
       return1dMax: "",
       volume7dMin: "",
       marketCapMin: "",
+      peRatioMin: "",
+      peRatioMax: "",
       category: "",
       industry: "",
     });
@@ -400,6 +417,19 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                   onChange={(e) => setFilterInputs({...filterInputs, marketCapMin: e.target.value})}
                   className="w-full text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
               </div>
+              {assetType === "equity" && (
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-muted-foreground uppercase">P/E Ratio</label>
+                  <div className="flex gap-1">
+                    <input type="number" placeholder="Min" value={filterInputs.peRatioMin}
+                      onChange={(e) => setFilterInputs({...filterInputs, peRatioMin: e.target.value})}
+                      className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
+                    <input type="number" placeholder="Max" value={filterInputs.peRatioMax}
+                      onChange={(e) => setFilterInputs({...filterInputs, peRatioMax: e.target.value})}
+                      className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
+                  </div>
+                </div>
+              )}
             </div>
             <div className="flex gap-2 pt-2">
               <button onClick={applyThresholdFilters}
