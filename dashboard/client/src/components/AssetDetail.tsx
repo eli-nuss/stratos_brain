@@ -1,6 +1,7 @@
 import useSWR from "swr";
-import { useState } from "react";
-import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, Activity, Info, MessageCircle, ExternalLink, Tag, FileText, ChevronDown, ChevronUp, Maximize2, Minimize2 } from "lucide-react";
+import { useState, useRef } from "react";
+import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, Activity, Info, MessageCircle, ExternalLink, Tag, FileText, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera } from "lucide-react";
+import html2canvas from "html2canvas";
 import { Area, Line, ComposedChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis, Legend } from "recharts";
 import { format } from "date-fns";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -45,6 +46,46 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
 
   const toggleSection = (section: string) => {
     setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const chartRef = useRef<HTMLDivElement>(null);
+  const [isCapturing, setIsCapturing] = useState(false);
+
+  const captureChart = async () => {
+    if (!chartRef.current) return;
+    
+    setIsCapturing(true);
+    try {
+      const canvas = await html2canvas(chartRef.current, {
+        backgroundColor: '#0a0a0a',
+        scale: 2,
+        logging: false,
+      });
+      
+      canvas.toBlob(async (blob) => {
+        if (blob) {
+          try {
+            await navigator.clipboard.write([
+              new ClipboardItem({ 'image/png': blob })
+            ]);
+            // Show brief success feedback
+            alert('Chart copied to clipboard!');
+          } catch (err) {
+            // Fallback: download the image
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${asset?.symbol || 'chart'}_${format(new Date(), 'yyyy-MM-dd')}.png`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }
+        }
+      }, 'image/png');
+    } catch (err) {
+      console.error('Failed to capture chart:', err);
+    } finally {
+      setIsCapturing(false);
+    }
   };
 
   if (isLoading) {
@@ -201,6 +242,14 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
+                    onClick={captureChart}
+                    disabled={isCapturing}
+                    className="p-1 rounded hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                    title="Copy chart to clipboard"
+                  >
+                    <Camera className={`w-4 h-4 ${isCapturing ? 'animate-pulse' : ''}`} />
+                  </button>
+                  <button
                     onClick={() => setIsChartFullscreen(!isChartFullscreen)}
                     className="p-1 rounded hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
                     title={isChartFullscreen ? "Exit fullscreen" : "Fullscreen"}
@@ -219,7 +268,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               </div>
               
               {chartView === 'ai_score' ? (
-                <div className={`${isChartFullscreen ? 'h-[600px]' : 'h-[300px]'} w-full bg-muted/5 rounded-lg border border-border p-4 transition-all duration-300`}>
+                <div ref={chartRef} className={`${isChartFullscreen ? 'h-[600px]' : 'h-[300px]'} w-full bg-muted/5 rounded-lg border border-border p-4 transition-all duration-300`}>
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={chartData}>
                       <defs>
