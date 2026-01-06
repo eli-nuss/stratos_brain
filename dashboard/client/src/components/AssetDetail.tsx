@@ -13,6 +13,7 @@ import {
 import { ChatSidebar } from "./ChatSidebar";
 import { NotesHistory } from "./NotesHistory";
 import { FilesSection } from "./FilesSection";
+import TradingViewWidget from "./TradingViewWidget";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -38,6 +39,7 @@ function InfoTooltip({ content, className = "" }: { content: string; className?:
 export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
   const { data, isLoading } = useSWR(`/api/dashboard/asset?asset_id=${assetId}`, fetcher);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chartView, setChartView] = useState<'stratos' | 'tradingview'>('stratos');
 
   if (isLoading) {
     return (
@@ -165,7 +167,32 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
             {/* Chart */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold">Price Chart</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold">Price Chart</h3>
+                  {/* Chart View Toggle */}
+                  <div className="flex items-center bg-muted/30 rounded-md p-0.5">
+                    <button
+                      onClick={() => setChartView('stratos')}
+                      className={`px-2 py-1 text-xs rounded transition-colors ${
+                        chartView === 'stratos'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Stratos
+                    </button>
+                    <button
+                      onClick={() => setChartView('tradingview')}
+                      className={`px-2 py-1 text-xs rounded transition-colors ${
+                        chartView === 'tradingview'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      TradingView
+                    </button>
+                  </div>
+                </div>
                 <a
                   href={getTradingViewUrl(asset.symbol, asset.asset_type)}
                   target="_blank"
@@ -175,85 +202,98 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                   Open in TradingView <ExternalLink className="w-3 h-3" />
                 </a>
               </div>
-              <div className="h-[300px] w-full bg-muted/5 rounded-lg border border-border p-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={chartData}>
-                    <defs>
-                      <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <XAxis 
-                      dataKey="date" 
-                      tickFormatter={(str) => format(new Date(str), "MMM d")}
-                      stroke="var(--muted-foreground)"
-                      fontSize={12}
-                      tickLine={false}
-                      axisLine={false}
-                      minTickGap={30}
-                    />
-                    <YAxis 
-                      yAxisId="price"
-                      domain={['auto', 'auto']}
-                      stroke="var(--muted-foreground)"
-                      fontSize={12}
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(val) => val.toFixed(2)}
-                      orientation="left"
-                    />
-                    <YAxis 
-                      yAxisId="ai"
-                      domain={[-100, 100]}
-                      stroke="#f59e0b"
-                      fontSize={10}
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(val) => `${val > 0 ? '+' : ''}${val}`}
-                      orientation="right"
-                      ticks={[-100, -50, 0, 50, 100]}
-                    />
-                    <RechartsTooltip 
-                      contentStyle={{ backgroundColor: 'var(--popover)', borderColor: 'var(--border)', color: 'var(--popover-foreground)' }}
-                      itemStyle={{ color: 'var(--foreground)' }}
-                      labelStyle={{ color: 'var(--muted-foreground)' }}
-                      formatter={(val: number, name: string) => {
-                        if (name === 'ai_direction_score') {
-                          return val !== null ? [`${val > 0 ? '+' : ''}${val}`, 'AI Dir'] : ['-', 'AI Dir'];
-                        }
-                        return [val?.toFixed(2) ?? '-', 'Price'];
-                      }}
-                      labelFormatter={(label) => format(new Date(label), "MMM d, yyyy")}
-                    />
-                    <Legend 
-                      verticalAlign="top" 
-                      height={36}
-                      formatter={(value) => value === 'close' ? 'Price' : 'AI Direction'}
-                    />
-                    <Area 
-                      yAxisId="price"
-                      type="monotone" 
-                      dataKey="close" 
-                      stroke="var(--primary)" 
-                      fillOpacity={1} 
-                      fill="url(#colorPrice)" 
-                      strokeWidth={2}
-                      name="close"
-                    />
-                    <Line 
-                      yAxisId="ai"
-                      type="stepAfter" 
-                      dataKey="ai_direction_score" 
-                      stroke="#f59e0b" 
-                      strokeWidth={2}
-                      dot={false}
-                      connectNulls={false}
-                      name="ai_direction_score"
-                    />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </div>
+              
+              {chartView === 'stratos' ? (
+                <div className="h-[300px] w-full bg-muted/5 rounded-lg border border-border p-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={chartData}>
+                      <defs>
+                        <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <XAxis 
+                        dataKey="date" 
+                        tickFormatter={(str) => format(new Date(str), "MMM d")}
+                        stroke="var(--muted-foreground)"
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                        minTickGap={30}
+                      />
+                      <YAxis 
+                        yAxisId="price"
+                        domain={['auto', 'auto']}
+                        stroke="var(--muted-foreground)"
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(val) => val.toFixed(2)}
+                        orientation="left"
+                      />
+                      <YAxis 
+                        yAxisId="ai"
+                        domain={[-100, 100]}
+                        stroke="#f59e0b"
+                        fontSize={10}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(val) => `${val > 0 ? '+' : ''}${val}`}
+                        orientation="right"
+                        ticks={[-100, -50, 0, 50, 100]}
+                      />
+                      <RechartsTooltip 
+                        contentStyle={{ backgroundColor: 'var(--popover)', borderColor: 'var(--border)', color: 'var(--popover-foreground)' }}
+                        itemStyle={{ color: 'var(--foreground)' }}
+                        labelStyle={{ color: 'var(--muted-foreground)' }}
+                        formatter={(val: number, name: string) => {
+                          if (name === 'ai_direction_score') {
+                            return val !== null ? [`${val > 0 ? '+' : ''}${val}`, 'AI Dir'] : ['-', 'AI Dir'];
+                          }
+                          return [val?.toFixed(2) ?? '-', 'Price'];
+                        }}
+                        labelFormatter={(label) => format(new Date(label), "MMM d, yyyy")}
+                      />
+                      <Legend 
+                        verticalAlign="top" 
+                        height={36}
+                        formatter={(value) => value === 'close' ? 'Price' : 'AI Direction'}
+                      />
+                      <Area 
+                        yAxisId="price"
+                        type="monotone" 
+                        dataKey="close" 
+                        stroke="var(--primary)" 
+                        fillOpacity={1} 
+                        fill="url(#colorPrice)" 
+                        strokeWidth={2}
+                        name="close"
+                      />
+                      <Line 
+                        yAxisId="ai"
+                        type="stepAfter" 
+                        dataKey="ai_direction_score" 
+                        stroke="#f59e0b" 
+                        strokeWidth={2}
+                        dot={false}
+                        connectNulls={false}
+                        name="ai_direction_score"
+                      />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="h-[300px] w-full rounded-lg border border-border overflow-hidden">
+                  <TradingViewWidget
+                    symbol={asset.symbol}
+                    assetType={asset.asset_type === 'crypto' ? 'crypto' : 'equity'}
+                    theme="dark"
+                    interval="D"
+                    height={300}
+                  />
+                </div>
+              )}
             </div>
 
             {/* AI Reasoning */}
