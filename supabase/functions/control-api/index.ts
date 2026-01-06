@@ -861,7 +861,7 @@ serve(async (req) => {
           query = query.lte('market_cap', parseFloat(maxMarketCap))
         }
         if (industry) {
-          // Case-insensitive match for industry
+          // Case-insensitive match for industry (database has mixed case values)
           query = query.ilike('industry', industry)
         }
         
