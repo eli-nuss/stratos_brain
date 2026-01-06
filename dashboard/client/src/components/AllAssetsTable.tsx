@@ -443,14 +443,20 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
               <th className="px-2 py-2 font-medium text-center">
                 <SortHeader field="market_cap" tooltip="Market capitalization">Mkt Cap</SortHeader>
               </th>
+              <th className="px-2 py-2 font-medium text-center">
+                <SortHeader field="pe_ratio" tooltip="Price-to-Earnings ratio">P/E</SortHeader>
+              </th>
+              <th className="px-2 py-2 font-medium text-center">
+                <SortHeader field="industry" tooltip="Industry sector">Industry</SortHeader>
+              </th>
               <th className="px-2 py-2 w-8"></th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={showWatchlistColumn ? 10 : 9} className="px-2 py-4 text-center text-muted-foreground">Loading...</td></tr>
+              <tr><td colSpan={showWatchlistColumn ? 12 : 11} className="px-2 py-4 text-center text-muted-foreground">Loading...</td></tr>
             ) : filteredData.length === 0 ? (
-              <tr><td colSpan={showWatchlistColumn ? 10 : 9} className="px-2 py-4 text-center text-muted-foreground">No assets match your filters</td></tr>
+              <tr><td colSpan={showWatchlistColumn ? 12 : 11} className="px-2 py-4 text-center text-muted-foreground">No assets match your filters</td></tr>
             ) : (
               filteredData.map((row) => (
                 <tr key={row.asset_id} className="border-b border-border hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => onAssetClick(row.asset_id)}>
@@ -472,6 +478,12 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                   </td>
                   <td className="px-2 py-2 font-mono text-center text-xs text-muted-foreground">
                     {row.market_cap ? (row.market_cap >= 1e12 ? `$${(row.market_cap / 1e12).toFixed(1)}T` : row.market_cap >= 1e9 ? `$${(row.market_cap / 1e9).toFixed(1)}B` : `$${(row.market_cap / 1e6).toFixed(1)}M`) : "-"}
+                  </td>
+                  <td className="px-2 py-2 font-mono text-center text-xs text-muted-foreground">
+                    {row.pe_ratio ? row.pe_ratio.toFixed(1) : "-"}
+                  </td>
+                  <td className="px-2 py-2 text-center text-xs text-muted-foreground">
+                    {row.industry ? row.industry : "-"}
                   </td>
                   <td className="px-2 py-2 w-8">
                     <NoteCell assetId={row.asset_id} />
