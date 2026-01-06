@@ -191,7 +191,7 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
         <table className="w-full text-sm text-left">
           <thead className="text-xs text-muted-foreground bg-muted/10 sticky top-0 z-10 backdrop-blur-sm">
             <tr>
-              <th className="px-3 py-2 font-medium">
+              <th className="px-3 py-2 font-medium sticky left-0 z-20 bg-muted/10 backdrop-blur-sm">
                 <SortHeader field="symbol">Asset</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
@@ -261,7 +261,7 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
                   onClick={() => onAssetClick(row.asset_id)}
                   className="hover:bg-muted/20 cursor-pointer transition-colors group"
                 >
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2 sticky left-0 z-10 bg-card">
                     <div className="flex items-center gap-2">
                       <span className={`text-[10px] px-1 py-0.5 rounded ${
                         row.asset_type === 'crypto' 

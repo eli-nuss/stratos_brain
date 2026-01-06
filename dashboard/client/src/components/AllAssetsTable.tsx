@@ -335,8 +335,8 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
         <table className="w-full text-sm text-left">
           <thead className="sticky top-0 bg-muted/50 border-b border-border text-xs text-muted-foreground">
             <tr>
-              {showWatchlistColumn && <th className="px-2 py-2 w-8"></th>}
-              <th className="px-3 py-2 font-medium">
+              {showWatchlistColumn && <th className="px-2 py-2 w-8 sticky left-0 z-20 bg-muted/50"></th>}
+              <th className={`px-3 py-2 font-medium sticky z-20 bg-muted/50 ${showWatchlistColumn ? 'left-8' : 'left-0'}`}>
                 <SortHeader field="symbol" tooltip="Asset name and symbol">Asset</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
@@ -394,11 +394,11 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
               filteredData.map((row) => (
                 <tr key={row.asset_id} className="border-b border-border hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => onAssetClick(row.asset_id)}>
                   {showWatchlistColumn && (
-                    <td className="px-2 py-2" onClick={(e) => { e.stopPropagation(); toggleWatchlist(row.asset_id); }}>
+                    <td className="px-2 py-2 sticky left-0 z-10 bg-background" onClick={(e) => { e.stopPropagation(); toggleWatchlist(row.asset_id); }}>
                       <WatchlistToggle isInWatchlist={isInWatchlist(row.asset_id)} />
                     </td>
                   )}
-                  <td className="px-3 py-2">
+                  <td className={`px-3 py-2 sticky z-10 bg-background ${showWatchlistColumn ? 'left-8' : 'left-0'}`}>
                     <div className="flex flex-col">
                       <span className="font-mono font-medium text-foreground">{row.symbol}</span>
                       <span className="text-xs text-muted-foreground truncate max-w-[100px]">{row.name}</span>
