@@ -666,3 +666,4 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
     </div>
   );
 }
+// Force rebuild
