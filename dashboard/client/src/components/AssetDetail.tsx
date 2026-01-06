@@ -39,7 +39,7 @@ function InfoTooltip({ content, className = "" }: { content: string; className?:
 export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
   const { data, isLoading } = useSWR(`/api/dashboard/asset?asset_id=${assetId}`, fetcher);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [chartView, setChartView] = useState<'stratos' | 'tradingview'>('stratos');
+  const [chartView, setChartView] = useState<'ai_score' | 'tradingview'>('ai_score');
 
   if (isLoading) {
     return (
@@ -172,14 +172,14 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                   {/* Chart View Toggle */}
                   <div className="flex items-center bg-muted/30 rounded-md p-0.5">
                     <button
-                      onClick={() => setChartView('stratos')}
+                      onClick={() => setChartView('ai_score')}
                       className={`px-2 py-1 text-xs rounded transition-colors ${
-                        chartView === 'stratos'
+                        chartView === 'ai_score'
                           ? 'bg-primary text-primary-foreground'
                           : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
-                      Stratos
+                      AI Score
                     </button>
                     <button
                       onClick={() => setChartView('tradingview')}
@@ -203,7 +203,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                 </a>
               </div>
               
-              {chartView === 'stratos' ? (
+              {chartView === 'ai_score' ? (
                 <div className="h-[300px] w-full bg-muted/5 rounded-lg border border-border p-4">
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={chartData}>
