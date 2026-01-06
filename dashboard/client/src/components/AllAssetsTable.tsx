@@ -15,12 +15,51 @@ interface AllAssetsTableProps {
 
 const PAGE_SIZE = 50;
 
-// Available categories for filtering
-const CATEGORIES = [
+// Available categories for crypto filtering
+const CRYPTO_CATEGORIES = [
   "AI", "DeFi", "Meme", "L1", "L2", "L0", "Privacy", "Gaming", "NFT", 
   "Infrastructure", "RWA", "CeFi", "Stablecoins", "Payment Solutions",
   "Exchange-based Tokens", "Launchpad", "Smart Contract", "Wallets",
   "Yield-Bearing", "Bridge Governance Tokens", "Bridged-Tokens"
+];
+
+// Available industries for equity filtering
+const EQUITY_INDUSTRIES = [
+  "Aerospace & Defense", "Airlines", "Asset Management", "Auto Manufacturers",
+  "Auto Parts", "Banks - Diversified", "Banks - Regional", "Biotechnology",
+  "Broadcasting", "Building Materials", "Capital Markets", "Chemicals",
+  "Communication Equipment", "Computer Hardware", "Conglomerates",
+  "Consulting Services", "Consumer Electronics", "Credit Services",
+  "Diagnostics & Research", "Discount Stores", "Drug Manufacturers - General",
+  "Drug Manufacturers - Specialty & Generic", "Education & Training Services",
+  "Electrical Equipment & Parts", "Electronic Components", "Engineering & Construction",
+  "Entertainment", "Farm & Heavy Construction Machinery", "Farm Products",
+  "Financial Data & Stock Exchanges", "Food Distribution", "Gold",
+  "Health Information Services", "Healthcare Plans", "Home Improvement Retail",
+  "Household & Personal Products", "Industrial Distribution", "Information Technology Services",
+  "Insurance - Diversified", "Insurance - Life", "Insurance - Property & Casualty",
+  "Insurance - Specialty", "Insurance Brokers", "Integrated Freight & Logistics",
+  "Internet Content & Information", "Internet Retail", "Leisure", "Lodging",
+  "Luxury Goods", "Marine Shipping", "Medical Care Facilities", "Medical Devices",
+  "Medical Distribution", "Medical Instruments & Supplies", "Metal Fabrication",
+  "Mortgage Finance", "Oil & Gas E&P", "Oil & Gas Equipment & Services",
+  "Oil & Gas Integrated", "Oil & Gas Midstream", "Oil & Gas Refining & Marketing",
+  "Other Industrial Metals & Mining", "Packaged Foods", "Packaging & Containers",
+  "Paper & Paper Products", "Personal Services", "Pharmaceuticals",
+  "Pollution & Treatment Controls", "Publishing", "Railroads",
+  "Real Estate - Development", "Real Estate - Diversified", "Real Estate Services",
+  "REIT - Diversified", "REIT - Healthcare Facilities", "REIT - Hotel & Motel",
+  "REIT - Industrial", "REIT - Mortgage", "REIT - Office", "REIT - Residential",
+  "REIT - Retail", "REIT - Specialty", "Rental & Leasing Services",
+  "Residential Construction", "Resorts & Casinos", "Restaurants",
+  "Scientific & Technical Instruments", "Security & Protection Services",
+  "Semiconductor Equipment & Materials", "Semiconductors", "Software - Application",
+  "Software - Infrastructure", "Solar", "Specialty Business Services",
+  "Specialty Chemicals", "Specialty Industrial Machinery", "Specialty Retail",
+  "Staffing & Employment Services", "Steel", "Telecom Services", "Tobacco",
+  "Travel Services", "Trucking", "Uranium", "Utilities - Diversified",
+  "Utilities - Regulated Electric", "Utilities - Regulated Gas",
+  "Utilities - Regulated Water", "Utilities - Renewable", "Waste Management"
 ];
 
 interface FilterThresholds {
@@ -50,7 +89,8 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
     return1dMax: "",
     volume7dMin: "",
     marketCapMin: "",
-    category: "",
+    category: "",  // For crypto
+    industry: "",  // For equity
   });
 
   const { data = [], total, isLoading } = useAllAssets({
@@ -61,6 +101,7 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
     sortBy,
     sortOrder,
     search: search || undefined,
+    industry: assetType === "equity" && filterInputs.industry ? filterInputs.industry : undefined,
   });
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -154,11 +195,12 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
       volume7dMin: "",
       marketCapMin: "",
       category: "",
+      industry: "",
     });
     setPage(0);
   };
 
-  const hasActiveFilters = Object.keys(filterThresholds).length > 0 || filterInputs.category !== "";
+  const hasActiveFilters = Object.keys(filterThresholds).length > 0 || filterInputs.category !== "" || filterInputs.industry !== "";
 
   const getDirectionIcon = (direction: string) => {
     if (direction === "bullish") return <TrendingUp className="w-3 h-3 text-signal-bullish" />;
@@ -283,17 +325,35 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
           <div className="border-t border-border pt-3 space-y-3">
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               <div className="space-y-1">
-                <label className="text-[9px] font-bold text-muted-foreground uppercase">Category</label>
-                <select
-                  value={filterInputs.category}
-                  onChange={(e) => setFilterInputs({...filterInputs, category: e.target.value})}
-                  className="w-full text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none"
-                >
-                  <option value="">All</option>
-                  {CATEGORIES.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
+                <label className="text-[9px] font-bold text-muted-foreground uppercase">
+                  {assetType === "crypto" ? "Category" : "Industry"}
+                </label>
+                {assetType === "crypto" ? (
+                  <select
+                    value={filterInputs.category}
+                    onChange={(e) => setFilterInputs({...filterInputs, category: e.target.value})}
+                    className="w-full text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none"
+                  >
+                    <option value="">All Categories</option>
+                    {CRYPTO_CATEGORIES.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <select
+                    value={filterInputs.industry}
+                    onChange={(e) => {
+                      setFilterInputs({...filterInputs, industry: e.target.value});
+                      setPage(0);
+                    }}
+                    className="w-full text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none"
+                  >
+                    <option value="">All Industries</option>
+                    {EQUITY_INDUSTRIES.map(ind => (
+                      <option key={ind} value={ind}>{ind}</option>
+                    ))}
+                  </select>
+                )}
               </div>
               <div className="space-y-1">
                 <label className="text-[9px] font-bold text-muted-foreground uppercase">Dir Score</label>
@@ -402,7 +462,9 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                 </th>
               )}
               <th className="px-2 py-2 font-medium text-center">
-                <HeaderWithTooltip tooltip="Category (crypto) or Sector (equities)">Cat/Sector</HeaderWithTooltip>
+                <HeaderWithTooltip tooltip={assetType === "crypto" ? "Token category" : "Stock industry classification"}>
+                  {assetType === "crypto" ? "Category" : "Industry"}
+                </HeaderWithTooltip>
               </th>
               <th className="px-2 py-2 font-medium text-center">
                 <HeaderWithTooltip tooltip="Brief description of the asset">Description</HeaderWithTooltip>
