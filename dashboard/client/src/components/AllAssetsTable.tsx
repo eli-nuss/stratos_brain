@@ -281,7 +281,7 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
         {/* Threshold Filters Panel */}
         {showFilters && (
           <div className="border-t border-border pt-3 space-y-3">
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               <div className="space-y-1">
                 <label className="text-[9px] font-bold text-muted-foreground uppercase">Category</label>
                 <select
@@ -300,10 +300,10 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                 <div className="flex gap-1">
                   <input type="number" placeholder="Min" value={filterInputs.aiDirScoreMin}
                     onChange={(e) => setFilterInputs({...filterInputs, aiDirScoreMin: e.target.value})}
-                    className="flex-1 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
+                    className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
                   <input type="number" placeholder="Max" value={filterInputs.aiDirScoreMax}
                     onChange={(e) => setFilterInputs({...filterInputs, aiDirScoreMax: e.target.value})}
-                    className="flex-1 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
+                    className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
                 </div>
               </div>
               <div className="space-y-1">
@@ -311,10 +311,10 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                 <div className="flex gap-1">
                   <input type="number" placeholder="Min" value={filterInputs.aiQualityScoreMin}
                     onChange={(e) => setFilterInputs({...filterInputs, aiQualityScoreMin: e.target.value})}
-                    className="flex-1 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
+                    className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
                   <input type="number" placeholder="Max" value={filterInputs.aiQualityScoreMax}
                     onChange={(e) => setFilterInputs({...filterInputs, aiQualityScoreMax: e.target.value})}
-                    className="flex-1 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
+                    className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
                 </div>
               </div>
               <div className="space-y-1">
@@ -322,10 +322,10 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                 <div className="flex gap-1">
                   <input type="number" placeholder="Min" value={filterInputs.return1dMin}
                     onChange={(e) => setFilterInputs({...filterInputs, return1dMin: e.target.value})}
-                    className="flex-1 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
+                    className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
                   <input type="number" placeholder="Max" value={filterInputs.return1dMax}
                     onChange={(e) => setFilterInputs({...filterInputs, return1dMax: e.target.value})}
-                    className="flex-1 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
+                    className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
                 </div>
               </div>
               <div className="space-y-1">
