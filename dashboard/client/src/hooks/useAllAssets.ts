@@ -86,8 +86,10 @@ export function useAllAssets({
     }
   );
 
+  const assets = data?.data || [];
+  
   return {
-    data: data?.data || [],
+    data: assets,
     total: data?.total || 0,
     isLoading,
     error,
