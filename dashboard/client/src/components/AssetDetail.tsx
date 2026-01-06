@@ -614,3 +614,4 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
     </>
   );
 }
+// Screenshot feature v2
