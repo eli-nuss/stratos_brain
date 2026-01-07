@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 """
-Run AI analysis for all crypto assets using parallel processing.
+Run AI analysis for top 500 cryptos by volume using parallel processing.
 Uses gemini-3-pro-preview model with concurrent API calls for faster execution.
 
 VERSION 3: Improved prompting to decouple direction score from quality score.
 Based on Gemini recommendations for independent scoring.
+
+Usage:
+    python run_all_crypto.py --date 2026-01-06
+    python run_all_crypto.py --date 2026-01-06 --limit 100
+    python run_all_crypto.py  # defaults to yesterday
 """
 
 import os
@@ -13,12 +18,19 @@ import json
 import logging
 import asyncio
 import aiohttp
-from datetime import datetime, date
+import argparse
+from datetime import datetime, date, timedelta
 from concurrent.futures import ThreadPoolExecutor
 import threading
+import hashlib
+import psycopg2
+import psycopg2.extras
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+
+from dotenv import load_dotenv
+load_dotenv()
 
 from stratos_engine.db import Database
 
@@ -31,106 +43,118 @@ logger = logging.getLogger(__name__)
 
 # Configuration
 AI_REVIEW_VERSION = "v3.0"
-MAX_CONCURRENT_REQUESTS = 10  # Number of parallel API calls
+MAX_CONCURRENT_REQUESTS = 5  # Number of parallel API calls (reduced to avoid rate limits)
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
-MODEL_NAME = "gemini-3-pro-preview"
+MODEL_NAME = "gemini-3-pro-preview"  # Gemini 3 Pro Preview model
 
 # Thread-local storage for database connections
 thread_local = threading.local()
 
-def get_db():
-    """Get thread-local database connection."""
+def get_db(force_reconnect=False):
+    """Get thread-local database connection with reconnection support."""
+    if force_reconnect and hasattr(thread_local, 'db'):
+        try:
+            thread_local.db.close()
+        except:
+            pass
+        delattr(thread_local, 'db')
+    
     if not hasattr(thread_local, 'db'):
         thread_local.db = Database()
     return thread_local.db
 
+def db_execute_with_retry(func, *args, max_retries=3, **kwargs):
+    """Execute a database function with retry logic for connection drops."""
+    for attempt in range(max_retries):
+        try:
+            return func(*args, **kwargs)
+        except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+            logger.warning(f"Database connection error (attempt {attempt + 1}/{max_retries}): {e}")
+            if attempt < max_retries - 1:
+                get_db(force_reconnect=True)  # Force reconnection
+                time.sleep(1)  # Brief pause before retry
+            else:
+                raise
 
-def get_ohlcv_data(asset_id: int, as_of_date: str) -> list:
+
+def get_ohlcv_data(asset_id: str, as_of_date: str) -> list:
     """Fetch OHLCV data for an asset."""
     db = get_db()
     query = """
-    SELECT date, open, high, low, close, volume
-    FROM daily_bars
-    WHERE asset_id = %s AND date <= %s
-    ORDER BY date DESC
-    LIMIT 60
+        SELECT date, open, high, low, close, volume
+        FROM daily_bars
+        WHERE asset_id = %s AND date <= %s
+        ORDER BY date DESC
+        LIMIT 365
     """
-    bars = db.fetch_all(query, (asset_id, as_of_date))
-    return list(reversed(bars)) if bars else []
+    rows = db.fetch_all(query, (asset_id, as_of_date))
+    return list(reversed(rows))
 
 
-def get_features(asset_id: int, as_of_date: str) -> dict:
-    """Fetch calculated features from daily_features."""
+def get_features(asset_id: str, as_of_date: str) -> dict:
+    """Fetch technical features for an asset."""
     db = get_db()
     query = """
-    SELECT 
-        sma_20, sma_50, sma_200,
-        ma_dist_20, ma_dist_50, ma_dist_200,
-        rsi_14, macd_line, macd_signal, macd_histogram,
-        bb_upper, bb_lower, bb_width, bb_pct,
-        atr_14, atr_pct,
-        realized_vol_20, realized_vol_60,
-        return_1d, return_5d, return_21d, return_63d,
-        roc_5, roc_10, roc_20,
-        rvol_20, volume_z_60,
-        squeeze_flag, trend_regime
-    FROM daily_features
-    WHERE asset_id = %s AND date = %s
+        SELECT * FROM daily_features
+        WHERE asset_id = %s AND date = %s
     """
     row = db.fetch_one(query, (asset_id, as_of_date))
     if row:
-        return {k: float(v) if v is not None and isinstance(v, (int, float)) else v 
-                for k, v in dict(row).items() if v is not None}
+        # Convert to regular dict and filter out None values
+        return {k: float(v) if isinstance(v, (int, float)) and v is not None else v 
+                for k, v in dict(row).items() 
+                if v is not None and k not in ['asset_id', 'date', 'created_at', 'updated_at']}
     return {}
 
 
-def get_signals(asset_id: int, as_of_date: str) -> list:
-    """Fetch signals from daily_signal_facts."""
+def get_top_crypto(as_of_date: str, limit: int = 500) -> list:
+    """Get top crypto by dollar volume."""
     db = get_db()
     query = """
-    SELECT signal_type, direction, strength, weight
-    FROM daily_signal_facts
-    WHERE asset_id = %s AND date = %s
-    ORDER BY strength DESC
-    LIMIT 10
+        SELECT a.asset_id, a.symbol, a.name
+        FROM daily_features df
+        JOIN assets a ON df.asset_id = a.asset_id
+        WHERE a.asset_type = 'crypto' 
+          AND df.date = %s 
+          AND a.is_active = true
+        ORDER BY df.dollar_volume DESC NULLS LAST
+        LIMIT %s
     """
-    signals = db.fetch_all(query, (asset_id, as_of_date))
-    return [dict(s) for s in signals] if signals else []
+    return db.fetch_all(query, (as_of_date, limit))
 
 
-def build_prompt(symbol: str, name: str, bars: list, features: dict, signals: list) -> str:
+def build_prompt(symbol: str, name: str, bars: list, features: dict) -> str:
     """Build the analysis prompt with improved decoupling of direction and quality."""
     if not bars:
         return None
     
     current_price = float(bars[-1]['close'])
     
-    # Format OHLCV data
+    # Format OHLCV data (last 60 bars)
+    recent_bars = bars[-60:] if len(bars) > 60 else bars
     ohlcv_lines = []
-    for b in bars:
+    for b in recent_bars:
         ohlcv_lines.append(f"{b['date']},{b['open']},{b['high']},{b['low']},{b['close']},{b['volume']}")
     ohlcv_text = "\n".join(ohlcv_lines)
     
-    # Format features
+    # Format features (key ones only)
     features_text = ""
     if features:
+        key_features = ['sma_20', 'sma_50', 'sma_200', 'rsi_14', 'macd_line', 'macd_signal',
+                       'bb_upper', 'bb_lower', 'atr_14', 'return_1d', 'return_5d', 'return_21d',
+                       'ma_dist_20', 'ma_dist_50', 'ma_dist_200', 'rvol_20']
         features_lines = []
-        for k, v in features.items():
-            if isinstance(v, float):
-                features_lines.append(f"  {k}: {v:.4f}")
-            else:
-                features_lines.append(f"  {k}: {v}")
-        features_text = "\nTECHNICAL INDICATORS:\n" + "\n".join(features_lines)
+        for k in key_features:
+            if k in features and features[k] is not None:
+                v = features[k]
+                if isinstance(v, float):
+                    features_lines.append(f"  {k}: {v:.4f}")
+                else:
+                    features_lines.append(f"  {k}: {v}")
+        if features_lines:
+            features_text = "\nTECHNICAL INDICATORS:\n" + "\n".join(features_lines)
     
-    # Format signals
-    signals_text = ""
-    if signals:
-        signals_lines = []
-        for s in signals:
-            signals_lines.append(f"  {s['signal_type']}: {s['direction']} (strength: {s['strength']}, weight: {s.get('weight', 1.0)})")
-        signals_text = "\nACTIVE SIGNALS:\n" + "\n".join(signals_lines)
-    
-    prompt = f"""You are a professional technical analyst. Analyze this cryptocurrency chart and return a JSON assessment.
+    prompt = f"""You are a professional technical analyst. Analyze this crypto chart and return a JSON assessment.
 
 [CRITICAL INDEPENDENCE MANDATE]
 You MUST evaluate TWO SEPARATE dimensions:
@@ -143,13 +167,12 @@ IMPORTANT RULES:
 - Quality measures STRUCTURAL CLARITY, not directional conviction
 - Quality = How easy is it to define entry, stop-loss, and targets?
 
-ASSET: {symbol} ({name})
+ASSET: {symbol} ({name or symbol})
 CURRENT PRICE: {current_price}
 
 OHLCV DATA (Date,Open,High,Low,Close,Volume):
 {ohlcv_text}
 {features_text}
-{signals_text}
 
 TASK 1 - DIRECTIONAL ANALYSIS:
 Evaluate the probability and magnitude of price movement. Score from -100 (max bearish) to +100 (max bullish).
@@ -181,29 +204,23 @@ Return ONLY a valid JSON object with this exact structure:
     "high": price
   }},
   "targets": [price1, price2, price3],
-  "subscores": {{
-    "boundary_definition": integer 0-5 (clarity of S/R levels),
-    "structural_compliance": integer 0-5 (textbook pattern adherence),
-    "volatility_profile": integer 0-5 (clean vs choppy price action),
-    "volume_coherence": integer 0-5 (volume confirms pattern),
-    "risk_reward_clarity": integer 0-5 (ease of placing SL/TP)
-  }},
-  "why_now": ["reason1", "reason2"],
-  "risks": ["risk1", "risk2"]
-}}
-
-EXAMPLES OF CORRECT SCORING:
-- Bearish (-85) + High Quality (90): Clean head-and-shoulders breakdown with defined neckline
-- Bullish (+80) + Low Quality (35): Strong momentum but messy chart, no clear levels
-- Neutral (0) + High Quality (80): Clean range consolidation with clear boundaries
-
-Return ONLY the JSON object, no additional text or markdown."""
+  "why_now": "1-2 sentences on why this setup is relevant today",
+  "risks": ["risk1", "risk2"],
+  "what_to_watch": "Key thing to monitor",
+  "quality_subscores": {{
+    "boundary_definition": 1-5,
+    "structural_compliance": 1-5,
+    "volatility_profile": 1-5,
+    "volume_coherence": 1-5,
+    "risk_reward_clarity": 1-5
+  }}
+}}"""
 
     return prompt
 
 
-async def call_gemini_api(session: aiohttp.ClientSession, prompt: str) -> dict:
-    """Make async API call to Gemini."""
+async def call_gemini_api(session: aiohttp.ClientSession, prompt: str, max_retries: int = 3) -> dict:
+    """Make async API call to Gemini with retry logic."""
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_NAME}:generateContent"
     
     headers = {
@@ -220,30 +237,91 @@ async def call_gemini_api(session: aiohttp.ClientSession, prompt: str) -> dict:
         }
     }
     
-    try:
-        async with session.post(url, headers=headers, json=payload, timeout=60) as response:
-            if response.status == 200:
-                data = await response.json()
-                if data.get("candidates") and data["candidates"][0].get("content"):
-                    parts = data["candidates"][0]["content"].get("parts", [])
-                    if parts and parts[0].get("text"):
-                        return json.loads(parts[0]["text"])
-            else:
-                error_text = await response.text()
-                logger.warning(f"API error {response.status}: {error_text[:200]}")
-    except json.JSONDecodeError as e:
-        logger.warning(f"JSON parse error: {e}")
-    except asyncio.TimeoutError:
-        logger.warning("API timeout")
-    except Exception as e:
-        logger.warning(f"API error: {e}")
+    for attempt in range(max_retries):
+        try:
+            async with session.post(url, headers=headers, json=payload, timeout=90) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    if data.get("candidates") and data["candidates"][0].get("content"):
+                        parts = data["candidates"][0]["content"].get("parts", [])
+                        if parts and parts[0].get("text"):
+                            return json.loads(parts[0]["text"])
+                elif response.status == 429:  # Rate limited
+                    wait_time = (attempt + 1) * 5
+                    logger.warning(f"Rate limited, waiting {wait_time}s before retry {attempt + 1}/{max_retries}")
+                    await asyncio.sleep(wait_time)
+                    continue
+                elif response.status >= 500:  # Server error
+                    wait_time = (attempt + 1) * 2
+                    logger.warning(f"Server error {response.status}, waiting {wait_time}s before retry {attempt + 1}/{max_retries}")
+                    await asyncio.sleep(wait_time)
+                    continue
+                else:
+                    error_text = await response.text()
+                    logger.warning(f"API error {response.status}: {error_text[:200]}")
+        except json.JSONDecodeError as e:
+            logger.warning(f"JSON parse error: {e}")
+        except asyncio.TimeoutError:
+            if attempt < max_retries - 1:
+                logger.warning(f"API timeout, retry {attempt + 1}/{max_retries}")
+                await asyncio.sleep(2)
+                continue
+            logger.warning("API timeout after all retries")
+        except aiohttp.ServerDisconnectedError:
+            if attempt < max_retries - 1:
+                wait_time = (attempt + 1) * 3
+                logger.warning(f"Server disconnected, waiting {wait_time}s before retry {attempt + 1}/{max_retries}")
+                await asyncio.sleep(wait_time)
+                continue
+            logger.warning("Server disconnected after all retries")
+        except Exception as e:
+            if attempt < max_retries - 1 and "disconnected" in str(e).lower():
+                wait_time = (attempt + 1) * 3
+                logger.warning(f"Connection error, waiting {wait_time}s before retry {attempt + 1}/{max_retries}")
+                await asyncio.sleep(wait_time)
+                continue
+            logger.warning(f"API error: {e}")
     
     return None
 
 
-def save_to_database(asset_id: int, as_of_date: str, result: dict) -> bool:
+def to_json_safe(value):
+    """Convert a value to psycopg2.extras.Json, handling strings and None.
+    
+    If value is a string, wrap it in a dict with 'text' key.
+    If value is already a dict/list, use it directly.
+    If value is None or empty, return None.
+    """
+    if value is None:
+        return None
+    if isinstance(value, str):
+        if not value.strip():
+            return None
+        # Wrap string in a JSON object
+        return psycopg2.extras.Json({"text": value})
+    if isinstance(value, (dict, list)):
+        if not value:  # Empty dict or list
+            return None
+        return psycopg2.extras.Json(value)
+    # For other types, try to convert
+    return psycopg2.extras.Json(value)
+
+
+def save_to_database(asset_id: str, as_of_date: str, result) -> bool:
     """Save analysis result to database."""
     db = get_db()
+    
+    # Handle case where result is a list (malformed API response)
+    if isinstance(result, list):
+        if len(result) > 0 and isinstance(result[0], dict):
+            result = result[0]
+        else:
+            logger.error(f"Invalid result format for {asset_id}: got list with no valid dict")
+            return False
+    
+    if not isinstance(result, dict):
+        logger.error(f"Invalid result format for {asset_id}: expected dict, got {type(result).__name__}")
+        return False
     
     # Extract fields from result
     direction = result.get('direction', 'neutral')
@@ -254,52 +332,76 @@ def save_to_database(asset_id: int, as_of_date: str, result: dict) -> bool:
     confidence = result.get('confidence', 0.5)
     summary = result.get('summary_text', '')
     
+    # Extract key_levels as JSON - use to_json_safe for proper handling
+    key_levels = result.get('key_levels')
+    ai_key_levels = to_json_safe(key_levels)
+    
     # Extract entry zone as JSON
-    entry_zone = result.get('entry_zone', {})
-    ai_entry = json.dumps(entry_zone) if entry_zone else None
+    entry_zone = result.get('entry_zone')
+    ai_entry = to_json_safe(entry_zone)
     
     # Extract targets as JSON
-    targets = result.get('targets', [])
-    ai_targets = json.dumps(targets) if targets else None
+    targets = result.get('targets')
+    ai_targets = to_json_safe(targets)
     
-    # Generate input_hash from OHLCV data for cache detection
-    import hashlib
+    # Extract why_now, risks, what_to_watch - ALL are jsonb columns!
+    why_now = result.get('why_now')
+    ai_why_now = to_json_safe(why_now)
+    
+    risks = result.get('risks')
+    ai_risks = to_json_safe(risks)
+    
+    what_to_watch = result.get('what_to_watch')
+    ai_what_to_watch = to_json_safe(what_to_watch)
+    
+    # Extract quality_subscores
+    quality_subscores = result.get('quality_subscores', {})
+    subscores_json = to_json_safe(quality_subscores)
+    
+    # Generate input_hash
     input_hash = hashlib.md5(f"{asset_id}_{as_of_date}_{json.dumps(result)[:100]}".encode()).hexdigest()
     
     query = """
     INSERT INTO asset_ai_reviews (
         asset_id, as_of_date, direction, ai_direction_score, ai_setup_quality_score,
-        setup_type, attention_level, confidence, summary_text, ai_entry, ai_targets,
-        review_json, model, prompt_version, input_hash, scope, created_at
+        setup_type, ai_attention_level, ai_confidence, ai_summary_text, 
+        ai_key_levels, ai_entry, ai_targets, ai_why_now, ai_risks, ai_what_to_watch_next,
+        subscores, review_json, model, prompt_version, input_hash, scope, created_at
     ) VALUES (
-        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW()
+        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW()
     )
     ON CONFLICT (asset_id, as_of_date) DO UPDATE SET
         direction = EXCLUDED.direction,
         ai_direction_score = EXCLUDED.ai_direction_score,
         ai_setup_quality_score = EXCLUDED.ai_setup_quality_score,
         setup_type = EXCLUDED.setup_type,
-        attention_level = EXCLUDED.attention_level,
-        confidence = EXCLUDED.confidence,
-        summary_text = EXCLUDED.summary_text,
+        ai_attention_level = EXCLUDED.ai_attention_level,
+        ai_confidence = EXCLUDED.ai_confidence,
+        ai_summary_text = EXCLUDED.ai_summary_text,
+        ai_key_levels = EXCLUDED.ai_key_levels,
         ai_entry = EXCLUDED.ai_entry,
         ai_targets = EXCLUDED.ai_targets,
+        ai_why_now = EXCLUDED.ai_why_now,
+        ai_risks = EXCLUDED.ai_risks,
+        ai_what_to_watch_next = EXCLUDED.ai_what_to_watch_next,
+        subscores = EXCLUDED.subscores,
         review_json = EXCLUDED.review_json,
         model = EXCLUDED.model,
         prompt_version = EXCLUDED.prompt_version,
         input_hash = EXCLUDED.input_hash,
-        created_at = NOW()
+        updated_at = NOW()
     """
     
     try:
         db.execute(query, (
-            str(asset_id), as_of_date, direction, direction_score, quality_score,
-            setup_type, attention_level, confidence, summary, ai_entry, ai_targets,
-            json.dumps(result), MODEL_NAME, 'v3.0', input_hash, 'crypto'
+            asset_id, as_of_date, direction, direction_score, quality_score,
+            setup_type, attention_level, confidence, summary,
+            ai_key_levels, ai_entry, ai_targets, ai_why_now, ai_risks, ai_what_to_watch,
+            subscores_json, psycopg2.extras.Json(result), MODEL_NAME, AI_REVIEW_VERSION, input_hash, "crypto"
         ))
         return True
     except Exception as e:
-        logger.error(f"Database error for asset {asset_id}: {e}")
+        logger.error(f"Database error for {asset_id}: {e}")
         return False
 
 
@@ -308,79 +410,151 @@ async def process_asset(session: aiohttp.ClientSession, asset: dict, as_of_date:
     async with semaphore:
         asset_id = asset['asset_id']
         symbol = asset['symbol']
-        name = asset['name']
+        name = asset.get('name', symbol)
         
         # Get data (run in thread pool to avoid blocking)
         loop = asyncio.get_event_loop()
         bars = await loop.run_in_executor(None, get_ohlcv_data, asset_id, as_of_date)
         features = await loop.run_in_executor(None, get_features, asset_id, as_of_date)
-        signals = await loop.run_in_executor(None, get_signals, asset_id, as_of_date)
         
-        if not bars:
-            logger.warning(f"No OHLCV data for {symbol}")
-            return {'asset_id': asset_id, 'symbol': symbol, 'success': False, 'reason': 'no_data'}
+        if len(bars) < 20:
+            logger.warning(f"✗ {symbol}: Insufficient data ({len(bars)} bars)")
+            return {"success": False, "symbol": symbol, "error": "Insufficient data"}
         
-        # Build prompt and call API
-        prompt = build_prompt(symbol, name, bars, features, signals)
+        # Build prompt
+        prompt = build_prompt(symbol, name, bars, features)
+        if not prompt:
+            return {"success": False, "symbol": symbol, "error": "Failed to build prompt"}
+        
+        # Call API
         result = await call_gemini_api(session, prompt)
         
         if result:
+            # Handle list result (extract first element if valid)
+            actual_result = result
+            if isinstance(result, list):
+                if len(result) > 0 and isinstance(result[0], dict):
+                    actual_result = result[0]
+                else:
+                    logger.warning(f"✗ {symbol}: Invalid list response from API")
+                    return {"success": False, "symbol": symbol, "error": "Invalid list response"}
+            
             # Save to database
-            success = await loop.run_in_executor(None, save_to_database, asset_id, as_of_date, result)
-            if success:
-                dir_score = result.get('ai_direction_score', 0)
-                qual_score = result.get('ai_setup_quality_score', 0)
-                logger.info(f"✓ {symbol}: dir={dir_score:+d}, qual={qual_score}, {result.get('direction')}")
-                return {'asset_id': asset_id, 'symbol': symbol, 'success': True, 'result': result}
+            saved = await loop.run_in_executor(None, save_to_database, asset_id, as_of_date, actual_result)
+            if saved:
+                direction_score = actual_result.get('ai_direction_score', 0) if isinstance(actual_result, dict) else 0
+                quality_score = actual_result.get('ai_setup_quality_score', 50) if isinstance(actual_result, dict) else 50
+                direction = actual_result.get('direction', 'neutral') if isinstance(actual_result, dict) else 'neutral'
+                logger.info(f"✓ {symbol}: dir={direction_score:+d}, qual={quality_score}, {direction}")
+                return {"success": True, "symbol": symbol, "direction_score": direction_score, "quality_score": quality_score}
+            else:
+                logger.warning(f"✗ {symbol}: Database save failed")
+                return {"success": False, "symbol": symbol, "error": "Database save failed"}
         
         logger.warning(f"✗ {symbol}: API call failed")
-        return {'asset_id': asset_id, 'symbol': symbol, 'success': False, 'reason': 'api_error'}
+        return {"success": False, "symbol": symbol, "error": "API call failed"}
 
 
-async def main():
-    """Main async function to process all crypto assets."""
-    # Get target date
-    as_of_date = os.environ.get('AS_OF_DATE', str(date.today()))
-    logger.info(f"Starting AI analysis for {as_of_date} (v3 - improved prompting)")
+async def main_async(as_of_date: str, limit: int):
+    """Main async function."""
+    logger.info("=" * 60)
+    logger.info("CRYPTO AI ANALYSIS - VERSION 3.0")
+    logger.info(f"Date: {as_of_date}")
+    logger.info(f"Model: {MODEL_NAME}")
+    logger.info(f"Limit: {limit} cryptos")
+    logger.info(f"Concurrency: {MAX_CONCURRENT_REQUESTS} parallel requests")
+    logger.info("=" * 60)
     
-    # Get all active crypto assets
-    db = Database()
-    query = """
-    SELECT a.asset_id, a.symbol, a.name
-    FROM assets a
-    WHERE a.asset_type = 'crypto'
-    AND a.is_active = true
-    ORDER BY a.symbol
-    """
-    assets = db.fetch_all(query)
-    logger.info(f"Found {len(assets)} active crypto assets")
+    # Get top crypto
+    cryptos = get_top_crypto(as_of_date, limit=limit)
+    logger.info(f"Found {len(cryptos)} cryptos to analyze")
     
-    # Process with rate limiting
+    if not cryptos:
+        logger.warning("No cryptos found for the specified date. Check if data exists.")
+        return
+    
+    # Create semaphore for rate limiting
     semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
     
+    # Process all assets
+    successful = 0
+    failed = 0
+    direction_scores = []
+    quality_scores = []
+    
     async with aiohttp.ClientSession() as session:
-        tasks = [process_asset(session, dict(a), as_of_date, semaphore) for a in assets]
+        tasks = [process_asset(session, asset, as_of_date, semaphore) for asset in cryptos]
         results = await asyncio.gather(*tasks)
+        
+        for result in results:
+            if result["success"]:
+                successful += 1
+                direction_scores.append(result["direction_score"])
+                quality_scores.append(result["quality_score"])
+            else:
+                failed += 1
     
-    # Summary
-    successful = sum(1 for r in results if r.get('success'))
-    failed = len(results) - successful
-    logger.info(f"Completed: {successful} successful, {failed} failed")
+    logger.info("=" * 60)
+    logger.info("SUMMARY")
+    logger.info(f"Successful: {successful}")
+    logger.info(f"Failed: {failed}")
+    logger.info(f"Total: {successful + failed}")
     
-    # Check correlation improvement
-    if successful > 10:
-        dir_scores = [r['result']['ai_direction_score'] for r in results if r.get('success') and r.get('result')]
-        qual_scores = [r['result']['ai_setup_quality_score'] for r in results if r.get('success') and r.get('result')]
-        if dir_scores and qual_scores:
-            import numpy as np
-            corr = np.corrcoef(dir_scores, qual_scores)[0,1]
-            abs_corr = np.corrcoef([abs(d) for d in dir_scores], qual_scores)[0,1]
-            logger.info(f"Correlation check: dir vs qual = {corr:.3f}, |dir| vs qual = {abs_corr:.3f}")
+    # Calculate correlation
+    if len(direction_scores) > 10:
+        import numpy as np
+        dir_arr = np.array(direction_scores)
+        qual_arr = np.array(quality_scores)
+        corr = np.corrcoef(dir_arr, qual_arr)[0, 1]
+        abs_corr = np.corrcoef(np.abs(dir_arr), qual_arr)[0, 1]
+        logger.info(f"Correlation check: dir vs qual = {corr:.3f}, |dir| vs qual = {abs_corr:.3f}")
+    
+    logger.info("=" * 60)
+
+
+def main():
+    """Entry point with argument parsing."""
+    global MODEL_NAME
+    
+    parser = argparse.ArgumentParser(
+        description='Run AI analysis for top crypto by volume using Gemini v3.0 prompt'
+    )
+    parser.add_argument(
+        '--date', 
+        type=str, 
+        help='Target date (YYYY-MM-DD). Defaults to yesterday.',
+        default=None
+    )
+    parser.add_argument(
+        '--limit', 
+        type=int, 
+        default=500,
+        help='Number of top crypto to process (default: 500)'
+    )
+    parser.add_argument(
+        '--model',
+        type=str,
+        default=MODEL_NAME,
+        help=f'Gemini model to use (default: {MODEL_NAME})'
+    )
+    
+    args = parser.parse_args()
+    
+    # Determine target date
+    if args.date:
+        as_of_date = args.date
+    else:
+        as_of_date = (date.today() - timedelta(days=1)).isoformat()
+    
+    # Update model if specified
+    MODEL_NAME = args.model
+    
+    if not GEMINI_API_KEY:
+        logger.error("GEMINI_API_KEY not set in environment")
+        sys.exit(1)
+    
+    asyncio.run(main_async(as_of_date, args.limit))
 
 
 if __name__ == "__main__":
-    if not GEMINI_API_KEY:
-        print("Error: GEMINI_API_KEY environment variable not set")
-        sys.exit(1)
-    
-    asyncio.run(main())
+    main()
