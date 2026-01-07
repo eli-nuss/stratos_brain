@@ -505,7 +505,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
           </div>
 
           {/* Right Column: Fundamentals, About, Notes, Files (30% = 3 cols) */}
-          <div className="lg:col-span-3 space-y-3 overflow-y-auto">
+          <div className="lg:col-span-3 space-y-3">
             {/* Fundamentals Summary - TOP */}
             <FundamentalsSummary asset={{...asset, close: ohlcv?.[0]?.close}} />
 
