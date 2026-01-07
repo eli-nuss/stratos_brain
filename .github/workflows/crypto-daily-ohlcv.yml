@@ -10,9 +10,7 @@
 #
 # Manual trigger: Go to Actions > Crypto Daily OHLCV > Run workflow
 
-
 name: Crypto Daily OHLCV
-
 
 on:
   # Scheduled run: Daily at 00:30 UTC (30 min after midnight)
@@ -27,16 +25,14 @@ on:
         required: false
         type: string
 
-
 env:
   PYTHON_VERSION: '3.11'
-
 
 jobs:
   ingest-crypto:
     name: Ingest Crypto Daily Bars
     runs-on: ubuntu-latest
-    timeout-minutes: 45  # Should complete in ~10 min, 30 min buffer
+    timeout-minutes: 45  # Takes ~17 min with real OHLC data
     
     steps:
       - name: Checkout repository
@@ -69,3 +65,6 @@ jobs:
       - name: Run crypto OHLCV ingestion
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+        run: |
+          python jobs/crypto_daily_ohlcv.py --date ${{ steps.date.outputs.date }}
