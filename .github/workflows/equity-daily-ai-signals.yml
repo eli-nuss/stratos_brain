@@ -1,5 +1,6 @@
 # Equity Daily AI Signals Generation
 # Runs after equity features calculation to generate AI trading signals
+# Uses v3.0 prompt with gemini-3-pro-preview model
 
 name: Equity Daily AI Signals
 
@@ -20,7 +21,12 @@ on:
       model:
         description: 'Gemini model to use'
         required: false
-        default: 'gemini-2.5-flash'
+        default: 'gemini-3-pro-preview'
+        type: string
+      limit:
+        description: 'Number of top equities to process'
+        required: false
+        default: '500'
         type: string
 
 jobs:
@@ -29,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     # Only run if the triggering workflow succeeded (or if manually triggered)
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
-    timeout-minutes: 120  # Longer timeout for 500 equities
+    timeout-minutes: 120  # Longer timeout for 500 equities with parallel processing
     
     steps:
       - name: Checkout repository
@@ -61,12 +67,21 @@ jobs:
           if [ -n "${{ github.event.inputs.model }}" ]; then
             echo "model=${{ github.event.inputs.model }}" >> $GITHUB_OUTPUT
           else
-            echo "model=gemini-2.5-flash" >> $GITHUB_OUTPUT
+            echo "model=gemini-3-pro-preview" >> $GITHUB_OUTPUT
           fi
       
-      - name: Run equity AI signals generation
+      - name: Determine limit
+        id: limit
+        run: |
+          if [ -n "${{ github.event.inputs.limit }}" ]; then
+            echo "limit=${{ github.event.inputs.limit }}" >> $GITHUB_OUTPUT
+          else
+            echo "limit=500" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Run equity AI signals generation (v3.0)
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          python scripts/run_ai_analysis_v2.py --date ${{ steps.date.outputs.date }} --asset-type equity --model ${{ steps.model.outputs.model }}
+          python run_all_equities.py --date ${{ steps.date.outputs.date }} --model ${{ steps.model.outputs.model }} --limit ${{ steps.limit.outputs.limit }}
