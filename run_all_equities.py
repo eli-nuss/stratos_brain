@@ -237,6 +237,28 @@ async def call_gemini_api(session: aiohttp.ClientSession, prompt: str) -> dict:
     return None
 
 
+def to_json_safe(value):
+    """Convert a value to psycopg2.extras.Json, handling strings and None.
+    
+    If value is a string, wrap it in a dict with 'text' key.
+    If value is already a dict/list, use it directly.
+    If value is None or empty, return None.
+    """
+    if value is None:
+        return None
+    if isinstance(value, str):
+        if not value.strip():
+            return None
+        # Wrap string in a JSON object
+        return psycopg2.extras.Json({"text": value})
+    if isinstance(value, (dict, list)):
+        if not value:  # Empty dict or list
+            return None
+        return psycopg2.extras.Json(value)
+    # For other types, try to convert
+    return psycopg2.extras.Json(value)
+
+
 def save_to_database(asset_id: str, as_of_date: str, result: dict) -> bool:
     """Save analysis result to database."""
     db = get_db()
@@ -250,27 +272,31 @@ def save_to_database(asset_id: str, as_of_date: str, result: dict) -> bool:
     confidence = result.get('confidence', 0.5)
     summary = result.get('summary_text', '')
     
-    # Extract key_levels as JSON - use psycopg2.extras.Json for proper PostgreSQL JSON handling
-    key_levels = result.get('key_levels', {})
-    ai_key_levels = psycopg2.extras.Json(key_levels) if key_levels else None
+    # Extract key_levels as JSON - use to_json_safe for proper handling
+    key_levels = result.get('key_levels')
+    ai_key_levels = to_json_safe(key_levels)
     
     # Extract entry zone as JSON
-    entry_zone = result.get('entry_zone', {})
-    ai_entry = psycopg2.extras.Json(entry_zone) if entry_zone else None
+    entry_zone = result.get('entry_zone')
+    ai_entry = to_json_safe(entry_zone)
     
     # Extract targets as JSON
-    targets = result.get('targets', [])
-    ai_targets = psycopg2.extras.Json(targets) if targets else None
+    targets = result.get('targets')
+    ai_targets = to_json_safe(targets)
     
-    # Extract why_now, risks, what_to_watch
-    why_now = result.get('why_now', '')
-    risks = result.get('risks', [])
-    ai_risks = psycopg2.extras.Json(risks) if risks else None
-    what_to_watch = result.get('what_to_watch', '')
+    # Extract why_now, risks, what_to_watch - ALL are jsonb columns!
+    why_now = result.get('why_now')
+    ai_why_now = to_json_safe(why_now)
+    
+    risks = result.get('risks')
+    ai_risks = to_json_safe(risks)
+    
+    what_to_watch = result.get('what_to_watch')
+    ai_what_to_watch = to_json_safe(what_to_watch)
     
     # Extract quality_subscores
     quality_subscores = result.get('quality_subscores', {})
-    subscores_json = psycopg2.extras.Json(quality_subscores) if quality_subscores else None
+    subscores_json = to_json_safe(quality_subscores)
     
     # Generate input_hash
     input_hash = hashlib.md5(f"{asset_id}_{as_of_date}_{json.dumps(result)[:100]}".encode()).hexdigest()
@@ -310,7 +336,7 @@ def save_to_database(asset_id: str, as_of_date: str, result: dict) -> bool:
         db.execute(query, (
             asset_id, as_of_date, direction, direction_score, quality_score,
             setup_type, attention_level, confidence, summary,
-            ai_key_levels, ai_entry, ai_targets, why_now, ai_risks, what_to_watch,
+            ai_key_levels, ai_entry, ai_targets, ai_why_now, ai_risks, ai_what_to_watch,
             subscores_json, psycopg2.extras.Json(result), MODEL_NAME, AI_REVIEW_VERSION, input_hash, "equity_top500"
         ))
         return True
