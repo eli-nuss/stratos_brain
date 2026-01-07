@@ -1,6 +1,6 @@
 import useSWR from "swr";
 import { useState, useRef } from "react";
-import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, Activity, Info, MessageCircle, ExternalLink, Tag, FileText, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera } from "lucide-react";
+import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, Activity, Info, MessageCircle, ExternalLink, Tag, FileText, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera, Sparkles, Loader2 } from "lucide-react";
 import html2canvas from "html2canvas";
 import { Area, Line, ComposedChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis, Legend } from "recharts";
 import { format } from "date-fns";
@@ -77,6 +77,8 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
   const [chartView, setChartView] = useState<'ai_score' | 'tradingview'>('ai_score');
   const [isChartFullscreen, setIsChartFullscreen] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  const [isCreatingMemo, setIsCreatingMemo] = useState(false);
+  const [memoResult, setMemoResult] = useState<{ task_url: string; task_id: string } | null>(null);
 
   const toggleSection = (section: string) => {
     setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -148,6 +150,43 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
 
 
   // Generate TradingView URL for an asset
+  // Create investment memo via Manus API
+  const createMemo = async () => {
+    if (!asset || isCreatingMemo) return;
+    
+    setIsCreatingMemo(true);
+    setMemoResult(null);
+    
+    try {
+      const response = await fetch('/api/dashboard/create-memo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          symbol: asset.symbol,
+          company_name: asset.name,
+          asset_id: asset.asset_id,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to create memo');
+      }
+      
+      const result = await response.json();
+      setMemoResult({ task_url: result.task_url, task_id: result.task_id });
+      
+      // Open the memo in a new tab
+      window.open(result.task_url, '_blank');
+    } catch (error) {
+      console.error('Error creating memo:', error);
+      alert('Failed to create memo. Please try again.');
+    } finally {
+      setIsCreatingMemo(false);
+    }
+  };
+
   const getTradingViewUrl = (symbol: string, assetType: string) => {
     if (assetType === 'crypto') {
       // For crypto, use CRYPTO exchange with USD pair
@@ -175,6 +214,29 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
             </span>
           </div>
           <div className="flex items-center gap-2">
+            {/* Create Memo button */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={createMemo}
+                  disabled={isCreatingMemo}
+                  className={`p-2 rounded-full transition-colors ${
+                    isCreatingMemo
+                      ? 'bg-primary/20 text-primary cursor-wait'
+                      : 'text-muted-foreground hover:text-primary hover:bg-primary/10'
+                  }`}
+                >
+                  {isCreatingMemo ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-5 h-5" />
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {isCreatingMemo ? 'Creating memo...' : 'Generate investment memo with AI'}
+              </TooltipContent>
+            </Tooltip>
             {/* TradingView link */}
             <Tooltip>
               <TooltipTrigger asChild>

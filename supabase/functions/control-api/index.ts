@@ -48,6 +48,11 @@ function isPublicDashboardEndpoint(req: Request): boolean {
     return true
   }
   
+  // Allow public access to create-memo endpoint
+  if (req.method === 'POST' && path === '/dashboard/create-memo') {
+    return true
+  }
+  
   return false
 }
 
@@ -1734,6 +1739,78 @@ If asked about something not in the data, acknowledge the limitation.`
         }))
         
         return new Response(JSON.stringify(enrichedAssets), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // POST /dashboard/create-memo - Create investment memo via Manus API
+      case req.method === 'POST' && path === '/dashboard/create-memo': {
+        const body = await req.json()
+        const { symbol, company_name, asset_id } = body
+        
+        if (!symbol) {
+          return new Response(JSON.stringify({ error: 'Symbol is required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Manus API configuration
+        const MANUS_API_KEY = Deno.env.get('MANUS_API_KEY') || 'sk-sadyDbuEGGdU1kyqcaM7HY6E4-YXoouBbYEGQeMpaNf7eDpelHglEVLnTP2Gjk75RUhy5W79WTebyco_TTek43U7emlg'
+        const MANUS_PROJECT_ID = 'YAnGyJK4v46h9LD9MgoN2g'
+        
+        // Create prompt for the memo
+        const prompt = company_name 
+          ? `Generate investment memo for ${symbol} (${company_name})`
+          : `Generate investment memo for ${symbol}`
+        
+        // Call Manus API
+        const manusResponse = await fetch('https://api.manus.ai/v1/tasks', {
+          method: 'POST',
+          headers: {
+            'API_KEY': MANUS_API_KEY,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            prompt,
+            projectId: MANUS_PROJECT_ID,
+            agentProfile: 'manus-1.6'
+          })
+        })
+        
+        if (!manusResponse.ok) {
+          const errorText = await manusResponse.text()
+          console.error('Manus API error:', errorText)
+          return new Response(JSON.stringify({ error: 'Failed to create memo task', details: errorText }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const manusResult = await manusResponse.json()
+        
+        // Optionally save the task reference to the database
+        if (asset_id && manusResult.task_id) {
+          await supabase
+            .from('asset_files')
+            .insert({
+              asset_id,
+              file_name: `${symbol} Investment Memo`,
+              file_url: manusResult.task_url,
+              file_type: 'memo',
+              metadata: {
+                manus_task_id: manusResult.task_id,
+                status: 'generating'
+              }
+            })
+        }
+        
+        return new Response(JSON.stringify({
+          success: true,
+          task_id: manusResult.task_id,
+          task_url: manusResult.task_url,
+          task_title: manusResult.task_title
+        }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
