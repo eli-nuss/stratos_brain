@@ -643,10 +643,10 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                     <SortHeader field="price_to_sales_ttm" tooltip="Price-to-Sales ratio (trailing twelve months)">P/S</SortHeader>
                   </th>
                   <th className="px-2 py-2 font-medium text-center">
-                    <SortHeader field="forward_ps" tooltip="Forward P/S (approx): Market Cap / Est. NTM Revenue. NTM Revenue estimated using historical growth rate.">Fwd P/S*</SortHeader>
+                    <SortHeader field="forward_ps" tooltip="Forward P/S (approx): Market Cap / Est. NTM Revenue. Uses log-dampened growth rate to compress extreme values (e.g., 420% → 238%).">Fwd P/S*</SortHeader>
                   </th>
                   <th className="px-2 py-2 font-medium text-center">
-                    <SortHeader field="psg" tooltip="Price-to-Sales-Growth (approx): Forward P/S / Revenue Growth %. Lower = cheaper relative to growth.">PSG*</SortHeader>
+                    <SortHeader field="psg" tooltip="Price-to-Sales-Growth (approx): Forward P/S / Dampened Growth %. Uses log dampening for extreme growth rates. Lower = cheaper relative to growth.">PSG*</SortHeader>
                   </th>
                 </>
               )}
