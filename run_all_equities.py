@@ -5,6 +5,11 @@ Uses gemini-3-pro-preview model with concurrent API calls for faster execution.
 
 VERSION 3: Improved prompting to decouple direction score from quality score.
 Based on Gemini recommendations for independent scoring.
+
+Usage:
+    python run_all_equities.py --date 2026-01-06
+    python run_all_equities.py --date 2026-01-06 --limit 100
+    python run_all_equities.py  # defaults to yesterday
 """
 
 import os
@@ -13,7 +18,8 @@ import json
 import logging
 import asyncio
 import aiohttp
-from datetime import datetime, date
+import argparse
+from datetime import datetime, date, timedelta
 from concurrent.futures import ThreadPoolExecutor
 import threading
 import hashlib
@@ -243,6 +249,10 @@ def save_to_database(asset_id: str, as_of_date: str, result: dict) -> bool:
     confidence = result.get('confidence', 0.5)
     summary = result.get('summary_text', '')
     
+    # Extract key_levels as JSON
+    key_levels = result.get('key_levels', {})
+    ai_key_levels = json.dumps(key_levels) if key_levels else None
+    
     # Extract entry zone as JSON
     entry_zone = result.get('entry_zone', {})
     ai_entry = json.dumps(entry_zone) if entry_zone else None
@@ -251,27 +261,43 @@ def save_to_database(asset_id: str, as_of_date: str, result: dict) -> bool:
     targets = result.get('targets', [])
     ai_targets = json.dumps(targets) if targets else None
     
+    # Extract why_now, risks, what_to_watch
+    why_now = result.get('why_now', '')
+    risks = result.get('risks', [])
+    ai_risks = json.dumps(risks) if risks else None
+    what_to_watch = result.get('what_to_watch', '')
+    
+    # Extract quality_subscores
+    quality_subscores = result.get('quality_subscores', {})
+    subscores_json = json.dumps(quality_subscores) if quality_subscores else None
+    
     # Generate input_hash
     input_hash = hashlib.md5(f"{asset_id}_{as_of_date}_{json.dumps(result)[:100]}".encode()).hexdigest()
     
     query = """
     INSERT INTO asset_ai_reviews (
         asset_id, as_of_date, direction, ai_direction_score, ai_setup_quality_score,
-        setup_type, attention_level, confidence, summary_text, ai_entry, ai_targets,
-        review_json, model, prompt_version, input_hash, scope, created_at
+        setup_type, ai_attention_level, ai_confidence, ai_summary_text, 
+        ai_key_levels, ai_entry, ai_targets, ai_why_now, ai_risks, ai_what_to_watch_next,
+        subscores, review_json, model, prompt_version, input_hash, scope, created_at
     ) VALUES (
-        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW()
+        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW()
     )
     ON CONFLICT (asset_id, as_of_date) DO UPDATE SET
         direction = EXCLUDED.direction,
         ai_direction_score = EXCLUDED.ai_direction_score,
         ai_setup_quality_score = EXCLUDED.ai_setup_quality_score,
         setup_type = EXCLUDED.setup_type,
-        attention_level = EXCLUDED.attention_level,
-        confidence = EXCLUDED.confidence,
-        summary_text = EXCLUDED.summary_text,
+        ai_attention_level = EXCLUDED.ai_attention_level,
+        ai_confidence = EXCLUDED.ai_confidence,
+        ai_summary_text = EXCLUDED.ai_summary_text,
+        ai_key_levels = EXCLUDED.ai_key_levels,
         ai_entry = EXCLUDED.ai_entry,
         ai_targets = EXCLUDED.ai_targets,
+        ai_why_now = EXCLUDED.ai_why_now,
+        ai_risks = EXCLUDED.ai_risks,
+        ai_what_to_watch_next = EXCLUDED.ai_what_to_watch_next,
+        subscores = EXCLUDED.subscores,
         review_json = EXCLUDED.review_json,
         model = EXCLUDED.model,
         prompt_version = EXCLUDED.prompt_version,
@@ -282,8 +308,9 @@ def save_to_database(asset_id: str, as_of_date: str, result: dict) -> bool:
     try:
         db.execute(query, (
             asset_id, as_of_date, direction, direction_score, quality_score,
-            setup_type, attention_level, confidence, summary, ai_entry, ai_targets,
-            json.dumps(result), MODEL_NAME, AI_REVIEW_VERSION, input_hash, "equity_top500"
+            setup_type, attention_level, confidence, summary,
+            ai_key_levels, ai_entry, ai_targets, why_now, ai_risks, what_to_watch,
+            subscores_json, json.dumps(result), MODEL_NAME, AI_REVIEW_VERSION, input_hash, "equity_top500"
         ))
         return True
     except Exception as e:
@@ -329,16 +356,23 @@ async def process_asset(session: aiohttp.ClientSession, asset: dict, as_of_date:
         return {"success": False, "symbol": symbol, "error": "API call failed"}
 
 
-async def main_async():
+async def main_async(as_of_date: str, limit: int):
     """Main async function."""
-    as_of_date = "2026-01-02"  # Latest equity data
+    logger.info("=" * 60)
+    logger.info("EQUITY AI ANALYSIS - VERSION 3.0")
+    logger.info(f"Date: {as_of_date}")
+    logger.info(f"Model: {MODEL_NAME}")
+    logger.info(f"Limit: {limit} equities")
+    logger.info(f"Concurrency: {MAX_CONCURRENT_REQUESTS} parallel requests")
+    logger.info("=" * 60)
     
-    logger.info(f"Running AI analysis for top 500 equities as of {as_of_date}")
-    logger.info(f"Using model: {MODEL_NAME}")
-    
-    # Get top 500 equities
-    equities = get_top_equities(as_of_date, limit=500)
+    # Get top equities
+    equities = get_top_equities(as_of_date, limit=limit)
     logger.info(f"Found {len(equities)} equities to analyze")
+    
+    if not equities:
+        logger.warning("No equities found for the specified date. Check if data exists.")
+        return
     
     # Create semaphore for rate limiting
     semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
@@ -361,7 +395,11 @@ async def main_async():
             else:
                 failed += 1
     
-    logger.info(f"Completed: {successful} successful, {failed} failed")
+    logger.info("=" * 60)
+    logger.info("SUMMARY")
+    logger.info(f"Successful: {successful}")
+    logger.info(f"Failed: {failed}")
+    logger.info(f"Total: {successful + failed}")
     
     # Calculate correlation
     if len(direction_scores) > 10:
@@ -371,15 +409,51 @@ async def main_async():
         corr = np.corrcoef(dir_arr, qual_arr)[0, 1]
         abs_corr = np.corrcoef(np.abs(dir_arr), qual_arr)[0, 1]
         logger.info(f"Correlation check: dir vs qual = {corr:.3f}, |dir| vs qual = {abs_corr:.3f}")
+    
+    logger.info("=" * 60)
 
 
 def main():
-    """Entry point."""
+    """Entry point with argument parsing."""
+    parser = argparse.ArgumentParser(
+        description='Run AI analysis for top equities by volume using Gemini v3.0 prompt'
+    )
+    parser.add_argument(
+        '--date', 
+        type=str, 
+        help='Target date (YYYY-MM-DD). Defaults to yesterday.',
+        default=None
+    )
+    parser.add_argument(
+        '--limit', 
+        type=int, 
+        default=500,
+        help='Number of top equities to process (default: 500)'
+    )
+    parser.add_argument(
+        '--model',
+        type=str,
+        default=MODEL_NAME,
+        help=f'Gemini model to use (default: {MODEL_NAME})'
+    )
+    
+    args = parser.parse_args()
+    
+    # Determine target date
+    if args.date:
+        as_of_date = args.date
+    else:
+        as_of_date = (date.today() - timedelta(days=1)).isoformat()
+    
+    # Update model if specified
+    global MODEL_NAME
+    MODEL_NAME = args.model
+    
     if not GEMINI_API_KEY:
         logger.error("GEMINI_API_KEY not set in environment")
         sys.exit(1)
     
-    asyncio.run(main_async())
+    asyncio.run(main_async(as_of_date, args.limit))
 
 
 if __name__ == "__main__":
