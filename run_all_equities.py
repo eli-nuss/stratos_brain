@@ -47,6 +47,9 @@ MAX_CONCURRENT_REQUESTS = 5  # Number of parallel API calls (reduced to avoid ra
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 MODEL_NAME = "gemini-3-pro-preview"  # Gemini 3 Pro Preview model
 
+# Minimum coverage threshold - fail workflow if below this
+MIN_SUCCESS_RATE = 0.85  # 85% minimum coverage required for AI signals
+
 # Thread-local storage for database connections
 thread_local = threading.local()
 
@@ -494,11 +497,15 @@ async def main_async(as_of_date: str, limit: int):
             else:
                 failed += 1
     
+    total = successful + failed
+    success_rate = successful / total if total > 0 else 0
+    
     logger.info("=" * 60)
     logger.info("SUMMARY")
     logger.info(f"Successful: {successful}")
     logger.info(f"Failed: {failed}")
-    logger.info(f"Total: {successful + failed}")
+    logger.info(f"Total: {total}")
+    logger.info(f"Success rate: {success_rate * 100:.1f}%")
     
     # Calculate correlation
     if len(direction_scores) > 10:
@@ -510,6 +517,14 @@ async def main_async(as_of_date: str, limit: int):
         logger.info(f"Correlation check: dir vs qual = {corr:.3f}, |dir| vs qual = {abs_corr:.3f}")
     
     logger.info("=" * 60)
+    
+    # Check minimum coverage gate
+    if success_rate < MIN_SUCCESS_RATE:
+        logger.error(f"COVERAGE GATE FAILED: {success_rate*100:.1f}% < {MIN_SUCCESS_RATE*100:.0f}% minimum")
+        logger.error("Workflow will fail to prevent incomplete AI signals from being used.")
+        return False
+    
+    return True
 
 
 def main():
@@ -553,7 +568,8 @@ def main():
         logger.error("GEMINI_API_KEY not set in environment")
         sys.exit(1)
     
-    asyncio.run(main_async(as_of_date, args.limit))
+    success = asyncio.run(main_async(as_of_date, args.limit))
+    sys.exit(0 if success else 1)
 
 
 if __name__ == "__main__":
