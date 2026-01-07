@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, DollarSign, BarChart3, Percent, Activity, ChevronDown, ChevronUp } from "lucide-react";
+import { DollarSign, BarChart3, Percent, Activity, ChevronDown, ChevronUp, Info } from "lucide-react";
 import { useState } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -55,32 +55,103 @@ const formatLargeNumber = (value: number | null | undefined): string => {
   return `$${value.toFixed(0)}`;
 };
 
-// Metric row component with tooltip
+// Metric row component with leader dots and tooltip
 function MetricRow({ 
   label, 
   value, 
   tooltip, 
-  highlight = false,
+  isApproximation = false,
   valueColor = "text-foreground"
 }: { 
   label: string; 
   value: string; 
   tooltip: string;
-  highlight?: boolean;
+  isApproximation?: boolean;
   valueColor?: string;
 }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <div className={`flex justify-between items-center py-1.5 px-2 rounded cursor-help hover:bg-muted/30 transition-colors ${highlight ? 'bg-primary/5' : ''}`}>
-          <span className="text-xs text-muted-foreground">{label}</span>
-          <span className={`font-mono text-xs font-medium ${valueColor}`}>{value}</span>
+        <div className="flex items-center py-2 cursor-help hover:bg-muted/20 transition-colors rounded px-1 -mx-1">
+          <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
+            {label}
+            {isApproximation && (
+              <Info className="w-3 h-3 text-muted-foreground/50" />
+            )}
+          </span>
+          {/* Leader dots */}
+          <span className="flex-1 mx-2 border-b border-dotted border-border/30"></span>
+          <span className={`font-mono text-xs font-medium shrink-0 ${valueColor}`}>{value}</span>
         </div>
       </TooltipTrigger>
       <TooltipContent side="left" className="max-w-xs">
         <p className="text-xs">{tooltip}</p>
       </TooltipContent>
     </Tooltip>
+  );
+}
+
+// 52-Week Range visual gauge component
+function RangeGauge({ 
+  low, 
+  high, 
+  current 
+}: { 
+  low: number | null; 
+  high: number | null; 
+  current: number | null;
+}) {
+  if (low === null || high === null || current === null || high === low) {
+    return <span className="text-xs text-muted-foreground">—</span>;
+  }
+  
+  const position = Math.max(0, Math.min(100, ((current - low) / (high - low)) * 100));
+  
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="flex items-center gap-2 cursor-help">
+          {/* Low label */}
+          <span className="text-[10px] text-muted-foreground/70 font-mono w-12 text-right">
+            ${low >= 1000 ? (low / 1000).toFixed(0) + 'K' : low.toFixed(0)}
+          </span>
+          {/* Gauge bar */}
+          <div className="relative flex-1 h-1.5 bg-muted/30 rounded-full min-w-[60px]">
+            {/* Track */}
+            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-red-500/20 via-yellow-500/20 to-emerald-500/20"></div>
+            {/* Current position dot */}
+            <div 
+              className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-primary border-2 border-background shadow-sm"
+              style={{ left: `calc(${position}% - 5px)` }}
+            ></div>
+          </div>
+          {/* High label */}
+          <span className="text-[10px] text-muted-foreground/70 font-mono w-12">
+            ${high >= 1000 ? (high / 1000).toFixed(0) + 'K' : high.toFixed(0)}
+          </span>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>
+        <div className="text-xs space-y-1">
+          <div>52-Week Low: <span className="font-mono">${formatNumber(low)}</span></div>
+          <div>Current: <span className="font-mono">${formatNumber(current)}</span></div>
+          <div>52-Week High: <span className="font-mono">${formatNumber(high)}</span></div>
+          <div className="text-muted-foreground pt-1">Position: {position.toFixed(0)}% from low</div>
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+// Section header component
+function SectionHeader({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
+  return (
+    <div className="flex items-center gap-1.5 mb-3 pb-1.5 border-b border-border/50">
+      <Icon className="w-3.5 h-3.5 text-muted-foreground" />
+      <span className="text-[11px] font-semibold text-foreground/90 uppercase tracking-wider">
+        {title}
+      </span>
+    </div>
   );
 }
 
@@ -93,21 +164,56 @@ export function FundamentalsSummary({ asset }: FundamentalsSummaryProps) {
   }
 
   // Determine if we should emphasize P/S or P/E metrics
-  // Use P/S if: no P/E, negative P/E, very high P/E (>100), or low profit margin (<5%)
   const profitMargin = asset.profit_margin;
   const isProfitable = profitMargin !== null && profitMargin > 0.05;
   const hasReasonablePE = asset.pe_ratio !== null && asset.pe_ratio > 0 && asset.pe_ratio < 100;
   const useSalesMetrics = !isProfitable || !hasReasonablePE;
 
-  // Calculate 52-week position
-  const week52Position = asset.week_52_high && asset.week_52_low && asset.close
-    ? ((asset.close - asset.week_52_low) / (asset.week_52_high - asset.week_52_low) * 100)
-    : null;
+  // Color logic for growth rates (semantic coloring)
+  const getGrowthColor = (value: number | null | undefined): string => {
+    if (value === null || value === undefined) return "text-foreground";
+    if (value > 0.2) return "text-emerald-400";
+    if (value > 0) return "text-emerald-400/70";
+    if (value < -0.1) return "text-red-400";
+    return "text-foreground";
+  };
 
-  // Calculate upside to analyst target
+  // Color logic for margins (semantic coloring)
+  const getMarginColor = (value: number | null | undefined): string => {
+    if (value === null || value === undefined) return "text-foreground";
+    if (value > 0.2) return "text-emerald-400";
+    if (value > 0) return "text-foreground";
+    if (value < 0) return "text-red-400";
+    return "text-foreground";
+  };
+
+  // Color logic for PEG (contextual - green if undervalued)
+  const getPEGColor = (value: number | null | undefined): string => {
+    if (value === null || value === undefined) return "text-foreground";
+    if (value > 0 && value < 1) return "text-emerald-400";
+    if (value > 2) return "text-yellow-400";
+    return "text-foreground";
+  };
+
+  // Color logic for PSG (contextual - green if undervalued)
+  const getPSGColor = (value: number | null | undefined): string => {
+    if (value === null || value === undefined) return "text-foreground";
+    if (value > 0 && value < 0.5) return "text-emerald-400";
+    if (value > 1) return "text-yellow-400";
+    return "text-foreground";
+  };
+
+  // Calculate analyst upside
   const analystUpside = asset.analyst_target_price && asset.close
     ? ((asset.analyst_target_price - asset.close) / asset.close * 100)
     : null;
+
+  const getAnalystColor = (upside: number | null): string => {
+    if (upside === null) return "text-foreground";
+    if (upside > 15) return "text-emerald-400";
+    if (upside < -10) return "text-red-400";
+    return "text-foreground";
+  };
 
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden">
@@ -131,162 +237,150 @@ export function FundamentalsSummary({ asset }: FundamentalsSummaryProps) {
       </button>
       
       {!isCollapsed && (
-        <div className="p-3">
+        <div className="p-4">
           {/* Two-column layout */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Left Column: Size & Growth */}
-            <div className="space-y-1">
-              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
-                <DollarSign className="w-3 h-3" />
-                Size & Growth
+          <div className="grid grid-cols-2 gap-6">
+            {/* Left Column: Size & Growth + Profitability */}
+            <div className="space-y-4">
+              {/* Size & Growth Section */}
+              <div>
+                <SectionHeader icon={DollarSign} title="Size & Growth" />
+                <div className="space-y-0.5">
+                  <MetricRow 
+                    label="Market Cap" 
+                    value={formatLargeNumber(asset.market_cap)}
+                    tooltip="Total market value of the company's outstanding shares"
+                  />
+                  <MetricRow 
+                    label="Revenue (TTM)" 
+                    value={formatLargeNumber(asset.revenue_ttm)}
+                    tooltip="Total revenue over the trailing twelve months"
+                  />
+                  <MetricRow 
+                    label="Rev Growth" 
+                    value={formatPercent(asset.revenue_growth_yoy)}
+                    tooltip="Year-over-year quarterly revenue growth rate"
+                    valueColor={getGrowthColor(asset.revenue_growth_yoy)}
+                  />
+                  <MetricRow 
+                    label="EPS Growth" 
+                    value={formatPercent(asset.earnings_growth_yoy)}
+                    tooltip="Year-over-year quarterly earnings growth rate"
+                    valueColor={getGrowthColor(asset.earnings_growth_yoy)}
+                  />
+                </div>
               </div>
-              
-              <MetricRow 
-                label="Market Cap" 
-                value={formatLargeNumber(asset.market_cap)}
-                tooltip="Total market value of the company's outstanding shares"
-              />
-              
-              <MetricRow 
-                label="Revenue (TTM)" 
-                value={formatLargeNumber(asset.revenue_ttm)}
-                tooltip="Total revenue over the trailing twelve months"
-              />
-              
-              <MetricRow 
-                label="Rev Growth" 
-                value={formatPercent(asset.revenue_growth_yoy)}
-                tooltip="Year-over-year quarterly revenue growth rate"
-                highlight={useSalesMetrics}
-                valueColor={asset.revenue_growth_yoy && asset.revenue_growth_yoy > 0.2 ? 'text-emerald-400' : 'text-foreground'}
-              />
-              
-              <MetricRow 
-                label="EPS Growth" 
-                value={formatPercent(asset.earnings_growth_yoy)}
-                tooltip="Year-over-year quarterly earnings growth rate"
-                highlight={!useSalesMetrics}
-                valueColor={asset.earnings_growth_yoy && asset.earnings_growth_yoy > 0.2 ? 'text-emerald-400' : 'text-foreground'}
-              />
 
-              {/* Profitability section */}
-              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-3 mb-2 flex items-center gap-1">
-                <Percent className="w-3 h-3" />
-                Profitability
+              {/* Profitability Section */}
+              <div>
+                <SectionHeader icon={Percent} title="Profitability" />
+                <div className="space-y-0.5">
+                  <MetricRow 
+                    label="Profit Margin" 
+                    value={formatPercent(asset.profit_margin)}
+                    tooltip="Net income as a percentage of revenue. Negative margins indicate the company is not profitable."
+                    valueColor={getMarginColor(asset.profit_margin)}
+                  />
+                  <MetricRow 
+                    label="Op Margin" 
+                    value={formatPercent(asset.operating_margin)}
+                    tooltip="Operating income as a percentage of revenue"
+                    valueColor={getMarginColor(asset.operating_margin)}
+                  />
+                  <MetricRow 
+                    label="ROE" 
+                    value={formatPercent(asset.roe)}
+                    tooltip="Return on Equity - Net income divided by shareholders' equity. Measures profitability relative to equity."
+                    valueColor={getMarginColor(asset.roe)}
+                  />
+                </div>
               </div>
-              
-              <MetricRow 
-                label="Profit Margin" 
-                value={formatPercent(asset.profit_margin)}
-                tooltip="Net income as a percentage of revenue. Negative margins indicate the company is not profitable."
-                valueColor={profitMargin && profitMargin > 0 ? 'text-emerald-400' : profitMargin && profitMargin < 0 ? 'text-red-400' : 'text-foreground'}
-              />
-              
-              <MetricRow 
-                label="Op Margin" 
-                value={formatPercent(asset.operating_margin)}
-                tooltip="Operating income as a percentage of revenue"
-              />
-              
-              <MetricRow 
-                label="ROE" 
-                value={formatPercent(asset.roe)}
-                tooltip="Return on Equity - Net income divided by shareholders' equity. Measures profitability relative to equity."
-                valueColor={asset.roe && asset.roe > 0.15 ? 'text-emerald-400' : 'text-foreground'}
-              />
             </div>
 
-            {/* Right Column: Valuation */}
-            <div className="space-y-1">
-              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
-                <Activity className="w-3 h-3" />
-                Valuation
-              </div>
-              
-              {/* Earnings-based metrics */}
-              <MetricRow 
-                label="P/E (TTM)" 
-                value={formatNumber(asset.pe_ratio)}
-                tooltip="Price-to-Earnings ratio. Lower generally means cheaper, but can be misleading for unprofitable companies."
-                highlight={!useSalesMetrics}
-              />
-              
-              <MetricRow 
-                label="Forward P/E" 
-                value={formatNumber(asset.forward_pe)}
-                tooltip="Price divided by estimated future earnings. Based on analyst estimates."
-                highlight={!useSalesMetrics}
-              />
-              
-              <MetricRow 
-                label="PEG" 
-                value={formatNumber(asset.peg_ratio)}
-                tooltip="P/E divided by earnings growth rate. PEG < 1 may indicate undervaluation relative to growth."
-                highlight={!useSalesMetrics}
-                valueColor={asset.peg_ratio && asset.peg_ratio < 1 && asset.peg_ratio > 0 ? 'text-emerald-400' : 'text-foreground'}
-              />
+            {/* Right Column: Valuation + Other */}
+            <div className="space-y-4">
+              {/* Valuation Section */}
+              <div>
+                <SectionHeader icon={Activity} title="Valuation" />
+                <div className="space-y-0.5">
+                  {/* Earnings-based metrics */}
+                  <MetricRow 
+                    label="P/E (TTM)" 
+                    value={formatNumber(asset.pe_ratio)}
+                    tooltip="Price-to-Earnings ratio. Lower generally means cheaper, but can be misleading for unprofitable companies."
+                  />
+                  <MetricRow 
+                    label="Forward P/E" 
+                    value={formatNumber(asset.forward_pe)}
+                    tooltip="Price divided by estimated future earnings. Based on analyst estimates."
+                  />
+                  <MetricRow 
+                    label="PEG" 
+                    value={formatNumber(asset.peg_ratio)}
+                    tooltip="P/E divided by earnings growth rate. PEG < 1 may indicate undervaluation relative to growth. PEG > 2 may indicate overvaluation."
+                    valueColor={getPEGColor(asset.peg_ratio)}
+                  />
 
-              {/* Divider */}
-              <div className="border-t border-border/50 my-2"></div>
-              
-              {/* Sales-based metrics */}
-              <MetricRow 
-                label="P/S (TTM)" 
-                value={formatNumber(asset.price_to_sales_ttm)}
-                tooltip="Price-to-Sales ratio. Useful for unprofitable high-growth companies."
-                highlight={useSalesMetrics}
-              />
-              
-              <MetricRow 
-                label="Fwd P/S*" 
-                value={formatNumber(asset.forward_ps)}
-                tooltip="Forward P/S (approx): Market Cap / Est. NTM Revenue. Uses log-dampened historical growth to estimate next year's revenue."
-                highlight={useSalesMetrics}
-              />
-              
-              <MetricRow 
-                label="PSG*" 
-                value={formatNumber(asset.psg)}
-                tooltip="Price-to-Sales-Growth (approx): Forward P/S / Dampened Growth %. Lower = cheaper relative to growth. Uses log dampening for extreme growth rates."
-                highlight={useSalesMetrics}
-                valueColor={asset.psg && asset.psg < 0.5 && asset.psg > 0 ? 'text-emerald-400' : 'text-foreground'}
-              />
-
-              {/* Other metrics */}
-              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-3 mb-2 flex items-center gap-1">
-                <TrendingUp className="w-3 h-3" />
-                Other
+                  {/* Visual separator */}
+                  <div className="h-2"></div>
+                  
+                  {/* Sales-based metrics */}
+                  <MetricRow 
+                    label="P/S (TTM)" 
+                    value={formatNumber(asset.price_to_sales_ttm)}
+                    tooltip="Price-to-Sales ratio. Useful for unprofitable high-growth companies."
+                  />
+                  <MetricRow 
+                    label="Fwd P/S" 
+                    value={formatNumber(asset.forward_ps)}
+                    tooltip="Forward P/S (approximation): Market Cap / Est. NTM Revenue. Uses log-dampened historical growth to estimate next year's revenue. Analyst estimates may differ."
+                    isApproximation={true}
+                  />
+                  <MetricRow 
+                    label="PSG" 
+                    value={formatNumber(asset.psg)}
+                    tooltip="Price-to-Sales-Growth (approximation): Forward P/S / Dampened Growth %. Lower = cheaper relative to growth. PSG < 0.5 may indicate undervaluation. Uses log dampening for extreme growth rates."
+                    isApproximation={true}
+                    valueColor={getPSGColor(asset.psg)}
+                  />
+                </div>
               </div>
-              
-              <MetricRow 
-                label="Beta" 
-                value={formatNumber(asset.beta)}
-                tooltip="Measure of volatility relative to the market. Beta > 1 means more volatile than the market."
-              />
-              
-              <MetricRow 
-                label="52W Range" 
-                value={week52Position !== null ? `${week52Position.toFixed(0)}%` : '—'}
-                tooltip={`Current price position within 52-week range. Low: $${formatNumber(asset.week_52_low)}, High: $${formatNumber(asset.week_52_high)}`}
-                valueColor={week52Position && week52Position > 80 ? 'text-yellow-400' : week52Position && week52Position < 20 ? 'text-blue-400' : 'text-foreground'}
-              />
-              
-              {analystUpside !== null && (
-                <MetricRow 
-                  label="Analyst Target" 
-                  value={`${analystUpside > 0 ? '+' : ''}${analystUpside.toFixed(0)}%`}
-                  tooltip={`Analyst consensus price target: $${formatNumber(asset.analyst_target_price)}. Shows potential upside/downside from current price.`}
-                  valueColor={analystUpside > 10 ? 'text-emerald-400' : analystUpside < -10 ? 'text-red-400' : 'text-foreground'}
-                />
-              )}
+
+              {/* Other Section */}
+              <div>
+                <SectionHeader icon={BarChart3} title="Other" />
+                <div className="space-y-0.5">
+                  <MetricRow 
+                    label="Beta" 
+                    value={formatNumber(asset.beta)}
+                    tooltip="Measure of volatility relative to the market. Beta > 1 means more volatile than the market."
+                  />
+                  
+                  {analystUpside !== null && (
+                    <MetricRow 
+                      label="Analyst Target" 
+                      value={`${analystUpside > 0 ? '+' : ''}${analystUpside.toFixed(0)}%`}
+                      tooltip={`Analyst consensus price target: $${formatNumber(asset.analyst_target_price)}. Shows potential upside/downside from current price.`}
+                      valueColor={getAnalystColor(analystUpside)}
+                    />
+                  )}
+                </div>
+              </div>
             </div>
           </div>
           
-          {/* Footer note about approximations */}
-          <div className="mt-3 pt-2 border-t border-border/50">
-            <p className="text-[10px] text-muted-foreground/70">
-              * Approximations using log-dampened historical growth rates. Actual analyst estimates may differ.
-            </p>
+          {/* 52-Week Range - Full width at bottom */}
+          <div className="mt-4 pt-3 border-t border-border/50">
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground shrink-0">52W Range</span>
+              <div className="flex-1">
+                <RangeGauge 
+                  low={asset.week_52_low} 
+                  high={asset.week_52_high} 
+                  current={asset.close} 
+                />
+              </div>
+            </div>
           </div>
         </div>
       )}
