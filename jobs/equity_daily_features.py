@@ -350,6 +350,24 @@ def process_asset(asset: dict, target_date: str) -> dict:
         return {'status': 'error', 'error': str(e), 'asset_id': asset_id}
 
 
+def update_latest_date(target_date: str, asset_type: str = 'equity'):
+    """Update the latest_dates table for dashboard display."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO latest_dates (asset_type, latest_date, updated_at)
+                VALUES (%s, %s, NOW())
+                ON CONFLICT (asset_type) 
+                DO UPDATE SET latest_date = EXCLUDED.latest_date, updated_at = NOW()
+                WHERE latest_dates.latest_date < EXCLUDED.latest_date
+            """, (asset_type, target_date))
+            conn.commit()
+            logger.info(f"Updated latest_dates for {asset_type} to {target_date}")
+    except Exception as e:
+        logger.warning(f"Failed to update latest_dates: {e}")
+
+
 def main():
     parser = argparse.ArgumentParser(description='Equity Daily Features Calculation')
     parser.add_argument('--date', type=str, help='Target date (YYYY-MM-DD). Defaults to yesterday.')
@@ -445,6 +463,10 @@ def main():
     logger.info(f"Errors: {errors}")
     logger.info(f"Time: {elapsed:.1f}s ({elapsed/60:.1f}m)")
     logger.info(f"Rate: {processed/elapsed:.1f} assets/s")
+    
+    # Update latest_dates table for dashboard
+    if success > 0:
+        update_latest_date(target_date, 'equity')
 
 
 if __name__ == '__main__':
