@@ -481,7 +481,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
             </div>
 
             {/* Fundamentals Summary - Only for equities */}
-            <FundamentalsSummary asset={asset} />
+            <FundamentalsSummary asset={{...asset, close: ohlcv?.[0]?.close}} />
 
             {/* Trade Plan - Collapsible */}
             {review && (
