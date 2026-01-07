@@ -69,6 +69,8 @@ interface FilterThresholds {
   volume7d?: { min?: number; max?: number };
   marketCap?: { min?: number; max?: number };
   peRatio?: { min?: number; max?: number };
+  forwardPe?: { min?: number; max?: number };
+  pegRatio?: { min?: number; max?: number };
 }
 
 export default function AllAssetsTable({ assetType, date, onAssetClick, showWatchlistColumn = true }: AllAssetsTableProps) {
@@ -92,6 +94,10 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
     marketCapMin: "",
     peRatioMin: "",  // For equity
     peRatioMax: "",  // For equity
+    forwardPeMin: "",  // For equity
+    forwardPeMax: "",  // For equity
+    pegRatioMin: "",  // For equity
+    pegRatioMax: "",  // For equity
     category: "",  // For crypto
     industry: "",  // For equity
   });
@@ -138,6 +144,18 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
       if (pe === null || pe === undefined) return false; // Exclude assets without P/E if filter is set
       if (filterThresholds.peRatio.min !== undefined && pe < filterThresholds.peRatio.min) return false;
       if (filterThresholds.peRatio.max !== undefined && pe > filterThresholds.peRatio.max) return false;
+    }
+    if (filterThresholds.forwardPe) {
+      const fpe = row.forward_pe;
+      if (fpe === null || fpe === undefined) return false; // Exclude assets without Forward P/E if filter is set
+      if (filterThresholds.forwardPe.min !== undefined && fpe < filterThresholds.forwardPe.min) return false;
+      if (filterThresholds.forwardPe.max !== undefined && fpe > filterThresholds.forwardPe.max) return false;
+    }
+    if (filterThresholds.pegRatio) {
+      const peg = row.peg_ratio;
+      if (peg === null || peg === undefined) return false; // Exclude assets without PEG if filter is set
+      if (filterThresholds.pegRatio.min !== undefined && peg < filterThresholds.pegRatio.min) return false;
+      if (filterThresholds.pegRatio.max !== undefined && peg > filterThresholds.pegRatio.max) return false;
     }
     // Category filter
     if (filterInputs.category && row.category !== filterInputs.category) {
@@ -194,6 +212,18 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
         max: filterInputs.peRatioMax ? parseFloat(filterInputs.peRatioMax) : undefined,
       };
     }
+    if (filterInputs.forwardPeMin || filterInputs.forwardPeMax) {
+      newThresholds.forwardPe = {
+        min: filterInputs.forwardPeMin ? parseFloat(filterInputs.forwardPeMin) : undefined,
+        max: filterInputs.forwardPeMax ? parseFloat(filterInputs.forwardPeMax) : undefined,
+      };
+    }
+    if (filterInputs.pegRatioMin || filterInputs.pegRatioMax) {
+      newThresholds.pegRatio = {
+        min: filterInputs.pegRatioMin ? parseFloat(filterInputs.pegRatioMin) : undefined,
+        max: filterInputs.pegRatioMax ? parseFloat(filterInputs.pegRatioMax) : undefined,
+      };
+    }
     setFilterThresholds(newThresholds);
     setPage(0);
   };
@@ -211,6 +241,10 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
       marketCapMin: "",
       peRatioMin: "",
       peRatioMax: "",
+      forwardPeMin: "",
+      forwardPeMax: "",
+      pegRatioMin: "",
+      pegRatioMax: "",
       category: "",
       industry: "",
     });
@@ -418,17 +452,41 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                   className="w-full text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
               </div>
               {assetType === "equity" && (
-                <div className="space-y-1">
-                  <label className="text-[9px] font-bold text-muted-foreground uppercase">P/E Ratio</label>
-                  <div className="flex gap-1">
-                    <input type="number" placeholder="Min" value={filterInputs.peRatioMin}
-                      onChange={(e) => setFilterInputs({...filterInputs, peRatioMin: e.target.value})}
-                      className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
-                    <input type="number" placeholder="Max" value={filterInputs.peRatioMax}
-                      onChange={(e) => setFilterInputs({...filterInputs, peRatioMax: e.target.value})}
-                      className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
+                <>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-muted-foreground uppercase">P/E Ratio</label>
+                    <div className="flex gap-1">
+                      <input type="number" placeholder="Min" value={filterInputs.peRatioMin}
+                        onChange={(e) => setFilterInputs({...filterInputs, peRatioMin: e.target.value})}
+                        className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
+                      <input type="number" placeholder="Max" value={filterInputs.peRatioMax}
+                        onChange={(e) => setFilterInputs({...filterInputs, peRatioMax: e.target.value})}
+                        className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
+                    </div>
                   </div>
-                </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-muted-foreground uppercase">Forward P/E</label>
+                    <div className="flex gap-1">
+                      <input type="number" placeholder="Min" value={filterInputs.forwardPeMin}
+                        onChange={(e) => setFilterInputs({...filterInputs, forwardPeMin: e.target.value})}
+                        className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
+                      <input type="number" placeholder="Max" value={filterInputs.forwardPeMax}
+                        onChange={(e) => setFilterInputs({...filterInputs, forwardPeMax: e.target.value})}
+                        className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-muted-foreground uppercase">PEG Ratio</label>
+                    <div className="flex gap-1">
+                      <input type="number" placeholder="Min" value={filterInputs.pegRatioMin}
+                        onChange={(e) => setFilterInputs({...filterInputs, pegRatioMin: e.target.value})}
+                        className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
+                      <input type="number" placeholder="Max" value={filterInputs.pegRatioMax}
+                        onChange={(e) => setFilterInputs({...filterInputs, pegRatioMax: e.target.value})}
+                        className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
+                    </div>
+                  </div>
+                </>
               )}
             </div>
             <div className="flex gap-2 pt-2">
@@ -487,9 +545,17 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                 <SortHeader field="dollar_volume_30d" tooltip="30-day trading volume">Vol 30d</SortHeader>
               </th>
               {assetType === "equity" && (
-                <th className="px-2 py-2 font-medium text-center">
-                  <SortHeader field="pe_ratio" tooltip="Price-to-Earnings ratio">P/E</SortHeader>
-                </th>
+                <>
+                  <th className="px-2 py-2 font-medium text-center">
+                    <SortHeader field="pe_ratio" tooltip="Price-to-Earnings ratio (trailing 12 months)">P/E</SortHeader>
+                  </th>
+                  <th className="px-2 py-2 font-medium text-center">
+                    <SortHeader field="forward_pe" tooltip="Forward Price-to-Earnings ratio based on analyst estimates">Fwd P/E</SortHeader>
+                  </th>
+                  <th className="px-2 py-2 font-medium text-center">
+                    <SortHeader field="peg_ratio" tooltip="Price/Earnings-to-Growth ratio (P/E divided by earnings growth rate)">PEG</SortHeader>
+                  </th>
+                </>
               )}
               <th className="px-2 py-2 font-medium text-center">
                 <HeaderWithTooltip tooltip={assetType === "crypto" ? "Token category" : "Stock industry classification"}>
@@ -506,9 +572,9 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={showWatchlistColumn ? 16 : 15} className="px-2 py-4 text-center text-muted-foreground">Loading...</td></tr>
+              <tr><td colSpan={assetType === "equity" ? (showWatchlistColumn ? 18 : 17) : (showWatchlistColumn ? 16 : 15)} className="px-2 py-4 text-center text-muted-foreground">Loading...</td></tr>
             ) : filteredData.length === 0 ? (
-              <tr><td colSpan={showWatchlistColumn ? 16 : 15} className="px-2 py-4 text-center text-muted-foreground">No assets match your filters</td></tr>
+              <tr><td colSpan={assetType === "equity" ? (showWatchlistColumn ? 18 : 17) : (showWatchlistColumn ? 16 : 15)} className="px-2 py-4 text-center text-muted-foreground">No assets match your filters</td></tr>
             ) : (
               filteredData.map((row) => (
                 <tr key={row.asset_id} className="border-b border-border hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => onAssetClick(row.asset_id)}>
@@ -567,9 +633,17 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                     {formatVolume(row.dollar_volume_30d)}
                   </td>
                   {assetType === "equity" && (
-                    <td className="px-2 py-2 text-center font-mono text-xs text-muted-foreground">
-                      {row.pe_ratio ? row.pe_ratio.toFixed(1) : "-"}
-                    </td>
+                    <>
+                      <td className="px-2 py-2 text-center font-mono text-xs text-muted-foreground">
+                        {row.pe_ratio ? row.pe_ratio.toFixed(1) : "-"}
+                      </td>
+                      <td className="px-2 py-2 text-center font-mono text-xs text-muted-foreground">
+                        {row.forward_pe ? row.forward_pe.toFixed(1) : "-"}
+                      </td>
+                      <td className="px-2 py-2 text-center font-mono text-xs text-muted-foreground">
+                        {row.peg_ratio ? row.peg_ratio.toFixed(2) : "-"}
+                      </td>
+                    </>
                   )}
                   <td className="px-2 py-2 text-center text-xs text-muted-foreground truncate max-w-[80px]">
                     {row.category || row.industry || row.sector || "-"}
