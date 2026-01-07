@@ -17,10 +17,10 @@ import logging
 import time
 import json
 import hashlib
+from decimal import Decimal
 from datetime import datetime, timedelta, date
 from typing import Dict, Any, List, Optional
 
-import numpy as np
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
@@ -40,6 +40,27 @@ LOOKBACK_BARS = 365  # 1 year of data for analysis
 # Rate limiting
 REQUESTS_PER_MINUTE = 15  # Conservative rate for Gemini API
 REQUEST_DELAY = 60.0 / REQUESTS_PER_MINUTE
+
+
+def to_float(value):
+    """Convert Decimal or other numeric types to float, handling None."""
+    if value is None:
+        return None
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, (int, float)):
+        return float(value)
+    return value
+
+
+def safe_format(value, fmt=".4f"):
+    """Safely format a numeric value, handling None and Decimal."""
+    if value is None:
+        return "N/A"
+    try:
+        return f"{float(value):{fmt}}"
+    except (ValueError, TypeError):
+        return str(value)
 
 
 def get_connection():
@@ -92,7 +113,19 @@ def get_ohlcv_data(conn, asset_id: int, target_date: str, limit: int = LOOKBACK_
             LIMIT %s
         """, (asset_id, target_date, limit))
         rows = cur.fetchall()
-    return list(reversed(rows))
+    
+    # Convert Decimal to float for all numeric fields
+    result = []
+    for row in rows:
+        result.append({
+            'date': row['date'],
+            'open': to_float(row['open']),
+            'high': to_float(row['high']),
+            'low': to_float(row['low']),
+            'close': to_float(row['close']),
+            'volume': to_float(row['volume'])
+        })
+    return list(reversed(result))
 
 
 def get_features(conn, asset_id: int, target_date: str) -> Dict[str, Any]:
@@ -106,7 +139,9 @@ def get_features(conn, asset_id: int, target_date: str) -> Dict[str, Any]:
         row = cur.fetchone()
     
     if row:
-        return {k: v for k, v in dict(row).items() if v is not None and k not in ['asset_id', 'date']}
+        # Convert all Decimal values to float
+        return {k: to_float(v) for k, v in dict(row).items() 
+                if v is not None and k not in ['asset_id', 'date', 'id', 'created_at', 'updated_at', 'computed_at', 'asof_timestamp']}
     return {}
 
 
@@ -123,25 +158,21 @@ def check_existing_review(conn, asset_id: int, target_date: str) -> bool:
 
 def build_analysis_prompt(symbol: str, name: str, ohlcv_data: List[Dict], features: Dict) -> str:
     """Build the analysis prompt for Gemini."""
-    # Format OHLCV data
+    # Format OHLCV data - use safe_format for all numeric values
     ohlcv_str = "Date,Open,High,Low,Close,Volume\n"
     for bar in ohlcv_data[-60:]:  # Last 60 days
-        ohlcv_str += f"{bar['date']},{bar['open']:.4f},{bar['high']:.4f},{bar['low']:.4f},{bar['close']:.4f},{bar['volume']:.0f}\n"
+        ohlcv_str += f"{bar['date']},{safe_format(bar['open'])},{safe_format(bar['high'])},{safe_format(bar['low'])},{safe_format(bar['close'])},{safe_format(bar['volume'], '.0f')}\n"
     
-    # Format key features
-    key_features = {
-        'rsi_14': features.get('rsi_14'),
-        'macd_histogram': features.get('macd_histogram'),
-        'bb_pct': features.get('bb_pct'),
-        'return_21d': features.get('return_21d'),
-        'return_63d': features.get('return_63d'),
-        'ma_dist_50': features.get('ma_dist_50'),
-        'ma_dist_200': features.get('ma_dist_200'),
-        'squeeze_flag': features.get('squeeze_flag'),
-        'rvol_20': features.get('rvol_20'),
-        'atr_pct': features.get('atr_pct'),
-    }
-    features_str = json.dumps({k: v for k, v in key_features.items() if v is not None}, indent=2)
+    # Format key features - filter out None values
+    key_features = {}
+    feature_keys = ['rsi_14', 'macd_histogram', 'bb_pct', 'return_21d', 'return_63d', 
+                    'ma_dist_50', 'ma_dist_200', 'squeeze_flag', 'rvol_20', 'atr_pct']
+    for key in feature_keys:
+        val = features.get(key)
+        if val is not None:
+            key_features[key] = to_float(val)
+    
+    features_str = json.dumps(key_features, indent=2)
     
     prompt = f"""Analyze the following cryptocurrency for trading signals.
 
@@ -214,7 +245,7 @@ def calculate_fingerprint(ohlcv_data: List[Dict]) -> str:
         return ""
     
     # Use last 20 closes for fingerprint
-    closes = [str(round(bar['close'], 4)) for bar in ohlcv_data[-20:]]
+    closes = [str(round(float(bar['close']), 4)) for bar in ohlcv_data[-20:] if bar['close'] is not None]
     content = ",".join(closes)
     return hashlib.sha256(content.encode()).hexdigest()[:16]
 
@@ -306,84 +337,72 @@ def main():
     if args.limit:
         assets = assets[:args.limit]
     
-    total = len(assets)
-    logger.info(f"Found {total} crypto assets for {target_date}")
+    logger.info(f"Found {len(assets)} crypto assets for {target_date}")
+    logger.info(f"Estimated runtime: ~{len(assets) / REQUESTS_PER_MINUTE:.1f} minutes (rate limited to {REQUESTS_PER_MINUTE} req/min)")
     
-    if total == 0:
-        logger.info("No assets to process!")
-        return
+    # Process each asset
+    success_count = 0
+    error_count = 0
+    skip_count = 0
     
-    # Estimate time
-    est_time = total * REQUEST_DELAY
-    logger.info(f"Estimated runtime: ~{est_time/60:.1f} minutes (rate limited to {REQUESTS_PER_MINUTE} req/min)")
-    
-    # Process assets
-    start_time = time.time()
-    processed = 0
-    success = 0
-    skipped = 0
-    errors = 0
-    
-    for asset in assets:
+    for i, asset in enumerate(assets):
         asset_id = asset['asset_id']
         symbol = asset['symbol']
         name = asset['name'] or symbol
         
-        processed += 1
-        
         # Check for existing review
         if args.skip_existing and check_existing_review(conn, asset_id, target_date):
-            skipped += 1
+            skip_count += 1
             continue
         
-        # Get OHLCV data
+        # Get data
         ohlcv_data = get_ohlcv_data(conn, asset_id, target_date)
-        if len(ohlcv_data) < 30:
+        if len(ohlcv_data) < 20:
             logger.warning(f"Insufficient data for {symbol}: {len(ohlcv_data)} bars")
-            skipped += 1
+            error_count += 1
             continue
         
-        # Get features
         features = get_features(conn, asset_id, target_date)
         
-        # Run AI analysis
+        # Analyze
         ai_result = analyze_asset(client, args.model, symbol, name, ohlcv_data, features)
         
         if ai_result:
             fingerprint = calculate_fingerprint(ohlcv_data)
             if save_review(conn, asset_id, target_date, symbol, ai_result, fingerprint, args.model):
-                success += 1
-                logger.info(f"[{processed}/{total}] {symbol}: {ai_result.get('primary_signal', 'N/A')} "
-                          f"(direction: {ai_result.get('ai_direction_score', 0):.1f})")
+                success_count += 1
+                logger.debug(f"✓ {symbol}: {ai_result.get('primary_signal', 'unknown')}")
             else:
-                errors += 1
+                error_count += 1
         else:
-            errors += 1
+            error_count += 1
+        
+        # Progress update
+        if (i + 1) % 25 == 0:
+            elapsed = (i + 1) * REQUEST_DELAY
+            remaining = (len(assets) - i - 1) * REQUEST_DELAY / 60
+            logger.info(f"Progress: {i + 1}/{len(assets)} ({(i + 1) / len(assets) * 100:.1f}%) | "
+                       f"Rate: {REQUESTS_PER_MINUTE}/min | ETA: {remaining:.1f}m")
         
         # Rate limiting
         time.sleep(REQUEST_DELAY)
-        
-        # Progress update
-        if processed % 25 == 0:
-            elapsed = time.time() - start_time
-            rate = processed / elapsed * 60 if elapsed > 0 else 0
-            eta = (total - processed) / (rate / 60) if rate > 0 else 0
-            logger.info(f"Progress: {processed}/{total} ({100*processed/total:.1f}%) | "
-                      f"Rate: {rate:.1f}/min | ETA: {eta/60:.1f}m")
     
-    elapsed = time.time() - start_time
-    
+    # Summary
     logger.info("=" * 60)
-    logger.info("CRYPTO AI SIGNALS GENERATION COMPLETE")
+    logger.info("SUMMARY")
+    logger.info(f"Total assets: {len(assets)}")
+    logger.info(f"Successful: {success_count}")
+    logger.info(f"Errors: {error_count}")
+    logger.info(f"Skipped: {skip_count}")
     logger.info("=" * 60)
-    logger.info(f"Total processed: {processed}")
-    logger.info(f"Success: {success}")
-    logger.info(f"Skipped: {skipped}")
-    logger.info(f"Errors: {errors}")
-    logger.info(f"Time: {elapsed:.1f}s ({elapsed/60:.1f}m)")
     
     conn.close()
+    
+    # Exit with error code if too many failures
+    if error_count > len(assets) * 0.5:
+        logger.error("Too many errors (>50%), exiting with error code")
+        sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
