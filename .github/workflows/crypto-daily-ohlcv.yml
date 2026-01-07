@@ -10,7 +10,9 @@
 #
 # Manual trigger: Go to Actions > Crypto Daily OHLCV > Run workflow
 
+
 name: Crypto Daily OHLCV
+
 
 on:
   # Scheduled run: Daily at 00:30 UTC (30 min after midnight)
@@ -25,14 +27,16 @@ on:
         required: false
         type: string
 
+
 env:
   PYTHON_VERSION: '3.11'
+
 
 jobs:
   ingest-crypto:
     name: Ingest Crypto Daily Bars
     runs-on: ubuntu-latest
-    timeout-minutes: 30  # Should complete in ~10 min, 30 min buffer
+    timeout-minutes: 45  # Should complete in ~10 min, 30 min buffer
     
     steps:
       - name: Checkout repository
@@ -65,22 +69,3 @@ jobs:
       - name: Run crypto OHLCV ingestion
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
-        run: |
-          echo "🚀 Starting crypto OHLCV ingestion"
-          echo "📅 Storing data for: ${{ steps.date.outputs.date }}"
-          echo "🕐 Current UTC time: $(date -u)"
-          python -m jobs.crypto_daily_ohlcv --date ${{ steps.date.outputs.date }}
-      
-      - name: Report success
-        if: success()
-        run: |
-          echo "✅ Crypto OHLCV ingestion completed successfully"
-          echo "📅 Data stored for: ${{ steps.date.outputs.date }}"
-      
-      - name: Report failure
-        if: failure()
-        run: |
-          echo "❌ Crypto OHLCV ingestion failed"
-          echo "📅 Target date: ${{ steps.date.outputs.date }}"
-          echo "Check the logs above for details"
