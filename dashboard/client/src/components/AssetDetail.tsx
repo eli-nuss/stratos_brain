@@ -220,10 +220,10 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
 
         {/* Main Content - 70/30 split */}
         <div className="flex-1 overflow-y-auto p-4 grid grid-cols-1 lg:grid-cols-10 gap-4">
-          {/* Left Column: Chart & AI Analysis (70% = 7 cols) */}
+          {/* Left Column: Chart, AI Analysis, Trade Plan & Signals (70% = 7 cols) */}
           <div className="lg:col-span-7 space-y-4 flex flex-col">
-            {/* Chart - Expanded to fill ~65% of vertical space */}
-            <div className="flex-1 min-h-0 space-y-2">
+            {/* Chart - Expanded */}
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-semibold">Price Chart</h3>
@@ -279,7 +279,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               </div>
               
               {chartView === 'ai_score' ? (
-                <div ref={chartRef} className={`${isChartFullscreen ? 'h-[600px]' : 'h-[400px]'} w-full bg-muted/5 rounded-lg border border-border p-4 transition-all duration-300`}>
+                <div ref={chartRef} className={`${isChartFullscreen ? 'h-[600px]' : 'h-[350px]'} w-full bg-muted/5 rounded-lg border border-border p-4 transition-all duration-300`}>
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={chartData}>
                       <defs>
@@ -359,7 +359,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <div className={`${isChartFullscreen ? 'h-[600px]' : 'h-[400px]'} w-full rounded-lg border border-border overflow-hidden transition-all duration-300`}>
+                <div className={`${isChartFullscreen ? 'h-[600px]' : 'h-[350px]'} w-full rounded-lg border border-border overflow-hidden transition-all duration-300`}>
                   <TradingViewWidget
                     symbol={asset.symbol}
                     assetType={asset.asset_type === 'crypto' ? 'crypto' : 'equity'}
@@ -370,7 +370,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               )}
             </div>
 
-            {/* AI Analysis - Compact with confidence meter and bullets */}
+            {/* AI Analysis */}
             {review ? (
               <div className="bg-muted/10 border border-border rounded-lg p-4 space-y-3">
                 <div className="flex items-center justify-between">
@@ -420,116 +420,99 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                 </p>
               </div>
             )}
-          </div>
 
-          {/* Right Column: Trade Plan, Fundamentals, About (30% = 3 cols) */}
-          <div className="lg:col-span-3 space-y-3 overflow-y-auto">
-            {/* Trade Plan - TOP PRIORITY (if active) */}
-            {review && (
+            {/* Trade Plan & Signals - 2 Column Layout (wider, shorter) */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Trade Plan */}
               <div className="bg-card border border-border rounded-lg overflow-hidden">
-                <button
-                  onClick={() => toggleSection('tradePlan')}
-                  className="w-full bg-muted/30 px-4 py-2.5 border-b border-border flex items-center justify-between hover:bg-muted/40 transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <Target className="w-4 h-4 text-primary" />
-                    <h3 className="font-semibold text-sm">Trade Plan</h3>
-                    <InfoTooltip content="AI-generated trade plan with specific price levels. Entry zone is where to consider initiating positions. Targets are profit-taking levels. Invalidation is where the thesis fails." />
-                  </div>
-                  {collapsedSections['tradePlan'] ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronUp className="w-4 h-4 text-muted-foreground" />}
-                </button>
-                {!collapsedSections['tradePlan'] && (
-                <div className="p-3 space-y-3">
-                  {/* Entry Zone - Compact */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Entry</span>
-                    <span className="font-mono text-sm font-semibold text-primary">
-                      ${review.entry?.low?.toFixed(2) || "—"} - ${review.entry?.high?.toFixed(2) || "—"}
-                    </span>
-                  </div>
-
-                  {/* Targets - Inline */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Targets</span>
-                    <div className="flex gap-2">
-                      {review.targets?.slice(0, 3).map((target: number, i: number) => (
-                        <span key={i} className="font-mono text-xs text-signal-bullish">
-                          ${target?.toFixed(2) || "—"}
-                        </span>
-                      ))}
+                <div className="bg-muted/30 px-4 py-2 border-b border-border flex items-center gap-2">
+                  <Target className="w-4 h-4 text-primary" />
+                  <h3 className="font-semibold text-sm">Trade Plan</h3>
+                  <InfoTooltip content="AI-generated trade plan with specific price levels. Entry zone is where to consider initiating positions. Targets are profit-taking levels. Invalidation is where the thesis fails." />
+                </div>
+                {review ? (
+                  <div className="p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Entry</span>
+                      <span className="font-mono text-sm font-semibold text-primary">
+                        ${review.entry?.low?.toFixed(2) || "—"} - ${review.entry?.high?.toFixed(2) || "—"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Targets</span>
+                      <div className="flex gap-2">
+                        {review.targets?.slice(0, 3).map((target: number, i: number) => (
+                          <span key={i} className="font-mono text-xs text-signal-bullish">
+                            ${target?.toFixed(2) || "—"}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Stop</span>
+                      <span className="font-mono text-sm font-semibold text-signal-bearish">
+                        ${review.invalidation?.toFixed(2) || "—"}
+                      </span>
                     </div>
                   </div>
-
-                  {/* Invalidation - Compact */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Stop</span>
-                    <span className="font-mono text-sm font-semibold text-signal-bearish">
-                      ${review.invalidation?.toFixed(2) || "—"}
-                    </span>
+                ) : (
+                  <div className="p-3 text-center">
+                    <p className="text-xs text-muted-foreground">No trade plan available</p>
                   </div>
-                </div>
                 )}
               </div>
-            )}
 
-            {/* Fundamentals Summary - MIDDLE */}
-            <FundamentalsSummary asset={{...asset, close: ohlcv?.[0]?.close}} />
-
-            {/* Notes History */}
-            <NotesHistory assetId={parseInt(assetId)} />
-
-            {/* Files Section */}
-            <FilesSection assetId={parseInt(assetId)} />
-
-            {/* Signal Facts - Collapsible */}
-            <div className="bg-card border border-border rounded-lg overflow-hidden">
-              <button
-                onClick={() => toggleSection('signals')}
-                className="w-full bg-muted/30 px-4 py-2.5 border-b border-border flex items-center justify-between hover:bg-muted/40 transition-colors"
-              >
-                <div className="flex items-center gap-2">
+              {/* Signals */}
+              <div className="bg-card border border-border rounded-lg overflow-hidden">
+                <div className="bg-muted/30 px-4 py-2 border-b border-border flex items-center gap-2">
                   <Activity className="w-4 h-4 text-muted-foreground" />
                   <h3 className="font-semibold text-sm">Signals</h3>
                   <InfoTooltip content="Quantitative signals that triggered this asset's score. Each signal has a strength from 0-100 based on technical criteria." />
                 </div>
-                {collapsedSections['signals'] ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronUp className="w-4 h-4 text-muted-foreground" />}
-              </button>
-              {!collapsedSections['signals'] && (
-              <div className="p-3">
-                {review?.signal_facts && review.signal_facts.length > 0 ? (
-                  <div className="space-y-2">
-                    {review.signal_facts.map((signal: any, i: number) => (
-                      <Tooltip key={i}>
-                        <TooltipTrigger asChild>
-                          <div className="flex items-center justify-between p-2 bg-muted/20 rounded cursor-help hover:bg-muted/30 transition-colors">
-                            <span className="text-xs font-medium">
-                              {formatSignalType(signal.signal_type)}
-                            </span>
-                            <span className={`text-xs font-mono ${
-                              signal.strength >= 70 ? 'text-signal-bullish' : 
-                              signal.strength >= 40 ? 'text-yellow-500' : 
-                              'text-muted-foreground'
-                            }`}>
-                              {signal.strength}
-                            </span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs">
-                          {getSignalTooltip(signal.signal_type)}
-                        </TooltipContent>
-                      </Tooltip>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground text-center py-2">
-                    No signal data available
-                  </p>
-                )}
+                <div className="p-3 max-h-[120px] overflow-y-auto">
+                  {review?.signal_facts && review.signal_facts.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {review.signal_facts.map((signal: any, i: number) => (
+                        <Tooltip key={i}>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center justify-between p-1.5 bg-muted/20 rounded cursor-help hover:bg-muted/30 transition-colors">
+                              <span className="text-xs font-medium truncate">
+                                {formatSignalType(signal.signal_type)}
+                              </span>
+                              <span className={`text-xs font-mono ml-2 ${
+                                signal.strength >= 70 ? 'text-signal-bullish' : 
+                                signal.strength >= 40 ? 'text-yellow-500' : 
+                                'text-muted-foreground'
+                              }`}>
+                                {signal.strength}
+                              </span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            {getSignalTooltip(signal.signal_type)}
+                          </TooltipContent>
+                        </Tooltip>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground text-center py-2">
+                      No signal data available
+                    </p>
+                  )}
+                </div>
               </div>
-              )}
             </div>
+          </div>
 
-            {/* About Section - BOTTOM */}
+          {/* Right Column: Notes, Fundamentals, About, Files (30% = 3 cols) */}
+          <div className="lg:col-span-3 space-y-3 overflow-y-auto">
+            {/* Notes History - TOP */}
+            <NotesHistory assetId={parseInt(assetId)} />
+
+            {/* Fundamentals Summary */}
+            <FundamentalsSummary asset={{...asset, close: ohlcv?.[0]?.close}} />
+
+            {/* About Section */}
             <div className="bg-card border border-border rounded-lg overflow-hidden">
               <button
                 onClick={() => toggleSection('about')}
@@ -566,6 +549,9 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               </div>
               )}
             </div>
+
+            {/* Files Section - BOTTOM */}
+            <FilesSection assetId={parseInt(assetId)} />
           </div>
         </div>
       </div>
