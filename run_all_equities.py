@@ -42,9 +42,9 @@ logger = logging.getLogger(__name__)
 
 # Configuration
 AI_REVIEW_VERSION = "v3.0"
-MAX_CONCURRENT_REQUESTS = 10  # Number of parallel API calls
+MAX_CONCURRENT_REQUESTS = 5  # Number of parallel API calls (reduced to avoid rate limits)
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
-MODEL_NAME = "gemini-3-pro-preview"
+MODEL_NAME = "gemini-3-pro-preview"  # Gemini 3 Pro Preview model
 
 # Thread-local storage for database connections
 thread_local = threading.local()
@@ -198,8 +198,8 @@ Return ONLY a valid JSON object with this exact structure:
     return prompt
 
 
-async def call_gemini_api(session: aiohttp.ClientSession, prompt: str) -> dict:
-    """Make async API call to Gemini."""
+async def call_gemini_api(session: aiohttp.ClientSession, prompt: str, max_retries: int = 3) -> dict:
+    """Make async API call to Gemini with retry logic."""
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_NAME}:generateContent"
     
     headers = {
@@ -216,23 +216,50 @@ async def call_gemini_api(session: aiohttp.ClientSession, prompt: str) -> dict:
         }
     }
     
-    try:
-        async with session.post(url, headers=headers, json=payload, timeout=60) as response:
-            if response.status == 200:
-                data = await response.json()
-                if data.get("candidates") and data["candidates"][0].get("content"):
-                    parts = data["candidates"][0]["content"].get("parts", [])
-                    if parts and parts[0].get("text"):
-                        return json.loads(parts[0]["text"])
-            else:
-                error_text = await response.text()
-                logger.warning(f"API error {response.status}: {error_text[:200]}")
-    except json.JSONDecodeError as e:
-        logger.warning(f"JSON parse error: {e}")
-    except asyncio.TimeoutError:
-        logger.warning("API timeout")
-    except Exception as e:
-        logger.warning(f"API error: {e}")
+    for attempt in range(max_retries):
+        try:
+            async with session.post(url, headers=headers, json=payload, timeout=90) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    if data.get("candidates") and data["candidates"][0].get("content"):
+                        parts = data["candidates"][0]["content"].get("parts", [])
+                        if parts and parts[0].get("text"):
+                            return json.loads(parts[0]["text"])
+                elif response.status == 429:  # Rate limited
+                    wait_time = (attempt + 1) * 5
+                    logger.warning(f"Rate limited, waiting {wait_time}s before retry {attempt + 1}/{max_retries}")
+                    await asyncio.sleep(wait_time)
+                    continue
+                elif response.status >= 500:  # Server error
+                    wait_time = (attempt + 1) * 2
+                    logger.warning(f"Server error {response.status}, waiting {wait_time}s before retry {attempt + 1}/{max_retries}")
+                    await asyncio.sleep(wait_time)
+                    continue
+                else:
+                    error_text = await response.text()
+                    logger.warning(f"API error {response.status}: {error_text[:200]}")
+        except json.JSONDecodeError as e:
+            logger.warning(f"JSON parse error: {e}")
+        except asyncio.TimeoutError:
+            if attempt < max_retries - 1:
+                logger.warning(f"API timeout, retry {attempt + 1}/{max_retries}")
+                await asyncio.sleep(2)
+                continue
+            logger.warning("API timeout after all retries")
+        except aiohttp.ServerDisconnectedError:
+            if attempt < max_retries - 1:
+                wait_time = (attempt + 1) * 3
+                logger.warning(f"Server disconnected, waiting {wait_time}s before retry {attempt + 1}/{max_retries}")
+                await asyncio.sleep(wait_time)
+                continue
+            logger.warning("Server disconnected after all retries")
+        except Exception as e:
+            if attempt < max_retries - 1 and "disconnected" in str(e).lower():
+                wait_time = (attempt + 1) * 3
+                logger.warning(f"Connection error, waiting {wait_time}s before retry {attempt + 1}/{max_retries}")
+                await asyncio.sleep(wait_time)
+                continue
+            logger.warning(f"API error: {e}")
     
     return None
 
@@ -259,9 +286,21 @@ def to_json_safe(value):
     return psycopg2.extras.Json(value)
 
 
-def save_to_database(asset_id: str, as_of_date: str, result: dict) -> bool:
+def save_to_database(asset_id: str, as_of_date: str, result) -> bool:
     """Save analysis result to database."""
     db = get_db()
+    
+    # Handle case where result is a list (malformed API response)
+    if isinstance(result, list):
+        if len(result) > 0 and isinstance(result[0], dict):
+            result = result[0]
+        else:
+            logger.error(f"Invalid result format for {asset_id}: got list with no valid dict")
+            return False
+    
+    if not isinstance(result, dict):
+        logger.error(f"Invalid result format for {asset_id}: expected dict, got {type(result).__name__}")
+        return False
     
     # Extract fields from result
     direction = result.get('direction', 'neutral')
@@ -370,14 +409,26 @@ async def process_asset(session: aiohttp.ClientSession, asset: dict, as_of_date:
         result = await call_gemini_api(session, prompt)
         
         if result:
+            # Handle list result (extract first element if valid)
+            actual_result = result
+            if isinstance(result, list):
+                if len(result) > 0 and isinstance(result[0], dict):
+                    actual_result = result[0]
+                else:
+                    logger.warning(f"✗ {symbol}: Invalid list response from API")
+                    return {"success": False, "symbol": symbol, "error": "Invalid list response"}
+            
             # Save to database
-            saved = await loop.run_in_executor(None, save_to_database, asset_id, as_of_date, result)
+            saved = await loop.run_in_executor(None, save_to_database, asset_id, as_of_date, actual_result)
             if saved:
-                direction_score = result.get('ai_direction_score', 0)
-                quality_score = result.get('ai_setup_quality_score', 50)
-                direction = result.get('direction', 'neutral')
+                direction_score = actual_result.get('ai_direction_score', 0) if isinstance(actual_result, dict) else 0
+                quality_score = actual_result.get('ai_setup_quality_score', 50) if isinstance(actual_result, dict) else 50
+                direction = actual_result.get('direction', 'neutral') if isinstance(actual_result, dict) else 'neutral'
                 logger.info(f"✓ {symbol}: dir={direction_score:+d}, qual={quality_score}, {direction}")
                 return {"success": True, "symbol": symbol, "direction_score": direction_score, "quality_score": quality_score}
+            else:
+                logger.warning(f"✗ {symbol}: Database save failed")
+                return {"success": False, "symbol": symbol, "error": "Database save failed"}
         
         logger.warning(f"✗ {symbol}: API call failed")
         return {"success": False, "symbol": symbol, "error": "API call failed"}
