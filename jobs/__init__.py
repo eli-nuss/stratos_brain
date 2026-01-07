@@ -1,7 +1,6 @@
-# Stratos Brain Daily Ingestion Jobs
-# ===================================
-# Scheduled jobs for daily data ingestion.
-#
-# Jobs:
-#   - crypto_daily_ohlcv: Fetches crypto daily bars from CoinGecko
-#   - equity_daily_ohlcv: Fetches equity daily bars from Alpha Vantage
+# Jobs module for daily OHLCV ingestion
+"""
+This module contains scheduled jobs for daily data ingestion:
+- crypto_daily_ohlcv: Fetches daily bars from CoinGecko for crypto assets
+- equity_daily_ohlcv: Fetches daily bars from Alpha Vantage for equity assets
+"""
