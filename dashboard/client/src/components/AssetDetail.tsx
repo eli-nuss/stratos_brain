@@ -279,7 +279,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               </div>
               
               {chartView === 'ai_score' ? (
-                <div ref={chartRef} className={`${isChartFullscreen ? 'h-[600px]' : 'h-[350px]'} w-full bg-muted/5 rounded-lg border border-border p-4 transition-all duration-300`}>
+                <div ref={chartRef} className={`${isChartFullscreen ? 'h-[600px]' : 'h-[450px]'} w-full bg-muted/5 rounded-lg border border-border p-4 transition-all duration-300`}>
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={chartData}>
                       <defs>
@@ -359,7 +359,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <div className={`${isChartFullscreen ? 'h-[600px]' : 'h-[350px]'} w-full rounded-lg border border-border overflow-hidden transition-all duration-300`}>
+                <div className={`${isChartFullscreen ? 'h-[600px]' : 'h-[450px]'} w-full rounded-lg border border-border overflow-hidden transition-all duration-300`}>
                   <TradingViewWidget
                     symbol={asset.symbol}
                     assetType={asset.asset_type === 'crypto' ? 'crypto' : 'equity'}

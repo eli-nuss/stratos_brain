@@ -5,15 +5,13 @@ interface TradingViewWidgetProps {
   assetType: 'crypto' | 'equity';
   theme?: 'dark' | 'light';
   interval?: string;
-  height?: number;
 }
 
 function TradingViewWidget({ 
   symbol, 
   assetType, 
   theme = 'dark',
-  interval = 'D',
-  height = 300
+  interval = 'D'
 }: TradingViewWidgetProps) {
   const container = useRef<HTMLDivElement>(null);
 
@@ -71,15 +69,10 @@ function TradingViewWidget({
 
     const widgetContainer = document.createElement("div");
     widgetContainer.className = "tradingview-widget-container__widget";
-    widgetContainer.style.height = "calc(100% - 32px)";
+    widgetContainer.style.height = "100%";
     widgetContainer.style.width = "100%";
 
-    const copyright = document.createElement("div");
-    copyright.className = "tradingview-widget-copyright";
-    copyright.innerHTML = `<a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank"><span class="text-xs text-muted-foreground">Chart by TradingView</span></a>`;
-
     container.current.appendChild(widgetContainer);
-    container.current.appendChild(copyright);
     widgetContainer.appendChild(script);
 
     return () => {
@@ -93,7 +86,7 @@ function TradingViewWidget({
     <div 
       ref={container} 
       className="tradingview-widget-container" 
-      style={{ height: `${height}px`, width: '100%' }}
+      style={{ height: '100%', width: '100%' }}
     />
   );
 }
