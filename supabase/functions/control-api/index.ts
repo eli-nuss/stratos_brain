@@ -680,26 +680,41 @@ serve(async (req) => {
       }
 
       // GET /dashboard/asset - Get full detail for one asset (click-through page)
+      // Supports lookup by asset_id OR symbol (symbol takes precedence if both provided)
       case req.method === 'GET' && path === '/dashboard/asset': {
-        const assetId = url.searchParams.get('asset_id')
+        const assetIdParam = url.searchParams.get('asset_id')
+        const symbolParam = url.searchParams.get('symbol')
         const asOfDate = url.searchParams.get('as_of_date')
         const configId = url.searchParams.get('config_id')
         
-        if (!assetId) {
-          return new Response(JSON.stringify({ error: 'asset_id required' }), {
+        if (!assetIdParam && !symbolParam) {
+          return new Response(JSON.stringify({ error: 'asset_id or symbol required' }), {
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
         }
         
-        // Get asset info
-        const { data: asset, error: assetError } = await supabase
-          .from('assets')
-          .select('*')
-          .eq('asset_id', assetId)
-          .single()
+        // Get asset info - lookup by symbol if provided, otherwise by asset_id
+        let assetQuery = supabase.from('assets').select('*')
         
-        if (assetError) throw assetError
+        if (symbolParam) {
+          assetQuery = assetQuery.ilike('symbol', symbolParam)
+        } else {
+          assetQuery = assetQuery.eq('asset_id', assetIdParam)
+        }
+        
+        const { data: assetResult, error: assetError } = await assetQuery.limit(1).single()
+        
+        if (assetError || !assetResult) {
+          const notFoundMsg = symbolParam ? `Asset not found for symbol: ${symbolParam}` : `Asset not found for id: ${assetIdParam}`
+          return new Response(JSON.stringify({ error: notFoundMsg }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const asset = assetResult
+        const assetId = asset.asset_id
         
         // Determine date to use
         const targetDate = asOfDate || (asset.asset_type === 'crypto' 
