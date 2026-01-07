@@ -23,6 +23,7 @@ from datetime import datetime, date, timedelta
 from concurrent.futures import ThreadPoolExecutor
 import threading
 import hashlib
+import psycopg2
 import psycopg2.extras
 
 # Add src to path
@@ -49,11 +50,31 @@ MODEL_NAME = "gemini-3-pro-preview"  # Gemini 3 Pro Preview model
 # Thread-local storage for database connections
 thread_local = threading.local()
 
-def get_db():
-    """Get thread-local database connection."""
+def get_db(force_reconnect=False):
+    """Get thread-local database connection with reconnection support."""
+    if force_reconnect and hasattr(thread_local, 'db'):
+        try:
+            thread_local.db.close()
+        except:
+            pass
+        delattr(thread_local, 'db')
+    
     if not hasattr(thread_local, 'db'):
         thread_local.db = Database()
     return thread_local.db
+
+def db_execute_with_retry(func, *args, max_retries=3, **kwargs):
+    """Execute a database function with retry logic for connection drops."""
+    for attempt in range(max_retries):
+        try:
+            return func(*args, **kwargs)
+        except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+            logger.warning(f"Database connection error (attempt {attempt + 1}/{max_retries}): {e}")
+            if attempt < max_retries - 1:
+                get_db(force_reconnect=True)  # Force reconnection
+                time.sleep(1)  # Brief pause before retry
+            else:
+                raise
 
 
 def get_ohlcv_data(asset_id: str, as_of_date: str) -> list:
