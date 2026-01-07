@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useAssetFiles, formatFileSize, getFileIcon } from '../hooks/useAssetFiles'
 
 interface FilesSectionProps {
@@ -6,7 +6,17 @@ interface FilesSectionProps {
 }
 
 export function FilesSection({ assetId }: FilesSectionProps) {
-  const { files, isLoading, uploadFile, deleteFile } = useAssetFiles(assetId)
+  const { files, isLoading, uploadFile, deleteFile, refreshFiles } = useAssetFiles(assetId)
+
+  // Listen for memo completion events to refresh files
+  useEffect(() => {
+    const handleMemoCompleted = () => {
+      refreshFiles();
+    };
+    
+    window.addEventListener('memo-completed', handleMemoCompleted);
+    return () => window.removeEventListener('memo-completed', handleMemoCompleted);
+  }, [refreshFiles]);
   const [isUploading, setIsUploading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [error, setError] = useState<string | null>(null)

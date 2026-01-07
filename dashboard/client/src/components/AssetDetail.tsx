@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, Activity, Info, MessageCircle, ExternalLink, Tag, FileText, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera, Sparkles, Loader2 } from "lucide-react";
 import html2canvas from "html2canvas";
 import { Area, Line, ComposedChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis, Legend } from "recharts";
@@ -79,6 +79,8 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [isCreatingMemo, setIsCreatingMemo] = useState(false);
   const [memoResult, setMemoResult] = useState<{ task_url: string; task_id: string } | null>(null);
+  const [memoStatus, setMemoStatus] = useState<'idle' | 'generating' | 'completed' | 'error'>('idle');
+  const [memoPollingId, setMemoPollingId] = useState<string | null>(null);
 
   const toggleSection = (section: string) => {
     setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -149,13 +151,70 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
   const signalBg = isBullish ? "bg-signal-bullish/10" : "bg-signal-bearish/10";
 
 
-  // Generate TradingView URL for an asset
+  // Check memo status and save file when complete
+  const checkMemoStatus = useCallback(async (taskId: string) => {
+    try {
+      const response = await fetch(`/api/dashboard/memo-status/${taskId}`);
+      if (!response.ok) return null;
+      
+      const status = await response.json();
+      
+      if (status.status === 'completed' && status.output_file) {
+        // Save the file to Supabase storage
+        const saveResponse = await fetch(`/api/dashboard/memo-status/${taskId}/save`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            asset_id: asset?.asset_id,
+            file_url: status.output_file.fileUrl,
+            file_name: status.output_file.fileName,
+          }),
+        });
+        
+        if (saveResponse.ok) {
+          setMemoStatus('completed');
+          setMemoPollingId(null);
+          // Trigger a refresh of the files section
+          window.dispatchEvent(new CustomEvent('memo-completed', { detail: { taskId } }));
+        }
+        return status;
+      } else if (status.status === 'failed' || status.status === 'cancelled') {
+        setMemoStatus('error');
+        setMemoPollingId(null);
+        return status;
+      }
+      
+      return status;
+    } catch (error) {
+      console.error('Error checking memo status:', error);
+      return null;
+    }
+  }, [asset?.asset_id]);
+
+  // Poll for memo completion
+  useEffect(() => {
+    if (!memoPollingId) return;
+    
+    const pollInterval = setInterval(async () => {
+      const status = await checkMemoStatus(memoPollingId);
+      if (status?.status === 'completed' || status?.status === 'failed' || status?.status === 'cancelled') {
+        clearInterval(pollInterval);
+      }
+    }, 10000); // Poll every 10 seconds
+    
+    // Initial check
+    checkMemoStatus(memoPollingId);
+    
+    return () => clearInterval(pollInterval);
+  }, [memoPollingId, checkMemoStatus]);
+
   // Create investment memo via Manus API
   const createMemo = async () => {
     if (!asset || isCreatingMemo) return;
     
     setIsCreatingMemo(true);
     setMemoResult(null);
+    setMemoStatus('generating');
     
     try {
       const response = await fetch('/api/dashboard/create-memo', {
@@ -176,11 +235,13 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
       
       const result = await response.json();
       setMemoResult({ task_url: result.task_url, task_id: result.task_id });
+      setMemoPollingId(result.task_id); // Start polling for completion
       
       // Open the memo in a new tab
       window.open(result.task_url, '_blank');
     } catch (error) {
       console.error('Error creating memo:', error);
+      setMemoStatus('error');
       alert('Failed to create memo. Please try again.');
     } finally {
       setIsCreatingMemo(false);

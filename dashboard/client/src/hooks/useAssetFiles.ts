@@ -71,12 +71,19 @@ export function useAssetFiles(assetId: number | null) {
     return true
   }
 
+  const refreshFiles = () => {
+    if (assetId) {
+      mutate(`${API_BASE}/dashboard/files/${assetId}`)
+    }
+  }
+
   return {
     files: data?.files || [],
     isLoading,
     error,
     uploadFile,
-    deleteFile
+    deleteFile,
+    refreshFiles
   }
 }
 
