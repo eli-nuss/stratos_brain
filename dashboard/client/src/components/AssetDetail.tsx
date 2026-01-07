@@ -70,18 +70,6 @@ function ConfidenceMeter({ confidence }: { confidence: number }) {
   );
 }
 
-// Parse AI summary into bullet points
-function formatAsSummaryBullets(text: string): string[] {
-  if (!text) return [];
-  
-  // Split by sentences or common delimiters
-  const sentences = text
-    .split(/(?<=[.!?])\s+/)
-    .filter(s => s.trim().length > 10)
-    .slice(0, 4); // Max 4 bullet points
-  
-  return sentences;
-}
 
 export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
   const { data, isLoading } = useSWR(`/api/dashboard/asset?asset_id=${assetId}`, fetcher);
@@ -158,8 +146,6 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
   const signalColor = isBullish ? "text-signal-bullish" : "text-signal-bearish";
   const signalBg = isBullish ? "bg-signal-bullish/10" : "bg-signal-bearish/10";
 
-  // Parse summary into bullets
-  const summaryBullets = formatAsSummaryBullets(review?.summary_text);
 
   // Generate TradingView URL for an asset
   const getTradingViewUrl = (symbol: string, assetType: string) => {
@@ -421,21 +407,10 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                   <ConfidenceMeter confidence={review.confidence || 0} />
                 </div>
                 
-                {/* Summary as bullet points */}
-                {summaryBullets.length > 0 ? (
-                  <ul className="space-y-1.5 text-sm text-foreground/90">
-                    {summaryBullets.map((bullet, i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <span className="text-primary mt-1.5">•</span>
-                        <span className="leading-relaxed">{bullet}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-foreground/90 leading-relaxed">
-                    {review.summary_text}
-                  </p>
-                )}
+                {/* Summary */}
+                <p className="text-sm text-foreground/90 leading-relaxed">
+                  {review.summary_text}
+                </p>
               </div>
             ) : (
               <div className="bg-muted/10 border border-border rounded-lg p-6 text-center">
