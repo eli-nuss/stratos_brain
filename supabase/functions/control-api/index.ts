@@ -883,6 +883,11 @@ serve(async (req) => {
             case 'dollar_volume_7d': return q.order('dollar_volume_7d', { ascending, nullsFirst: false })
             case 'industry': return q.order('industry', { ascending, nullsFirst: false })
             case 'pe_ratio': return q.order('pe_ratio', { ascending, nullsFirst: false })
+            case 'forward_pe': return q.order('forward_pe', { ascending, nullsFirst: false })
+            case 'peg_ratio': return q.order('peg_ratio', { ascending, nullsFirst: false })
+            case 'price_to_sales_ttm': return q.order('price_to_sales_ttm', { ascending, nullsFirst: false })
+            case 'forward_ps': return q.order('forward_ps', { ascending, nullsFirst: false })
+            case 'psg': return q.order('psg', { ascending, nullsFirst: false })
             case 'vol_mc_ratio': return q.order('dollar_volume_7d', { ascending, nullsFirst: false })
             default: return q.order('ai_setup_quality_score', { ascending: false, nullsFirst: false })
           }
