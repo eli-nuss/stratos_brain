@@ -504,12 +504,9 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
             </div>
           </div>
 
-          {/* Right Column: Notes, Fundamentals, About, Files (30% = 3 cols) */}
+          {/* Right Column: Fundamentals, About, Notes, Files (30% = 3 cols) */}
           <div className="lg:col-span-3 space-y-3 overflow-y-auto">
-            {/* Notes History - TOP */}
-            <NotesHistory assetId={parseInt(assetId)} />
-
-            {/* Fundamentals Summary */}
+            {/* Fundamentals Summary - TOP */}
             <FundamentalsSummary asset={{...asset, close: ohlcv?.[0]?.close}} />
 
             {/* About Section */}
@@ -549,6 +546,9 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               </div>
               )}
             </div>
+
+            {/* Notes History */}
+            <NotesHistory assetId={parseInt(assetId)} />
 
             {/* Files Section - BOTTOM */}
             <FilesSection assetId={parseInt(assetId)} />
