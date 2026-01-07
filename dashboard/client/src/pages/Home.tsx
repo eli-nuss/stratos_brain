@@ -40,7 +40,7 @@ export default function Home() {
       {/* Asset Detail Modal */}
       {selectedAssetId && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-lg shadow-lg w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-card border border-border rounded-lg shadow-lg w-[80vw] max-w-[1600px] h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <AssetDetail 
               assetId={selectedAssetId} 
               onClose={() => setSelectedAssetId(null)} 
