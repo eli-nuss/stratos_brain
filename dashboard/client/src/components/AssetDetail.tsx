@@ -200,7 +200,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
       if (status?.status === 'completed' || status?.status === 'failed' || status?.status === 'cancelled') {
         clearInterval(pollInterval);
       }
-    }, 10000); // Poll every 10 seconds
+    }, 60000); // Poll every 60 seconds (1 minute)
     
     // Initial check
     checkMemoStatus(memoPollingId);
