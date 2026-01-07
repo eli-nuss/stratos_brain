@@ -6,8 +6,9 @@ python-dotenv>=1.0.0
 # Supabase
 supabase>=2.0.0
 
-# OpenAI (for AI stage)
+# AI (for AI stages)
 openai>=1.0.0
+google-genai>=1.0.0
 
 # Data processing (for Stage1Fetch)
 pandas>=2.0.0
