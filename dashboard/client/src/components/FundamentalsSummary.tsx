@@ -61,18 +61,20 @@ function MetricRow({
   value, 
   tooltip, 
   isApproximation = false,
-  valueColor = "text-foreground"
+  valueColor = "text-foreground",
+  highlight = false
 }: { 
   label: string; 
   value: string; 
   tooltip: string;
   isApproximation?: boolean;
   valueColor?: string;
+  highlight?: boolean;
 }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <div className="flex items-center py-2 cursor-help hover:bg-muted/20 transition-colors rounded px-1 -mx-1">
+        <div className={`flex items-center py-2 cursor-help hover:bg-muted/20 transition-colors rounded px-1 -mx-1 ${highlight ? 'bg-primary/5 border-l-2 border-primary/30 pl-2' : ''}`}>
           <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
             {label}
             {isApproximation && (
@@ -308,17 +310,20 @@ export function FundamentalsSummary({ asset }: FundamentalsSummaryProps) {
                     label="P/E (TTM)" 
                     value={formatNumber(asset.pe_ratio)}
                     tooltip="Price-to-Earnings ratio. Lower generally means cheaper, but can be misleading for unprofitable companies."
+                    highlight={!useSalesMetrics}
                   />
                   <MetricRow 
                     label="Forward P/E" 
                     value={formatNumber(asset.forward_pe)}
                     tooltip="Price divided by estimated future earnings. Based on analyst estimates."
+                    highlight={!useSalesMetrics}
                   />
                   <MetricRow 
                     label="PEG" 
                     value={formatNumber(asset.peg_ratio)}
                     tooltip="P/E divided by earnings growth rate. PEG < 1 may indicate undervaluation relative to growth. PEG > 2 may indicate overvaluation."
                     valueColor={getPEGColor(asset.peg_ratio)}
+                    highlight={!useSalesMetrics}
                   />
 
                   {/* Visual separator */}
@@ -329,12 +334,14 @@ export function FundamentalsSummary({ asset }: FundamentalsSummaryProps) {
                     label="P/S (TTM)" 
                     value={formatNumber(asset.price_to_sales_ttm)}
                     tooltip="Price-to-Sales ratio. Useful for unprofitable high-growth companies."
+                    highlight={useSalesMetrics}
                   />
                   <MetricRow 
                     label="Fwd P/S" 
                     value={formatNumber(asset.forward_ps)}
                     tooltip="Forward P/S (approximation): Market Cap / Est. NTM Revenue. Uses log-dampened historical growth to estimate next year's revenue. Analyst estimates may differ."
                     isApproximation={true}
+                    highlight={useSalesMetrics}
                   />
                   <MetricRow 
                     label="PSG" 
@@ -342,6 +349,7 @@ export function FundamentalsSummary({ asset }: FundamentalsSummaryProps) {
                     tooltip="Price-to-Sales-Growth (approximation): Forward P/S / Dampened Growth %. Lower = cheaper relative to growth. PSG < 0.5 may indicate undervaluation. Uses log dampening for extreme growth rates."
                     isApproximation={true}
                     valueColor={getPSGColor(asset.psg)}
+                    highlight={useSalesMetrics}
                   />
                 </div>
               </div>
