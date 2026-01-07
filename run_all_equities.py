@@ -415,6 +415,8 @@ async def main_async(as_of_date: str, limit: int):
 
 def main():
     """Entry point with argument parsing."""
+    global MODEL_NAME
+    
     parser = argparse.ArgumentParser(
         description='Run AI analysis for top equities by volume using Gemini v3.0 prompt'
     )
@@ -446,7 +448,6 @@ def main():
         as_of_date = (date.today() - timedelta(days=1)).isoformat()
     
     # Update model if specified
-    global MODEL_NAME
     MODEL_NAME = args.model
     
     if not GEMINI_API_KEY:
