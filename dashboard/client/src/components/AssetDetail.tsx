@@ -15,6 +15,7 @@ import { ChatSidebar } from "./ChatSidebar";
 import { NotesHistory } from "./NotesHistory";
 import { FilesSection } from "./FilesSection";
 import TradingViewWidget from "./TradingViewWidget";
+import { FundamentalsSummary } from "./FundamentalsSummary";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -478,6 +479,9 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               </div>
               )}
             </div>
+
+            {/* Fundamentals Summary - Only for equities */}
+            <FundamentalsSummary asset={asset} />
 
             {/* Trade Plan - Collapsible */}
             {review && (
