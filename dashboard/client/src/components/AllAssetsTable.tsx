@@ -71,6 +71,9 @@ interface FilterThresholds {
   peRatio?: { min?: number; max?: number };
   forwardPe?: { min?: number; max?: number };
   pegRatio?: { min?: number; max?: number };
+  priceToSalesTtm?: { min?: number; max?: number };
+  forwardPs?: { min?: number; max?: number };
+  psg?: { min?: number; max?: number };
 }
 
 export default function AllAssetsTable({ assetType, date, onAssetClick, showWatchlistColumn = true }: AllAssetsTableProps) {
@@ -98,6 +101,12 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
     forwardPeMax: "",  // For equity
     pegRatioMin: "",  // For equity
     pegRatioMax: "",  // For equity
+    priceToSalesTtmMin: "",  // For equity - P/S TTM
+    priceToSalesTtmMax: "",  // For equity
+    forwardPsMin: "",  // For equity - Forward P/S (approx)
+    forwardPsMax: "",  // For equity
+    psgMin: "",  // For equity - PSG (approx)
+    psgMax: "",  // For equity
     category: "",  // For crypto
     industry: "",  // For equity
   });
@@ -156,6 +165,24 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
       if (peg === null || peg === undefined) return false; // Exclude assets without PEG if filter is set
       if (filterThresholds.pegRatio.min !== undefined && peg < filterThresholds.pegRatio.min) return false;
       if (filterThresholds.pegRatio.max !== undefined && peg > filterThresholds.pegRatio.max) return false;
+    }
+    if (filterThresholds.priceToSalesTtm) {
+      const ps = row.price_to_sales_ttm;
+      if (ps === null || ps === undefined) return false;
+      if (filterThresholds.priceToSalesTtm.min !== undefined && ps < filterThresholds.priceToSalesTtm.min) return false;
+      if (filterThresholds.priceToSalesTtm.max !== undefined && ps > filterThresholds.priceToSalesTtm.max) return false;
+    }
+    if (filterThresholds.forwardPs) {
+      const fps = row.forward_ps;
+      if (fps === null || fps === undefined) return false;
+      if (filterThresholds.forwardPs.min !== undefined && fps < filterThresholds.forwardPs.min) return false;
+      if (filterThresholds.forwardPs.max !== undefined && fps > filterThresholds.forwardPs.max) return false;
+    }
+    if (filterThresholds.psg) {
+      const psgVal = row.psg;
+      if (psgVal === null || psgVal === undefined) return false;
+      if (filterThresholds.psg.min !== undefined && psgVal < filterThresholds.psg.min) return false;
+      if (filterThresholds.psg.max !== undefined && psgVal > filterThresholds.psg.max) return false;
     }
     // Category filter
     if (filterInputs.category && row.category !== filterInputs.category) {
@@ -224,6 +251,24 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
         max: filterInputs.pegRatioMax ? parseFloat(filterInputs.pegRatioMax) : undefined,
       };
     }
+    if (filterInputs.priceToSalesTtmMin || filterInputs.priceToSalesTtmMax) {
+      newThresholds.priceToSalesTtm = {
+        min: filterInputs.priceToSalesTtmMin ? parseFloat(filterInputs.priceToSalesTtmMin) : undefined,
+        max: filterInputs.priceToSalesTtmMax ? parseFloat(filterInputs.priceToSalesTtmMax) : undefined,
+      };
+    }
+    if (filterInputs.forwardPsMin || filterInputs.forwardPsMax) {
+      newThresholds.forwardPs = {
+        min: filterInputs.forwardPsMin ? parseFloat(filterInputs.forwardPsMin) : undefined,
+        max: filterInputs.forwardPsMax ? parseFloat(filterInputs.forwardPsMax) : undefined,
+      };
+    }
+    if (filterInputs.psgMin || filterInputs.psgMax) {
+      newThresholds.psg = {
+        min: filterInputs.psgMin ? parseFloat(filterInputs.psgMin) : undefined,
+        max: filterInputs.psgMax ? parseFloat(filterInputs.psgMax) : undefined,
+      };
+    }
     setFilterThresholds(newThresholds);
     setPage(0);
   };
@@ -245,6 +290,12 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
       forwardPeMax: "",
       pegRatioMin: "",
       pegRatioMax: "",
+      priceToSalesTtmMin: "",
+      priceToSalesTtmMax: "",
+      forwardPsMin: "",
+      forwardPsMax: "",
+      psgMin: "",
+      psgMax: "",
       category: "",
       industry: "",
     });
@@ -486,6 +537,39 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                         className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
                     </div>
                   </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-muted-foreground uppercase">P/S (TTM)</label>
+                    <div className="flex gap-1">
+                      <input type="number" placeholder="Min" value={filterInputs.priceToSalesTtmMin}
+                        onChange={(e) => setFilterInputs({...filterInputs, priceToSalesTtmMin: e.target.value})}
+                        className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
+                      <input type="number" placeholder="Max" value={filterInputs.priceToSalesTtmMax}
+                        onChange={(e) => setFilterInputs({...filterInputs, priceToSalesTtmMax: e.target.value})}
+                        className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-muted-foreground uppercase">Fwd P/S*</label>
+                    <div className="flex gap-1">
+                      <input type="number" placeholder="Min" value={filterInputs.forwardPsMin}
+                        onChange={(e) => setFilterInputs({...filterInputs, forwardPsMin: e.target.value})}
+                        className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
+                      <input type="number" placeholder="Max" value={filterInputs.forwardPsMax}
+                        onChange={(e) => setFilterInputs({...filterInputs, forwardPsMax: e.target.value})}
+                        className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-muted-foreground uppercase">PSG*</label>
+                    <div className="flex gap-1">
+                      <input type="number" placeholder="Min" value={filterInputs.psgMin}
+                        onChange={(e) => setFilterInputs({...filterInputs, psgMin: e.target.value})}
+                        className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
+                      <input type="number" placeholder="Max" value={filterInputs.psgMax}
+                        onChange={(e) => setFilterInputs({...filterInputs, psgMax: e.target.value})}
+                        className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
+                    </div>
+                  </div>
                 </>
               )}
             </div>
@@ -555,6 +639,15 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                   <th className="px-2 py-2 font-medium text-center">
                     <SortHeader field="peg_ratio" tooltip="Price/Earnings-to-Growth ratio (P/E divided by earnings growth rate)">PEG</SortHeader>
                   </th>
+                  <th className="px-2 py-2 font-medium text-center">
+                    <SortHeader field="price_to_sales_ttm" tooltip="Price-to-Sales ratio (trailing twelve months)">P/S</SortHeader>
+                  </th>
+                  <th className="px-2 py-2 font-medium text-center">
+                    <SortHeader field="forward_ps" tooltip="Forward P/S (approx): Market Cap / Est. NTM Revenue. NTM Revenue estimated using historical growth rate.">Fwd P/S*</SortHeader>
+                  </th>
+                  <th className="px-2 py-2 font-medium text-center">
+                    <SortHeader field="psg" tooltip="Price-to-Sales-Growth (approx): Forward P/S / Revenue Growth %. Lower = cheaper relative to growth.">PSG*</SortHeader>
+                  </th>
                 </>
               )}
               <th className="px-2 py-2 font-medium text-center">
@@ -572,9 +665,9 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={assetType === "equity" ? (showWatchlistColumn ? 18 : 17) : (showWatchlistColumn ? 16 : 15)} className="px-2 py-4 text-center text-muted-foreground">Loading...</td></tr>
+              <tr><td colSpan={assetType === "equity" ? (showWatchlistColumn ? 21 : 20) : (showWatchlistColumn ? 16 : 15)} className="px-2 py-4 text-center text-muted-foreground">Loading...</td></tr>
             ) : filteredData.length === 0 ? (
-              <tr><td colSpan={assetType === "equity" ? (showWatchlistColumn ? 18 : 17) : (showWatchlistColumn ? 16 : 15)} className="px-2 py-4 text-center text-muted-foreground">No assets match your filters</td></tr>
+              <tr><td colSpan={assetType === "equity" ? (showWatchlistColumn ? 21 : 20) : (showWatchlistColumn ? 16 : 15)} className="px-2 py-4 text-center text-muted-foreground">No assets match your filters</td></tr>
             ) : (
               filteredData.map((row) => (
                 <tr key={row.asset_id} className="border-b border-border hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => onAssetClick(row.asset_id)}>
@@ -642,6 +735,15 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                       </td>
                       <td className="px-2 py-2 text-center font-mono text-xs text-muted-foreground">
                         {row.peg_ratio ? row.peg_ratio.toFixed(2) : "-"}
+                      </td>
+                      <td className="px-2 py-2 text-center font-mono text-xs text-muted-foreground">
+                        {row.price_to_sales_ttm ? row.price_to_sales_ttm.toFixed(2) : "-"}
+                      </td>
+                      <td className="px-2 py-2 text-center font-mono text-xs text-muted-foreground">
+                        {row.forward_ps ? row.forward_ps.toFixed(2) : "-"}
+                      </td>
+                      <td className="px-2 py-2 text-center font-mono text-xs text-muted-foreground">
+                        {row.psg ? row.psg.toFixed(2) : "-"}
                       </td>
                     </>
                   )}
