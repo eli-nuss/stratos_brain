@@ -23,6 +23,7 @@ from datetime import datetime, date, timedelta
 from concurrent.futures import ThreadPoolExecutor
 import threading
 import hashlib
+import psycopg2.extras
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
@@ -249,27 +250,27 @@ def save_to_database(asset_id: str, as_of_date: str, result: dict) -> bool:
     confidence = result.get('confidence', 0.5)
     summary = result.get('summary_text', '')
     
-    # Extract key_levels as JSON
+    # Extract key_levels as JSON - use psycopg2.extras.Json for proper PostgreSQL JSON handling
     key_levels = result.get('key_levels', {})
-    ai_key_levels = json.dumps(key_levels) if key_levels else None
+    ai_key_levels = psycopg2.extras.Json(key_levels) if key_levels else None
     
     # Extract entry zone as JSON
     entry_zone = result.get('entry_zone', {})
-    ai_entry = json.dumps(entry_zone) if entry_zone else None
+    ai_entry = psycopg2.extras.Json(entry_zone) if entry_zone else None
     
     # Extract targets as JSON
     targets = result.get('targets', [])
-    ai_targets = json.dumps(targets) if targets else None
+    ai_targets = psycopg2.extras.Json(targets) if targets else None
     
     # Extract why_now, risks, what_to_watch
     why_now = result.get('why_now', '')
     risks = result.get('risks', [])
-    ai_risks = json.dumps(risks) if risks else None
+    ai_risks = psycopg2.extras.Json(risks) if risks else None
     what_to_watch = result.get('what_to_watch', '')
     
     # Extract quality_subscores
     quality_subscores = result.get('quality_subscores', {})
-    subscores_json = json.dumps(quality_subscores) if quality_subscores else None
+    subscores_json = psycopg2.extras.Json(quality_subscores) if quality_subscores else None
     
     # Generate input_hash
     input_hash = hashlib.md5(f"{asset_id}_{as_of_date}_{json.dumps(result)[:100]}".encode()).hexdigest()
@@ -310,7 +311,7 @@ def save_to_database(asset_id: str, as_of_date: str, result: dict) -> bool:
             asset_id, as_of_date, direction, direction_score, quality_score,
             setup_type, attention_level, confidence, summary,
             ai_key_levels, ai_entry, ai_targets, why_now, ai_risks, what_to_watch,
-            subscores_json, json.dumps(result), MODEL_NAME, AI_REVIEW_VERSION, input_hash, "equity_top500"
+            subscores_json, psycopg2.extras.Json(result), MODEL_NAME, AI_REVIEW_VERSION, input_hash, "equity_top500"
         ))
         return True
     except Exception as e:
