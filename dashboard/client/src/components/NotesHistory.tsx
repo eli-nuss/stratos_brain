@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { StickyNote, Plus, Pencil, Trash2, Check, X, Clock } from 'lucide-react';
+import { StickyNote, Plus, Pencil, Trash2, Check, X, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import { 
   useAssetNotes, 
   createNote, 
@@ -13,12 +13,15 @@ interface NotesHistoryProps {
   assetId: number;
 }
 
+const MAX_VISIBLE_NOTES = 2;
+
 export function NotesHistory({ assetId }: NotesHistoryProps) {
   const { notes, isLoading, mutate } = useAssetNotes(assetId);
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editText, setEditText] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -87,6 +90,11 @@ export function NotesHistory({ assetId }: NotesHistoryProps) {
     }
   };
 
+  // Determine which notes to display
+  const visibleNotes = isExpanded ? notes : notes.slice(0, MAX_VISIBLE_NOTES);
+  const hiddenCount = notes.length - MAX_VISIBLE_NOTES;
+  const hasMoreNotes = notes.length > MAX_VISIBLE_NOTES;
+
   if (isLoading) {
     return (
       <div className="bg-card border border-border rounded-lg overflow-hidden">
@@ -120,7 +128,7 @@ export function NotesHistory({ assetId }: NotesHistoryProps) {
         )}
       </div>
 
-      <div className="divide-y divide-border max-h-64 overflow-y-auto">
+      <div className="divide-y divide-border">
         {/* Add new note form */}
         {isAdding && (
           <div className="p-3 bg-muted/10">
@@ -163,7 +171,7 @@ export function NotesHistory({ assetId }: NotesHistoryProps) {
             No notes yet. Click "Add Note" to create one.
           </div>
         ) : (
-          notes.map((note) => (
+          visibleNotes.map((note) => (
             <div key={note.note_id} className="p-3 hover:bg-muted/10 transition-colors group">
               {editingId === note.note_id ? (
                 <div>
@@ -226,6 +234,26 @@ export function NotesHistory({ assetId }: NotesHistoryProps) {
               )}
             </div>
           ))
+        )}
+
+        {/* Show more/less button */}
+        {hasMoreNotes && (
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="w-full px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors flex items-center justify-center gap-1"
+          >
+            {isExpanded ? (
+              <>
+                <ChevronUp className="w-3 h-3" />
+                Show less
+              </>
+            ) : (
+              <>
+                <ChevronDown className="w-3 h-3" />
+                Show {hiddenCount} more note{hiddenCount > 1 ? 's' : ''}
+              </>
+            )}
+          </button>
         )}
       </div>
     </div>
