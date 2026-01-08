@@ -1,12 +1,12 @@
-import { useEditor, EditorContent, BubbleMenu } from '@tiptap/react';
+import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import Table from '@tiptap/extension-table';
-import TableRow from '@tiptap/extension-table-row';
-import TableCell from '@tiptap/extension-table-cell';
-import TableHeader from '@tiptap/extension-table-header';
-import Placeholder from '@tiptap/extension-placeholder';
-import Highlight from '@tiptap/extension-highlight';
-import Typography from '@tiptap/extension-typography';
+import { Table } from '@tiptap/extension-table';
+import { TableRow } from '@tiptap/extension-table-row';
+import { TableCell } from '@tiptap/extension-table-cell';
+import { TableHeader } from '@tiptap/extension-table-header';
+import { Placeholder } from '@tiptap/extension-placeholder';
+import { Highlight } from '@tiptap/extension-highlight';
+import { Typography } from '@tiptap/extension-typography';
 import { useEffect, useCallback } from 'react';
 import {
   Bold,
@@ -23,7 +23,6 @@ import {
   Undo,
   Redo,
   Table as TableIcon,
-  Plus,
   Trash2,
   RowsIcon,
   ColumnsIcon,
@@ -405,35 +404,6 @@ export function RichMarkdownEditor({ content, onChange, placeholder = 'Start typ
           <Redo className="w-4 h-4" />
         </MenuButton>
       </div>
-
-      {/* Bubble menu for quick formatting */}
-      {editor && (
-        <BubbleMenu editor={editor} tippyOptions={{ duration: 100 }}>
-          <div className="flex items-center gap-0.5 p-1 bg-gray-800 rounded-lg shadow-lg border border-gray-700">
-            <MenuButton
-              onClick={() => editor.chain().focus().toggleBold().run()}
-              isActive={editor.isActive('bold')}
-              title="Bold"
-            >
-              <Bold className="w-3.5 h-3.5" />
-            </MenuButton>
-            <MenuButton
-              onClick={() => editor.chain().focus().toggleItalic().run()}
-              isActive={editor.isActive('italic')}
-              title="Italic"
-            >
-              <Italic className="w-3.5 h-3.5" />
-            </MenuButton>
-            <MenuButton
-              onClick={() => editor.chain().focus().toggleCode().run()}
-              isActive={editor.isActive('code')}
-              title="Code"
-            >
-              <Code className="w-3.5 h-3.5" />
-            </MenuButton>
-          </div>
-        </BubbleMenu>
-      )}
 
       {/* Editor content */}
       <div className="flex-1 overflow-auto">
