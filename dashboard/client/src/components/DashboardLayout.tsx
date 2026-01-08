@@ -103,7 +103,44 @@ export default function DashboardLayout({
                 <TooltipContent>Your personal watchlist</TooltipContent>
               </Tooltip>
               
+              <div className="h-3 w-px bg-border/50 mx-0.5" />
+              
+              {/* Equities */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => onTabChange("equity")}
+                    className={`px-2.5 py-1 text-xs font-medium rounded transition-all ${
+                      activeTab === "equity"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    }`}
+                  >
+                    Equities
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>US equity stocks</TooltipContent>
+              </Tooltip>
+              
+              {/* Crypto */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => onTabChange("crypto")}
+                    className={`px-2.5 py-1 text-xs font-medium rounded transition-all ${
+                      activeTab === "crypto"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    }`}
+                  >
+                    Crypto
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Cryptocurrency assets (24/7 data)</TooltipContent>
+              </Tooltip>
+              
               {/* Stock Lists */}
+              {stockLists.length > 0 && <div className="h-3 w-px bg-border/50 mx-0.5" />}
               {stockLists.map((list) => {
                 const Icon = getIcon(list.icon);
                 const tabId = `list-${list.id}` as TabType;
@@ -126,42 +163,6 @@ export default function DashboardLayout({
                   </Tooltip>
                 );
               })}
-              
-              <div className="h-3 w-px bg-border/50 mx-0.5" />
-              
-              {/* Crypto */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => onTabChange("crypto")}
-                    className={`px-2.5 py-1 text-xs font-medium rounded transition-all ${
-                      activeTab === "crypto"
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                    }`}
-                  >
-                    Crypto
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Cryptocurrency assets (24/7 data)</TooltipContent>
-              </Tooltip>
-              
-              {/* Equities */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => onTabChange("equity")}
-                    className={`px-2.5 py-1 text-xs font-medium rounded transition-all ${
-                      activeTab === "equity"
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                    }`}
-                  >
-                    Equities
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>US equity stocks</TooltipContent>
-              </Tooltip>
             </div>
           </nav>
 
