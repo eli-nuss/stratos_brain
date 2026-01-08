@@ -120,7 +120,7 @@ function MemoDetailModal({ memo, onClose }: MemoDetailModalProps) {
 
 export default function MemoLibrary() {
   const [search, setSearch] = useState("");
-  const [docTypeFilter, setDocTypeFilter] = useState<'all' | 'memo' | 'one_pager'>('all');
+  const [docTypeFilter, setDocTypeFilter] = useState<'memo' | 'one_pager'>('memo');
   const [selectedMemo, setSelectedMemo] = useState<MemoFile | null>(null);
 
   const { data: memos, error, isLoading } = useSWR<MemoFile[]>(
@@ -180,12 +180,6 @@ export default function MemoLibrary() {
           <div className="flex items-center gap-3">
             {/* Document Type Filter */}
             <div className="flex items-center gap-1 bg-muted/30 rounded-lg p-1">
-              <button
-                onClick={() => setDocTypeFilter('all')}
-                className={`px-3 py-1 text-xs rounded ${docTypeFilter === 'all' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-              >
-                All
-              </button>
               <button
                 onClick={() => setDocTypeFilter('memo')}
                 className={`px-3 py-1 text-xs rounded ${docTypeFilter === 'memo' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
