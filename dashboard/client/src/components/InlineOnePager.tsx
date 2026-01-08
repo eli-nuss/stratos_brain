@@ -125,24 +125,143 @@ export function InlineOnePager({ assetId, symbol }: InlineOnePagerProps) {
 
       {/* Content */}
       {isExpanded && (
-        <div className="p-4">
+        <div className="p-5 max-h-[600px] overflow-y-auto">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
             </div>
           ) : content ? (
-            <div className="prose prose-sm prose-invert max-w-none 
-              prose-headings:text-foreground prose-headings:font-semibold prose-headings:mt-4 prose-headings:mb-2
-              prose-h1:text-lg prose-h2:text-base prose-h3:text-sm
-              prose-p:text-muted-foreground prose-p:text-sm prose-p:leading-relaxed prose-p:my-2
-              prose-li:text-muted-foreground prose-li:text-sm
-              prose-strong:text-foreground
-              prose-a:text-primary prose-a:no-underline hover:prose-a:underline
-              prose-table:text-sm prose-th:text-foreground prose-td:text-muted-foreground
-              prose-hr:border-border
-              max-h-[500px] overflow-y-auto"
-            >
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <div className="markdown-content">
+              <ReactMarkdown 
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  // Custom heading styles with better spacing and visual hierarchy
+                  h1: ({ children }) => (
+                    <h1 className="text-xl font-bold text-foreground mb-4 mt-6 first:mt-0 pb-2 border-b border-border/50">
+                      {children}
+                    </h1>
+                  ),
+                  h2: ({ children }) => (
+                    <h2 className="text-lg font-semibold text-foreground mb-3 mt-5 first:mt-0">
+                      {children}
+                    </h2>
+                  ),
+                  h3: ({ children }) => (
+                    <h3 className="text-base font-semibold text-foreground mb-2 mt-4 first:mt-0">
+                      {children}
+                    </h3>
+                  ),
+                  h4: ({ children }) => (
+                    <h4 className="text-sm font-semibold text-foreground mb-2 mt-3 first:mt-0">
+                      {children}
+                    </h4>
+                  ),
+                  // Paragraphs with proper spacing
+                  p: ({ children }) => (
+                    <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+                      {children}
+                    </p>
+                  ),
+                  // Strong/bold text stands out
+                  strong: ({ children }) => (
+                    <strong className="font-semibold text-foreground">
+                      {children}
+                    </strong>
+                  ),
+                  // Emphasis/italic
+                  em: ({ children }) => (
+                    <em className="italic text-muted-foreground">
+                      {children}
+                    </em>
+                  ),
+                  // Lists with proper styling
+                  ul: ({ children }) => (
+                    <ul className="list-disc list-outside ml-5 mb-3 space-y-1.5">
+                      {children}
+                    </ul>
+                  ),
+                  ol: ({ children }) => (
+                    <ol className="list-decimal list-outside ml-5 mb-3 space-y-1.5">
+                      {children}
+                    </ol>
+                  ),
+                  li: ({ children }) => (
+                    <li className="text-sm text-muted-foreground leading-relaxed pl-1">
+                      {children}
+                    </li>
+                  ),
+                  // Links
+                  a: ({ href, children }) => (
+                    <a 
+                      href={href} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      {children}
+                    </a>
+                  ),
+                  // Blockquotes for callouts
+                  blockquote: ({ children }) => (
+                    <blockquote className="border-l-4 border-primary/50 pl-4 py-1 my-3 bg-muted/20 rounded-r">
+                      {children}
+                    </blockquote>
+                  ),
+                  // Code blocks
+                  code: ({ className, children }) => {
+                    const isInline = !className;
+                    if (isInline) {
+                      return (
+                        <code className="bg-muted/50 px-1.5 py-0.5 rounded text-xs font-mono text-foreground">
+                          {children}
+                        </code>
+                      );
+                    }
+                    return (
+                      <code className="block bg-muted/30 p-3 rounded-lg text-xs font-mono text-foreground overflow-x-auto my-3">
+                        {children}
+                      </code>
+                    );
+                  },
+                  pre: ({ children }) => (
+                    <pre className="bg-muted/30 p-3 rounded-lg overflow-x-auto my-3">
+                      {children}
+                    </pre>
+                  ),
+                  // Tables with nice styling
+                  table: ({ children }) => (
+                    <div className="overflow-x-auto my-4 rounded-lg border border-border">
+                      <table className="w-full text-sm">
+                        {children}
+                      </table>
+                    </div>
+                  ),
+                  thead: ({ children }) => (
+                    <thead className="bg-muted/40 border-b border-border">
+                      {children}
+                    </thead>
+                  ),
+                  th: ({ children }) => (
+                    <th className="px-3 py-2 text-left font-semibold text-foreground text-xs uppercase tracking-wide">
+                      {children}
+                    </th>
+                  ),
+                  td: ({ children }) => (
+                    <td className="px-3 py-2 text-muted-foreground border-b border-border/50">
+                      {children}
+                    </td>
+                  ),
+                  tr: ({ children }) => (
+                    <tr className="hover:bg-muted/20 transition-colors">
+                      {children}
+                    </tr>
+                  ),
+                  // Horizontal rule
+                  hr: () => (
+                    <hr className="my-4 border-border/50" />
+                  ),
+                }}
+              >
                 {content}
               </ReactMarkdown>
             </div>

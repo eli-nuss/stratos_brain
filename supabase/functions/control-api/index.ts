@@ -1970,23 +1970,31 @@ If asked about something not in the data, acknowledge the limitation.`
         
         // Check if task is completed and has output files
         let outputFile = null
+        let allOutputFiles: Array<{fileUrl: string, fileName: string, mimeType: string}> = []
+        
         if (taskData.status === 'completed' && taskData.output) {
-          // Find the last output with a file
-          for (const output of taskData.output.reverse()) {
+          // Collect all output files
+          for (const output of taskData.output) {
             if (output.content) {
               for (const content of output.content) {
                 if (content.type === 'output_file') {
-                  outputFile = {
+                  allOutputFiles.push({
                     fileUrl: content.fileUrl,
                     fileName: content.fileName,
                     mimeType: content.mimeType
-                  }
-                  break
+                  })
                 }
               }
             }
-            if (outputFile) break
           }
+          
+          // Prioritize markdown files for better inline display
+          const mdFile = allOutputFiles.find(f => f.fileName?.endsWith('.md'))
+          const pdfFile = allOutputFiles.find(f => f.fileName?.endsWith('.pdf'))
+          const docxFile = allOutputFiles.find(f => f.fileName?.endsWith('.docx'))
+          
+          // Prefer: .md > .pdf > .docx > any other
+          outputFile = mdFile || pdfFile || docxFile || allOutputFiles[allOutputFiles.length - 1] || null
         }
         
         return new Response(JSON.stringify({
