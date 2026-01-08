@@ -1,15 +1,16 @@
 import { useState } from "react";
-import { TrendingUp, TrendingDown, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, ExternalLink, Star } from "lucide-react";
+import { TrendingUp, TrendingDown, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, X, Star } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { COLUMN_DEFINITIONS } from "@/lib/signalDefinitions";
 import { NoteCell } from "@/components/NoteCell";
+import AddToListButton from "@/components/AddToListButton";
+import AssetTagButton from "@/components/AssetTagButton";
 import { useWatchlistAssets, useWatchlist } from "@/hooks/useWatchlist";
 
 interface WatchlistTableProps {
   onAssetClick: (assetId: string) => void;
 }
 
-type SortField = "symbol" | "ai_direction_score" | "ai_setup_quality_score" | "market_cap" | "close" | "return_1d" | "return_7d" | "return_30d" | "return_365d" | "dollar_volume_7d" | "dollar_volume_30d";
+type SortField = "symbol" | "ai_direction_score" | "ai_setup_quality_score" | "market_cap" | "close" | "return_1d" | "return_7d" | "return_30d" | "return_365d" | "dollar_volume_7d" | "dollar_volume_30d" | "pe_ratio" | "forward_pe" | "peg_ratio" | "price_to_sales_ttm" | "forward_ps" | "psg";
 type SortOrder = "asc" | "desc";
 
 const PAGE_SIZE = 50;
@@ -34,8 +35,8 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
   });
 
   const sortedAssets = [...filteredAssets].sort((a: any, b: any) => {
-    const aVal = a[sortBy] ?? 0;
-    const bVal = b[sortBy] ?? 0;
+    const aVal = a[sortBy] ?? (sortOrder === "asc" ? Infinity : -Infinity);
+    const bVal = b[sortBy] ?? (sortOrder === "asc" ? Infinity : -Infinity);
     if (sortOrder === "asc") {
       return aVal > bVal ? 1 : -1;
     }
@@ -69,18 +70,11 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
     mutateWatchlist();
   };
 
-  const getDirectionIcon = (direction: string) => {
-    if (direction === "bullish") return <TrendingUp className="w-3 h-3 text-signal-bullish" />;
-    if (direction === "bearish") return <TrendingDown className="w-3 h-3 text-signal-bearish" />;
+  const getDirectionIcon = (score: number | null | undefined) => {
+    if (score === null || score === undefined) return <span className="text-muted-foreground">-</span>;
+    if (score > 0) return <TrendingUp className="w-3 h-3 text-signal-bullish" />;
+    if (score < 0) return <TrendingDown className="w-3 h-3 text-signal-bearish" />;
     return <span className="text-muted-foreground">-</span>;
-  };
-
-  const getTradingViewUrl = (symbol: string, assetType: string) => {
-    if (assetType === 'crypto') {
-      return `https://www.tradingview.com/chart/?symbol=CRYPTO:${symbol}USD`;
-    } else {
-      return `https://www.tradingview.com/chart/?symbol=${symbol}`;
-    }
   };
 
   const formatPrice = (num: number | null | undefined) => {
@@ -133,9 +127,7 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
           <TooltipTrigger asChild>
             <Info className="w-3 h-3 text-muted-foreground hover:text-foreground cursor-help transition-colors" />
           </TooltipTrigger>
-          <TooltipContent className="max-w-xs text-left">
-            {tooltip}
-          </TooltipContent>
+          <TooltipContent className="max-w-xs text-left">{tooltip}</TooltipContent>
         </Tooltip>
       )}
     </div>
@@ -148,57 +140,62 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
         <TooltipTrigger asChild>
           <Info className="w-3 h-3 text-muted-foreground hover:text-foreground cursor-help transition-colors" />
         </TooltipTrigger>
-        <TooltipContent className="max-w-xs text-left">
-          {tooltip}
-        </TooltipContent>
+        <TooltipContent className="max-w-xs text-left">{tooltip}</TooltipContent>
       </Tooltip>
     </div>
   );
 
+  // Check if any assets are equities to show equity-specific columns
+  const hasEquities = assets.some((a: any) => a.asset_type === 'equity');
+
   return (
-    <div className="flex flex-col h-full border border-border rounded-lg bg-card overflow-hidden">
+    <div className="flex flex-col h-full bg-background border border-border rounded-lg overflow-hidden">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-muted/30">
-        <h3 className="font-medium text-sm flex items-center gap-2">
+      <div className="p-3 border-b border-border space-y-3">
+        <h3 className="text-sm font-semibold text-foreground">
           ⭐ Watchlist
-          <span className="text-xs text-muted-foreground">({total} assets)</span>
+          <span className="text-xs text-muted-foreground ml-2">({total} assets)</span>
         </h3>
-        <form onSubmit={handleSearch} className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="pl-7 pr-3 py-1 text-xs bg-background border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary w-40"
-            />
-          </div>
-          {search && (
-            <button
-              type="button"
-              onClick={() => { setSearch(""); setSearchInput(""); }}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              Clear
-            </button>
-          )}
-        </form>
+        
+        <div className="flex items-center gap-2">
+          <form onSubmit={handleSearch} className="flex items-center gap-1 flex-1">
+            <div className="relative flex-1">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search symbol..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="w-full pl-7 pr-2 py-1 text-xs bg-background border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            {search && (
+              <button
+                type="button"
+                onClick={() => { setSearch(""); setSearchInput(""); setPage(0); }}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </form>
+        </div>
       </div>
 
       {/* Table */}
       <div className="flex-1 overflow-auto scrollbar-thin">
         <table className="w-full text-sm text-left">
-          <thead className="text-xs text-muted-foreground bg-muted/10 sticky top-0 z-10 backdrop-blur-sm">
+          <thead className="sticky top-0 bg-muted/50 border-b border-border text-xs text-muted-foreground">
             <tr>
-              <th className="px-3 py-2 font-medium sticky left-0 z-20 bg-muted/10 backdrop-blur-sm">
-                <SortHeader field="symbol">Asset</SortHeader>
+              <th className="px-2 py-2 w-16 sticky left-0 z-20 bg-muted/50"></th>
+              <th className="px-3 py-2 font-medium sticky left-16 z-20 bg-muted/50">
+                <SortHeader field="symbol" tooltip="Asset name and symbol">Asset</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
-                <SortHeader field="ai_direction_score" tooltip="AI-determined directional conviction (-100 to +100)">Dir</SortHeader>
+                <SortHeader field="ai_direction_score" tooltip="AI directional conviction (-100 to +100)">Dir</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
-                <SortHeader field="ai_setup_quality_score" tooltip="AI-determined setup quality score (0-100)">Quality</SortHeader>
+                <SortHeader field="ai_setup_quality_score" tooltip="AI setup quality score (0-100)">Quality</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
                 <SortHeader field="market_cap" tooltip="Market capitalization">Mkt Cap</SortHeader>
@@ -207,25 +204,50 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
                 <SortHeader field="close" tooltip="Latest closing price">Price</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
-                <SortHeader field="return_1d" tooltip="Price change over the last 24 hours">24h</SortHeader>
+                <SortHeader field="return_1d" tooltip="24-hour price change">24h</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
-                <SortHeader field="return_7d" tooltip="Price change over the last 7 days">7d</SortHeader>
+                <SortHeader field="return_7d" tooltip="7-day price change">7d</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
-                <SortHeader field="return_30d" tooltip="Price change over the last 30 days">30d</SortHeader>
+                <SortHeader field="return_30d" tooltip="30-day price change">30d</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
-                <SortHeader field="return_365d" tooltip="Price change over the last 365 days">365d</SortHeader>
+                <SortHeader field="return_365d" tooltip="365-day price change">365d</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
-                <SortHeader field="dollar_volume_7d" tooltip="Trading volume over the last 7 days">Vol 7d</SortHeader>
+                <SortHeader field="dollar_volume_7d" tooltip="7-day trading volume">Vol 7d</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
-                <SortHeader field="dollar_volume_30d" tooltip="Trading volume over the last 30 days">Vol 30d</SortHeader>
+                <SortHeader field="dollar_volume_30d" tooltip="30-day trading volume">Vol 30d</SortHeader>
               </th>
+              {/* Equity-specific columns - always show if any equities in watchlist */}
+              {hasEquities && (
+                <>
+                  <th className="px-2 py-2 font-medium text-center">
+                    <SortHeader field="pe_ratio" tooltip="Price-to-Earnings ratio (trailing 12 months)">P/E</SortHeader>
+                  </th>
+                  <th className="px-2 py-2 font-medium text-center">
+                    <SortHeader field="forward_pe" tooltip="Forward Price-to-Earnings ratio based on analyst estimates">Fwd P/E</SortHeader>
+                  </th>
+                  <th className="px-2 py-2 font-medium text-center">
+                    <SortHeader field="peg_ratio" tooltip="Price/Earnings-to-Growth ratio (P/E divided by earnings growth rate)">PEG</SortHeader>
+                  </th>
+                  <th className="px-2 py-2 font-medium text-center">
+                    <SortHeader field="price_to_sales_ttm" tooltip="Price-to-Sales ratio (trailing twelve months)">P/S</SortHeader>
+                  </th>
+                  <th className="px-2 py-2 font-medium text-center">
+                    <SortHeader field="forward_ps" tooltip="Forward P/S (approx): Market Cap / Est. NTM Revenue">Fwd P/S*</SortHeader>
+                  </th>
+                  <th className="px-2 py-2 font-medium text-center">
+                    <SortHeader field="psg" tooltip="Price-to-Sales-Growth (approx): Forward P/S / Dampened Growth %">PSG*</SortHeader>
+                  </th>
+                </>
+              )}
               <th className="px-2 py-2 font-medium text-center">
-                <HeaderWithTooltip tooltip="Category (crypto) or Sector (equities)">Cat/Sector</HeaderWithTooltip>
+                <HeaderWithTooltip tooltip="Category (crypto) or Industry (equities)">
+                  Cat/Industry
+                </HeaderWithTooltip>
               </th>
               <th className="px-2 py-2 font-medium text-center">
                 <HeaderWithTooltip tooltip="Brief description of the asset">Description</HeaderWithTooltip>
@@ -233,35 +255,28 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
               <th className="px-2 py-2 font-medium text-center">
                 <HeaderWithTooltip tooltip="Your personal notes">Notes</HeaderWithTooltip>
               </th>
-              <th className="px-2 py-2 font-medium text-center">
+              <th className="px-2 py-2 font-medium text-center w-12">
                 <HeaderWithTooltip tooltip="Remove from watchlist">★</HeaderWithTooltip>
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody>
             {isLoading ? (
-              [...Array(5)].map((_, i) => (
-                <tr key={i} className="animate-pulse">
-                  <td className="px-3 py-3"><div className="h-4 w-20 bg-muted rounded" /></td>
-                  {[...Array(14)].map((_, j) => (
-                    <td key={j} className="px-2 py-3"><div className="h-4 w-12 bg-muted rounded mx-auto" /></td>
-                  ))}
-                </tr>
-              ))
+              <tr><td colSpan={hasEquities ? 22 : 16} className="px-2 py-4 text-center text-muted-foreground">Loading...</td></tr>
             ) : paginatedAssets.length === 0 ? (
-              <tr>
-                <td colSpan={15} className="px-4 py-8 text-center text-muted-foreground">
-                  {search ? `No assets found matching "${search}"` : "Your watchlist is empty. Add assets from the Crypto or Equities tabs."}
-                </td>
-              </tr>
+              <tr><td colSpan={hasEquities ? 22 : 16} className="px-2 py-4 text-center text-muted-foreground">
+                {search ? `No assets found matching "${search}"` : "Your watchlist is empty. Add assets from the Crypto or Equities tabs."}
+              </td></tr>
             ) : (
               paginatedAssets.map((row: any) => (
-                <tr
-                  key={row.asset_id}
-                  onClick={() => onAssetClick(row.asset_id)}
-                  className="hover:bg-muted/20 cursor-pointer transition-colors group"
-                >
-                  <td className="px-3 py-2 sticky left-0 z-10 bg-card">
+                <tr key={row.asset_id} className="border-b border-border hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => onAssetClick(row.asset_id)}>
+                  <td className="px-2 py-2 sticky left-0 z-10 bg-background" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1">
+                      <AssetTagButton assetId={row.asset_id} onUpdate={() => mutateWatchlist()} />
+                      <AddToListButton assetId={row.asset_id} />
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 sticky left-16 z-10 bg-background">
                     <div className="flex items-center gap-2">
                       <span className={`text-[10px] px-1 py-0.5 rounded ${
                         row.asset_type === 'crypto' 
@@ -278,7 +293,7 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
                   </td>
                   <td className="px-2 py-2 text-center">
                     <div className="flex items-center justify-center gap-1">
-                      {getDirectionIcon(row.direction)}
+                      {getDirectionIcon(row.ai_direction_score)}
                       <span className={`font-mono text-xs ${
                         row.ai_direction_score > 0 ? "text-signal-bullish" : 
                         row.ai_direction_score < 0 ? "text-signal-bearish" : "text-muted-foreground"
@@ -319,6 +334,29 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
                   <td className="px-2 py-2 text-right font-mono text-xs text-muted-foreground">
                     {formatVolume(row.dollar_volume_30d)}
                   </td>
+                  {/* Equity-specific columns - show dash for crypto */}
+                  {hasEquities && (
+                    <>
+                      <td className="px-2 py-2 text-center font-mono text-xs text-muted-foreground">
+                        {row.asset_type === 'equity' && row.pe_ratio ? row.pe_ratio.toFixed(1) : "-"}
+                      </td>
+                      <td className="px-2 py-2 text-center font-mono text-xs text-muted-foreground">
+                        {row.asset_type === 'equity' && row.forward_pe ? row.forward_pe.toFixed(1) : "-"}
+                      </td>
+                      <td className="px-2 py-2 text-center font-mono text-xs text-muted-foreground">
+                        {row.asset_type === 'equity' && row.peg_ratio ? row.peg_ratio.toFixed(2) : "-"}
+                      </td>
+                      <td className="px-2 py-2 text-center font-mono text-xs text-muted-foreground">
+                        {row.asset_type === 'equity' && row.price_to_sales_ttm ? row.price_to_sales_ttm.toFixed(2) : "-"}
+                      </td>
+                      <td className="px-2 py-2 text-center font-mono text-xs text-muted-foreground">
+                        {row.asset_type === 'equity' && row.forward_ps ? row.forward_ps.toFixed(2) : "-"}
+                      </td>
+                      <td className="px-2 py-2 text-center font-mono text-xs text-muted-foreground">
+                        {row.asset_type === 'equity' && row.psg ? row.psg.toFixed(2) : "-"}
+                      </td>
+                    </>
+                  )}
                   <td className="px-2 py-2 text-center text-xs text-muted-foreground truncate max-w-[80px]">
                     {row.category || row.industry || row.sector || "-"}
                   </td>
@@ -356,50 +394,25 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="px-4 py-2 border-t border-border flex items-center justify-between bg-muted/30">
-          <span className="text-xs text-muted-foreground">
-            Showing {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, total)} of {total}
-          </span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setPage(0)}
-              disabled={page === 0}
-              className="p-1 hover:bg-muted rounded disabled:opacity-30 disabled:cursor-not-allowed"
-              title="First page"
-            >
-              <ChevronsLeft className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setPage(p => Math.max(0, p - 1))}
-              disabled={page === 0}
-              className="p-1 hover:bg-muted rounded disabled:opacity-30 disabled:cursor-not-allowed"
-              title="Previous page"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="px-2 text-xs">
-              Page {page + 1} of {totalPages || 1}
-            </span>
-            <button
-              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-              disabled={page >= totalPages - 1}
-              className="p-1 hover:bg-muted rounded disabled:opacity-30 disabled:cursor-not-allowed"
-              title="Next page"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setPage(totalPages - 1)}
-              disabled={page >= totalPages - 1}
-              className="p-1 hover:bg-muted rounded disabled:opacity-30 disabled:cursor-not-allowed"
-              title="Last page"
-            >
-              <ChevronsRight className="w-4 h-4" />
-            </button>
-          </div>
+      <div className="border-t border-border px-3 py-2 flex items-center justify-between bg-muted/20">
+        <span className="text-xs text-muted-foreground">
+          Page {page + 1} of {totalPages || 1} | {total} results
+        </span>
+        <div className="flex gap-1">
+          <button onClick={() => setPage(0)} disabled={page === 0} className="p-1 hover:bg-muted disabled:opacity-50" title="First page">
+            <ChevronsLeft className="w-4 h-4" />
+          </button>
+          <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} className="p-1 hover:bg-muted disabled:opacity-50" title="Previous page">
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="p-1 hover:bg-muted disabled:opacity-50" title="Next page">
+            <ChevronRight className="w-4 h-4" />
+          </button>
+          <button onClick={() => setPage(totalPages - 1)} disabled={page >= totalPages - 1} className="p-1 hover:bg-muted disabled:opacity-50" title="Last page">
+            <ChevronsRight className="w-4 h-4" />
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }
