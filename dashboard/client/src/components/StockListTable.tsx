@@ -5,6 +5,8 @@ import { NoteCell } from "@/components/NoteCell";
 import { useStockListAssets, removeFromList, StockList } from "@/hooks/useStockLists";
 import AddToListButton from "@/components/AddToListButton";
 import WatchlistToggle from "@/components/WatchlistToggle";
+import { ReviewedToggle } from "@/components/ReviewedToggle";
+import { useReviewed, toggleReviewed } from "@/hooks/useReviewed";
 
 interface StockListTableProps {
   list: StockList;
@@ -28,6 +30,8 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 
 export default function StockListTable({ list, onAssetClick, watchlist = [], toggleWatchlist }: StockListTableProps) {
   const { assets, isLoading, mutate: mutateAssets } = useStockListAssets(list.id);
+  const { reviewedIds, mutate: mutateReviewed } = useReviewed();
+  const isReviewed = (assetId: number) => reviewedIds.includes(assetId);
   const [page, setPage] = useState(0);
   const [sortBy, setSortBy] = useState<SortField>("ai_direction_score");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
@@ -287,7 +291,7 @@ export default function StockListTable({ list, onAssetClick, watchlist = [], tog
                   className="border-b border-border hover:bg-muted/30 transition-colors cursor-pointer"
                   onClick={() => onAssetClick(row.asset_id)}
                 >
-                  {/* Watchlist + Add to List + Remove */}
+                  {/* Watchlist + Reviewed + Add to List + Remove */}
                   <td className="px-2 py-2 sticky left-0 z-10 bg-background" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-1">
                       {toggleWatchlist && (
@@ -295,6 +299,13 @@ export default function StockListTable({ list, onAssetClick, watchlist = [], tog
                           <WatchlistToggle isInWatchlist={isInWatchlist(row.asset_id)} />
                         </div>
                       )}
+                      <ReviewedToggle 
+                        isReviewed={isReviewed(row.asset_id)} 
+                        onClick={async () => {
+                          await toggleReviewed(row.asset_id, isReviewed(row.asset_id));
+                          mutateReviewed();
+                        }}
+                      />
                       <AddToListButton assetId={row.asset_id} onUpdate={() => mutateAssets()} />
                       <button
                         onClick={(e) => handleRemove(e, row.asset_id)}

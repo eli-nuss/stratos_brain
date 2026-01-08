@@ -53,6 +53,11 @@ function isPublicDashboardEndpoint(req: Request): boolean {
     return true
   }
   
+  // Allow public access to reviewed endpoints (all methods)
+  if (path.startsWith('/dashboard/reviewed')) {
+    return true
+  }
+  
   // Allow public access to create-document endpoint
   if (req.method === 'POST' && path === '/dashboard/create-document') {
     return true
@@ -2213,6 +2218,85 @@ If asked about something not in the data, acknowledge the limitation.`
           .from('stock_list_items')
           .delete()
           .eq('list_id', listId)
+          .eq('asset_id', assetId)
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // ==================== REVIEWED ENDPOINTS ====================
+
+      // GET /dashboard/reviewed - Get all reviewed asset IDs
+      case req.method === 'GET' && path === '/dashboard/reviewed': {
+        const { data: reviewed, error } = await supabase
+          .from('asset_reviewed')
+          .select('asset_id, reviewed_at')
+          .order('reviewed_at', { ascending: false })
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(reviewed || []), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // POST /dashboard/reviewed - Mark asset as reviewed
+      case req.method === 'POST' && path === '/dashboard/reviewed': {
+        const body = await req.json()
+        const { asset_id } = body
+        
+        if (!asset_id) {
+          return new Response(JSON.stringify({ error: 'asset_id is required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const { data, error } = await supabase
+          .from('asset_reviewed')
+          .insert({ asset_id })
+          .select()
+          .single()
+        
+        if (error) {
+          // If already exists, return success
+          if (error.code === '23505') {
+            return new Response(JSON.stringify({ success: true, already_exists: true }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            })
+          }
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(data), {
+          status: 201,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // DELETE /dashboard/reviewed/:asset_id - Remove reviewed status
+      case req.method === 'DELETE' && /^\/dashboard\/reviewed\/\d+$/.test(path): {
+        const assetId = parseInt(path.split('/').pop()!)
+        
+        const { error } = await supabase
+          .from('asset_reviewed')
+          .delete()
           .eq('asset_id', assetId)
         
         if (error) {

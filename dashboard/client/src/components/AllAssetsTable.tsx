@@ -5,7 +5,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { NoteCell } from "@/components/NoteCell";
 import WatchlistToggle from "@/components/WatchlistToggle";
 import AddToListButton from "@/components/AddToListButton";
+import { ReviewedToggle } from "@/components/ReviewedToggle";
 import { useWatchlist } from "@/hooks/useWatchlist";
+import { useReviewed, toggleReviewed } from "@/hooks/useReviewed";
 
 interface AllAssetsTableProps {
   assetType: AssetType;
@@ -79,6 +81,8 @@ interface FilterThresholds {
 
 export default function AllAssetsTable({ assetType, date, onAssetClick, showWatchlistColumn = true }: AllAssetsTableProps) {
   const { isInWatchlist, toggleWatchlist } = useWatchlist();
+  const { reviewedIds, mutate: mutateReviewed } = useReviewed();
+  const isReviewed = (assetId: number) => reviewedIds.includes(assetId);
   const [page, setPage] = useState(0);
   const [sortBy, setSortBy] = useState<SortField>("ai_direction_score");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
@@ -678,6 +682,13 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                         <div onClick={() => toggleWatchlist(row.asset_id)}>
                           <WatchlistToggle isInWatchlist={isInWatchlist(row.asset_id)} />
                         </div>
+                        <ReviewedToggle 
+                          isReviewed={isReviewed(row.asset_id)} 
+                          onClick={async () => {
+                            await toggleReviewed(row.asset_id, isReviewed(row.asset_id));
+                            mutateReviewed();
+                          }}
+                        />
                         <AddToListButton assetId={row.asset_id} />
                       </div>
                     </td>
