@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 """
-Run AI analysis for top 500 equities by volume using parallel processing.
+Run AI analysis for operating companies using parallel processing.
 Uses gemini-3-pro-preview model with concurrent API calls for faster execution.
 
-VERSION 3: Improved prompting to decouple direction score from quality score.
-Based on Gemini recommendations for independent scoring.
+VERSION 3.1: Filter by market cap and volume, exclude ETFs/Funds/Trusts/REITs.
+- Default: $100M+ market cap, $1M+ daily volume
+- Excludes: ETFs, Funds, Trusts (by name pattern), REITs (by industry)
+- Based on Gemini recommendations for independent direction/quality scoring.
 
 Usage:
     python run_all_equities.py --date 2026-01-06
-    python run_all_equities.py --date 2026-01-06 --limit 100
-    python run_all_equities.py  # defaults to today
+    python run_all_equities.py --date 2026-01-06 --min-market-cap 50000000
+    python run_all_equities.py --min-daily-volume 2000000
+    python run_all_equities.py  # defaults to today with $100M MC, $1M volume
 """
 
 import os
@@ -42,7 +45,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Configuration
-AI_REVIEW_VERSION = "v3.0"
+AI_REVIEW_VERSION = "v3.1"
 MAX_CONCURRENT_REQUESTS = 5  # Number of parallel API calls (reduced to avoid rate limits)
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 MODEL_NAME = "gemini-3-pro-preview"  # Gemini 3 Pro Preview model
@@ -107,8 +110,51 @@ def get_features(asset_id: str, as_of_date: str) -> dict:
     return {}
 
 
+def get_operating_companies(as_of_date: str, min_market_cap: float = 100_000_000, min_daily_volume: float = 1_000_000) -> list:
+    """
+    Get operating companies (excluding ETFs, Funds, Trusts, and REITs).
+    
+    Filters:
+    - Market cap >= $100M (default)
+    - Daily dollar volume >= $1M (default)
+    - Excludes ETFs, Funds, Trusts by name pattern
+    - Excludes REITs by industry
+    """
+    db = get_db()
+    query = """
+        SELECT a.asset_id, a.symbol, a.name
+        FROM daily_features df
+        JOIN assets a ON df.asset_id = a.asset_id
+        JOIN equity_metadata em ON a.asset_id = em.asset_id
+        WHERE a.asset_type = 'equity' 
+          AND df.date = %s 
+          AND a.is_active = true
+          AND em.market_cap >= %s
+          AND df.dollar_volume >= %s
+          -- Exclude ETFs, Funds, Trusts by name pattern
+          AND NOT (
+            a.name ILIKE '%%ETF%%'
+            OR a.name ILIKE '%%Fund%%'
+            OR a.name ILIKE '%%Trust%%'
+            OR a.name ILIKE '%%Index%%'
+            OR a.name ILIKE '%%ProShares%%'
+            OR a.name ILIKE '%%iShares%%'
+            OR a.name ILIKE '%%SPDR%%'
+            OR a.name ILIKE '%%Vanguard%%'
+            OR a.name ILIKE '%%Invesco%%'
+            OR em.industry ILIKE '%%ETF%%'
+            OR em.industry ILIKE '%%Fund%%'
+          )
+          -- Exclude REITs by industry
+          AND NOT em.industry ILIKE '%%REIT%%'
+        ORDER BY df.dollar_volume DESC NULLS LAST
+    """
+    return db.fetch_all(query, (as_of_date, min_market_cap, min_daily_volume))
+
+
+# Keep legacy function for backwards compatibility
 def get_top_equities(as_of_date: str, limit: int = 500) -> list:
-    """Get top equities by dollar volume."""
+    """Legacy function - Get top equities by dollar volume (deprecated, use get_operating_companies)."""
     db = get_db()
     query = """
         SELECT a.asset_id, a.symbol, a.name
@@ -455,19 +501,21 @@ async def process_asset(session: aiohttp.ClientSession, asset: dict, as_of_date:
         return {"success": False, "symbol": symbol, "error": "API call failed"}
 
 
-async def main_async(as_of_date: str, limit: int):
+async def main_async(as_of_date: str, min_market_cap: float = 100_000_000, min_daily_volume: float = 1_000_000):
     """Main async function."""
     logger.info("=" * 60)
-    logger.info("EQUITY AI ANALYSIS - VERSION 3.0")
+    logger.info("EQUITY AI ANALYSIS - VERSION 3.1")
     logger.info(f"Date: {as_of_date}")
     logger.info(f"Model: {MODEL_NAME}")
-    logger.info(f"Limit: {limit} equities")
+    logger.info(f"Min Market Cap: ${min_market_cap/1e6:.0f}M")
+    logger.info(f"Min Daily Volume: ${min_daily_volume/1e6:.0f}M")
+    logger.info(f"Filter: Operating companies only (no ETFs, Funds, Trusts, REITs)")
     logger.info(f"Concurrency: {MAX_CONCURRENT_REQUESTS} parallel requests")
     logger.info("=" * 60)
     
-    # Get top equities
-    equities = get_top_equities(as_of_date, limit=limit)
-    logger.info(f"Found {len(equities)} equities to analyze")
+    # Get operating companies (filtered by market cap, volume, excluding ETFs/Funds/REITs)
+    equities = get_operating_companies(as_of_date, min_market_cap=min_market_cap, min_daily_volume=min_daily_volume)
+    logger.info(f"Found {len(equities)} operating companies to analyze")
     
     if not equities:
         logger.warning("No equities found for the specified date. Check if data exists.")
@@ -517,7 +565,7 @@ def main():
     global MODEL_NAME
     
     parser = argparse.ArgumentParser(
-        description='Run AI analysis for top equities by volume using Gemini v3.0 prompt'
+        description='Run AI analysis for operating companies (v3.1) - filters by market cap, volume, excludes ETFs/Funds/REITs'
     )
     parser.add_argument(
         '--date', 
@@ -526,10 +574,16 @@ def main():
         default=None
     )
     parser.add_argument(
-        '--limit', 
-        type=int, 
-        default=500,
-        help='Number of top equities to process (default: 500)'
+        '--min-market-cap',
+        type=float,
+        default=100_000_000,
+        help='Minimum market cap in dollars (default: 100000000 = $100M)'
+    )
+    parser.add_argument(
+        '--min-daily-volume',
+        type=float,
+        default=1_000_000,
+        help='Minimum daily dollar volume (default: 1000000 = $1M)'
     )
     parser.add_argument(
         '--model',
@@ -537,8 +591,19 @@ def main():
         default=MODEL_NAME,
         help=f'Gemini model to use (default: {MODEL_NAME})'
     )
+    # Keep --limit for backwards compatibility but it's ignored
+    parser.add_argument(
+        '--limit', 
+        type=int, 
+        default=None,
+        help='DEPRECATED: No longer used. Filtering is now based on market cap and volume.'
+    )
     
     args = parser.parse_args()
+    
+    # Warn if --limit is used
+    if args.limit is not None:
+        logger.warning("--limit is deprecated and ignored. Filtering now uses --min-market-cap and --min-daily-volume.")
     
     # Determine target date
     if args.date:
@@ -553,7 +618,7 @@ def main():
         logger.error("GEMINI_API_KEY not set in environment")
         sys.exit(1)
     
-    asyncio.run(main_async(as_of_date, args.limit))
+    asyncio.run(main_async(as_of_date, args.min_market_cap, args.min_daily_volume))
 
 
 if __name__ == "__main__":
