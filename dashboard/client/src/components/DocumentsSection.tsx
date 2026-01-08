@@ -66,8 +66,8 @@ export function DocumentsSection({ assetId, symbol, companyName }: DocumentsSect
     setStatus({ isGenerating: true, progress: 'Starting generation...' });
 
     try {
-      // Call the new Gemini-based generate-document endpoint
-      const response = await fetch(`${API_BASE}/generate-document`, {
+      // Call the Gemini-based create-document endpoint in control-api
+      const response = await fetch(`${API_BASE}/control-api/dashboard/create-document`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
