@@ -1,16 +1,19 @@
 import { useState } from "react";
-import { TrendingUp, TrendingDown, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, ExternalLink, X, Brain, Bot, Pill, Rocket } from "lucide-react";
+import { TrendingUp, TrendingDown, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, ExternalLink, X, Brain, Bot, Pill, Rocket, Star } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { NoteCell } from "@/components/NoteCell";
 import { useStockListAssets, removeFromList, StockList } from "@/hooks/useStockLists";
 import AddToListButton from "@/components/AddToListButton";
+import { WatchlistToggle } from "@/components/WatchlistToggle";
 
 interface StockListTableProps {
   list: StockList;
   onAssetClick: (assetId: string) => void;
+  watchlist?: number[];
+  toggleWatchlist?: (assetId: number) => void;
 }
 
-type SortField = "symbol" | "ai_direction_score" | "ai_setup_quality_score" | "market_cap" | "close" | "return_1d" | "return_7d" | "return_30d" | "return_365d" | "dollar_volume_7d" | "dollar_volume_30d";
+type SortField = "symbol" | "ai_direction_score" | "ai_setup_quality_score" | "market_cap" | "close" | "return_1d" | "return_7d" | "return_30d" | "return_365d" | "dollar_volume_7d" | "dollar_volume_30d" | "pe_ratio" | "forward_pe" | "peg_ratio" | "price_to_sales_ttm" | "forward_ps" | "psg";
 type SortOrder = "asc" | "desc";
 
 const PAGE_SIZE = 50;
@@ -23,7 +26,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   rocket: Rocket,
 };
 
-export default function StockListTable({ list, onAssetClick }: StockListTableProps) {
+export default function StockListTable({ list, onAssetClick, watchlist = [], toggleWatchlist }: StockListTableProps) {
   const { assets, isLoading, mutate: mutateAssets } = useStockListAssets(list.id);
   const [page, setPage] = useState(0);
   const [sortBy, setSortBy] = useState<SortField>("ai_direction_score");
@@ -76,6 +79,8 @@ export default function StockListTable({ list, onAssetClick }: StockListTablePro
     mutateAssets();
   };
 
+  const isInWatchlist = (assetId: number) => watchlist.includes(assetId);
+
   const getDirectionIcon = (direction: string) => {
     if (direction === "bullish") return <TrendingUp className="w-3 h-3 text-signal-bullish" />;
     if (direction === "bearish") return <TrendingDown className="w-3 h-3 text-signal-bearish" />;
@@ -120,6 +125,11 @@ export default function StockListTable({ list, onAssetClick }: StockListTablePro
     if (num >= 1e9) return `$${(num / 1e9).toFixed(2)}B`;
     if (num >= 1e6) return `$${(num / 1e6).toFixed(1)}M`;
     return `$${num.toLocaleString()}`;
+  };
+
+  const formatRatio = (num: number | null | undefined) => {
+    if (num === null || num === undefined) return <span className="text-muted-foreground">-</span>;
+    return num.toFixed(2);
   };
 
   const SortHeader = ({ field, children, tooltip }: { field: SortField; children: React.ReactNode; tooltip?: string }) => (
@@ -199,16 +209,17 @@ export default function StockListTable({ list, onAssetClick }: StockListTablePro
       {/* Table */}
       <div className="flex-1 overflow-auto scrollbar-thin">
         <table className="w-full text-sm text-left">
-          <thead className="text-xs text-muted-foreground bg-muted/10 sticky top-0 z-10 backdrop-blur-sm">
+          <thead className="sticky top-0 bg-muted/50 border-b border-border text-xs text-muted-foreground">
             <tr>
-              <th className="px-3 py-2 font-medium sticky left-0 z-20 bg-muted/10 backdrop-blur-sm">
-                <SortHeader field="symbol">Asset</SortHeader>
+              <th className="px-2 py-2 w-20 sticky left-0 z-20 bg-muted/50"></th>
+              <th className="px-3 py-2 font-medium sticky left-20 z-20 bg-muted/50">
+                <SortHeader field="symbol" tooltip="Asset name and symbol">Asset</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
-                <SortHeader field="ai_direction_score" tooltip="AI-determined directional conviction (-100 to +100)">Dir</SortHeader>
+                <SortHeader field="ai_direction_score" tooltip="AI directional conviction (-100 to +100)">Dir</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
-                <SortHeader field="ai_setup_quality_score" tooltip="AI-determined setup quality score (0-100)">Quality</SortHeader>
+                <SortHeader field="ai_setup_quality_score" tooltip="AI setup quality score (0-100)">Quality</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
                 <SortHeader field="market_cap" tooltip="Market capitalization">Mkt Cap</SortHeader>
@@ -217,25 +228,44 @@ export default function StockListTable({ list, onAssetClick }: StockListTablePro
                 <SortHeader field="close" tooltip="Latest closing price">Price</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
-                <SortHeader field="return_1d" tooltip="Price change over the last 24 hours">24h</SortHeader>
+                <SortHeader field="return_1d" tooltip="24-hour price change">24h</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
-                <SortHeader field="return_7d" tooltip="Price change over the last 7 days">7d</SortHeader>
+                <SortHeader field="return_7d" tooltip="7-day price change">7d</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
-                <SortHeader field="return_30d" tooltip="Price change over the last 30 days">30d</SortHeader>
+                <SortHeader field="return_30d" tooltip="30-day price change">30d</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
-                <SortHeader field="return_365d" tooltip="Price change over the last 365 days">365d</SortHeader>
+                <SortHeader field="return_365d" tooltip="365-day price change">365d</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
-                <SortHeader field="dollar_volume_7d" tooltip="Trading volume over the last 7 days">Vol 7d</SortHeader>
+                <SortHeader field="dollar_volume_7d" tooltip="7-day trading volume">Vol 7d</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
-                <SortHeader field="dollar_volume_30d" tooltip="Trading volume over the last 30 days">Vol 30d</SortHeader>
+                <SortHeader field="dollar_volume_30d" tooltip="30-day trading volume">Vol 30d</SortHeader>
+              </th>
+              {/* Equity-specific columns */}
+              <th className="px-2 py-2 font-medium text-center">
+                <SortHeader field="pe_ratio" tooltip="Price-to-Earnings ratio (trailing 12 months)">P/E</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
-                <HeaderWithTooltip tooltip="Category (crypto) or Sector (equities)">Cat/Sector</HeaderWithTooltip>
+                <SortHeader field="forward_pe" tooltip="Forward Price-to-Earnings ratio based on analyst estimates">Fwd P/E</SortHeader>
+              </th>
+              <th className="px-2 py-2 font-medium text-center">
+                <SortHeader field="peg_ratio" tooltip="Price/Earnings-to-Growth ratio (P/E divided by earnings growth rate)">PEG</SortHeader>
+              </th>
+              <th className="px-2 py-2 font-medium text-center">
+                <SortHeader field="price_to_sales_ttm" tooltip="Price-to-Sales ratio (trailing twelve months)">P/S</SortHeader>
+              </th>
+              <th className="px-2 py-2 font-medium text-center">
+                <SortHeader field="forward_ps" tooltip="Forward P/S (approx): Market Cap / Est. NTM Revenue. Uses log-dampened growth rate to compress extreme values (e.g., 420% → 238%).">Fwd P/S*</SortHeader>
+              </th>
+              <th className="px-2 py-2 font-medium text-center">
+                <SortHeader field="psg" tooltip="Price-to-Sales-Growth (approx): Forward P/S / Dampened Growth %. Uses log dampening for extreme growth rates. Lower = cheaper relative to growth.">PSG*</SortHeader>
+              </th>
+              <th className="px-2 py-2 font-medium text-center">
+                <HeaderWithTooltip tooltip="Stock industry classification">Industry</HeaderWithTooltip>
               </th>
               <th className="px-2 py-2 font-medium text-center">
                 <HeaderWithTooltip tooltip="Brief description of the asset">Description</HeaderWithTooltip>
@@ -243,118 +273,113 @@ export default function StockListTable({ list, onAssetClick }: StockListTablePro
               <th className="px-2 py-2 font-medium text-center">
                 <HeaderWithTooltip tooltip="Your personal notes">Notes</HeaderWithTooltip>
               </th>
-              <th className="px-2 py-2 font-medium text-center">
-                <HeaderWithTooltip tooltip="Add to lists">+</HeaderWithTooltip>
-              </th>
-              <th className="px-2 py-2 font-medium text-center">
-                <HeaderWithTooltip tooltip="Remove from this list">×</HeaderWithTooltip>
-              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {isLoading ? (
-              [...Array(5)].map((_, i) => (
-                <tr key={i} className="animate-pulse">
-                  <td className="px-3 py-3"><div className="h-4 w-20 bg-muted rounded" /></td>
-                  {[...Array(15)].map((_, j) => (
-                    <td key={j} className="px-2 py-3"><div className="h-4 w-12 bg-muted rounded mx-auto" /></td>
-                  ))}
-                </tr>
-              ))
+              <tr><td colSpan={21} className="px-2 py-4 text-center text-muted-foreground">Loading...</td></tr>
             ) : paginatedAssets.length === 0 ? (
-              <tr>
-                <td colSpan={16} className="px-4 py-8 text-center text-muted-foreground">
-                  {search ? "No assets match your search" : "No assets in this list yet"}
-                </td>
-              </tr>
+              <tr><td colSpan={21} className="px-2 py-4 text-center text-muted-foreground">No assets in this list</td></tr>
             ) : (
-              paginatedAssets.map((asset: any) => (
+              paginatedAssets.map((row: any) => (
                 <tr
-                  key={asset.asset_id}
-                  onClick={() => onAssetClick(String(asset.asset_id))}
-                  className="hover:bg-muted/30 cursor-pointer transition-colors"
+                  key={row.asset_id}
+                  className="border-b border-border hover:bg-muted/30 transition-colors cursor-pointer"
+                  onClick={() => onAssetClick(row.asset_id)}
                 >
-                  <td className="px-3 py-2 sticky left-0 bg-card z-10">
-                    <div className="flex items-center gap-2">
-                      <div>
-                        <div className="font-medium flex items-center gap-1.5">
-                          {asset.symbol}
-                          <a
-                            href={getTradingViewUrl(asset.symbol, asset.asset_type)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="text-muted-foreground hover:text-primary"
-                          >
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
+                  {/* Watchlist + Add to List + Remove */}
+                  <td className="px-2 py-2 sticky left-0 z-10 bg-background" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1">
+                      {toggleWatchlist && (
+                        <div onClick={() => toggleWatchlist(row.asset_id)}>
+                          <WatchlistToggle isInWatchlist={isInWatchlist(row.asset_id)} />
                         </div>
-                        <div className="text-xs text-muted-foreground truncate max-w-[120px]">{asset.name}</div>
-                      </div>
+                      )}
+                      <AddToListButton assetId={row.asset_id} onUpdate={() => mutateAssets()} />
+                      <button
+                        onClick={(e) => handleRemove(e, row.asset_id)}
+                        className="p-1 rounded hover:bg-destructive/20 transition-colors text-muted-foreground hover:text-destructive"
+                        title="Remove from list"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
                   </td>
+                  {/* Asset */}
+                  <td className="px-3 py-2 sticky left-20 z-10 bg-background">
+                    <div className="flex flex-col">
+                      <span className="font-mono font-medium text-foreground">{row.symbol}</span>
+                      <span className="text-xs text-muted-foreground truncate max-w-[100px]">{row.name}</span>
+                    </div>
+                  </td>
+                  {/* Direction Score */}
                   <td className="px-2 py-2 text-center">
                     <div className="flex items-center justify-center gap-1">
-                      {getDirectionIcon(asset.ai_direction)}
-                      <span className={
-                        asset.ai_direction_score > 0 ? "text-signal-bullish" :
-                        asset.ai_direction_score < 0 ? "text-signal-bearish" :
-                        "text-muted-foreground"
-                      }>
-                        {asset.ai_direction_score != null ? asset.ai_direction_score : "-"}
+                      {getDirectionIcon(row.ai_direction)}
+                      <span className={`font-mono text-xs ${
+                        row.ai_direction_score > 0 ? 'text-signal-bullish' : 
+                        row.ai_direction_score < 0 ? 'text-signal-bearish' : 'text-muted-foreground'
+                      }`}>
+                        {row.ai_direction_score != null ? (row.ai_direction_score > 0 ? '+' : '') + row.ai_direction_score : '-'}
                       </span>
                     </div>
                   </td>
+                  {/* Quality Score */}
                   <td className="px-2 py-2 text-center">
-                    <span className={
-                      asset.ai_setup_quality_score >= 70 ? "text-signal-bullish" :
-                      asset.ai_setup_quality_score >= 40 ? "text-yellow-500" :
-                      "text-muted-foreground"
-                    }>
-                      {asset.ai_setup_quality_score != null ? asset.ai_setup_quality_score : "-"}
+                    <span className={`font-mono text-xs ${
+                      row.ai_setup_quality_score >= 70 ? 'text-signal-bullish' : 
+                      row.ai_setup_quality_score >= 40 ? 'text-yellow-500' : 'text-muted-foreground'
+                    }`}>
+                      {row.ai_setup_quality_score ?? '-'}
                     </span>
                   </td>
-                  <td className="px-2 py-2 text-center text-muted-foreground">{formatMarketCap(asset.market_cap)}</td>
-                  <td className="px-2 py-2 text-center font-mono">${formatPrice(asset.close)}</td>
-                  <td className="px-2 py-2 text-center">{formatPercent(asset.return_1d)}</td>
-                  <td className="px-2 py-2 text-center">{formatPercent(asset.return_7d)}</td>
-                  <td className="px-2 py-2 text-center">{formatPercent(asset.return_30d)}</td>
-                  <td className="px-2 py-2 text-center">{formatPercent(asset.return_365d)}</td>
-                  <td className="px-2 py-2 text-center text-muted-foreground">{formatVolume(asset.dollar_volume_7d)}</td>
-                  <td className="px-2 py-2 text-center text-muted-foreground">{formatVolume(asset.dollar_volume_30d)}</td>
-                  <td className="px-2 py-2 text-center">
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground truncate max-w-[80px] inline-block">
-                      {asset.category || asset.sector || "-"}
-                    </span>
-                  </td>
+                  {/* Market Cap */}
+                  <td className="px-2 py-2 text-center font-mono text-xs">{formatMarketCap(row.market_cap)}</td>
+                  {/* Price */}
+                  <td className="px-2 py-2 text-center font-mono text-xs">${formatPrice(row.close)}</td>
+                  {/* Returns */}
+                  <td className="px-2 py-2 text-center font-mono text-xs">{formatPercent(row.return_1d)}</td>
+                  <td className="px-2 py-2 text-center font-mono text-xs">{formatPercent(row.return_7d)}</td>
+                  <td className="px-2 py-2 text-center font-mono text-xs">{formatPercent(row.return_30d)}</td>
+                  <td className="px-2 py-2 text-center font-mono text-xs">{formatPercent(row.return_365d)}</td>
+                  {/* Volume */}
+                  <td className="px-2 py-2 text-center font-mono text-xs">{formatVolume(row.dollar_volume_7d)}</td>
+                  <td className="px-2 py-2 text-center font-mono text-xs">{formatVolume(row.dollar_volume_30d)}</td>
+                  {/* Equity-specific: P/E, Fwd P/E, PEG, P/S, Fwd P/S, PSG */}
+                  <td className="px-2 py-2 text-center font-mono text-xs">{formatRatio(row.pe_ratio)}</td>
+                  <td className="px-2 py-2 text-center font-mono text-xs">{formatRatio(row.forward_pe)}</td>
+                  <td className="px-2 py-2 text-center font-mono text-xs">{formatRatio(row.peg_ratio)}</td>
+                  <td className="px-2 py-2 text-center font-mono text-xs">{formatRatio(row.price_to_sales_ttm)}</td>
+                  <td className="px-2 py-2 text-center font-mono text-xs">{formatRatio(row.forward_ps)}</td>
+                  <td className="px-2 py-2 text-center font-mono text-xs">{formatRatio(row.psg)}</td>
+                  {/* Industry */}
                   <td className="px-2 py-2 text-center">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className="text-xs text-muted-foreground truncate max-w-[100px] inline-block cursor-help">
-                          {asset.short_description?.slice(0, 30) || "-"}
-                          {asset.short_description?.length > 30 ? "..." : ""}
+                        <span className="text-xs text-muted-foreground truncate max-w-[80px] block cursor-help">
+                          {row.industry || row.category || "-"}
                         </span>
                       </TooltipTrigger>
-                      <TooltipContent className="max-w-xs text-left">
-                        {asset.short_description || "No description available"}
+                      <TooltipContent>
+                        {row.industry || row.category || "No industry data"}
                       </TooltipContent>
                     </Tooltip>
                   </td>
-                  <td className="px-2 py-2 text-center" onClick={(e) => e.stopPropagation()}>
-                    <NoteCell assetId={asset.asset_id} />
-                  </td>
-                  <td className="px-2 py-2 text-center" onClick={(e) => e.stopPropagation()}>
-                    <AddToListButton assetId={asset.asset_id} onUpdate={() => mutateAssets()} />
-                  </td>
+                  {/* Description */}
                   <td className="px-2 py-2 text-center">
-                    <button
-                      onClick={(e) => handleRemove(e, asset.asset_id)}
-                      className="p-1 rounded hover:bg-destructive/20 transition-colors text-muted-foreground hover:text-destructive"
-                      title="Remove from list"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="text-xs text-muted-foreground truncate max-w-[120px] block cursor-help">
+                          {row.short_description ? row.short_description.substring(0, 50) + "..." : "-"}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        {row.short_description || "No description available"}
+                      </TooltipContent>
+                    </Tooltip>
                   </td>
+                  {/* Notes */}
+                  <NoteCell assetId={row.asset_id} />
                 </tr>
               ))
             )}
@@ -377,7 +402,7 @@ export default function StockListTable({ list, onAssetClick }: StockListTablePro
               <ChevronsLeft className="w-4 h-4" />
             </button>
             <button
-              onClick={() => setPage(p => Math.max(0, p - 1))}
+              onClick={() => setPage(page - 1)}
               disabled={page === 0}
               className="p-1 rounded hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -387,7 +412,7 @@ export default function StockListTable({ list, onAssetClick }: StockListTablePro
               Page {page + 1} of {totalPages}
             </span>
             <button
-              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+              onClick={() => setPage(page + 1)}
               disabled={page >= totalPages - 1}
               className="p-1 rounded hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
             >
