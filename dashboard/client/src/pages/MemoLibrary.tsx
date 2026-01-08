@@ -205,7 +205,7 @@ export default function MemoLibrary() {
   );
   
   const filteredMemos = useMemo(() => {
-    if (!memos) return [];
+    if (!memos || !Array.isArray(memos)) return [];
     
     return memos.filter((memo) => {
       // Search filter
@@ -300,9 +300,9 @@ export default function MemoLibrary() {
           <div className="flex items-center justify-center h-64">
             <div className="text-muted-foreground">Loading memos...</div>
           </div>
-        ) : error ? (
+        ) : error || (memos && !Array.isArray(memos)) ? (
           <div className="flex items-center justify-center h-64">
-            <div className="text-red-400">Failed to load memos</div>
+            <div className="text-red-400">Failed to load memos: {(memos as any)?.error || 'Unknown error'}</div>
           </div>
         ) : filteredMemos.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
