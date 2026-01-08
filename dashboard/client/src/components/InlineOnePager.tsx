@@ -39,112 +39,84 @@ export function InlineOnePager({ assetId, symbol }: InlineDocumentViewerProps) {
   const currentContent = activeTab === 'one_pager' ? onePagerContent : memoContent;
   const currentError = contentError[activeTab];
 
-  // Export to PDF function
+  // Export to PDF function using browser print
   const exportToPDF = async () => {
     if (!contentRef.current || !currentDocument) return;
     
     setIsExporting(true);
     try {
-      // Dynamically import jspdf and html2canvas
-      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
-        import('jspdf'),
-        import('html2canvas')
-      ]);
+      // Get the content HTML
+      const contentHtml = contentRef.current.innerHTML;
+      const title = `${symbol} ${activeTab === 'one_pager' ? 'One Pager' : 'Investment Memo'}`;
       
-      // Create a clone of the content for PDF generation with better styling
-      const element = contentRef.current.cloneNode(true) as HTMLElement;
-      
-      // Create a temporary container for rendering
-      const container = document.createElement('div');
-      container.style.position = 'absolute';
-      container.style.left = '-9999px';
-      container.style.top = '0';
-      container.style.width = '800px';
-      container.style.padding = '40px';
-      container.style.backgroundColor = 'white';
-      container.style.color = 'black';
-      container.appendChild(element);
-      document.body.appendChild(container);
-      
-      // Apply print-friendly styles
-      element.style.backgroundColor = 'white';
-      element.style.color = '#1a1a1a';
-      
-      // Style all text elements
-      element.querySelectorAll('*').forEach((el) => {
-        const htmlEl = el as HTMLElement;
-        htmlEl.style.color = '#1a1a1a';
-      });
-      
-      // Style headings
-      element.querySelectorAll('h1, h2, h3, h4').forEach((el) => {
-        (el as HTMLElement).style.color = '#111827';
-        (el as HTMLElement).style.fontWeight = 'bold';
-      });
-      
-      // Style paragraphs and list items
-      element.querySelectorAll('p, li').forEach((el) => {
-        (el as HTMLElement).style.color = '#374151';
-      });
-      
-      // Style table cells
-      element.querySelectorAll('th').forEach((el) => {
-        (el as HTMLElement).style.backgroundColor = '#f3f4f6';
-        (el as HTMLElement).style.color = '#111827';
-        (el as HTMLElement).style.padding = '8px';
-        (el as HTMLElement).style.border = '1px solid #e5e7eb';
-      });
-      element.querySelectorAll('td').forEach((el) => {
-        (el as HTMLElement).style.color = '#374151';
-        (el as HTMLElement).style.padding = '8px';
-        (el as HTMLElement).style.border = '1px solid #e5e7eb';
-      });
-      element.querySelectorAll('table').forEach((el) => {
-        (el as HTMLElement).style.borderCollapse = 'collapse';
-        (el as HTMLElement).style.width = '100%';
-      });
-
-      // Generate canvas from the element
-      const canvas = await html2canvas(container, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        logging: false
-      });
-      
-      // Remove temporary container
-      document.body.removeChild(container);
-      
-      // Create PDF
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
-      
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pdfWidth - 20; // 10mm margin on each side
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
-      let heightLeft = imgHeight;
-      let position = 10; // Top margin
-      
-      // Add first page
-      pdf.addImage(imgData, 'JPEG', 10, position, imgWidth, imgHeight);
-      heightLeft -= (pdfHeight - 20);
-      
-      // Add additional pages if needed
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight + 10;
-        pdf.addPage();
-        pdf.addImage(imgData, 'JPEG', 10, position, imgWidth, imgHeight);
-        heightLeft -= (pdfHeight - 20);
+      // Create a new window for printing
+      const printWindow = window.open('', '_blank', 'width=800,height=600');
+      if (!printWindow) {
+        alert('Please allow popups to export PDF');
+        return;
       }
       
-      const filename = `${symbol}_${activeTab === 'one_pager' ? 'One_Pager' : 'Investment_Memo'}_${new Date().toISOString().split('T')[0]}.pdf`;
-      pdf.save(filename);
+      // Write the print-friendly HTML
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>${title}</title>
+          <style>
+            @media print {
+              @page { margin: 0.75in; }
+            }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+              line-height: 1.6;
+              color: #1a1a1a;
+              max-width: 800px;
+              margin: 0 auto;
+              padding: 20px;
+              background: white;
+            }
+            h1 { font-size: 24px; font-weight: bold; margin: 24px 0 16px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; }
+            h2 { font-size: 20px; font-weight: 600; margin: 20px 0 12px; }
+            h3 { font-size: 16px; font-weight: 600; margin: 16px 0 8px; }
+            h4 { font-size: 14px; font-weight: 600; margin: 12px 0 6px; }
+            p { margin: 0 0 12px; color: #374151; }
+            ul, ol { margin: 0 0 12px; padding-left: 24px; }
+            li { margin: 4px 0; color: #374151; }
+            strong { font-weight: 600; color: #111827; }
+            table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+            th { background: #f3f4f6; color: #111827; font-weight: 600; text-align: left; padding: 10px; border: 1px solid #e5e7eb; }
+            td { padding: 10px; border: 1px solid #e5e7eb; color: #374151; }
+            a { color: #2563eb; text-decoration: none; }
+            blockquote { border-left: 4px solid #e5e7eb; margin: 16px 0; padding-left: 16px; color: #6b7280; }
+            code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+            hr { border: none; border-top: 1px solid #e5e7eb; margin: 24px 0; }
+          </style>
+        </head>
+        <body>
+          ${contentHtml}
+        </body>
+        </html>
+      `);
+      
+      printWindow.document.close();
+      
+      // Wait for content to load then print
+      printWindow.onload = () => {
+        setTimeout(() => {
+          printWindow.print();
+          // Close after a delay to allow print dialog
+          setTimeout(() => printWindow.close(), 1000);
+        }, 250);
+      };
+      
+      // Fallback if onload doesn't fire
+      setTimeout(() => {
+        if (!printWindow.closed) {
+          printWindow.print();
+          setTimeout(() => printWindow.close(), 1000);
+        }
+      }, 1000);
+      
     } catch (error) {
       console.error('Error exporting to PDF:', error);
       alert('Failed to export PDF. Please try again.');
