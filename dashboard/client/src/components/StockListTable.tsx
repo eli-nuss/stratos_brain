@@ -4,7 +4,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { NoteCell } from "@/components/NoteCell";
 import { useStockListAssets, removeFromList, StockList } from "@/hooks/useStockLists";
 import AddToListButton from "@/components/AddToListButton";
-import { WatchlistToggle } from "@/components/WatchlistToggle";
+import WatchlistToggle from "@/components/WatchlistToggle";
 
 interface StockListTableProps {
   list: StockList;
