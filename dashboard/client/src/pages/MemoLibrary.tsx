@@ -63,30 +63,36 @@ function MemoDetailModal({ memo, onClose }: MemoDetailModalProps) {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-700 bg-zinc-800/50">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              <span className="text-xl font-bold text-white">{memo.symbol}</span>
-              <span className="text-sm text-zinc-400">{memo.name}</span>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-zinc-700 bg-zinc-800/50 gap-3">
+          <div className="flex items-center justify-between sm:justify-start sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+              <span className="text-lg sm:text-xl font-bold text-white">{memo.symbol}</span>
+              <span className="text-xs sm:text-sm text-zinc-400 hidden sm:inline">{memo.name}</span>
+              <span className={`px-2 py-0.5 sm:px-2.5 sm:py-1 text-xs font-medium rounded-full ${
+                memo.file_type === 'memo' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+              }`}>
+                {memo.file_type === 'memo' ? 'Memo' : 'One Pager'}
+              </span>
             </div>
-            <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
-              memo.file_type === 'memo' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
-            }`}>
-              {memo.file_type === 'memo' ? 'Investment Memo' : 'One Pager'}
-            </span>
+            <button 
+              onClick={onClose} 
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors sm:hidden"
+            >
+              <span className="text-xl">×</span>
+            </button>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button 
               onClick={handleOpenAsPdf}
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FileDown className="w-4 h-4" />
               Open as PDF
             </button>
             <button 
               onClick={onClose} 
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors"
+              className="hidden sm:flex w-8 h-8 items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors"
             >
               <span className="text-xl">×</span>
             </button>
@@ -211,12 +217,12 @@ function MemoDetailModal({ memo, onClose }: MemoDetailModalProps) {
         </div>
         
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-3 border-t border-zinc-700 bg-zinc-800/30 text-xs text-zinc-500">
-          <div className="flex items-center gap-6">
-            <span>Created: {new Date(memo.created_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 sm:px-6 py-2 sm:py-3 border-t border-zinc-700 bg-zinc-800/30 text-xs text-zinc-500 gap-1">
+          <div className="flex items-center gap-3 sm:gap-6">
+            <span>{new Date(memo.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
             <span>{(memo.file_size / 1024).toFixed(1)} KB</span>
           </div>
-          <span className="text-zinc-400">{memo.description}</span>
+          <span className="text-zinc-400 truncate">{memo.description}</span>
         </div>
       </div>
     </div>
@@ -265,49 +271,53 @@ export default function MemoLibrary() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background border-b border-border">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => window.history.back()}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              ← Back
-            </button>
-            <div className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-primary" />
-              <h1 className="text-lg font-semibold">Memo Library</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-3 gap-3">
+          {/* Top row on mobile */}
+          <div className="flex items-center justify-between sm:justify-start sm:gap-4">
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => window.history.back()}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                ← Back
+              </button>
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-primary" />
+                <h1 className="text-lg font-semibold">Memo Library</h1>
+              </div>
             </div>
             <span className="text-sm text-muted-foreground">
-              {filteredMemos.length} documents
+              {filteredMemos.length} docs
             </span>
           </div>
           
-          <div className="flex items-center gap-3">
+          {/* Bottom row on mobile */}
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Document Type Filter */}
             <div className="flex items-center gap-1 bg-muted/30 rounded-lg p-1">
               <button
                 onClick={() => setDocTypeFilter('memo')}
-                className={`px-3 py-1 text-xs rounded ${docTypeFilter === 'memo' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`px-2 sm:px-3 py-1 text-xs rounded ${docTypeFilter === 'memo' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 Memos
               </button>
               <button
                 onClick={() => setDocTypeFilter('one_pager')}
-                className={`px-3 py-1 text-xs rounded ${docTypeFilter === 'one_pager' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`px-2 sm:px-3 py-1 text-xs rounded ${docTypeFilter === 'one_pager' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 One Pagers
               </button>
             </div>
             
             {/* Search */}
-            <div className="relative">
+            <div className="relative flex-1 sm:flex-none">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Search by symbol, name..."
+                placeholder="Search..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 pr-4 py-2 text-sm bg-muted/30 border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary w-64"
+                className="w-full sm:w-48 lg:w-64 pl-9 pr-4 py-2 text-sm bg-muted/30 border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
           </div>

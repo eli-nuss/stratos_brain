@@ -132,19 +132,20 @@ export function TemplateEditor() {
     <div className="min-h-screen bg-gray-950 text-white">
       {/* Header */}
       <div className="border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <a href="/" className="text-gray-400 hover:text-white transition-colors">
-              ← Back to Dashboard
+        <div className="max-w-7xl mx-auto px-4 py-2 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <a href="/" className="text-gray-400 hover:text-white transition-colors text-sm">
+              ← <span className="hidden sm:inline">Back to Dashboard</span><span className="sm:hidden">Back</span>
             </a>
-            <span className="text-gray-600">|</span>
-            <h1 className="text-xl font-semibold flex items-center gap-2">
-              <Settings className="w-5 h-5 text-blue-400" />
-              Template Editor
+            <span className="text-gray-600 hidden sm:inline">|</span>
+            <h1 className="text-base sm:text-xl font-semibold flex items-center gap-2">
+              <Settings className="w-4 sm:w-5 h-4 sm:h-5 text-blue-400" />
+              <span className="hidden sm:inline">Template Editor</span>
+              <span className="sm:hidden">Templates</span>
             </h1>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             {/* Editor Mode Toggle */}
             <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
               <button
@@ -209,18 +210,18 @@ export function TemplateEditor() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-4 py-4 sm:py-6">
         {error && (
-          <div className="mb-4 p-3 bg-red-900/30 border border-red-800 rounded-lg text-red-300 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4" />
-            {error}
+          <div className="mb-4 p-3 bg-red-900/30 border border-red-800 rounded-lg text-red-300 flex items-center gap-2 text-sm">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span className="flex-1">{error}</span>
             <button onClick={() => setError(null)} className="ml-auto text-red-400 hover:text-red-300">×</button>
           </div>
         )}
 
-        <div className="grid grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
           {/* Template List Sidebar */}
-          <div className="col-span-3">
+          <div className="lg:col-span-3">
             <div className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
               <div className="p-3 border-b border-gray-800 bg-gray-800/50">
                 <h2 className="text-sm font-medium text-gray-300">Templates</h2>
@@ -280,9 +281,9 @@ export function TemplateEditor() {
           </div>
 
           {/* Editor Panel */}
-          <div className="col-span-9">
+          <div className="lg:col-span-9">
             {selectedTemplate ? (
-              <div className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden h-[calc(100vh-180px)] flex flex-col">
+              <div className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden h-[50vh] sm:h-[60vh] lg:h-[calc(100vh-180px)] flex flex-col">
                 <div className="p-3 border-b border-gray-800 bg-gray-800/50 flex items-center justify-between flex-shrink-0">
                   <div>
                     <h2 className="font-medium flex items-center gap-2">
@@ -319,7 +320,7 @@ export function TemplateEditor() {
                 </div>
               </div>
             ) : (
-              <div className="bg-gray-900 rounded-lg border border-gray-800 h-[calc(100vh-180px)] flex items-center justify-center">
+              <div className="bg-gray-900 rounded-lg border border-gray-800 h-[50vh] sm:h-[60vh] lg:h-[calc(100vh-180px)] flex items-center justify-center">
                 <div className="text-center text-gray-500">
                   <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
                   <p>Select a template to edit</p>

@@ -68,44 +68,44 @@ export default function MemoViewer() {
       `}</style>
       
       {/* Header bar - hidden when printing */}
-      <div className="no-print sticky top-0 bg-gray-100 border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-lg font-bold text-gray-900">{memoInfo?.symbol}</span>
-          <span className="text-sm text-gray-500">{memoInfo?.name}</span>
+      <div className="no-print sticky top-0 bg-gray-100 border-b border-gray-200 px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <span className="text-base sm:text-lg font-bold text-gray-900">{memoInfo?.symbol}</span>
+          <span className="text-xs sm:text-sm text-gray-500 hidden sm:inline">{memoInfo?.name}</span>
           <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-700">
-            {memoInfo?.file_type === 'memo' ? 'Investment Memo' : 'One Pager'}
+            {memoInfo?.file_type === 'memo' ? 'Memo' : 'One Pager'}
           </span>
         </div>
         <button 
           onClick={() => window.print()}
-          className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-500"
+          className="w-full sm:w-auto px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-500"
         >
           Print / Save as PDF
         </button>
       </div>
 
       {/* Content */}
-      <article className="max-w-4xl mx-auto px-8 py-10">
+      <article className="max-w-4xl mx-auto px-4 sm:px-8 py-6 sm:py-10">
         <ReactMarkdown 
           remarkPlugins={[remarkGfm]}
           components={{
             h1: ({children}) => (
-              <h1 className="text-3xl font-bold text-gray-900 mb-6 pb-4 border-b-2 border-gray-200">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 sm:mb-6 pb-3 sm:pb-4 border-b-2 border-gray-200">
                 {children}
               </h1>
             ),
             h2: ({children}) => (
-              <h2 className="text-2xl font-semibold text-gray-800 mt-10 mb-5">
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-800 mt-8 sm:mt-10 mb-4 sm:mb-5">
                 {children}
               </h2>
             ),
             h3: ({children}) => (
-              <h3 className="text-xl font-semibold text-gray-700 mt-8 mb-4">
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-700 mt-6 sm:mt-8 mb-3 sm:mb-4">
                 {children}
               </h3>
             ),
             p: ({children}) => (
-              <p className="text-gray-700 leading-8 mb-5 text-base">
+              <p className="text-gray-700 leading-7 sm:leading-8 mb-4 sm:mb-5 text-sm sm:text-base">
                 {children}
               </p>
             ),
@@ -116,20 +116,20 @@ export default function MemoViewer() {
               <em className="italic text-gray-700">{children}</em>
             ),
             ul: ({children}) => (
-              <ul className="list-disc list-outside ml-8 mb-6 space-y-3 text-gray-700">
+              <ul className="list-disc list-outside ml-5 sm:ml-8 mb-4 sm:mb-6 space-y-2 sm:space-y-3 text-gray-700">
                 {children}
               </ul>
             ),
             ol: ({children}) => (
-              <ol className="list-decimal list-outside ml-8 mb-6 space-y-3 text-gray-700">
+              <ol className="list-decimal list-outside ml-5 sm:ml-8 mb-4 sm:mb-6 space-y-2 sm:space-y-3 text-gray-700">
                 {children}
               </ol>
             ),
             li: ({children}) => (
-              <li className="leading-7 text-base">{children}</li>
+              <li className="leading-6 sm:leading-7 text-sm sm:text-base">{children}</li>
             ),
             blockquote: ({children}) => (
-              <blockquote className="border-l-4 border-blue-500 pl-6 py-3 my-6 bg-blue-50 rounded-r-lg text-gray-600 italic">
+              <blockquote className="border-l-4 border-blue-500 pl-4 sm:pl-6 py-2 sm:py-3 my-4 sm:my-6 bg-blue-50 rounded-r-lg text-gray-600 italic text-sm sm:text-base">
                 {children}
               </blockquote>
             ),
@@ -149,8 +149,8 @@ export default function MemoViewer() {
               </pre>
             ),
             table: ({children}) => (
-              <div className="overflow-x-auto my-8">
-                <table className="w-full border-collapse text-sm">
+              <div className="overflow-x-auto my-4 sm:my-8 -mx-4 sm:mx-0 px-4 sm:px-0">
+                <table className="w-full border-collapse text-xs sm:text-sm min-w-[400px]">
                   {children}
                 </table>
               </div>
@@ -159,12 +159,12 @@ export default function MemoViewer() {
               <thead className="bg-gray-100">{children}</thead>
             ),
             th: ({children}) => (
-              <th className="border border-gray-300 px-5 py-3 text-left font-semibold text-gray-800">
+              <th className="border border-gray-300 px-2 sm:px-5 py-2 sm:py-3 text-left font-semibold text-gray-800 whitespace-nowrap">
                 {children}
               </th>
             ),
             td: ({children}) => (
-              <td className="border border-gray-300 px-5 py-3 text-gray-700">
+              <td className="border border-gray-300 px-2 sm:px-5 py-2 sm:py-3 text-gray-700">
                 {children}
               </td>
             ),

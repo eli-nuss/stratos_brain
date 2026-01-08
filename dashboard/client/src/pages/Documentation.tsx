@@ -51,11 +51,11 @@ function CollapsibleSection({ title, icon, children, defaultOpen = false }: Coll
 
 function FlowDiagram() {
   return (
-    <div className="p-6 bg-card/30 rounded-lg border border-border">
-      <h3 className="text-lg font-semibold mb-6 text-center">AI Analysis Pipeline</h3>
+    <div className="p-3 sm:p-6 bg-card/30 rounded-lg border border-border overflow-x-auto">
+      <h3 className="text-base sm:text-lg font-semibold mb-4 sm:mb-6 text-center">AI Analysis Pipeline</h3>
       
       {/* Data Pipeline */}
-      <div className="mb-8">
+      <div className="mb-6 sm:mb-8 min-w-[600px]">
         <div className="text-xs font-mono text-muted-foreground mb-3 uppercase tracking-wider">Data Pipeline</div>
         <div className="flex items-center justify-center gap-2 flex-wrap">
           <div className="flex flex-col items-center">
@@ -174,29 +174,32 @@ export default function Documentation() {
     <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container h-14 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <a href="/" className="text-lg font-bold tracking-tight flex items-center gap-2">
-              <Activity className="w-5 h-5 text-primary" />
-              STRATOS<span className="text-muted-foreground font-normal">BRAIN</span>
+        <div className="container px-4 h-12 sm:h-14 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-6">
+            <a href="/" className="text-base sm:text-lg font-bold tracking-tight flex items-center gap-2">
+              <Activity className="w-4 sm:w-5 h-4 sm:h-5 text-primary" />
+              <span className="hidden sm:inline">STRATOS</span>
+              <span className="sm:hidden">S</span>
+              <span className="text-muted-foreground font-normal hidden sm:inline">BRAIN</span>
+              <span className="text-muted-foreground font-normal sm:hidden">B</span>
             </a>
-            <div className="h-4 w-px bg-border" />
-            <span className="text-sm text-muted-foreground">Documentation</span>
+            <div className="h-4 w-px bg-border hidden sm:block" />
+            <span className="text-xs sm:text-sm text-muted-foreground">Docs</span>
           </div>
           <a 
             href="/"
-            className="px-4 py-1.5 text-sm font-medium rounded-md bg-muted/50 hover:bg-muted transition-colors"
+            className="px-2 sm:px-4 py-1 sm:py-1.5 text-xs sm:text-sm font-medium rounded-md bg-muted/50 hover:bg-muted transition-colors"
           >
-            ← Back to Dashboard
+            ← <span className="hidden sm:inline">Back to Dashboard</span><span className="sm:hidden">Back</span>
           </a>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container py-8 max-w-5xl">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">AI Analysis System</h1>
-          <p className="text-muted-foreground">
+      <main className="container px-4 py-4 sm:py-8 max-w-5xl">
+        <div className="mb-4 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2">AI Analysis System</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Technical documentation for the Stratos Brain AI-powered trading signal system.
           </p>
         </div>

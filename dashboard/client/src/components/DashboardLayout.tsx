@@ -441,8 +441,8 @@ export default function DashboardLayout({
           </div>
         </div>
         
-        {/* Row 2: Navigation - centered below */}
-        <div className="container pb-2 flex flex-col items-center gap-1.5">
+        {/* Row 2: Navigation - centered below, scrollable on mobile */}
+        <div className="container pb-2 flex flex-col items-center gap-1.5 overflow-x-auto scrollbar-hide">
           {/* Fixed views - highlighted with primary color */}
           <div className="flex items-center bg-primary/10 border border-primary/20 p-0.5 rounded-lg gap-0.5">
             <Tooltip>
@@ -494,9 +494,9 @@ export default function DashboardLayout({
             </Tooltip>
           </div>
           
-          {/* Custom lists - centered, max 5 visible */}
+          {/* Custom lists - centered, max 5 visible, scrollable on mobile */}
           {(stockLists.length > 0 || onListCreated) && (
-            <div className="flex items-center justify-center gap-1">
+            <div className="flex items-center justify-center gap-1 w-full overflow-x-auto scrollbar-hide">
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}

@@ -46,7 +46,7 @@ export default function Home() {
       onListDeleted={mutateLists}
       onListRenamed={mutateLists}
     >
-      <div className="h-[calc(100vh-8rem)]">
+      <div className="h-[calc(100vh-10rem)] sm:h-[calc(100vh-8rem)]">
         {activeTab === "watchlist" ? (
           <WatchlistTable
             key="watchlist"
@@ -70,8 +70,8 @@ export default function Home() {
       
       {/* Asset Detail Modal */}
       {selectedAssetId && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-lg shadow-lg w-[80vw] max-w-[1600px] h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-card border border-border rounded-lg shadow-lg w-full sm:w-[90vw] lg:w-[80vw] max-w-[1600px] h-[95vh] sm:h-[90vh] lg:h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <AssetDetail 
               assetId={selectedAssetId} 
               onClose={() => setSelectedAssetId(null)} 

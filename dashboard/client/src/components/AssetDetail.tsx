@@ -162,15 +162,15 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
     <>
       <div className="flex flex-col h-full bg-card text-foreground overflow-hidden">
         {/* Header - Compact */}
-        <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/10">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              <h2 className="text-2xl font-bold tracking-tight">{asset.symbol}</h2>
-              <span className="text-sm text-muted-foreground bg-muted px-2 py-0.5 rounded">
+        <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-border flex justify-between items-center bg-muted/10">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <h2 className="text-lg sm:text-2xl font-bold tracking-tight">{asset.symbol}</h2>
+              <span className="text-xs sm:text-sm text-muted-foreground bg-muted px-1.5 sm:px-2 py-0.5 rounded truncate max-w-[100px] sm:max-w-none">
                 {asset.name}
               </span>
             </div>
-            <span className="font-mono text-sm text-muted-foreground">
+            <span className="font-mono text-xs sm:text-sm text-muted-foreground hidden sm:inline">
               {data.as_of_date}
             </span>
           </div>
@@ -219,7 +219,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
         </div>
 
         {/* Main Content - 70/30 split */}
-        <div className="flex-1 overflow-y-auto p-4 grid grid-cols-1 lg:grid-cols-10 gap-4">
+        <div className="flex-1 overflow-y-auto p-2 sm:p-4 grid grid-cols-1 lg:grid-cols-10 gap-3 sm:gap-4">
           {/* Left Column: Chart, AI Analysis, Trade Plan & Signals (70% = 7 cols) */}
           <div className="lg:col-span-7 space-y-4 flex flex-col">
             {/* Chart - Expanded */}
@@ -422,7 +422,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
             )}
 
             {/* Trade Plan & Signals - 2 Column Layout (wider, shorter) */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               {/* Trade Plan */}
               <div className="bg-card border border-border rounded-lg overflow-hidden">
                 <div className="bg-muted/30 px-4 py-2 border-b border-border flex items-center gap-2">

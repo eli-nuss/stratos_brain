@@ -152,8 +152,8 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-auto scrollbar-thin">
-        <table className="w-full text-sm text-left">
+      <div className="flex-1 overflow-x-auto overflow-y-auto scrollbar-thin">
+        <table className="w-full text-sm text-left min-w-[1200px]">
           <thead className="sticky top-0 bg-muted/50 border-b border-border text-xs text-muted-foreground">
             <tr>
               <th className="px-2 py-2 w-16 sticky left-0 z-20 bg-muted/50"></th>
