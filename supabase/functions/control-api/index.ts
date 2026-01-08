@@ -16,6 +16,45 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 }
 
+// Simple markdown to HTML converter
+function markdownToHtml(md: string): string {
+  let html = md
+    // Escape HTML
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    // Headers
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    // Bold and italic
+    .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    // Code blocks
+    .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    // Blockquotes
+    .replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
+    // Horizontal rules
+    .replace(/^---$/gm, '<hr>')
+    .replace(/^\*\*\*$/gm, '<hr>')
+    // Links
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+    // Unordered lists
+    .replace(/^[\-\*] (.+)$/gm, '<li>$1</li>')
+    // Ordered lists
+    .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+    // Paragraphs (lines not already wrapped)
+    .replace(/^(?!<[hlopub]|<li|<hr|<blockquote)(.+)$/gm, '<p>$1</p>')
+    // Clean up empty paragraphs
+    .replace(/<p><\/p>/g, '')
+    // Wrap consecutive li elements in ul
+    .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+  
+  return html
+}
+
 interface EnqueueRequest {
   job_type?: string
   as_of_date?: string
@@ -574,6 +613,93 @@ serve(async (req) => {
         
         return new Response(JSON.stringify(filteredMemos), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /dashboard/memo-pdf/:file_id - Generate PDF from memo markdown
+      case req.method === 'GET' && path.startsWith('/dashboard/memo-pdf/'): {
+        const fileId = parseInt(path.split('/')[3])
+        
+        if (!fileId) {
+          return new Response(JSON.stringify({ error: 'File ID required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Get the file info
+        const { data: file, error: fileError } = await supabase
+          .from('asset_files')
+          .select('file_id, asset_id, file_name, file_path, file_type')
+          .eq('file_id', fileId)
+          .single()
+        
+        if (fileError || !file) {
+          return new Response(JSON.stringify({ error: 'File not found' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Fetch the markdown content from storage
+        const mdResponse = await fetch(file.file_path)
+        if (!mdResponse.ok) {
+          return new Response(JSON.stringify({ error: 'Failed to fetch markdown' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        const markdown = await mdResponse.text()
+        
+        // Convert markdown to styled HTML
+        const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${file.file_name.replace('.md', '')}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      color: #1a1a1a;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      background: #fff;
+    }
+    h1 { font-size: 28px; font-weight: 700; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 2px solid #e5e5e5; }
+    h2 { font-size: 22px; font-weight: 600; margin-top: 32px; margin-bottom: 16px; color: #333; }
+    h3 { font-size: 18px; font-weight: 600; margin-top: 24px; margin-bottom: 12px; color: #444; }
+    p { margin-bottom: 16px; }
+    strong { font-weight: 600; }
+    em { font-style: italic; }
+    ul, ol { margin-left: 24px; margin-bottom: 16px; }
+    li { margin-bottom: 8px; }
+    blockquote { border-left: 4px solid #3b82f6; padding-left: 16px; margin: 16px 0; color: #666; font-style: italic; }
+    code { background: #f4f4f5; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 14px; }
+    pre { background: #f4f4f5; padding: 16px; border-radius: 8px; overflow-x: auto; margin: 16px 0; }
+    pre code { background: none; padding: 0; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    th, td { border: 1px solid #e5e5e5; padding: 12px; text-align: left; }
+    th { background: #f9fafb; font-weight: 600; }
+    hr { border: none; border-top: 1px solid #e5e5e5; margin: 32px 0; }
+    a { color: #3b82f6; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+${markdownToHtml(markdown)}
+</body>
+</html>`
+        
+        // Return HTML that can be printed to PDF
+        return new Response(htmlContent, {
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'text/html; charset=utf-8'
+          }
         })
       }
 
