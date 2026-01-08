@@ -1,10 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileText, Sparkles, ChevronDown, ChevronUp, ExternalLink, Loader2, Clock, MessageSquare, Plus, X } from 'lucide-react';
-import { 
-  registerPendingDocument, 
-  isPendingForAsset, 
-  addCompletionListener 
-} from '@/lib/documentPollingService';
+import { FileText, Sparkles, ChevronDown, ChevronUp, ExternalLink, Loader2, Clock, CheckCircle } from 'lucide-react';
 
 interface AssetFile {
   file_id: number;
@@ -22,76 +17,31 @@ interface DocumentsSectionProps {
   companyName?: string;
 }
 
-interface ChoiceDialogState {
-  isOpen: boolean;
-  docType: 'one_pager' | 'memo' | null;
-  existingTaskUrl: string | null;
-  existingTaskId: string | null;
+interface GenerationStatus {
+  isGenerating: boolean;
+  progress?: string;
+  error?: string;
 }
 
-const API_BASE = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/control-api';
+const API_BASE = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1';
 
 export function DocumentsSection({ assetId, symbol, companyName }: DocumentsSectionProps) {
   const [onePagers, setOnePagers] = useState<AssetFile[]>([]);
   const [memos, setMemos] = useState<AssetFile[]>([]);
   const [showOnePagerHistory, setShowOnePagerHistory] = useState(false);
   const [showMemoHistory, setShowMemoHistory] = useState(false);
-  const [generatingOnePager, setGeneratingOnePager] = useState(false);
-  const [generatingMemo, setGeneratingMemo] = useState(false);
-  const [choiceDialog, setChoiceDialog] = useState<ChoiceDialogState>({
-    isOpen: false,
-    docType: null,
-    existingTaskUrl: null,
-    existingTaskId: null
-  });
+  const [onePagerStatus, setOnePagerStatus] = useState<GenerationStatus>({ isGenerating: false });
+  const [memoStatus, setMemoStatus] = useState<GenerationStatus>({ isGenerating: false });
 
   // Fetch documents on mount and when assetId changes
   useEffect(() => {
     fetchDocuments();
-    
-    // Check if there are pending documents for this asset
-    setGeneratingOnePager(isPendingForAsset(assetId, 'one_pager'));
-    setGeneratingMemo(isPendingForAsset(assetId, 'memo'));
-  }, [assetId]);
-
-  // Listen for document completion events from the global polling service
-  useEffect(() => {
-    const handleCompletion = (taskId: string, completedAssetId: number, documentType: string) => {
-      if (completedAssetId === assetId) {
-        // Refresh documents when one completes for this asset
-        fetchDocuments();
-        
-        // Update generating state
-        if (documentType === 'one_pager') {
-          setGeneratingOnePager(false);
-        } else if (documentType === 'memo') {
-          setGeneratingMemo(false);
-        }
-      }
-    };
-
-    // Subscribe to completion events
-    const unsubscribe = addCompletionListener(handleCompletion);
-    
-    // Also listen for the window event (backup)
-    const handleWindowEvent = (e: CustomEvent) => {
-      const { taskId, assetId: completedAssetId, documentType } = e.detail;
-      handleCompletion(taskId, completedAssetId, documentType);
-    };
-    
-    window.addEventListener('document-completed', handleWindowEvent as EventListener);
-    
-    return () => {
-      unsubscribe();
-      window.removeEventListener('document-completed', handleWindowEvent as EventListener);
-    };
   }, [assetId]);
 
   const fetchDocuments = async () => {
     try {
-      const response = await fetch(`${API_BASE}/dashboard/files/${assetId}`);
+      const response = await fetch(`${API_BASE}/control-api/dashboard/files/${assetId}`);
       const data = await response.json();
-      // API returns { asset_id, files } structure
       const files: AssetFile[] = data.files || [];
       
       // Separate by type and sort by date (newest first)
@@ -110,121 +60,64 @@ export function DocumentsSection({ assetId, symbol, companyName }: DocumentsSect
     }
   };
 
-  // Find existing task ID from any document for this asset
-  const findExistingTaskInfo = (): { taskId: string; taskUrl: string } | null => {
-    const allDocs = [...onePagers, ...memos];
-    for (const doc of allDocs) {
-      const match = doc.description?.match(/Task: ([A-Za-z0-9]+)/);
-      if (match) {
-        return {
-          taskId: match[1],
-          taskUrl: `https://manus.im/app/${match[1]}`
-        };
-      }
-    }
-    return null;
-  };
-
-  const handleGenerateClick = (docType: 'one_pager' | 'memo') => {
-    const existingTask = findExistingTaskInfo();
+  const generateDocument = async (docType: 'one_pager' | 'memo') => {
+    const setStatus = docType === 'one_pager' ? setOnePagerStatus : setMemoStatus;
     
-    if (existingTask) {
-      // Show choice dialog
-      setChoiceDialog({
-        isOpen: true,
-        docType,
-        existingTaskUrl: existingTask.taskUrl,
-        existingTaskId: existingTask.taskId
-      });
-    } else {
-      // No existing task, create new directly
-      generateDocument(docType, false);
-    }
-  };
-
-  const handleContinueExisting = () => {
-    if (choiceDialog.existingTaskUrl) {
-      window.open(choiceDialog.existingTaskUrl, '_blank');
-    }
-    
-    // Start polling the existing task for new outputs
-    if (choiceDialog.existingTaskId && choiceDialog.docType) {
-      // Set generating state
-      if (choiceDialog.docType === 'one_pager') {
-        setGeneratingOnePager(true);
-      } else {
-        setGeneratingMemo(true);
-      }
-      
-      // Register with polling service to watch for new outputs
-      // Pass isExistingTask=true so it knows to look for NEW outputs only
-      registerPendingDocument(
-        choiceDialog.existingTaskId,
-        assetId,
-        choiceDialog.docType,
-        symbol,
-        true // isExistingTask
-      );
-    }
-    
-    setChoiceDialog({ isOpen: false, docType: null, existingTaskUrl: null, existingTaskId: null });
-  };
-
-  const handleCreateNew = () => {
-    if (choiceDialog.docType) {
-      generateDocument(choiceDialog.docType, true);
-    }
-    setChoiceDialog({ isOpen: false, docType: null, existingTaskUrl: null, existingTaskId: null });
-  };
-
-  const generateDocument = async (docType: 'one_pager' | 'memo', forceNew: boolean = false) => {
-    if (docType === 'one_pager') {
-      setGeneratingOnePager(true);
-    } else {
-      setGeneratingMemo(true);
-    }
+    setStatus({ isGenerating: true, progress: 'Starting generation...' });
 
     try {
-      const response = await fetch(`${API_BASE}/dashboard/create-document`, {
+      // Call the new Gemini-based generate-document endpoint
+      const response = await fetch(`${API_BASE}/generate-document`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           symbol,
-          company_name: companyName,
           asset_id: assetId,
-          document_type: docType,
-          force_new: forceNew
+          document_type: docType
         })
       });
 
       const data = await response.json();
       
-      if (data.success && data.task_id) {
-        // Open Manus task in new tab
-        if (data.task_url) {
-          window.open(data.task_url, '_blank');
+      if (data.success) {
+        setStatus({ 
+          isGenerating: false, 
+          progress: `Generated in ${data.generation_time_seconds?.toFixed(1)}s with ${data.sources_cited} sources` 
+        });
+        
+        // Refresh documents to show the new file
+        await fetchDocuments();
+        
+        // Open the generated document in a new tab
+        if (data.file_url) {
+          window.open(data.file_url, '_blank');
         }
         
-        // Register with global polling service (persists even if component unmounts)
-        registerPendingDocument(data.task_id, assetId, docType, symbol);
-        
-        // Refresh to show the "generating" entry
-        fetchDocuments();
+        // Clear the success message after 5 seconds
+        setTimeout(() => {
+          setStatus({ isGenerating: false });
+        }, 5000);
       } else {
-        // Reset generating state on error
-        if (docType === 'one_pager') {
-          setGeneratingOnePager(false);
-        } else {
-          setGeneratingMemo(false);
-        }
+        setStatus({ 
+          isGenerating: false, 
+          error: data.error || 'Failed to generate document' 
+        });
+        
+        // Clear error after 10 seconds
+        setTimeout(() => {
+          setStatus({ isGenerating: false });
+        }, 10000);
       }
     } catch (error) {
       console.error('Error generating document:', error);
-      if (docType === 'one_pager') {
-        setGeneratingOnePager(false);
-      } else {
-        setGeneratingMemo(false);
-      }
+      setStatus({ 
+        isGenerating: false, 
+        error: 'Network error. Please try again.' 
+      });
+      
+      setTimeout(() => {
+        setStatus({ isGenerating: false });
+      }, 10000);
     }
   };
 
@@ -236,17 +129,13 @@ export function DocumentsSection({ assetId, symbol, companyName }: DocumentsSect
     });
   };
 
-  const isGenerating = (file: AssetFile) => {
-    return file.description?.includes('Generating') || file.file_path?.includes('manus.im');
-  };
-
   const renderDocumentColumn = (
     title: string,
     documents: AssetFile[],
     docType: 'one_pager' | 'memo',
     showHistory: boolean,
     setShowHistory: (show: boolean) => void,
-    isGeneratingNew: boolean
+    status: GenerationStatus
   ) => {
     const latestDoc = documents[0];
     const historyDocs = documents.slice(1);
@@ -260,11 +149,11 @@ export function DocumentsSection({ assetId, symbol, companyName }: DocumentsSect
             {title}
           </h4>
           <button
-            onClick={() => handleGenerateClick(docType)}
-            disabled={isGeneratingNew}
+            onClick={() => generateDocument(docType)}
+            disabled={status.isGenerating}
             className="flex items-center gap-1 px-2 py-1 text-xs bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-600 disabled:cursor-not-allowed rounded transition-colors"
           >
-            {isGeneratingNew ? (
+            {status.isGenerating ? (
               <>
                 <Loader2 className="w-3 h-3 animate-spin" />
                 Generating...
@@ -278,16 +167,45 @@ export function DocumentsSection({ assetId, symbol, companyName }: DocumentsSect
           </button>
         </div>
 
+        {/* Status message */}
+        {(status.progress || status.error) && !status.isGenerating && (
+          <div className={`mb-2 p-2 rounded text-xs flex items-center gap-2 ${
+            status.error 
+              ? 'bg-red-900/30 text-red-400 border border-red-800' 
+              : 'bg-emerald-900/30 text-emerald-400 border border-emerald-800'
+          }`}>
+            {status.error ? (
+              <span>{status.error}</span>
+            ) : (
+              <>
+                <CheckCircle className="w-3 h-3" />
+                <span>{status.progress}</span>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Generating indicator */}
+        {status.isGenerating && (
+          <div className="mb-2 p-3 bg-blue-900/20 rounded-lg border border-blue-800/50">
+            <div className="flex items-center gap-2 text-blue-400 text-sm">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Generating with Gemini AI...</span>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Researching latest news and analyzing data. This may take 1-2 minutes.
+            </p>
+          </div>
+        )}
+
         {latestDoc ? (
           <div className="space-y-2">
             {/* Latest document */}
             <a
-              href={isGenerating(latestDoc) ? undefined : latestDoc.file_path}
+              href={latestDoc.file_path}
               target="_blank"
               rel="noopener noreferrer"
-              className={`block p-3 bg-gray-800/50 rounded-lg border border-gray-700 ${
-                isGenerating(latestDoc) ? 'cursor-default' : 'hover:border-emerald-500/50 hover:bg-gray-800'
-              } transition-colors`}
+              className="block p-3 bg-gray-800/50 rounded-lg border border-gray-700 hover:border-emerald-500/50 hover:bg-gray-800 transition-colors"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
@@ -295,22 +213,16 @@ export function DocumentsSection({ assetId, symbol, companyName }: DocumentsSect
                     {latestDoc.file_name}
                   </p>
                   <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                    {isGenerating(latestDoc) ? (
-                      <>
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <Clock className="w-3 h-3" />
-                        {formatDate(latestDoc.created_at)}
-                      </>
-                    )}
+                    <Clock className="w-3 h-3" />
+                    {formatDate(latestDoc.created_at)}
                   </p>
+                  {latestDoc.description && (
+                    <p className="text-xs text-gray-500 mt-1 truncate">
+                      {latestDoc.description}
+                    </p>
+                  )}
                 </div>
-                {!isGenerating(latestDoc) && (
-                  <ExternalLink className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                )}
+                <ExternalLink className="w-4 h-4 text-gray-400 flex-shrink-0" />
               </div>
             </a>
 
@@ -365,6 +277,7 @@ export function DocumentsSection({ assetId, symbol, companyName }: DocumentsSect
       <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
         <Sparkles className="w-4 h-4 text-emerald-400" />
         AI Documents
+        <span className="text-xs text-gray-500 font-normal ml-2">Powered by Gemini</span>
       </h3>
       
       <div className="flex gap-4">
@@ -374,7 +287,7 @@ export function DocumentsSection({ assetId, symbol, companyName }: DocumentsSect
           'one_pager',
           showOnePagerHistory,
           setShowOnePagerHistory,
-          generatingOnePager
+          onePagerStatus
         )}
         
         <div className="w-px bg-gray-700" />
@@ -385,62 +298,9 @@ export function DocumentsSection({ assetId, symbol, companyName }: DocumentsSect
           'memo',
           showMemoHistory,
           setShowMemoHistory,
-          generatingMemo
+          memoStatus
         )}
       </div>
-
-      {/* Choice Dialog */}
-      {choiceDialog.isOpen && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-gray-900 rounded-xl border border-gray-700 p-6 max-w-md w-full mx-4 shadow-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">
-                Generate {choiceDialog.docType === 'one_pager' ? 'One Pager' : 'Memo'}
-              </h3>
-              <button
-                onClick={() => setChoiceDialog({ isOpen: false, docType: null, existingTaskUrl: null, existingTaskId: null })}
-                className="text-gray-400 hover:text-white transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <p className="text-gray-400 text-sm mb-6">
-              This asset already has an existing Manus AI chat. Would you like to continue in that chat or start a new one?
-            </p>
-            
-            <div className="space-y-3">
-              <button
-                onClick={handleContinueExisting}
-                className="w-full flex items-center gap-3 p-4 bg-gray-800 hover:bg-gray-750 border border-gray-700 hover:border-emerald-500/50 rounded-lg transition-colors text-left group relative"
-                title="You'll need to manually type your request in the existing chat"
-              >
-                <div className="p-2 bg-emerald-600/20 rounded-lg">
-                  <MessageSquare className="w-5 h-5 text-emerald-400" />
-                </div>
-                <div>
-                  <p className="text-white font-medium">Continue existing chat</p>
-                  <p className="text-gray-400 text-xs mt-0.5">Open the previous Manus conversation</p>
-                  <p className="text-amber-500/80 text-xs mt-1 italic">Note: You'll need to manually request the document</p>
-                </div>
-              </button>
-              
-              <button
-                onClick={handleCreateNew}
-                className="w-full flex items-center gap-3 p-4 bg-gray-800 hover:bg-gray-750 border border-gray-700 hover:border-blue-500/50 rounded-lg transition-colors text-left"
-              >
-                <div className="p-2 bg-blue-600/20 rounded-lg">
-                  <Plus className="w-5 h-5 text-blue-400" />
-                </div>
-                <div>
-                  <p className="text-white font-medium">Create new chat</p>
-                  <p className="text-gray-400 text-xs mt-0.5">Start fresh with auto-generated prompt</p>
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

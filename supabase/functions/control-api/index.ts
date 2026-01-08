@@ -8,6 +8,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { MEMO_TEMPLATE, ONE_PAGER_TEMPLATE, SYSTEM_PROMPT, formatDatabaseContext, AssetData } from "./gemini-templates.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -68,10 +69,7 @@ function isPublicDashboardEndpoint(req: Request): boolean {
     return true
   }
   
-  // Allow public access to memo-status endpoint (GET and POST)
-  if (path.startsWith('/dashboard/memo-status')) {
-    return true
-  }
+  // NOTE: memo-status endpoints removed - Gemini generation is synchronous
   
   return false
 }
@@ -1778,10 +1776,10 @@ If asked about something not in the data, acknowledge the limitation.`
         })
       }
 
-      // POST /dashboard/create-document - Create one pager or memo via Manus API
+      // POST /dashboard/create-document - Create one pager or memo via Gemini AI with Google Search
       case req.method === 'POST' && path === '/dashboard/create-document': {
         const body = await req.json()
-        const { symbol, company_name, asset_id, document_type } = body
+        const { symbol, asset_id, document_type } = body
         
         if (!symbol) {
           return new Response(JSON.stringify({ error: 'Symbol is required' }), {
@@ -1794,167 +1792,160 @@ If asked about something not in the data, acknowledge the limitation.`
         const validTypes = ['one_pager', 'memo']
         const docType = validTypes.includes(document_type) ? document_type : 'one_pager'
         
-        // Manus API configuration
-        const MANUS_API_KEY = Deno.env.get('MANUS_API_KEY') || 'sk-sadyDbuEGGdU1kyqcaM7HY6E4-YXoouBbYEGQeMpaNf7eDpelHglEVLnTP2Gjk75RUhy5W79WTebyco_TTek43U7emlg'
-        const MANUS_PROJECT_ID = 'YAnGyJK4v46h9LD9MgoN2g'
+        console.log(`Generating ${docType} for ${symbol} using Gemini...`)
+        const startTime = Date.now()
         
-        // Create prompt based on document type
-        // If company_name is provided, use "Company Name (TICKER)" format
-        // If not, use "TICKER" and let Manus identify the company
-        const displayName = company_name && company_name !== symbol 
-          ? `${company_name} (${symbol})` 
-          : symbol
+        // Gemini API configuration
+        const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || 'AIzaSyAHg70im-BbB9HYZm7TOzr3cKRQp7RWY1Q'
         
-        const prompt = docType === 'one_pager'
-          ? `${displayName} One Pager`
-          : `${displayName} Memo`
+        // Step 1: Fetch asset data from the same API
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+        const assetDataUrl = `${supabaseUrl}/functions/v1/control-api/dashboard/asset?symbol=${symbol}`
+        console.log(`Fetching asset data from: ${assetDataUrl}`)
         
-        console.log(`Creating ${docType} with prompt: ${prompt}`)
-        
-        // Check if there's an existing task for this asset (any document type - shared chat per asset)
-        let existingTaskId: string | null = null
-        if (asset_id) {
-          const { data: existingFiles } = await supabase
-            .from('asset_files')
-            .select('description, file_type')
-            .eq('asset_id', asset_id)
-            .in('file_type', ['one_pager', 'memo'])
-            .order('created_at', { ascending: false })
-            .limit(10)
-          
-          // Find the most recent task ID from descriptions (any doc type)
-          if (existingFiles) {
-            for (const file of existingFiles) {
-              const match = file.description?.match(/Task: ([A-Za-z0-9]+)/)
-              if (match) {
-                existingTaskId = match[1]
-                console.log(`Found existing task ${existingTaskId} from ${file.file_type}`)
-                break
-              }
-            }
-          }
-        }
-        
-        let manusResult: { task_id: string; task_url: string; task_title?: string }
-        
-        if (existingTaskId) {
-          // Send a follow-up message to the existing task
-          console.log(`Sending follow-up to existing task: ${existingTaskId}`)
-          const followUpResponse = await fetch(`https://api.manus.ai/v1/tasks/${existingTaskId}/messages`, {
-            method: 'POST',
-            headers: {
-              'API_KEY': MANUS_API_KEY,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              content: `Please create an updated version of the ${docType === 'one_pager' ? 'One Pager' : 'Memo'} for ${displayName} with the latest data and analysis.`
-            })
-          })
-          
-          if (followUpResponse.ok) {
-            manusResult = {
-              task_id: existingTaskId,
-              task_url: `https://manus.im/app/${existingTaskId}`,
-              task_title: `${displayName} ${docType === 'one_pager' ? 'One Pager' : 'Memo'} (Updated)`
-            }
-          } else {
-            // If follow-up fails, create a new task
-            console.log('Follow-up failed, creating new task')
-            existingTaskId = null
-          }
-        }
-        
-        if (!existingTaskId) {
-          // Create a new task
-          const manusResponse = await fetch('https://api.manus.ai/v1/tasks', {
-            method: 'POST',
-            headers: {
-              'API_KEY': MANUS_API_KEY,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              prompt,
-              projectId: MANUS_PROJECT_ID,
-              agentProfile: 'manus-1.6'
-            })
-          })
-          
-          if (!manusResponse.ok) {
-            const errorText = await manusResponse.text()
-            console.error('Manus API error:', errorText)
-            return new Response(JSON.stringify({ error: 'Failed to create document task', details: errorText }), {
-              status: 500,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            })
-          }
-          
-          manusResult = await manusResponse.json()
-        }
-        
-        // Save the task reference to the database
-        if (asset_id && manusResult.task_id) {
-          const fileName = docType === 'one_pager' 
-            ? `${symbol}_One_Pager.md`
-            : `${symbol}_Investment_Memo.md`
-          
-          await supabase
-            .from('asset_files')
-            .insert({
-              asset_id,
-              file_name: fileName,
-              file_path: manusResult.task_url,
-              file_type: docType,
-              description: `Generating via Manus AI (Task: ${manusResult.task_id})`
-            })
-        }
-        
-        return new Response(JSON.stringify({
-          success: true,
-          task_id: manusResult.task_id,
-          task_url: manusResult.task_url,
-          task_title: manusResult.task_title,
-          document_type: docType
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-      }
-
-      // POST /dashboard/memo-status/:task_id/save - Save completed memo to asset files (must be before GET)
-      case req.method === 'POST' && path.endsWith('/save') && path.includes('/dashboard/memo-status/'): {
-        const pathParts = path.split('/')
-        const taskId = pathParts[pathParts.length - 2]
-        const body = await req.json()
-        const { asset_id, file_url, file_name, document_type } = body
-        
-        // Use document_type from request, default to 'memo' for backwards compatibility
-        const fileType = document_type || 'memo'
-        
-        if (!asset_id || !file_url) {
-          return new Response(JSON.stringify({ error: 'asset_id and file_url are required' }), {
-            status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-        }
-        
-        console.log(`Saving ${fileType} for asset ${asset_id}, file: ${file_name}`)
-        
-        // Download the file from Manus CDN
-        const fileResponse = await fetch(file_url)
-        if (!fileResponse.ok) {
-          return new Response(JSON.stringify({ error: 'Failed to download file from Manus' }), {
+        const assetResponse = await fetch(assetDataUrl)
+        if (!assetResponse.ok) {
+          const errorText = await assetResponse.text()
+          return new Response(JSON.stringify({ error: 'Failed to fetch asset data', details: errorText }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
         }
         
-        const fileContent = await fileResponse.text()
-        const finalFileName = file_name || `${fileType}_${taskId}.md`
+        const assetData: AssetData = await assetResponse.json()
+        const companyName = assetData.asset?.name || symbol
+        const todayDate = new Date().toISOString().split('T')[0]
         
-        // Upload to Supabase Storage - organize by document type
-        const storagePath = `${fileType}s/${asset_id}/${finalFileName}`
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        // Step 2: Prepare the prompt
+        const databaseContext = formatDatabaseContext(assetData)
+        const template = docType === 'memo' ? MEMO_TEMPLATE : ONE_PAGER_TEMPLATE
+        
+        const geminiPrompt = `
+# TASK: Generate Investment ${docType === 'memo' ? 'Memo' : 'One Pager'} for ${symbol}
+
+## INPUT DATA
+
+### Asset: ${symbol} (${companyName})
+### Date: ${todayDate}
+
+### DATABASE DATA (Use these exact numbers where applicable):
+\`\`\`json
+${databaseContext}
+\`\`\`
+
+### TEMPLATE (Follow this structure exactly):
+\`\`\`markdown
+${template}
+\`\`\`
+
+## INSTRUCTIONS
+
+1. **First**, analyze the DATABASE DATA above. Note what quantitative data is available.
+
+2. **Second**, use Google Search to research the following for ${symbol}:
+   - Latest news and developments (last 2-4 weeks)
+   - Recent earnings call highlights or guidance
+   - Management commentary and strategic updates
+   - Competitive landscape changes
+   - Analyst ratings and price target changes
+   - Any regulatory or macro risks
+
+3. **Third**, generate the complete ${docType === 'memo' ? 'memo' : 'one pager'} following the TEMPLATE structure exactly:
+   - Fill in all database-driven sections with the exact numbers from DATABASE DATA
+   - Fill in all research-driven sections with findings from your Google Search
+   - Cite all external sources with links
+   - Be decisive in your investment stance based on the combined evidence
+
+4. **Output**: Return ONLY the completed document in clean Markdown format.
+`
+        
+        // Step 3: Call Gemini with Google Search grounding
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GEMINI_API_KEY}`
+        
+        const geminiRequestBody = {
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: geminiPrompt }]
+            }
+          ],
+          systemInstruction: {
+            parts: [{ text: SYSTEM_PROMPT }]
+          },
+          tools: [
+            {
+              googleSearch: {}
+            }
+          ],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 16384,
+          }
+        }
+        
+        console.log('Calling Gemini API with Google Search grounding...')
+        
+        const geminiResponse = await fetch(geminiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(geminiRequestBody)
+        })
+        
+        if (!geminiResponse.ok) {
+          const errorText = await geminiResponse.text()
+          console.error('Gemini API error:', errorText)
+          return new Response(JSON.stringify({ error: 'Failed to generate document', details: errorText }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const geminiResult = await geminiResponse.json()
+        
+        // Extract text and sources from response
+        let documentContent = ''
+        let sourcesCited = 0
+        
+        if (geminiResult.candidates && geminiResult.candidates.length > 0) {
+          const candidate = geminiResult.candidates[0]
+          
+          // Extract text
+          if (candidate.content?.parts) {
+            for (const part of candidate.content.parts) {
+              if (part.text) {
+                documentContent += part.text
+              }
+            }
+          }
+          
+          // Count grounding sources
+          if (candidate.groundingMetadata?.groundingChunks) {
+            sourcesCited = candidate.groundingMetadata.groundingChunks.length
+          }
+        }
+        
+        if (!documentContent || documentContent.trim() === '') {
+          return new Response(JSON.stringify({ error: 'Gemini returned empty response' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const generationTime = (Date.now() - startTime) / 1000
+        console.log(`Document generated in ${generationTime}s with ${sourcesCited} sources`)
+        
+        // Step 4: Save to Supabase Storage
+        const fileName = docType === 'one_pager'
+          ? `${symbol}_One_Pager_${todayDate}.md`
+          : `${symbol}_Investment_Memo_${todayDate}.md`
+        
+        const storagePath = `${docType}s/${asset_id || symbol}/${fileName}`
+        
+        const { error: uploadError } = await supabase.storage
           .from('asset-files')
-          .upload(storagePath, fileContent, {
+          .upload(storagePath, documentContent, {
             contentType: 'text/markdown',
             upsert: true
           })
@@ -1974,124 +1965,50 @@ If asked about something not in the data, acknowledge the limitation.`
         
         console.log(`File uploaded to: ${urlData.publicUrl}`)
         
-        // Always insert a new record (to keep history)
-        const { data: insertData, error: insertError } = await supabase
-          .from('asset_files')
-          .insert({
-            asset_id,
-            file_name: finalFileName,
-            file_path: urlData.publicUrl,
-            file_type: fileType,
-            file_size: fileContent.length,
-            description: `Generated by Manus AI (Task: ${taskId})`
-          })
-          .select()
-        
-        if (insertError) {
-          console.error('Database insert error:', insertError)
-          return new Response(JSON.stringify({ error: 'Failed to save file record', details: insertError.message }), {
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-        }
-        
-        console.log(`File record saved: ${JSON.stringify(insertData)}`)
-        
-        // Delete placeholder entries (files with manus.im URLs) for this asset/type
-        const { error: deleteError } = await supabase
-          .from('asset_files')
-          .delete()
-          .eq('asset_id', asset_id)
-          .eq('file_type', fileType)
-          .like('file_path', '%manus.im%')
-        
-        if (deleteError) {
-          console.error('Failed to delete placeholder entries:', deleteError)
-        } else {
-          console.log('Placeholder entries deleted successfully')
+        // Step 5: Save record to asset_files table
+        if (asset_id) {
+          // Delete any existing placeholder entries
+          await supabase
+            .from('asset_files')
+            .delete()
+            .eq('asset_id', asset_id)
+            .eq('file_type', docType)
+            .like('description', '%Generating%')
+          
+          // Insert new record
+          const { error: insertError } = await supabase
+            .from('asset_files')
+            .insert({
+              asset_id,
+              file_name: fileName,
+              file_path: urlData.publicUrl,
+              file_type: docType,
+              file_size: documentContent.length,
+              description: `Generated by Gemini AI (${sourcesCited} sources cited)`
+            })
+          
+          if (insertError) {
+            console.error('Database insert error:', insertError)
+            // Don't fail the request, file is already uploaded
+          }
         }
         
         return new Response(JSON.stringify({
           success: true,
-          file: insertData?.[0],
+          document_type: docType,
+          file_name: fileName,
+          file_url: urlData.publicUrl,
           storage_path: storagePath,
-          public_url: urlData.publicUrl
+          generation_time_seconds: generationTime,
+          sources_cited: sourcesCited,
+          content_length: documentContent.length
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
 
-      // GET /dashboard/memo-status/:task_id - Check memo task status and fetch file if complete
-      case req.method === 'GET' && path.startsWith('/dashboard/memo-status/'): {
-        const taskId = path.split('/').pop()
-        
-        if (!taskId) {
-          return new Response(JSON.stringify({ error: 'Task ID is required' }), {
-            status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-        }
-        
-        // Manus API configuration
-        const MANUS_API_KEY = Deno.env.get('MANUS_API_KEY') || 'sk-sadyDbuEGGdU1kyqcaM7HY6E4-YXoouBbYEGQeMpaNf7eDpelHglEVLnTP2Gjk75RUhy5W79WTebyco_TTek43U7emlg'
-        
-        // Get task status from Manus API
-        const statusResponse = await fetch(`https://api.manus.ai/v1/tasks/${taskId}`, {
-          headers: {
-            'API_KEY': MANUS_API_KEY
-          }
-        })
-        
-        if (!statusResponse.ok) {
-          const errorText = await statusResponse.text()
-          return new Response(JSON.stringify({ error: 'Failed to get task status', details: errorText }), {
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-        }
-        
-        const taskData = await statusResponse.json()
-        
-        // Check if task is completed and has output files
-        let outputFile = null
-        let allOutputFiles: Array<{fileUrl: string, fileName: string, mimeType: string}> = []
-        
-        if (taskData.status === 'completed' && taskData.output) {
-          // Collect all output files
-          for (const output of taskData.output) {
-            if (output.content) {
-              for (const content of output.content) {
-                if (content.type === 'output_file') {
-                  allOutputFiles.push({
-                    fileUrl: content.fileUrl,
-                    fileName: content.fileName,
-                    mimeType: content.mimeType
-                  })
-                }
-              }
-            }
-          }
-          
-          // Prioritize markdown files for better inline display
-          const mdFile = allOutputFiles.find(f => f.fileName?.endsWith('.md'))
-          const pdfFile = allOutputFiles.find(f => f.fileName?.endsWith('.pdf'))
-          const docxFile = allOutputFiles.find(f => f.fileName?.endsWith('.docx'))
-          
-          // Prefer: .md > .pdf > .docx > any other
-          outputFile = mdFile || pdfFile || docxFile || allOutputFiles[allOutputFiles.length - 1] || null
-        }
-        
-        return new Response(JSON.stringify({
-          task_id: taskData.id,
-          status: taskData.status,
-          title: taskData.metadata?.task_title,
-          task_url: taskData.metadata?.task_url,
-          credit_usage: taskData.credit_usage,
-          output_file: outputFile
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-      }
+      // NOTE: memo-status endpoints removed - Gemini generation is synchronous
+      // Legacy endpoints for Manus polling are no longer needed
 
       // ==================== STOCK LISTS ENDPOINTS ====================
 
