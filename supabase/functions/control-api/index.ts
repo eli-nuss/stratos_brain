@@ -58,6 +58,11 @@ function isPublicDashboardEndpoint(req: Request): boolean {
     return true
   }
   
+  // Allow public access to asset-tags endpoints (all methods)
+  if (path.startsWith('/dashboard/asset-tags')) {
+    return true
+  }
+  
   // Allow public access to create-document endpoint
   if (req.method === 'POST' && path === '/dashboard/create-document') {
     return true
@@ -2305,6 +2310,94 @@ If asked about something not in the data, acknowledge the limitation.`
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
         }
+        
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // ==================== ASSET TAGS ENDPOINTS ====================
+
+      // GET /dashboard/asset-tags - Get all asset tags
+      case req.method === 'GET' && path === '/dashboard/asset-tags': {
+        const { data: tags, error } = await supabase
+          .from('asset_tags')
+          .select('asset_id, tag, created_at, updated_at')
+          .order('updated_at', { ascending: false })
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(tags || []), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // PUT /dashboard/asset-tags/:asset_id - Set or update asset tag
+      case req.method === 'PUT' && /^\/dashboard\/asset-tags\/\d+$/.test(path): {
+        const assetId = parseInt(path.split('/').pop()!)
+        const body = await req.json()
+        const { tag } = body
+        
+        if (!tag || !['interesting', 'maybe', 'no'].includes(tag)) {
+          return new Response(JSON.stringify({ error: 'Valid tag required (interesting, maybe, no)' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Upsert the tag
+        const { data, error } = await supabase
+          .from('asset_tags')
+          .upsert({ 
+            asset_id: assetId, 
+            tag, 
+            updated_at: new Date().toISOString() 
+          }, { onConflict: 'asset_id' })
+          .select()
+          .single()
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Sync with watchlist: if tag is 'interesting', add to watchlist; otherwise remove
+        if (tag === 'interesting') {
+          await supabase.from('watchlist').upsert({ asset_id: assetId }, { onConflict: 'asset_id' })
+        } else {
+          await supabase.from('watchlist').delete().eq('asset_id', assetId)
+        }
+        
+        return new Response(JSON.stringify(data), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // DELETE /dashboard/asset-tags/:asset_id - Remove asset tag
+      case req.method === 'DELETE' && /^\/dashboard\/asset-tags\/\d+$/.test(path): {
+        const assetId = parseInt(path.split('/').pop()!)
+        
+        const { error } = await supabase
+          .from('asset_tags')
+          .delete()
+          .eq('asset_id', assetId)
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Also remove from watchlist when tag is cleared
+        await supabase.from('watchlist').delete().eq('asset_id', assetId)
         
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }

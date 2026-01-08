@@ -3,11 +3,9 @@ import { TrendingUp, TrendingDown, Search, ChevronLeft, ChevronRight, ChevronsLe
 import { useAllAssets, AssetType, SortField, SortOrder } from "@/hooks/useAllAssets";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { NoteCell } from "@/components/NoteCell";
-import WatchlistToggle from "@/components/WatchlistToggle";
 import AddToListButton from "@/components/AddToListButton";
-import { ReviewedToggle } from "@/components/ReviewedToggle";
+import AssetTagButton from "@/components/AssetTagButton";
 import { useWatchlist } from "@/hooks/useWatchlist";
-import { useReviewed, toggleReviewed } from "@/hooks/useReviewed";
 
 interface AllAssetsTableProps {
   assetType: AssetType;
@@ -80,9 +78,7 @@ interface FilterThresholds {
 }
 
 export default function AllAssetsTable({ assetType, date, onAssetClick, showWatchlistColumn = true }: AllAssetsTableProps) {
-  const { isInWatchlist, toggleWatchlist } = useWatchlist();
-  const { reviewedIds, mutate: mutateReviewed } = useReviewed();
-  const isReviewed = (assetId: number) => reviewedIds.includes(assetId);
+  const { mutate: mutateWatchlist } = useWatchlist();
   const [page, setPage] = useState(0);
   const [sortBy, setSortBy] = useState<SortField>("ai_direction_score");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
@@ -679,16 +675,7 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                   {showWatchlistColumn && (
                     <td className="px-2 py-2 sticky left-0 z-10 bg-background" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
-                        <div onClick={() => toggleWatchlist(row.asset_id)}>
-                          <WatchlistToggle isInWatchlist={isInWatchlist(row.asset_id)} />
-                        </div>
-                        <ReviewedToggle 
-                          isReviewed={isReviewed(row.asset_id)} 
-                          onClick={async () => {
-                            await toggleReviewed(row.asset_id, isReviewed(row.asset_id));
-                            mutateReviewed();
-                          }}
-                        />
+                        <AssetTagButton assetId={row.asset_id} onUpdate={() => mutateWatchlist()} />
                         <AddToListButton assetId={row.asset_id} />
                       </div>
                     </td>
