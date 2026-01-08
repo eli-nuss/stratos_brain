@@ -502,79 +502,71 @@ serve(async (req) => {
         })
       }
 
-      // GET /dashboard/memos - Get all AI reviews for the memo library
+      // GET /dashboard/memos - Get all Gemini-generated investment memos from asset_files
       case req.method === 'GET' && path === '/dashboard/memos': {
         const limit = parseInt(url.searchParams.get('limit') || '500')
         const offset = parseInt(url.searchParams.get('offset') || '0')
         const search = url.searchParams.get('search')
-        const direction = url.searchParams.get('direction')
-        const attention = url.searchParams.get('attention')
+        const docType = url.searchParams.get('type') || 'memo' // 'memo' or 'one_pager' or 'all'
         
-        // Get reviews with asset info joined
+        // Get generated documents from asset_files table
         let query = supabase
-          .from('asset_ai_reviews')
+          .from('asset_files')
           .select(`
+            file_id,
             asset_id,
-            as_of_date,
-            universe_id,
-            source_scope,
-            attention_level,
-            direction,
-            setup_type,
-            confidence,
-            summary_text,
-            ai_summary_text,
-            review_json,
+            file_name,
+            file_path,
+            file_size,
+            file_type,
+            description,
             created_at
           `)
-          .order('as_of_date', { ascending: false })
           .order('created_at', { ascending: false })
           .range(offset, offset + limit - 1)
         
-        // Only include memos that have actual summary content (not null and not empty)
-        query = query.or('summary_text.neq.null,ai_summary_text.neq.null')
-        
-        if (direction && direction !== 'all') {
-          query = query.eq('direction', direction)
+        // Filter by document type
+        if (docType === 'memo') {
+          query = query.eq('file_type', 'memo')
+        } else if (docType === 'one_pager') {
+          query = query.eq('file_type', 'one_pager')
+        } else {
+          // 'all' - get both memos and one-pagers
+          query = query.in('file_type', ['memo', 'one_pager'])
         }
         
-        if (attention && attention !== 'all') {
-          query = query.eq('attention_level', attention)
-        }
-        
-        const { data: reviews, error } = await query
+        const { data: files, error } = await query
         
         if (error) throw error
         
-        // Get unique asset IDs to fetch asset info (convert to strings for consistent lookup)
-        const assetIds = [...new Set((reviews || []).map(r => String(r.asset_id)))]
+        // Get unique asset IDs to fetch asset info
+        const assetIds = [...new Set((files || []).map(f => f.asset_id).filter(Boolean))]
         
-        // Fetch asset info (symbol, name) - assets table has bigint asset_id
+        // Fetch asset info (symbol, name)
         const { data: assets } = await supabase
           .from('assets')
-          .select('asset_id, symbol, name')
-          .in('asset_id', assetIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id)))
+          .select('asset_id, symbol, name, universe_id')
+          .in('asset_id', assetIds)
         
-        // Create map with string keys for consistent lookup
-        const assetMap = new Map((assets || []).map(a => [String(a.asset_id), a]))
+        // Create map for asset lookup
+        const assetMap = new Map((assets || []).map(a => [a.asset_id, a]))
         
-        // Merge asset info into reviews, also check ai_summary_text as fallback
-        const memos = (reviews || []).map(r => ({
-          ...r,
-          symbol: assetMap.get(String(r.asset_id))?.symbol || r.asset_id,
-          name: assetMap.get(String(r.asset_id))?.name || '',
-          // Use summary_text or ai_summary_text as fallback
-          summary_text: r.summary_text || r.ai_summary_text || ''
-        })).filter(m => m.summary_text && m.summary_text.trim().length > 0)
+        // Merge asset info into files
+        const memos = (files || []).map(f => ({
+          ...f,
+          symbol: assetMap.get(f.asset_id)?.symbol || `Asset ${f.asset_id}`,
+          name: assetMap.get(f.asset_id)?.name || '',
+          universe_id: assetMap.get(f.asset_id)?.universe_id || ''
+        }))
         
-        // Filter by search if provided (client-side for now)
+        // Filter by search if provided
         let filteredMemos = memos
         if (search) {
           const searchLower = search.toLowerCase()
           filteredMemos = memos.filter(m => 
             m.symbol?.toLowerCase().includes(searchLower) ||
             m.name?.toLowerCase().includes(searchLower) ||
-            m.summary_text?.toLowerCase().includes(searchLower)
+            m.file_name?.toLowerCase().includes(searchLower)
           )
         }
         
