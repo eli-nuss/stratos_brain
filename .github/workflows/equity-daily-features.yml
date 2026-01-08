@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       target_date:
-        description: 'Target date (YYYY-MM-DD). Leave empty for yesterday.'
+        description: 'Target date (YYYY-MM-DD). Leave empty for today.'
         required: false
         type: string
 
@@ -47,7 +47,7 @@ jobs:
             echo "date=${{ github.event.inputs.target_date }}" >> $GITHUB_OUTPUT
           else
             # Default to yesterday (UTC)
-            echo "date=$(date -u -d 'yesterday' +%Y-%m-%d)" >> $GITHUB_OUTPUT
+            echo "date=$(date -u +%Y-%m-%d)" >> $GITHUB_OUTPUT
           fi
       
       - name: Run equity features calculation
