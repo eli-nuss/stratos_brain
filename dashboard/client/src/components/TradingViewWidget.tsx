@@ -65,9 +65,8 @@ function TradingViewWidget({
       "details": false,
       "hotlist": false,
       "studies": [
-        "STD;RSI",
-        "STD;SMA",
-        "STD;SMA"
+        "STD;MA%Ribbon",
+        "STD;RSI"
       ]
     });
 
