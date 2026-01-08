@@ -51,87 +51,167 @@ function MemoDetailModal({ memo, onClose }: MemoDetailModalProps) {
   }, [memo.file_path]);
 
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4" onClick={onClose}>
       <div 
-        className="bg-card border border-border rounded-lg shadow-lg w-[95vw] max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        className="bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl w-full max-w-4xl max-h-[95vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-bold">{memo.symbol}</span>
-              <span className="text-sm text-muted-foreground">{memo.name}</span>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-700 bg-zinc-800/50">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <span className="text-xl font-bold text-white">{memo.symbol}</span>
+              <span className="text-sm text-zinc-400">{memo.name}</span>
             </div>
-            <span className={`px-2 py-0.5 text-xs font-medium rounded ${
-              memo.file_type === 'memo' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'
+            <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
+              memo.file_type === 'memo' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
             }`}>
               {memo.file_type === 'memo' ? 'Investment Memo' : 'One Pager'}
             </span>
-            <span className={`px-2 py-0.5 text-xs font-medium rounded ${
-              memo.universe_id === 'crypto_all' ? 'bg-orange-500/20 text-orange-400' : 'bg-blue-500/20 text-blue-400'
-            }`}>
-              {memo.universe_id === 'crypto_all' ? 'Crypto' : 'Equity'}
-            </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <a 
               href={memo.file_path} 
               target="_blank" 
               rel="noopener noreferrer"
-              className="flex items-center gap-1 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors"
             >
-              <ExternalLink className="w-3 h-3" />
-              Open in New Tab
+              <ExternalLink className="w-4 h-4" />
+              Open Raw
             </a>
-            <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-lg px-2">
-              ✕
+            <button 
+              onClick={onClose} 
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors"
+            >
+              <span className="text-xl">×</span>
             </button>
           </div>
         </div>
         
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center h-64">
-              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+              <Loader2 className="w-8 h-8 animate-spin text-zinc-500" />
             </div>
           ) : error ? (
-            <div className="text-red-400 text-center py-8">
+            <div className="text-red-400 text-center py-12">
               Failed to load memo content: {error}
             </div>
           ) : (
-            <div className="prose prose-invert prose-sm max-w-none
-              prose-headings:text-foreground prose-headings:font-semibold
-              prose-h1:text-2xl prose-h1:border-b prose-h1:border-border prose-h1:pb-2 prose-h1:mb-4
-              prose-h2:text-xl prose-h2:mt-6 prose-h2:mb-3
-              prose-h3:text-lg prose-h3:mt-4 prose-h3:mb-2
-              prose-p:text-muted-foreground prose-p:leading-relaxed
-              prose-strong:text-foreground prose-strong:font-semibold
-              prose-ul:text-muted-foreground prose-ol:text-muted-foreground
-              prose-li:my-1
-              prose-a:text-primary prose-a:no-underline hover:prose-a:underline
-              prose-blockquote:border-l-primary prose-blockquote:text-muted-foreground prose-blockquote:italic
-              prose-code:text-primary prose-code:bg-muted/50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded
-              prose-pre:bg-muted/30 prose-pre:border prose-pre:border-border
-              prose-table:border-collapse prose-th:border prose-th:border-border prose-th:bg-muted/30 prose-th:p-2
-              prose-td:border prose-td:border-border prose-td:p-2
-              prose-hr:border-border
-            ">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {content || ''}
-              </ReactMarkdown>
+            <div className="px-8 py-6">
+              <article className="memo-content">
+                <ReactMarkdown 
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    h1: ({children}) => (
+                      <h1 className="text-2xl font-bold text-white mb-6 pb-3 border-b border-zinc-700">
+                        {children}
+                      </h1>
+                    ),
+                    h2: ({children}) => (
+                      <h2 className="text-xl font-semibold text-white mt-8 mb-4">
+                        {children}
+                      </h2>
+                    ),
+                    h3: ({children}) => (
+                      <h3 className="text-lg font-semibold text-zinc-200 mt-6 mb-3">
+                        {children}
+                      </h3>
+                    ),
+                    p: ({children}) => (
+                      <p className="text-zinc-300 leading-7 mb-4">
+                        {children}
+                      </p>
+                    ),
+                    strong: ({children}) => (
+                      <strong className="font-semibold text-white">{children}</strong>
+                    ),
+                    em: ({children}) => (
+                      <em className="italic text-zinc-300">{children}</em>
+                    ),
+                    ul: ({children}) => (
+                      <ul className="list-disc list-outside ml-6 mb-4 space-y-2 text-zinc-300">
+                        {children}
+                      </ul>
+                    ),
+                    ol: ({children}) => (
+                      <ol className="list-decimal list-outside ml-6 mb-4 space-y-2 text-zinc-300">
+                        {children}
+                      </ol>
+                    ),
+                    li: ({children}) => (
+                      <li className="leading-7">{children}</li>
+                    ),
+                    blockquote: ({children}) => (
+                      <blockquote className="border-l-4 border-blue-500 pl-4 py-2 my-4 bg-zinc-800/50 rounded-r-lg italic text-zinc-400">
+                        {children}
+                      </blockquote>
+                    ),
+                    code: ({className, children}) => {
+                      const isInline = !className;
+                      return isInline ? (
+                        <code className="px-1.5 py-0.5 bg-zinc-800 text-blue-400 rounded text-sm font-mono">
+                          {children}
+                        </code>
+                      ) : (
+                        <code className={className}>{children}</code>
+                      );
+                    },
+                    pre: ({children}) => (
+                      <pre className="bg-zinc-800 border border-zinc-700 rounded-lg p-4 my-4 overflow-x-auto text-sm">
+                        {children}
+                      </pre>
+                    ),
+                    table: ({children}) => (
+                      <div className="overflow-x-auto my-6">
+                        <table className="w-full border-collapse text-sm">
+                          {children}
+                        </table>
+                      </div>
+                    ),
+                    thead: ({children}) => (
+                      <thead className="bg-zinc-800">{children}</thead>
+                    ),
+                    th: ({children}) => (
+                      <th className="border border-zinc-700 px-4 py-3 text-left font-semibold text-zinc-200">
+                        {children}
+                      </th>
+                    ),
+                    td: ({children}) => (
+                      <td className="border border-zinc-700 px-4 py-3 text-zinc-300">
+                        {children}
+                      </td>
+                    ),
+                    hr: () => (
+                      <hr className="border-zinc-700 my-8" />
+                    ),
+                    a: ({href, children}) => (
+                      <a 
+                        href={href} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:text-blue-300 underline underline-offset-2"
+                      >
+                        {children}
+                      </a>
+                    ),
+                  }}
+                >
+                  {content || ''}
+                </ReactMarkdown>
+              </article>
             </div>
           )}
         </div>
         
         {/* Footer */}
-        <div className="flex items-center justify-between p-3 border-t border-border text-xs text-muted-foreground">
-          <div className="flex items-center gap-4">
-            <span>Created: {new Date(memo.created_at).toLocaleString()}</span>
-            <span>Size: {(memo.file_size / 1024).toFixed(1)} KB</span>
+        <div className="flex items-center justify-between px-6 py-3 border-t border-zinc-700 bg-zinc-800/30 text-xs text-zinc-500">
+          <div className="flex items-center gap-6">
+            <span>Created: {new Date(memo.created_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+            <span>{(memo.file_size / 1024).toFixed(1)} KB</span>
           </div>
-          <span>{memo.description}</span>
+          <span className="text-zinc-400">{memo.description}</span>
         </div>
       </div>
     </div>
