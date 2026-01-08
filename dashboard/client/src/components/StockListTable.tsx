@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, ExternalLink, X, Brain, Bot, Pill, Rocket } from "lucide-react";
+import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, ExternalLink, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { NoteCell } from "@/components/NoteCell";
 import { useStockListAssets, removeFromList, addToList, StockList } from "@/hooks/useStockLists";
@@ -18,13 +18,7 @@ type SortOrder = "asc" | "desc";
 
 const PAGE_SIZE = 50;
 
-// Map icon names to Lucide icons
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  brain: Brain,
-  robot: Bot,
-  pill: Pill,
-  rocket: Rocket,
-};
+
 
 export default function StockListTable({ list, onAssetClick }: StockListTableProps) {
   const { assets, isLoading, mutate: mutateAssets } = useStockListAssets(list.id);
@@ -164,14 +158,15 @@ export default function StockListTable({ list, onAssetClick }: StockListTablePro
     </div>
   );
 
-  const Icon = iconMap[list.icon] || Brain;
-
   return (
     <div className="flex flex-col h-full border border-border rounded-lg bg-card overflow-hidden">
       {/* Header */}
       <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-muted/30">
         <h3 className="font-medium text-sm flex items-center gap-2">
-          <span style={{ color: list.color }}><Icon className="w-4 h-4" /></span>
+          <span 
+            className="w-3 h-3 rounded-full shrink-0" 
+            style={{ backgroundColor: list.color }}
+          />
           {list.name}
           <span className="text-xs text-muted-foreground">({total} assets)</span>
         </h3>

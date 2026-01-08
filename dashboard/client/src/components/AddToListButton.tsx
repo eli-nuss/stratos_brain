@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Plus, Check, Brain, Bot, Pill, Rocket } from 'lucide-react';
+import { Plus, Check } from 'lucide-react';
 import { useStockLists, useAssetLists, addToList, removeFromList, StockList } from '@/hooks/useStockLists';
 import { createPortal } from 'react-dom';
 
@@ -7,14 +7,6 @@ interface AddToListButtonProps {
   assetId: number;
   onUpdate?: () => void;
 }
-
-// Map icon names to Lucide icons
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  brain: Brain,
-  robot: Bot,
-  pill: Pill,
-  rocket: Rocket,
-};
 
 export default function AddToListButton({ assetId, onUpdate }: AddToListButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -86,10 +78,7 @@ export default function AddToListButton({ assetId, onUpdate }: AddToListButtonPr
     }
   };
   
-  const getIcon = (iconName: string) => {
-    const IconComponent = iconMap[iconName] || Plus;
-    return IconComponent;
-  };
+
 
   const dropdown = isOpen && createPortal(
     <div 
@@ -105,7 +94,6 @@ export default function AddToListButton({ assetId, onUpdate }: AddToListButtonPr
         Add to List
       </div>
       {lists.map((list) => {
-        const Icon = getIcon(list.icon);
         const inList = isInList(list.id);
         const updating = isUpdating === list.id;
         
@@ -118,7 +106,10 @@ export default function AddToListButton({ assetId, onUpdate }: AddToListButtonPr
               inList ? 'text-foreground' : 'text-muted-foreground'
             } ${updating ? 'opacity-50' : ''}`}
           >
-            <span style={{ color: list.color }}><Icon className="w-4 h-4" /></span>
+            <span 
+              className="w-3 h-3 rounded-full shrink-0" 
+              style={{ backgroundColor: list.color }}
+            />
             <span className="flex-1">{list.name}</span>
             {inList && <Check className="w-4 h-4 text-primary" />}
           </button>

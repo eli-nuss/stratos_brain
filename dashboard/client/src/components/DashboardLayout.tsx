@@ -1,20 +1,12 @@
 import { ReactNode } from "react";
 import useSWR from "swr";
-import { Activity, Brain, Bot, Pill, Rocket, BookOpen, Settings, Search } from "lucide-react";
+import { Activity, BookOpen, Settings, Search } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { StockList } from "@/hooks/useStockLists";
 import { TabType } from "@/pages/Home";
 import CreateListButton from "@/components/CreateListButton";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
-
-// Map icon names to Lucide icons
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  brain: Brain,
-  robot: Bot,
-  pill: Pill,
-  rocket: Rocket,
-};
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -39,9 +31,7 @@ export default function DashboardLayout({
     refreshInterval: 60000, // Refresh every minute
   });
 
-  const getIcon = (iconName: string) => {
-    return iconMap[iconName] || Brain;
-  };
+
 
   // Format date to be more compact (e.g., "Jan 7" instead of "2026-01-07")
   const formatDate = (dateStr: string | undefined) => {
@@ -145,20 +135,22 @@ export default function DashboardLayout({
               {/* Stock Lists */}
               {stockLists.length > 0 && <div className="h-3 w-px bg-border/50 mx-0.5" />}
               {stockLists.map((list) => {
-                const Icon = getIcon(list.icon);
                 const tabId = `list-${list.id}` as TabType;
                 return (
                   <Tooltip key={list.id}>
                     <TooltipTrigger asChild>
                       <button
                         onClick={() => onTabChange(tabId)}
-                        className={`px-2.5 py-1 text-xs font-medium rounded transition-all flex items-center gap-1 ${
+                        className={`px-2.5 py-1 text-xs font-medium rounded transition-all flex items-center gap-1.5 ${
                           activeTab === tabId
                             ? "bg-background text-foreground shadow-sm"
                             : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                         }`}
                       >
-                        <span style={{ color: list.color }}><Icon className="w-3 h-3" /></span>
+                        <span 
+                          className="w-2 h-2 rounded-full shrink-0" 
+                          style={{ backgroundColor: list.color }}
+                        />
                         {list.name}
                       </button>
                     </TooltipTrigger>
