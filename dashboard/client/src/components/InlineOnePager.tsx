@@ -29,55 +29,73 @@ export function InlineOnePager({ assetId, symbol }: InlineOnePagerProps) {
   const [manusTaskUrl, setManusTaskUrl] = useState<string | null>(null);
 
   // Fetch the most recent one pager
-  useEffect(() => {
-    const fetchOnePager = async () => {
-      setIsLoading(true);
-      try {
-        const response = await fetch(`${API_BASE}/dashboard/files/${assetId}`);
-        const data = await response.json();
-        const files: AssetFile[] = data.files || [];
+  const fetchOnePager = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/dashboard/files/${assetId}`);
+      const data = await response.json();
+      const files: AssetFile[] = data.files || [];
+      
+      // Find the most recent one_pager that has actual content (not manus.im link)
+      const onePagers = files
+        .filter(f => f.file_type === 'one_pager' && !f.file_path.includes('manus.im'))
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      
+      if (onePagers.length > 0) {
+        setOnePager(onePagers[0]);
         
-        // Find the most recent one_pager that has actual content (not manus.im link)
-        const onePagers = files
-          .filter(f => f.file_type === 'one_pager' && !f.file_path.includes('manus.im'))
-          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        // Extract Manus task URL from description
+        const taskMatch = onePagers[0].description?.match(/Task: ([A-Za-z0-9]+)/);
+        if (taskMatch) {
+          setManusTaskUrl(`https://manus.im/app/${taskMatch[1]}`);
+        }
         
-        if (onePagers.length > 0) {
-          setOnePager(onePagers[0]);
-          
-          // Extract Manus task URL from description
-          const taskMatch = onePagers[0].description?.match(/Task: ([A-Za-z0-9]+)/);
-          if (taskMatch) {
-            setManusTaskUrl(`https://manus.im/app/${taskMatch[1]}`);
-          }
-          
-          // Fetch the content if it's a markdown file
-          if (onePagers[0].file_name.endsWith('.md')) {
-            try {
-              const contentResponse = await fetch(onePagers[0].file_path);
-              if (contentResponse.ok) {
-                const text = await contentResponse.text();
-                setContent(text);
-              } else {
-                setContentError(true);
-              }
-            } catch (err) {
-              console.error('Error fetching one pager content:', err);
+        // Fetch the content if it's a markdown file
+        if (onePagers[0].file_name.endsWith('.md')) {
+          try {
+            const contentResponse = await fetch(onePagers[0].file_path);
+            if (contentResponse.ok) {
+              const text = await contentResponse.text();
+              setContent(text);
+            } else {
               setContentError(true);
             }
-          } else {
-            // For non-markdown files (docx, pdf), we can't display inline
+          } catch (err) {
+            console.error('Error fetching one pager content:', err);
             setContentError(true);
           }
+        } else {
+          // For non-markdown files (docx, pdf), we can't display inline
+          setContentError(true);
         }
-      } catch (error) {
-        console.error('Error fetching one pager:', error);
-      } finally {
-        setIsLoading(false);
+      }
+    } catch (error) {
+      console.error('Error fetching one pager:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch on mount and when assetId changes
+  useEffect(() => {
+    fetchOnePager();
+  }, [assetId]);
+
+  // Listen for document completion events to refresh the inline view
+  useEffect(() => {
+    const handleDocumentCompleted = (e: CustomEvent) => {
+      const { assetId: completedAssetId, documentType } = e.detail;
+      // Refresh if a one_pager was completed for this asset
+      if (completedAssetId === assetId && documentType === 'one_pager') {
+        console.log('[InlineOnePager] New one pager completed, refreshing...');
+        fetchOnePager();
       }
     };
 
-    fetchOnePager();
+    window.addEventListener('document-completed', handleDocumentCompleted as EventListener);
+    return () => {
+      window.removeEventListener('document-completed', handleDocumentCompleted as EventListener);
+    };
   }, [assetId]);
 
   // Don't render anything if no one pager exists

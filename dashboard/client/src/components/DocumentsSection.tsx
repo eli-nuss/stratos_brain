@@ -146,6 +146,27 @@ export function DocumentsSection({ assetId, symbol, companyName }: DocumentsSect
     if (choiceDialog.existingTaskUrl) {
       window.open(choiceDialog.existingTaskUrl, '_blank');
     }
+    
+    // Start polling the existing task for new outputs
+    if (choiceDialog.existingTaskId && choiceDialog.docType) {
+      // Set generating state
+      if (choiceDialog.docType === 'one_pager') {
+        setGeneratingOnePager(true);
+      } else {
+        setGeneratingMemo(true);
+      }
+      
+      // Register with polling service to watch for new outputs
+      // Pass isExistingTask=true so it knows to look for NEW outputs only
+      registerPendingDocument(
+        choiceDialog.existingTaskId,
+        assetId,
+        choiceDialog.docType,
+        symbol,
+        true // isExistingTask
+      );
+    }
+    
     setChoiceDialog({ isOpen: false, docType: null, existingTaskUrl: null, existingTaskId: null });
   };
 
