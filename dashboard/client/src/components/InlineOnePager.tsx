@@ -26,6 +26,7 @@ export function InlineOnePager({ assetId, symbol }: InlineOnePagerProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isExpanded, setIsExpanded] = useState(true);
   const [contentError, setContentError] = useState(false);
+  const [manusTaskUrl, setManusTaskUrl] = useState<string | null>(null);
 
   // Fetch the most recent one pager
   useEffect(() => {
@@ -43,6 +44,12 @@ export function InlineOnePager({ assetId, symbol }: InlineOnePagerProps) {
         
         if (onePagers.length > 0) {
           setOnePager(onePagers[0]);
+          
+          // Extract Manus task URL from description
+          const taskMatch = onePagers[0].description?.match(/Task: ([A-Za-z0-9]+)/);
+          if (taskMatch) {
+            setManusTaskUrl(`https://manus.im/app/${taskMatch[1]}`);
+          }
           
           // Fetch the content if it's a markdown file
           if (onePagers[0].file_name.endsWith('.md')) {
@@ -95,7 +102,21 @@ export function InlineOnePager({ assetId, symbol }: InlineOnePagerProps) {
       >
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-emerald-400" />
-          <h3 className="font-semibold text-sm">One Pager</h3>
+          {manusTaskUrl ? (
+            <a
+              href={manusTaskUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="font-semibold text-sm hover:text-primary transition-colors flex items-center gap-1"
+              title="Open Manus AI chat"
+            >
+              One Pager
+              <ExternalLink className="w-3 h-3 opacity-50" />
+            </a>
+          ) : (
+            <h3 className="font-semibold text-sm">One Pager</h3>
+          )}
           {onePager && (
             <span className="text-xs text-muted-foreground">
               • {formatDate(onePager.created_at)}

@@ -1796,30 +1796,84 @@ If asked about something not in the data, acknowledge the limitation.`
         
         console.log(`Creating ${docType} with prompt: ${prompt}`)
         
-        // Call Manus API
-        const manusResponse = await fetch('https://api.manus.ai/v1/tasks', {
-          method: 'POST',
-          headers: {
-            'API_KEY': MANUS_API_KEY,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            prompt,
-            projectId: MANUS_PROJECT_ID,
-            agentProfile: 'manus-1.6'
-          })
-        })
-        
-        if (!manusResponse.ok) {
-          const errorText = await manusResponse.text()
-          console.error('Manus API error:', errorText)
-          return new Response(JSON.stringify({ error: 'Failed to create document task', details: errorText }), {
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
+        // Check if there's an existing task for this asset/document type
+        let existingTaskId: string | null = null
+        if (asset_id) {
+          const { data: existingFiles } = await supabase
+            .from('asset_files')
+            .select('description')
+            .eq('asset_id', asset_id)
+            .eq('file_type', docType)
+            .order('created_at', { ascending: false })
+            .limit(5)
+          
+          // Find the most recent task ID from descriptions
+          if (existingFiles) {
+            for (const file of existingFiles) {
+              const match = file.description?.match(/Task: ([A-Za-z0-9]+)/)
+              if (match) {
+                existingTaskId = match[1]
+                break
+              }
+            }
+          }
         }
         
-        const manusResult = await manusResponse.json()
+        let manusResult: { task_id: string; task_url: string; task_title?: string }
+        
+        if (existingTaskId) {
+          // Send a follow-up message to the existing task
+          console.log(`Sending follow-up to existing task: ${existingTaskId}`)
+          const followUpResponse = await fetch(`https://api.manus.ai/v1/tasks/${existingTaskId}/messages`, {
+            method: 'POST',
+            headers: {
+              'API_KEY': MANUS_API_KEY,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              content: `Please create an updated version of the ${docType === 'one_pager' ? 'One Pager' : 'Memo'} for ${displayName} with the latest data and analysis.`
+            })
+          })
+          
+          if (followUpResponse.ok) {
+            manusResult = {
+              task_id: existingTaskId,
+              task_url: `https://manus.im/app/${existingTaskId}`,
+              task_title: `${displayName} ${docType === 'one_pager' ? 'One Pager' : 'Memo'} (Updated)`
+            }
+          } else {
+            // If follow-up fails, create a new task
+            console.log('Follow-up failed, creating new task')
+            existingTaskId = null
+          }
+        }
+        
+        if (!existingTaskId) {
+          // Create a new task
+          const manusResponse = await fetch('https://api.manus.ai/v1/tasks', {
+            method: 'POST',
+            headers: {
+              'API_KEY': MANUS_API_KEY,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              prompt,
+              projectId: MANUS_PROJECT_ID,
+              agentProfile: 'manus-1.6'
+            })
+          })
+          
+          if (!manusResponse.ok) {
+            const errorText = await manusResponse.text()
+            console.error('Manus API error:', errorText)
+            return new Response(JSON.stringify({ error: 'Failed to create document task', details: errorText }), {
+              status: 500,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            })
+          }
+          
+          manusResult = await manusResponse.json()
+        }
         
         // Save the task reference to the database
         if (asset_id && manusResult.task_id) {
@@ -1926,6 +1980,20 @@ If asked about something not in the data, acknowledge the limitation.`
         }
         
         console.log(`File record saved: ${JSON.stringify(insertData)}`)
+        
+        // Delete placeholder entries (files with manus.im URLs) for this asset/type
+        const { error: deleteError } = await supabase
+          .from('asset_files')
+          .delete()
+          .eq('asset_id', asset_id)
+          .eq('file_type', fileType)
+          .like('file_path', '%manus.im%')
+        
+        if (deleteError) {
+          console.error('Failed to delete placeholder entries:', deleteError)
+        } else {
+          console.log('Placeholder entries deleted successfully')
+        }
         
         return new Response(JSON.stringify({
           success: true,
