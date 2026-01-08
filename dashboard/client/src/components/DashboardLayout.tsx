@@ -1,10 +1,27 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import useSWR from "swr";
-import { Activity, BookOpen, Settings, Search } from "lucide-react";
+import { Activity, BookOpen, Settings, Search, GripVertical } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { StockList } from "@/hooks/useStockLists";
 import { TabType } from "@/pages/Home";
 import CreateListButton from "@/components/CreateListButton";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  horizontalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -16,6 +33,69 @@ interface DashboardLayoutProps {
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
   onListCreated?: () => void;
+  onListsReordered?: (lists: StockList[]) => void;
+}
+
+// Sortable list item component
+function SortableListTab({ 
+  list, 
+  activeTab, 
+  onTabChange 
+}: { 
+  list: StockList; 
+  activeTab: TabType; 
+  onTabChange: (tab: TabType) => void;
+}) {
+  const tabId = `list-${list.id}` as TabType;
+  
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: list.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 100 : 'auto' as const,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            onClick={() => onTabChange(tabId)}
+            className={`px-2.5 py-1 text-xs font-medium rounded transition-all flex items-center gap-1 group ${
+              activeTab === tabId
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            }`}
+          >
+            {/* Drag handle - only visible on hover */}
+            <span
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-40 hover:!opacity-100 transition-opacity -ml-0.5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <GripVertical className="w-3 h-3" />
+            </span>
+            <span 
+              className="w-2 h-2 rounded-full shrink-0" 
+              style={{ backgroundColor: list.color }}
+            />
+            {list.name}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>{list.description}</TooltipContent>
+      </Tooltip>
+    </div>
+  );
 }
 
 export default function DashboardLayout({ 
@@ -25,13 +105,53 @@ export default function DashboardLayout({
   stockLists = [],
   searchQuery = "",
   onSearchChange,
-  onListCreated
+  onListCreated,
+  onListsReordered
 }: DashboardLayoutProps) {
   const { data: health } = useSWR("/api/dashboard/health", fetcher, {
     refreshInterval: 60000, // Refresh every minute
   });
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // 5px movement required before drag starts
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = stockLists.findIndex((list) => list.id === active.id);
+      const newIndex = stockLists.findIndex((list) => list.id === over.id);
+      
+      const newOrder = arrayMove(stockLists, oldIndex, newIndex);
+      
+      // Optimistically update the UI
+      if (onListsReordered) {
+        onListsReordered(newOrder);
+      }
+      
+      // Persist to backend
+      try {
+        await fetch("/api/dashboard/stock-lists/reorder", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            list_ids: newOrder.map((list) => list.id),
+          }),
+        });
+      } catch (error) {
+        console.error("Failed to save list order:", error);
+        // Could revert here if needed
+      }
+    }
+  };
 
   // Format date to be more compact (e.g., "Jan 7" instead of "2026-01-07")
   const formatDate = (dateStr: string | undefined) => {
@@ -79,7 +199,7 @@ export default function DashboardLayout({
           {/* Center: Navigation Tabs */}
           <nav className="flex items-center">
             <div className="flex items-center bg-muted/30 p-0.5 rounded-lg gap-0.5">
-              {/* Watchlist */}
+              {/* Watchlist - Fixed */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
@@ -98,7 +218,7 @@ export default function DashboardLayout({
               
               <div className="h-3 w-px bg-border/50 mx-0.5" />
               
-              {/* Equities */}
+              {/* Equities - Fixed */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
@@ -115,7 +235,7 @@ export default function DashboardLayout({
                 <TooltipContent>US equity stocks</TooltipContent>
               </Tooltip>
               
-              {/* Crypto */}
+              {/* Crypto - Fixed */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
@@ -132,32 +252,30 @@ export default function DashboardLayout({
                 <TooltipContent>Cryptocurrency assets (24/7 data)</TooltipContent>
               </Tooltip>
               
-              {/* Stock Lists */}
+              {/* Stock Lists - Draggable */}
               {stockLists.length > 0 && <div className="h-3 w-px bg-border/50 mx-0.5" />}
-              {stockLists.map((list) => {
-                const tabId = `list-${list.id}` as TabType;
-                return (
-                  <Tooltip key={list.id}>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => onTabChange(tabId)}
-                        className={`px-2.5 py-1 text-xs font-medium rounded transition-all flex items-center gap-1.5 ${
-                          activeTab === tabId
-                            ? "bg-background text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                        }`}
-                      >
-                        <span 
-                          className="w-2 h-2 rounded-full shrink-0" 
-                          style={{ backgroundColor: list.color }}
-                        />
-                        {list.name}
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>{list.description}</TooltipContent>
-                  </Tooltip>
-                );
-              })}
+              
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={stockLists.map((list) => list.id)}
+                  strategy={horizontalListSortingStrategy}
+                >
+                  <div className="flex items-center gap-0.5">
+                    {stockLists.map((list) => (
+                      <SortableListTab
+                        key={list.id}
+                        list={list}
+                        activeTab={activeTab}
+                        onTabChange={onTabChange}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
               
               {/* Create new list button */}
               {onListCreated && <CreateListButton onListCreated={onListCreated} />}

@@ -2115,6 +2115,33 @@ ${template}
         })
       }
 
+      // POST /dashboard/stock-lists/reorder - Reorder stock lists
+      case req.method === 'POST' && path === '/dashboard/stock-lists/reorder': {
+        const body = await req.json()
+        const { list_ids } = body
+        
+        if (!list_ids || !Array.isArray(list_ids)) {
+          return new Response(JSON.stringify({ error: 'list_ids array is required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Update display_order for each list
+        const updates = list_ids.map((id: number, index: number) => 
+          supabase
+            .from('stock_lists')
+            .update({ display_order: index + 1 })
+            .eq('id', id)
+        )
+        
+        await Promise.all(updates)
+        
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
       // GET /dashboard/stock-lists/:list_id/assets - Get assets in a specific list
       case req.method === 'GET' && /^\/dashboard\/stock-lists\/\d+\/assets$/.test(path): {
         const listId = parseInt(path.split('/')[3])

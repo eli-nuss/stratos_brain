@@ -30,12 +30,19 @@ export default function Home() {
   const currentListId = isStockListTab ? parseInt(activeTab.split("-")[1]) : null;
   const currentList = currentListId ? lists.find((l: StockList) => l.id === currentListId) : null;
 
+  // Handle list reordering
+  const handleListsReordered = (newOrder: StockList[]) => {
+    // Optimistically update the local state
+    mutateLists(newOrder, false);
+  };
+
   return (
     <DashboardLayout 
       activeTab={activeTab} 
       onTabChange={setActiveTab}
       stockLists={lists}
       onListCreated={mutateLists}
+      onListsReordered={handleListsReordered}
     >
       <div className="h-[calc(100vh-8rem)]">
         {activeTab === "watchlist" ? (
