@@ -2068,6 +2068,53 @@ ${template}
         })
       }
 
+      // POST /dashboard/stock-lists - Create a new stock list
+      case req.method === 'POST' && path === '/dashboard/stock-lists': {
+        const body = await req.json()
+        const { name, description, icon, color } = body
+        
+        if (!name) {
+          return new Response(JSON.stringify({ error: 'name is required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Get the max display_order to put new list at the end
+        const { data: maxOrder } = await supabase
+          .from('stock_lists')
+          .select('display_order')
+          .order('display_order', { ascending: false })
+          .limit(1)
+          .single()
+        
+        const newOrder = (maxOrder?.display_order || 0) + 1
+        
+        const { data: newList, error } = await supabase
+          .from('stock_lists')
+          .insert({
+            name,
+            description: description || '',
+            icon: icon || 'brain',
+            color: color || '#a855f7',
+            display_order: newOrder
+          })
+          .select()
+          .single()
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(newList), {
+          status: 201,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
       // GET /dashboard/stock-lists/:list_id/assets - Get assets in a specific list
       case req.method === 'GET' && /^\/dashboard\/stock-lists\/\d+\/assets$/.test(path): {
         const listId = parseInt(path.split('/')[3])

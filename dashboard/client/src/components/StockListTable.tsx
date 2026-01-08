@@ -1,10 +1,11 @@
-import { useState } from "react";
-import { TrendingUp, TrendingDown, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, ExternalLink, X, Brain, Bot, Pill, Rocket, Star } from "lucide-react";
+import { useState, useMemo } from "react";
+import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, ExternalLink, X, Brain, Bot, Pill, Rocket } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { NoteCell } from "@/components/NoteCell";
-import { useStockListAssets, removeFromList, StockList } from "@/hooks/useStockLists";
+import { useStockListAssets, removeFromList, addToList, StockList } from "@/hooks/useStockLists";
 import AddToListButton from "@/components/AddToListButton";
 import AssetTagButton from "@/components/AssetTagButton";
+import AssetSearchDropdown from "@/components/AssetSearchDropdown";
 import { useWatchlist } from "@/hooks/useWatchlist";
 
 interface StockListTableProps {
@@ -31,20 +32,19 @@ export default function StockListTable({ list, onAssetClick }: StockListTablePro
   const [page, setPage] = useState(0);
   const [sortBy, setSortBy] = useState<SortField>("ai_direction_score");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
-  const [search, setSearch] = useState("");
-  const [searchInput, setSearchInput] = useState("");
+  // Compute existing asset IDs for the search dropdown
+  const existingAssetIds = useMemo(() => {
+    return new Set<number>(assets.map((a: any) => a.asset_id as number));
+  }, [assets]);
 
-  // Filter and sort locally
-  const filteredAssets = assets.filter((asset: any) => {
-    if (!search) return true;
-    const searchLower = search.toLowerCase();
-    return (
-      asset.symbol?.toLowerCase().includes(searchLower) ||
-      asset.name?.toLowerCase().includes(searchLower)
-    );
-  });
+  // Handle adding asset from search dropdown
+  const handleAddAsset = async (assetId: number) => {
+    await addToList(list.id, assetId);
+    mutateAssets();
+  };
 
-  const sortedAssets = [...filteredAssets].sort((a: any, b: any) => {
+  // Sort assets
+  const sortedAssets = [...assets].sort((a: any, b: any) => {
     const aVal = a[sortBy] ?? 0;
     const bVal = b[sortBy] ?? 0;
     if (sortOrder === "asc") {
@@ -54,7 +54,7 @@ export default function StockListTable({ list, onAssetClick }: StockListTablePro
   });
 
   const paginatedAssets = sortedAssets.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const total = filteredAssets.length;
+  const total = assets.length;
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   const handleSort = (field: SortField) => {
@@ -64,12 +64,6 @@ export default function StockListTable({ list, onAssetClick }: StockListTablePro
       setSortBy(field);
       setSortOrder("desc");
     }
-    setPage(0);
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSearch(searchInput);
     setPage(0);
   };
 
@@ -177,31 +171,15 @@ export default function StockListTable({ list, onAssetClick }: StockListTablePro
       {/* Header */}
       <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-muted/30">
         <h3 className="font-medium text-sm flex items-center gap-2">
-          <Icon className="w-4 h-4" style={{ color: list.color }} />
+          <span style={{ color: list.color }}><Icon className="w-4 h-4" /></span>
           {list.name}
           <span className="text-xs text-muted-foreground">({total} assets)</span>
         </h3>
-        <form onSubmit={handleSearch} className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="pl-7 pr-3 py-1 text-xs bg-background border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary w-40"
-            />
-          </div>
-          {search && (
-            <button
-              type="button"
-              onClick={() => { setSearch(""); setSearchInput(""); }}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              Clear
-            </button>
-          )}
-        </form>
+        <AssetSearchDropdown
+          existingAssetIds={existingAssetIds}
+          onAddAsset={handleAddAsset}
+          placeholder="Search to add..."
+        />
       </div>
 
       {/* Table */}

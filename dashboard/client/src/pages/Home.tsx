@@ -14,7 +14,7 @@ export type TabType = "watchlist" | "crypto" | "equity" | `list-${number}`;
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>("watchlist");
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
-  const { lists } = useStockLists();
+  const { lists, mutate: mutateLists } = useStockLists();
 
   // Get latest date for the active tab
   const { data: health } = useSWR("/api/dashboard/health", fetcher);
@@ -35,6 +35,7 @@ export default function Home() {
       activeTab={activeTab} 
       onTabChange={setActiveTab}
       stockLists={lists}
+      onListCreated={mutateLists}
     >
       <div className="h-[calc(100vh-8rem)]">
         {activeTab === "watchlist" ? (

@@ -434,7 +434,7 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                 <SortHeader field="market_cap" tooltip="Market capitalization">Mkt Cap</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
-                <SortHeader field="price" tooltip="Current price">Price</SortHeader>
+                <SortHeader field="close" tooltip="Current price">Price</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
                 <SortHeader field="return_1d" tooltip="24 hour return">24h</SortHeader>

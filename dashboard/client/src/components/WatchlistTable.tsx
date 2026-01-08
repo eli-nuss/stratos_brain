@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { TrendingUp, TrendingDown, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, X } from "lucide-react";
+import { useState, useMemo } from "react";
+import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { NoteCell } from "@/components/NoteCell";
 import AddToListButton from "@/components/AddToListButton";
 import AssetTagButton from "@/components/AssetTagButton";
+import AssetSearchDropdown from "@/components/AssetSearchDropdown";
 import { useWatchlistAssets, useWatchlist } from "@/hooks/useWatchlist";
 
 interface WatchlistTableProps {
@@ -16,25 +17,25 @@ type SortOrder = "asc" | "desc";
 const PAGE_SIZE = 50;
 
 export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
-  const { assets, isLoading } = useWatchlistAssets();
-  const { mutate: mutateWatchlist } = useWatchlist();
+  const { assets, isLoading, mutate: mutateAssets } = useWatchlistAssets();
+  const { addToWatchlist, watchlistIds } = useWatchlist();
   const [page, setPage] = useState(0);
   const [sortBy, setSortBy] = useState<SortField>("ai_direction_score");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
-  const [search, setSearch] = useState("");
-  const [searchInput, setSearchInput] = useState("");
 
-  // Filter and sort locally
-  const filteredAssets = assets.filter((asset: any) => {
-    if (!search) return true;
-    const searchLower = search.toLowerCase();
-    return (
-      asset.symbol?.toLowerCase().includes(searchLower) ||
-      asset.name?.toLowerCase().includes(searchLower)
-    );
-  });
+  // Compute existing asset IDs for the search dropdown
+  const existingAssetIds = useMemo(() => {
+    return new Set<number>(assets.map((a: any) => a.asset_id as number));
+  }, [assets]);
 
-  const sortedAssets = [...filteredAssets].sort((a: any, b: any) => {
+  // Handle adding asset from search dropdown
+  const handleAddAsset = async (assetId: number) => {
+    await addToWatchlist(assetId);
+    mutateAssets();
+  };
+
+  // Sort assets
+  const sortedAssets = [...assets].sort((a: any, b: any) => {
     const aVal = a[sortBy] ?? (sortOrder === "asc" ? Infinity : -Infinity);
     const bVal = b[sortBy] ?? (sortOrder === "asc" ? Infinity : -Infinity);
     if (sortOrder === "asc") {
@@ -44,7 +45,7 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
   });
 
   const paginatedAssets = sortedAssets.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const total = filteredAssets.length;
+  const total = assets.length;
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   const handleSort = (field: SortField) => {
@@ -54,12 +55,6 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
       setSortBy(field);
       setSortOrder("desc");
     }
-    setPage(0);
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSearch(searchInput);
     setPage(0);
   };
 
@@ -144,35 +139,16 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
   return (
     <div className="flex flex-col h-full bg-background border border-border rounded-lg overflow-hidden">
       {/* Header */}
-      <div className="p-3 border-b border-border space-y-3">
-        <h3 className="text-sm font-semibold text-foreground">
+      <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-muted/30">
+        <h3 className="font-medium text-sm flex items-center gap-2">
           Watchlist
-          <span className="text-xs text-muted-foreground ml-2">({total} assets)</span>
+          <span className="text-xs text-muted-foreground">({total} assets)</span>
         </h3>
-        
-        <div className="flex items-center gap-2">
-          <form onSubmit={handleSearch} className="flex items-center gap-1 flex-1">
-            <div className="relative flex-1">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search symbol..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                className="w-full pl-7 pr-2 py-1 text-xs bg-background border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-            {search && (
-              <button
-                type="button"
-                onClick={() => { setSearch(""); setSearchInput(""); setPage(0); }}
-                className="text-xs text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
-          </form>
-        </div>
+        <AssetSearchDropdown
+          existingAssetIds={existingAssetIds}
+          onAddAsset={handleAddAsset}
+          placeholder="Search to add..."
+        />
       </div>
 
       {/* Table */}
@@ -256,14 +232,14 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
               <tr><td colSpan={hasEquities ? 21 : 15} className="px-2 py-4 text-center text-muted-foreground">Loading...</td></tr>
             ) : paginatedAssets.length === 0 ? (
               <tr><td colSpan={hasEquities ? 21 : 15} className="px-2 py-4 text-center text-muted-foreground">
-                {search ? `No assets found matching "${search}"` : "Your watchlist is empty. Add assets from the Crypto or Equities tabs."}
+                Your watchlist is empty. Use the search above to add assets.
               </td></tr>
             ) : (
               paginatedAssets.map((row: any) => (
                 <tr key={row.asset_id} className="border-b border-border hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => onAssetClick(row.asset_id)}>
                   <td className="px-2 py-2 sticky left-0 z-10 bg-background" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-1">
-                      <AssetTagButton assetId={row.asset_id} onUpdate={() => mutateWatchlist()} />
+                      <AssetTagButton assetId={row.asset_id} onUpdate={() => mutateAssets()} />
                       <AddToListButton assetId={row.asset_id} />
                     </div>
                   </td>

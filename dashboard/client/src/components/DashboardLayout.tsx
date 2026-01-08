@@ -4,6 +4,7 @@ import { Activity, Brain, Bot, Pill, Rocket, BookOpen, Settings, Search } from "
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { StockList } from "@/hooks/useStockLists";
 import { TabType } from "@/pages/Home";
+import CreateListButton from "@/components/CreateListButton";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -22,6 +23,7 @@ interface DashboardLayoutProps {
   stockLists?: StockList[];
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
+  onListCreated?: () => void;
 }
 
 export default function DashboardLayout({ 
@@ -30,7 +32,8 @@ export default function DashboardLayout({
   onTabChange, 
   stockLists = [],
   searchQuery = "",
-  onSearchChange
+  onSearchChange,
+  onListCreated
 }: DashboardLayoutProps) {
   const { data: health } = useSWR("/api/dashboard/health", fetcher, {
     refreshInterval: 60000, // Refresh every minute
@@ -163,6 +166,9 @@ export default function DashboardLayout({
                   </Tooltip>
                 );
               })}
+              
+              {/* Create new list button */}
+              {onListCreated && <CreateListButton onListCreated={onListCreated} />}
             </div>
           </nav>
 

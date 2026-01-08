@@ -118,7 +118,7 @@ export default function AddToListButton({ assetId, onUpdate }: AddToListButtonPr
               inList ? 'text-foreground' : 'text-muted-foreground'
             } ${updating ? 'opacity-50' : ''}`}
           >
-            <Icon className="w-4 h-4" style={{ color: list.color }} />
+            <span style={{ color: list.color }}><Icon className="w-4 h-4" /></span>
             <span className="flex-1">{list.name}</span>
             {inList && <Check className="w-4 h-4 text-primary" />}
           </button>
