@@ -77,7 +77,9 @@ export function DocumentsSection({ assetId, symbol, companyName }: DocumentsSect
   const fetchDocuments = async () => {
     try {
       const response = await fetch(`${API_BASE}/dashboard/files/${assetId}`);
-      const files: AssetFile[] = await response.json();
+      const data = await response.json();
+      // API returns { asset_id, files } structure
+      const files: AssetFile[] = data.files || [];
       
       // Separate by type and sort by date (newest first)
       const onePagerFiles = files
