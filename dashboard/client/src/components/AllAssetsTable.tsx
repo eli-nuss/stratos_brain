@@ -595,8 +595,8 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
         <table className="w-full text-sm text-left">
           <thead className="sticky top-0 bg-muted/50 border-b border-border text-xs text-muted-foreground">
             <tr>
-              {showWatchlistColumn && <th className="px-2 py-2 w-8 sticky left-0 z-20 bg-muted/50"></th>}
-              <th className={`px-3 py-2 font-medium sticky z-20 bg-muted/50 ${showWatchlistColumn ? 'left-8' : 'left-0'}`}>
+              {showWatchlistColumn && <th className="px-2 py-2 w-16 sticky left-0 z-20 bg-muted/50"></th>}
+              <th className={`px-3 py-2 font-medium sticky z-20 bg-muted/50 ${showWatchlistColumn ? 'left-16' : 'left-0'}`}>
                 <SortHeader field="symbol" tooltip="Asset name and symbol">Asset</SortHeader>
               </th>
               <th className="px-2 py-2 font-medium text-center">
@@ -662,25 +662,27 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
               <th className="px-2 py-2 font-medium text-center">
                 <HeaderWithTooltip tooltip="Your personal notes">Notes</HeaderWithTooltip>
               </th>
-              <th className="px-2 py-2 font-medium text-center">
-                <HeaderWithTooltip tooltip="Add to category lists">+</HeaderWithTooltip>
-              </th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={assetType === "equity" ? (showWatchlistColumn ? 22 : 21) : (showWatchlistColumn ? 17 : 16)} className="px-2 py-4 text-center text-muted-foreground">Loading...</td></tr>
+              <tr><td colSpan={assetType === "equity" ? (showWatchlistColumn ? 21 : 20) : (showWatchlistColumn ? 16 : 15)} className="px-2 py-4 text-center text-muted-foreground">Loading...</td></tr>
             ) : filteredData.length === 0 ? (
-              <tr><td colSpan={assetType === "equity" ? (showWatchlistColumn ? 22 : 21) : (showWatchlistColumn ? 17 : 16)} className="px-2 py-4 text-center text-muted-foreground">No assets match your filters</td></tr>
+              <tr><td colSpan={assetType === "equity" ? (showWatchlistColumn ? 21 : 20) : (showWatchlistColumn ? 16 : 15)} className="px-2 py-4 text-center text-muted-foreground">No assets match your filters</td></tr>
             ) : (
               filteredData.map((row) => (
                 <tr key={row.asset_id} className="border-b border-border hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => onAssetClick(row.asset_id)}>
                   {showWatchlistColumn && (
-                    <td className="px-2 py-2 sticky left-0 z-10 bg-background" onClick={(e) => { e.stopPropagation(); toggleWatchlist(row.asset_id); }}>
-                      <WatchlistToggle isInWatchlist={isInWatchlist(row.asset_id)} />
+                    <td className="px-2 py-2 sticky left-0 z-10 bg-background" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-1">
+                        <div onClick={() => toggleWatchlist(row.asset_id)}>
+                          <WatchlistToggle isInWatchlist={isInWatchlist(row.asset_id)} />
+                        </div>
+                        <AddToListButton assetId={row.asset_id} />
+                      </div>
                     </td>
                   )}
-                  <td className={`px-3 py-2 sticky z-10 bg-background ${showWatchlistColumn ? 'left-8' : 'left-0'}`}>
+                  <td className={`px-3 py-2 sticky z-10 bg-background ${showWatchlistColumn ? 'left-16' : 'left-0'}`}>
                     <div className="flex flex-col">
                       <span className="font-mono font-medium text-foreground">{row.symbol}</span>
                       <span className="text-xs text-muted-foreground truncate max-w-[100px]">{row.name}</span>
@@ -767,9 +769,6 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                     </Tooltip>
                   </td>
                   <NoteCell assetId={row.asset_id} />
-                  <td className="px-2 py-2 text-center" onClick={(e) => e.stopPropagation()}>
-                    <AddToListButton assetId={row.asset_id} />
-                  </td>
                 </tr>
               ))
             )}
