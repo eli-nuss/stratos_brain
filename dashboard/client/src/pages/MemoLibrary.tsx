@@ -43,28 +43,31 @@ function MemoDetailModal({ memo, onClose }: MemoDetailModalProps) {
       const filename = memo.file_name.replace('.md', '.pdf');
       
       const opt = {
-        margin: [0.75, 0.75, 0.75, 0.75],
+        margin: 0.5,
         filename: filename,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { 
           scale: 2,
           useCORS: true,
+          logging: true,
           backgroundColor: '#18181b'
         },
         jsPDF: { 
           unit: 'in', 
           format: 'letter', 
           orientation: 'portrait' 
-        },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+        }
       };
       
-      // Generate PDF blob and open in new tab
-      const pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob');
-      const pdfUrl = URL.createObjectURL(pdfBlob);
+      // Generate PDF and open in new tab
+      const worker = html2pdf().set(opt).from(element);
+      const pdf = await worker.toPdf().get('pdf');
+      const blob = pdf.output('blob');
+      const pdfUrl = URL.createObjectURL(blob);
       window.open(pdfUrl, '_blank');
     } catch (err) {
       console.error('Failed to generate PDF:', err);
+      alert('Failed to generate PDF. Please try again.');
     } finally {
       setGeneratingPdf(false);
     }
