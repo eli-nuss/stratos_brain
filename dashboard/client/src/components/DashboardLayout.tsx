@@ -530,9 +530,9 @@ export default function DashboardLayout({
                       ))}
                     </div>
                   ) : (
-                    // Collapsed view: show first 5 lists
+                    // Collapsed view: show first 9 lists
                     <div className="flex items-center">
-                      {stockLists.slice(0, 5).map((list, index) => (
+                      {stockLists.slice(0, 9).map((list, index) => (
                         <SortableListTab
                           key={list.id}
                           list={list}
@@ -549,7 +549,7 @@ export default function DashboardLayout({
               
               {/* Show more/less button and Create button row */}
               <div className="flex items-center gap-1">
-                {stockLists.length > 5 && (
+                {stockLists.length > 9 && (
                   <button
                     onClick={() => setShowAllLists(!showAllLists)}
                     className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all flex items-center gap-0.5"
@@ -557,7 +557,7 @@ export default function DashboardLayout({
                     {showAllLists ? (
                       <><ChevronUp className="w-3 h-3" /> Less</>
                     ) : (
-                      <><ChevronDown className="w-3 h-3" /> +{stockLists.length - 5}</>
+                      <><ChevronDown className="w-3 h-3" /> +{stockLists.length - 9}</>
                     )}
                   </button>
                 )}
