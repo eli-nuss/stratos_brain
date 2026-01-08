@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import useSWR from "swr";
-import { Activity, Database, Brain, Clock, AlertTriangle, Info, BookOpen, Bot, Pill, Rocket } from "lucide-react";
+import { Activity, Database, Brain, Clock, AlertTriangle, Info, BookOpen, Bot, Pill, Rocket, Settings } from "lucide-react";
 import { format } from "date-fns";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { StockList } from "@/hooks/useStockLists";
@@ -119,6 +119,20 @@ export default function DashboardLayout({ children, activeTab, onTabChange, stoc
               </TooltipTrigger>
               <TooltipContent>
                 AI Analysis system documentation and methodology
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <a
+                  href="/admin/templates"
+                  className="px-3 py-1.5 text-sm font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all flex items-center gap-1.5"
+                >
+                  <Settings className="w-4 h-4" />
+                  Templates
+                </a>
+              </TooltipTrigger>
+              <TooltipContent>
+                Edit AI document generation templates (memos, one pagers)
               </TooltipContent>
             </Tooltip>
             <div className="h-4 w-px bg-border" />
