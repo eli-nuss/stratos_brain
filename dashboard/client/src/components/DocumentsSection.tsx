@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
 import { FileText, Sparkles, ChevronDown, ChevronUp, ExternalLink, Loader2, Clock } from 'lucide-react';
+import { 
+  registerPendingDocument, 
+  isPendingForAsset, 
+  addCompletionListener 
+} from '@/lib/documentPollingService';
 
 interface AssetFile {
   file_id: number;
@@ -26,82 +31,48 @@ export function DocumentsSection({ assetId, symbol, companyName }: DocumentsSect
   const [showMemoHistory, setShowMemoHistory] = useState(false);
   const [generatingOnePager, setGeneratingOnePager] = useState(false);
   const [generatingMemo, setGeneratingMemo] = useState(false);
-  const [pollingTaskId, setPollingTaskId] = useState<string | null>(null);
-  const [pollingDocType, setPollingDocType] = useState<'one_pager' | 'memo' | null>(null);
 
   // Fetch documents on mount and when assetId changes
   useEffect(() => {
     fetchDocuments();
+    
+    // Check if there are pending documents for this asset
+    setGeneratingOnePager(isPendingForAsset(assetId, 'one_pager'));
+    setGeneratingMemo(isPendingForAsset(assetId, 'memo'));
   }, [assetId]);
 
-  // Poll for document completion
+  // Listen for document completion events from the global polling service
   useEffect(() => {
-    if (!pollingTaskId || !pollingDocType) return;
-
-    const pollInterval = setInterval(async () => {
-      try {
-        const response = await fetch(`${API_BASE}/dashboard/memo-status/${pollingTaskId}`);
-        const data = await response.json();
+    const handleCompletion = (taskId: string, completedAssetId: number, documentType: string) => {
+      if (completedAssetId === assetId) {
+        // Refresh documents when one completes for this asset
+        fetchDocuments();
         
-        if (data.status === 'completed' && data.output?.length > 0) {
-          // Find the markdown file
-          const mdFile = data.output.find((f: any) => f.file_name?.endsWith('.md'));
-          if (mdFile) {
-            // Save the file
-            await fetch(`${API_BASE}/dashboard/memo-status/${pollingTaskId}/save`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                asset_id: assetId,
-                file_url: mdFile.file_url,
-                file_name: mdFile.file_name,
-                document_type: pollingDocType
-              })
-            });
-            
-            // Refresh documents
-            fetchDocuments();
-          }
-          
-          clearInterval(pollInterval);
-          setPollingTaskId(null);
-          setPollingDocType(null);
-          if (pollingDocType === 'one_pager') {
-            setGeneratingOnePager(false);
-          } else {
-            setGeneratingMemo(false);
-          }
-        } else if (data.status === 'failed' || data.status === 'cancelled') {
-          clearInterval(pollInterval);
-          setPollingTaskId(null);
-          setPollingDocType(null);
-          if (pollingDocType === 'one_pager') {
-            setGeneratingOnePager(false);
-          } else {
-            setGeneratingMemo(false);
-          }
+        // Update generating state
+        if (documentType === 'one_pager') {
+          setGeneratingOnePager(false);
+        } else if (documentType === 'memo') {
+          setGeneratingMemo(false);
         }
-      } catch (error) {
-        console.error('Error polling task status:', error);
       }
-    }, 60000); // Poll every 60 seconds
+    };
 
-    // Initial check
-    (async () => {
-      try {
-        const response = await fetch(`${API_BASE}/dashboard/memo-status/${pollingTaskId}`);
-        const data = await response.json();
-        if (data.status === 'completed' || data.status === 'failed' || data.status === 'cancelled') {
-          // Handle immediately if already done
-          clearInterval(pollInterval);
-        }
-      } catch (error) {
-        console.error('Error on initial status check:', error);
-      }
-    })();
-
-    return () => clearInterval(pollInterval);
-  }, [pollingTaskId, pollingDocType, assetId]);
+    // Subscribe to completion events
+    const unsubscribe = addCompletionListener(handleCompletion);
+    
+    // Also listen for the window event (backup)
+    const handleWindowEvent = (e: CustomEvent) => {
+      const { taskId, assetId: completedAssetId, documentType } = e.detail;
+      handleCompletion(taskId, completedAssetId, documentType);
+    };
+    
+    window.addEventListener('document-completed', handleWindowEvent as EventListener);
+    
+    return () => {
+      unsubscribe();
+      window.removeEventListener('document-completed', handleWindowEvent as EventListener);
+    };
+  }, [assetId]);
 
   const fetchDocuments = async () => {
     try {
@@ -151,12 +122,18 @@ export function DocumentsSection({ assetId, symbol, companyName }: DocumentsSect
           window.open(data.task_url, '_blank');
         }
         
-        // Start polling
-        setPollingTaskId(data.task_id);
-        setPollingDocType(docType);
+        // Register with global polling service (persists even if component unmounts)
+        registerPendingDocument(data.task_id, assetId, docType, symbol);
         
         // Refresh to show the "generating" entry
         fetchDocuments();
+      } else {
+        // Reset generating state on error
+        if (docType === 'one_pager') {
+          setGeneratingOnePager(false);
+        } else {
+          setGeneratingMemo(false);
+        }
       }
     } catch (error) {
       console.error('Error generating document:', error);
