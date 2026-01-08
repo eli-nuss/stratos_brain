@@ -501,41 +501,26 @@ export default function DashboardLayout({
             
             <div className="h-3 w-px bg-border/50" />
             
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <a
-                  href="/memos"
-                  className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                </a>
-              </TooltipTrigger>
-              <TooltipContent>Memo Library</TooltipContent>
-            </Tooltip>
+            <a
+              href="/memos"
+              className="px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
+            >
+              Memos
+            </a>
             
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <a
-                  href="/docs"
-                  className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
-                >
-                  <BookOpen className="w-3.5 h-3.5" />
-                </a>
-              </TooltipTrigger>
-              <TooltipContent>Documentation</TooltipContent>
-            </Tooltip>
+            <a
+              href="/docs"
+              className="px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
+            >
+              Docs
+            </a>
             
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <a
-                  href="/admin/templates"
-                  className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
-                >
-                  <Settings className="w-3.5 h-3.5" />
-                </a>
-              </TooltipTrigger>
-              <TooltipContent>Template Editor</TooltipContent>
-            </Tooltip>
+            <a
+              href="/admin/templates"
+              className="px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
+            >
+              Templates
+            </a>
           </div>
         </div>
       </header>
