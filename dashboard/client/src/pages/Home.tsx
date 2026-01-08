@@ -21,7 +21,7 @@ export default function Home() {
   // Track the previous view for when closing asset detail
   const [previousView, setPreviousView] = useState<string>("/watchlist");
 
-  // Derive selected asset from URL
+  // Derive selected asset from URL (the assetId in URL is the numeric ID)
   const selectedAssetId = assetParams?.assetId || null;
 
   // Derive active tab from URL (ignore asset routes for tab selection)
@@ -73,6 +73,7 @@ export default function Home() {
   };
 
   // Handle asset click - update URL to show asset detail
+  // The assetId passed from tables is already the numeric ID (row.asset_id)
   const handleAssetClick = (assetId: string) => {
     setLocation(`/asset/${assetId}`);
   };
