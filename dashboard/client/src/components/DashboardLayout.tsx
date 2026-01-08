@@ -374,8 +374,8 @@ export default function DashboardLayout({
           <div className="flex items-center gap-3">
             <Tooltip>
               <TooltipTrigger asChild>
-                <h1 className="text-base font-bold tracking-tight flex items-center gap-1.5 cursor-help">
-                  <Activity className="w-4 h-4 text-primary" />
+                <h1 className="text-xl font-bold tracking-tight flex items-center gap-2 cursor-help">
+                  <Activity className="w-5 h-5 text-primary" />
                   <span className="hidden sm:inline">STRATOS</span>
                   <span className="sm:hidden">S</span>
                   <span className="text-muted-foreground font-normal hidden sm:inline">BRAIN</span>
@@ -387,15 +387,15 @@ export default function DashboardLayout({
               </TooltipContent>
             </Tooltip>
             
-            {/* Data Status - hidden on mobile, aligned with logo */}
-            <div className="hidden md:flex items-center gap-4 text-[11px] font-mono text-muted-foreground">
+            {/* Data Status - under logo in two rows */}
+            <div className="hidden md:flex flex-col text-[10px] font-mono text-muted-foreground mt-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground/70">Equities Last Updated:</span>
+                <span className="font-medium">{formatDate(health?.latest_dates?.equity)}</span>
+              </div>
               <div className="flex items-center gap-1.5">
                 <span className="text-muted-foreground/70">Crypto Last Updated:</span>
                 <span className="font-medium">{formatDate(health?.latest_dates?.crypto)}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-muted-foreground/70">Equity Last Updated:</span>
-                <span className="font-medium">{formatDate(health?.latest_dates?.equity)}</span>
               </div>
             </div>
           </div>
