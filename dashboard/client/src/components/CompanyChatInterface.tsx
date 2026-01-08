@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Sparkles, RefreshCw, ChevronRight, Bot, User } from 'lucide-react';
+import { Send, Loader2, Sparkles, RefreshCw, ChevronRight, Bot, User, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import {
   useChatMessages,
   sendChatMessage,
@@ -11,6 +11,7 @@ import { CodeExecutionBlock } from './CodeExecutionBlock';
 import { SearchCitationBlock } from './SearchCitationBlock';
 import { ToolCallBlock } from './ToolCallBlock';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { FundamentalsSummaryPanel } from './FundamentalsSummaryPanel';
 import { cn } from '@/lib/utils';
 
 interface CompanyChatInterfaceProps {
@@ -109,6 +110,7 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
   const [isSending, setIsSending] = useState(false);
   const [isRefreshingContext, setIsRefreshingContext] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showFundamentals, setShowFundamentals] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -168,136 +170,163 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
   ];
 
   return (
-    <div className="flex flex-col h-full bg-zinc-950">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-900/80">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-emerald-500/10 rounded-lg">
-            <Sparkles className="w-5 h-5 text-emerald-400" />
+    <div className="flex h-full bg-zinc-950 overflow-hidden">
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-900/80">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-emerald-500/10 rounded-lg">
+              <Sparkles className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-white">{chat.display_name}</h3>
+              <p className="text-xs text-zinc-500">
+                Powered by Gemini 3 Pro • Code Execution • Search • Database Access
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-semibold text-white">{chat.display_name}</h3>
-            <p className="text-xs text-zinc-500">
-              Powered by Gemini 3 Pro • Code Execution • Search • Database Access
-            </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleRefreshContext}
+              disabled={isRefreshingContext}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md transition-colors disabled:opacity-50"
+              title="Refresh company data context"
+            >
+              <RefreshCw className={cn('w-3.5 h-3.5', isRefreshingContext && 'animate-spin')} />
+              Refresh Context
+            </button>
+            <button
+              onClick={() => setShowFundamentals(!showFundamentals)}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md transition-colors"
+              title={showFundamentals ? 'Hide fundamentals panel' : 'Show fundamentals panel'}
+            >
+              {showFundamentals ? (
+                <PanelRightClose className="w-3.5 h-3.5" />
+              ) : (
+                <PanelRightOpen className="w-3.5 h-3.5" />
+              )}
+            </button>
           </div>
         </div>
-        <button
-          onClick={handleRefreshContext}
-          disabled={isRefreshingContext}
-          className="flex items-center gap-2 px-3 py-1.5 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md transition-colors disabled:opacity-50"
-          title="Refresh company data context"
-        >
-          <RefreshCw className={cn('w-3.5 h-3.5', isRefreshingContext && 'animate-spin')} />
-          Refresh Context
-        </button>
-      </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-5 space-y-6">
-        {messagesLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-zinc-500" />
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="space-y-6">
-            <div className="text-center py-8">
-              <div className="inline-flex p-4 bg-zinc-800/50 rounded-full mb-4">
-                <Bot className="w-8 h-8 text-emerald-400" />
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-5 space-y-6">
+          {messagesLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-zinc-500" />
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="space-y-6">
+              <div className="text-center py-8">
+                <div className="inline-flex p-4 bg-zinc-800/50 rounded-full mb-4">
+                  <Bot className="w-8 h-8 text-emerald-400" />
+                </div>
+                <p className="text-zinc-400">
+                  Start researching <span className="text-emerald-400 font-medium">{chat.display_name}</span>
+                </p>
+                <p className="text-zinc-600 text-sm mt-1">
+                  I can analyze data, search the web, and run calculations
+                </p>
               </div>
-              <p className="text-zinc-400">
-                Start researching <span className="text-emerald-400 font-medium">{chat.display_name}</span>
-              </p>
-              <p className="text-zinc-600 text-sm mt-1">
-                I can analyze data, search the web, and run calculations
-              </p>
-            </div>
 
-            <div className="space-y-2">
-              <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-medium px-1">
-                Suggested questions
-              </p>
-              {suggestedQuestions.map((question, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => {
-                    setInput(question);
-                    inputRef.current?.focus();
-                  }}
-                  className="flex items-center gap-3 w-full text-left text-sm text-zinc-400 hover:text-white hover:bg-zinc-800/70 p-3 rounded-lg transition-all group border border-transparent hover:border-zinc-700/50"
-                >
-                  <ChevronRight className="w-4 h-4 text-zinc-600 group-hover:text-emerald-400 transition-colors flex-shrink-0" />
-                  <span>{question}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          messages.map((msg) => (
-            <MessageBubble key={msg.message_id} message={msg} />
-          ))
-        )}
-
-        {/* Sending indicator */}
-        {isSending && (
-          <div className="flex gap-3">
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center">
-              <Bot className="w-4 h-4 text-emerald-400" />
-            </div>
-            <div className="bg-zinc-800/80 rounded-2xl rounded-bl-md px-4 py-3 flex items-center gap-3 border border-zinc-700/30">
-              <div className="flex gap-1">
-                <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              <div className="space-y-2">
+                <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-medium px-1">
+                  Suggested questions
+                </p>
+                {suggestedQuestions.map((question, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      setInput(question);
+                      inputRef.current?.focus();
+                    }}
+                    className="flex items-center gap-3 w-full text-left text-sm text-zinc-400 hover:text-white hover:bg-zinc-800/70 p-3 rounded-lg transition-all group border border-transparent hover:border-zinc-700/50"
+                  >
+                    <ChevronRight className="w-4 h-4 text-zinc-600 group-hover:text-emerald-400 transition-colors flex-shrink-0" />
+                    <span>{question}</span>
+                  </button>
+                ))}
               </div>
-              <span className="text-sm text-zinc-400">Analyzing...</span>
             </div>
-          </div>
-        )}
+          ) : (
+            messages.map((msg) => (
+              <MessageBubble key={msg.message_id} message={msg} />
+            ))
+          )}
 
-        {/* Error */}
-        {error && (
-          <div className="bg-red-900/20 border border-red-800/50 rounded-xl px-4 py-3">
-            <p className="text-sm text-red-400">{error}</p>
-          </div>
-        )}
+          {/* Sending indicator */}
+          {isSending && (
+            <div className="flex gap-3">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center">
+                <Bot className="w-4 h-4 text-emerald-400" />
+              </div>
+              <div className="bg-zinc-800/80 rounded-2xl rounded-bl-md px-4 py-3 flex items-center gap-3 border border-zinc-700/30">
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+                <span className="text-sm text-zinc-400">Analyzing...</span>
+              </div>
+            </div>
+          )}
 
-        <div ref={messagesEndRef} />
-      </div>
+          {/* Error */}
+          {error && (
+            <div className="bg-red-900/20 border border-red-800/50 rounded-xl px-4 py-3">
+              <p className="text-sm text-red-400">{error}</p>
+            </div>
+          )}
 
-      {/* Input */}
-      <div className="p-5 border-t border-zinc-800 bg-zinc-900/80">
-        <div className="flex gap-3 items-end">
-          <div className="flex-1 relative">
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask about the company..."
-              className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-500 resize-none focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all"
-              rows={1}
-              disabled={isSending}
-              style={{ minHeight: '48px', maxHeight: '120px' }}
-              onInput={(e) => {
-                const target = e.target as HTMLTextAreaElement;
-                target.style.height = 'auto';
-                target.style.height = Math.min(target.scrollHeight, 120) + 'px';
-              }}
-            />
-          </div>
-          <button
-            onClick={handleSend}
-            disabled={!input.trim() || isSending}
-            className="p-3.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-700 disabled:cursor-not-allowed rounded-xl transition-all hover:scale-105 active:scale-95 disabled:hover:scale-100"
-          >
-            <Send className="w-5 h-5 text-white" />
-          </button>
+          <div ref={messagesEndRef} />
         </div>
-        <p className="text-[10px] text-zinc-600 mt-2 text-center">
-          Enter to send • Shift+Enter for new line
-        </p>
+
+        {/* Input */}
+        <div className="p-5 border-t border-zinc-800 bg-zinc-900/80">
+          <div className="flex gap-3 items-end">
+            <div className="flex-1 relative">
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Ask about the company..."
+                className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-500 resize-none focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all"
+                rows={1}
+                disabled={isSending}
+                style={{ minHeight: '48px', maxHeight: '120px' }}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = Math.min(target.scrollHeight, 120) + 'px';
+                }}
+              />
+            </div>
+            <button
+              onClick={handleSend}
+              disabled={!input.trim() || isSending}
+              className="p-3.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-700 disabled:cursor-not-allowed rounded-xl transition-all hover:scale-105 active:scale-95 disabled:hover:scale-100"
+            >
+              <Send className="w-5 h-5 text-white" />
+            </button>
+          </div>
+          <p className="text-[10px] text-zinc-600 mt-2 text-center">
+            Enter to send • Shift+Enter for new line
+          </p>
+        </div>
       </div>
+
+      {/* Fundamentals Panel */}
+      {showFundamentals && (
+        <div className="w-72 flex-shrink-0 border-l border-zinc-800 bg-zinc-900/50 overflow-y-auto">
+          <FundamentalsSummaryPanel
+            assetId={chat.asset_id}
+            assetType={chat.asset_type}
+            className="m-3"
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -1108,6 +1108,88 @@ serve(async (req: Request) => {
         })
       }
 
+      // GET /fundamentals/:assetId - Get fundamentals for an asset (for the summary panel)
+      case req.method === 'GET' && /^\/fundamentals\/\d+$/.test(path): {
+        const assetId = parseInt(path.split('/').pop() || '0')
+        const assetType = url.searchParams.get('asset_type') || 'equity'
+        
+        // Get asset info
+        const { data: asset } = await supabase
+          .from('assets')
+          .select('name, symbol, asset_type, sector, industry')
+          .eq('asset_id', assetId)
+          .single()
+        
+        if (!asset) {
+          return new Response(JSON.stringify({ error: 'Asset not found' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Get fundamentals from equity_fundamentals table
+        const { data: fundamentals } = await supabase
+          .from('equity_fundamentals')
+          .select('*')
+          .eq('asset_id', assetId)
+          .order('fetched_at', { ascending: false })
+          .limit(1)
+          .single()
+        
+        // Get latest price for 52-week calculation
+        const { data: priceData } = await supabase
+          .from('asset_bars_daily')
+          .select('close_price, high_price, low_price')
+          .eq('asset_id', assetId)
+          .order('bar_date', { ascending: false })
+          .limit(1)
+          .single()
+        
+        // Combine the data
+        const result = {
+          name: asset.name,
+          symbol: asset.symbol,
+          sector: asset.sector || fundamentals?.sector,
+          industry: asset.industry || fundamentals?.industry,
+          
+          // Size & Growth
+          market_cap: fundamentals?.market_cap,
+          revenue_ttm: fundamentals?.revenue_ttm,
+          quarterly_revenue_growth_yoy: fundamentals?.quarterly_revenue_growth_yoy,
+          quarterly_earnings_growth_yoy: fundamentals?.quarterly_earnings_growth_yoy,
+          eps: fundamentals?.eps,
+          
+          // Valuation
+          pe_ratio: fundamentals?.pe_ratio,
+          forward_pe: fundamentals?.forward_pe,
+          peg_ratio: fundamentals?.peg_ratio,
+          price_to_sales_ttm: fundamentals?.price_to_sales_ttm,
+          forward_price_to_sales: fundamentals?.forward_price_to_sales,
+          price_to_book: fundamentals?.price_to_book,
+          
+          // Profitability
+          profit_margin: fundamentals?.profit_margin,
+          operating_margin_ttm: fundamentals?.operating_margin_ttm,
+          return_on_equity_ttm: fundamentals?.return_on_equity_ttm,
+          return_on_assets_ttm: fundamentals?.return_on_assets_ttm,
+          
+          // Other
+          beta: fundamentals?.beta,
+          analyst_target_price: fundamentals?.analyst_target_price,
+          week_52_low: fundamentals?.week_52_low,
+          week_52_high: fundamentals?.week_52_high,
+          dividend_yield: fundamentals?.dividend_yield,
+          current_price: priceData?.close_price,
+          
+          // Meta
+          last_updated: fundamentals?.fetched_at
+        }
+        
+        return new Response(JSON.stringify(result), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
       default:
         return new Response(JSON.stringify({ error: 'Not found' }), {
           status: 404,
