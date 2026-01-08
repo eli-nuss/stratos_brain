@@ -68,14 +68,7 @@ function TradingViewWidget({
         "STD;RSI",
         "STD;SMA",
         "STD;SMA"
-      ],
-      "studies_overrides": {
-        "RSI.length": 14,
-        "Simple Moving Average.length": 20,
-        "Simple Moving Average.plot.color": "#2962FF",
-        "Simple Moving Average#1.length": 50,
-        "Simple Moving Average#1.plot.color": "#FF6D00"
-      }
+      ]
     });
 
     const widgetContainer = document.createElement("div");
