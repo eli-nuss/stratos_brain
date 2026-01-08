@@ -1,7 +1,9 @@
 import useSWR from "swr";
 import { Search, FileText, Calendar, ExternalLink, File, Loader2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -30,7 +32,7 @@ function MemoDetailModal({ memo, onClose }: MemoDetailModalProps) {
   const [error, setError] = useState<string | null>(null);
 
   // Fetch the markdown content
-  useState(() => {
+  useEffect(() => {
     if (memo.file_path) {
       fetch(memo.file_path)
         .then(res => {
@@ -46,7 +48,7 @@ function MemoDetailModal({ memo, onClose }: MemoDetailModalProps) {
           setLoading(false);
         });
     }
-  });
+  }, [memo.file_path]);
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -99,8 +101,26 @@ function MemoDetailModal({ memo, onClose }: MemoDetailModalProps) {
               Failed to load memo content: {error}
             </div>
           ) : (
-            <div className="prose prose-invert prose-sm max-w-none">
-              <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">{content}</pre>
+            <div className="prose prose-invert prose-sm max-w-none
+              prose-headings:text-foreground prose-headings:font-semibold
+              prose-h1:text-2xl prose-h1:border-b prose-h1:border-border prose-h1:pb-2 prose-h1:mb-4
+              prose-h2:text-xl prose-h2:mt-6 prose-h2:mb-3
+              prose-h3:text-lg prose-h3:mt-4 prose-h3:mb-2
+              prose-p:text-muted-foreground prose-p:leading-relaxed
+              prose-strong:text-foreground prose-strong:font-semibold
+              prose-ul:text-muted-foreground prose-ol:text-muted-foreground
+              prose-li:my-1
+              prose-a:text-primary prose-a:no-underline hover:prose-a:underline
+              prose-blockquote:border-l-primary prose-blockquote:text-muted-foreground prose-blockquote:italic
+              prose-code:text-primary prose-code:bg-muted/50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded
+              prose-pre:bg-muted/30 prose-pre:border prose-pre:border-border
+              prose-table:border-collapse prose-th:border prose-th:border-border prose-th:bg-muted/30 prose-th:p-2
+              prose-td:border prose-td:border-border prose-td:p-2
+              prose-hr:border-border
+            ">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {content || ''}
+              </ReactMarkdown>
             </div>
           )}
         </div>
