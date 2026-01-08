@@ -70,21 +70,17 @@ export default function DashboardLayout({
               </TooltipContent>
             </Tooltip>
             
-            {/* Compact Data Status */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground/70 cursor-help">
-                  <span className="px-1.5 py-0.5 rounded bg-muted/50">EQ {formatDate(health?.latest_dates?.equity)}</span>
-                  <span className="px-1.5 py-0.5 rounded bg-muted/50">CR {formatDate(health?.latest_dates?.crypto)}</span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs text-xs">
-                <div className="space-y-1">
-                  <div><strong>EQ:</strong> Equity data as of {health?.latest_dates?.equity || "..."}</div>
-                  <div><strong>CR:</strong> Crypto data as of {health?.latest_dates?.crypto || "..."}</div>
-                </div>
-              </TooltipContent>
-            </Tooltip>
+            {/* Data Status - 2 row layout */}
+            <div className="flex flex-col gap-0.5 text-[10px] font-mono text-muted-foreground/70">
+              <div className="flex items-center gap-1">
+                <span className="text-muted-foreground/50">Crypto:</span>
+                <span>{formatDate(health?.latest_dates?.crypto)}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-muted-foreground/50">Equity:</span>
+                <span>{formatDate(health?.latest_dates?.equity)}</span>
+              </div>
+            </div>
           </div>
 
           {/* Center: Navigation Tabs */}
