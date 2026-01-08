@@ -70,10 +70,11 @@ function TradingViewWidget({
         "STD;SMA"
       ],
       "studies_overrides": {
-        "moving average.length": 20,
-        "moving average.plot.color": "#2962FF",
-        "moving average#1.length": 50,
-        "moving average#1.plot.color": "#FF6D00"
+        "RSI.length": 14,
+        "Simple Moving Average.length": 20,
+        "Simple Moving Average.plot.color": "#2962FF",
+        "Simple Moving Average#1.length": 50,
+        "Simple Moving Average#1.plot.color": "#FF6D00"
       }
     });
 
