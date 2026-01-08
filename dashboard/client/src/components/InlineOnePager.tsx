@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { FileText, ExternalLink, Loader2, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { FileText, ExternalLink, Loader2, ChevronDown, ChevronUp, Sparkles, Download } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -31,11 +31,90 @@ export function InlineOnePager({ assetId, symbol }: InlineDocumentViewerProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isExpanded, setIsExpanded] = useState(true);
   const [contentError, setContentError] = useState<{ one_pager: boolean; memo: boolean }>({ one_pager: false, memo: false });
+  const [isExporting, setIsExporting] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   // Get the current document based on active tab
   const currentDocument = activeTab === 'one_pager' ? onePager : memo;
   const currentContent = activeTab === 'one_pager' ? onePagerContent : memoContent;
   const currentError = contentError[activeTab];
+
+  // Export to PDF function
+  const exportToPDF = async () => {
+    if (!contentRef.current || !currentDocument) return;
+    
+    setIsExporting(true);
+    try {
+      // Dynamically import html2pdf to avoid SSR issues
+      const html2pdf = (await import('html2pdf.js')).default;
+      
+      // Create a clone of the content for PDF generation with better styling
+      const element = contentRef.current.cloneNode(true) as HTMLElement;
+      
+      // Apply print-friendly styles
+      element.style.padding = '20px';
+      element.style.backgroundColor = 'white';
+      element.style.color = 'black';
+      
+      // Fix text colors for PDF (dark mode -> light mode)
+      const allElements = element.querySelectorAll('*');
+      allElements.forEach((el) => {
+        const htmlEl = el as HTMLElement;
+        const computedStyle = window.getComputedStyle(htmlEl);
+        // Make text darker for PDF
+        if (computedStyle.color.includes('rgb(')) {
+          htmlEl.style.color = '#1a1a1a';
+        }
+      });
+      
+      // Style headings
+      element.querySelectorAll('h1, h2, h3, h4').forEach((el) => {
+        (el as HTMLElement).style.color = '#111827';
+      });
+      
+      // Style paragraphs and list items
+      element.querySelectorAll('p, li').forEach((el) => {
+        (el as HTMLElement).style.color = '#374151';
+      });
+      
+      // Style table cells
+      element.querySelectorAll('th').forEach((el) => {
+        (el as HTMLElement).style.backgroundColor = '#f3f4f6';
+        (el as HTMLElement).style.color = '#111827';
+      });
+      element.querySelectorAll('td').forEach((el) => {
+        (el as HTMLElement).style.color = '#374151';
+        (el as HTMLElement).style.borderColor = '#e5e7eb';
+      });
+
+      const filename = `${symbol}_${activeTab === 'one_pager' ? 'One_Pager' : 'Investment_Memo'}_${new Date().toISOString().split('T')[0]}.pdf`;
+      
+      const opt = {
+        margin: [10, 10, 10, 10],
+        filename: filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+          scale: 2,
+          useCORS: true,
+          letterRendering: true,
+          backgroundColor: '#ffffff'
+        },
+        jsPDF: { 
+          unit: 'mm', 
+          format: 'a4', 
+          orientation: 'portrait' as const
+        },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+      };
+
+      await html2pdf().set(opt).from(element).save();
+    } catch (error) {
+      console.error('Error exporting to PDF:', error);
+      alert('Failed to export PDF. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // Fetch documents
   const fetchDocuments = async () => {
@@ -189,6 +268,23 @@ export function InlineOnePager({ assetId, symbol }: InlineDocumentViewerProps) {
           </div>
           
           <div className="flex items-center gap-2">
+            {/* Export PDF Button */}
+            {currentContent && (
+              <button
+                onClick={exportToPDF}
+                disabled={isExporting}
+                className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                title="Export as PDF"
+              >
+                {isExporting ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Download className="w-3.5 h-3.5" />
+                )}
+                <span className="hidden sm:inline">PDF</span>
+              </button>
+            )}
+            
             {currentDocument && (
               <a
                 href={currentDocument.file_path}
@@ -223,7 +319,7 @@ export function InlineOnePager({ assetId, symbol }: InlineDocumentViewerProps) {
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
             </div>
           ) : currentContent ? (
-            <div className="markdown-content">
+            <div ref={contentRef} className="markdown-content">
               <ReactMarkdown 
                 remarkPlugins={[remarkGfm]}
                 components={{
