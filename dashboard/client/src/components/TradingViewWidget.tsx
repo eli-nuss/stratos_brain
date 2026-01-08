@@ -40,51 +40,63 @@ function TradingViewWidget({
 
     const tvSymbol = getTradingViewSymbol(symbol, assetType);
 
+    // Create the widget container div
+    const widgetDiv = document.createElement("div");
+    widgetDiv.className = "tradingview-widget-container__widget";
+    widgetDiv.style.height = "calc(100% - 32px)";
+    widgetDiv.style.width = "100%";
+
+    // Create the copyright div (required by TradingView)
+    const copyrightDiv = document.createElement("div");
+    copyrightDiv.className = "tradingview-widget-copyright";
+    copyrightDiv.innerHTML = `<a href="https://www.tradingview.com/symbols/${tvSymbol}/" rel="noopener nofollow" target="_blank"><span class="blue-text">${symbol} chart</span></a><span class="trademark"> by TradingView</span>`;
+    copyrightDiv.style.fontSize = "11px";
+    copyrightDiv.style.color = theme === 'dark' ? "#9db2bd" : "#787b86";
+    copyrightDiv.style.textAlign = "center";
+    copyrightDiv.style.padding = "4px 0";
+
+    // Create the script element
     const script = document.createElement("script");
     script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
     script.type = "text/javascript";
     script.async = true;
-    script.innerHTML = JSON.stringify({
+    
+    // Configuration matching exactly what TradingView widget builder produces
+    const config = {
       "autosize": true,
       "symbol": tvSymbol,
       "interval": interval,
       "timezone": "America/New_York",
       "theme": theme,
-      "style": "1", // Candlestick
+      "style": "1",
       "locale": "en",
       "allow_symbol_change": false,
       "calendar": false,
-      "support_host": "https://www.tradingview.com",
       "hide_side_toolbar": false,
       "hide_top_toolbar": false,
       "hide_legend": false,
       "hide_volume": false,
       "save_image": true,
-      "backgroundColor": theme === 'dark' ? "rgba(17, 17, 17, 1)" : "rgba(255, 255, 255, 1)",
-      "gridColor": theme === 'dark' ? "rgba(66, 66, 66, 0.4)" : "rgba(200, 200, 200, 0.3)",
       "withdateranges": true,
       "details": false,
       "hotlist": false,
+      "backgroundColor": theme === 'dark' ? "rgba(17, 17, 17, 1)" : "rgba(255, 255, 255, 1)",
+      "gridColor": theme === 'dark' ? "rgba(66, 66, 66, 0.3)" : "rgba(200, 200, 200, 0.3)",
+      "watchlist": [],
+      "compareSymbols": [],
       "studies": [
         "STD;RSI",
         "STD;SMA",
         "STD;SMA"
-      ],
-      "studies_overrides": {
-        "rsi.rsi.color": "#7E57C2",
-        "rsi.rsi.linewidth": 2,
-        "volume.volume.color.0": "#EF5350",
-        "volume.volume.color.1": "#26A69A"
-      }
-    });
+      ]
+    };
+    
+    script.innerHTML = JSON.stringify(config);
 
-    const widgetContainer = document.createElement("div");
-    widgetContainer.className = "tradingview-widget-container__widget";
-    widgetContainer.style.height = "100%";
-    widgetContainer.style.width = "100%";
-
-    container.current.appendChild(widgetContainer);
-    widgetContainer.appendChild(script);
+    // Append elements in the correct order
+    container.current.appendChild(widgetDiv);
+    container.current.appendChild(copyrightDiv);
+    widgetDiv.appendChild(script);
 
     return () => {
       if (container.current) {
