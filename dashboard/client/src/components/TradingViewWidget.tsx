@@ -61,7 +61,7 @@ function TradingViewWidget({
     script.type = "text/javascript";
     script.async = true;
     
-    // Configuration matching exactly what TradingView widget builder produces
+    // Configuration with custom SMA lengths (20 and 50) and RSI
     const config = {
       "autosize": true,
       "symbol": tvSymbol,
@@ -85,9 +85,26 @@ function TradingViewWidget({
       "watchlist": [],
       "compareSymbols": [],
       "studies": [
-        "STD;RSI",
-        "STD;SMA",
-        "STD;SMA"
+        {
+          "id": "RSI@tv-basicstudies",
+          "inputs": {
+            "length": 14,
+            "smoothingLine": "SMA",
+            "smoothingLength": 14
+          }
+        },
+        {
+          "id": "MASimple@tv-basicstudies",
+          "inputs": { 
+            "length": 20
+          }
+        },
+        {
+          "id": "MASimple@tv-basicstudies",
+          "inputs": { 
+            "length": 50
+          }
+        }
       ]
     };
     
