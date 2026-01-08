@@ -11,7 +11,7 @@ import { CodeExecutionBlock } from './CodeExecutionBlock';
 import { SearchCitationBlock } from './SearchCitationBlock';
 import { ToolCallBlock } from './ToolCallBlock';
 import { MarkdownRenderer } from './MarkdownRenderer';
-import { FundamentalsSummaryPanel } from './FundamentalsSummaryPanel';
+import { CompanySidePanel } from './CompanySidePanel';
 import { cn } from '@/lib/utils';
 
 interface CompanyChatInterfaceProps {
@@ -319,11 +319,11 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
 
       {/* Fundamentals Panel */}
       {showFundamentals && (
-        <div className="w-72 flex-shrink-0 border-l border-zinc-800 bg-zinc-900/50 overflow-y-auto">
-          <FundamentalsSummaryPanel
+        <div className="w-96 flex-shrink-0 border-l border-zinc-800 bg-zinc-900/50 overflow-hidden">
+          <CompanySidePanel
             assetId={chat.asset_id}
             assetType={chat.asset_type}
-            className="m-3"
+            className="h-full"
           />
         </div>
       )}

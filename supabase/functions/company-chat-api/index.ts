@@ -1187,6 +1187,61 @@ serve(async (req: Request) => {
         })
       }
 
+      // AI Review endpoint - GET /ai-review/:assetId
+      case path.startsWith('/ai-review/'): {
+        if (req.method !== 'GET') {
+          return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+            status: 405,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const assetId = path.replace('/ai-review/', '')
+        if (!assetId) {
+          return new Response(JSON.stringify({ error: 'Asset ID required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Get the latest AI review for this asset
+        const { data: aiReview, error: aiError } = await supabase
+          .from('asset_ai_reviews')
+          .select(`
+            asset_id,
+            as_of_date,
+            direction,
+            setup_type,
+            ai_direction_score,
+            ai_setup_quality_score,
+            ai_attention_level,
+            ai_confidence,
+            ai_summary_text,
+            ai_key_levels,
+            ai_entry,
+            ai_targets,
+            ai_risks,
+            ai_time_horizon,
+            ai_what_to_watch_next,
+            created_at
+          `)
+          .eq('asset_id', assetId)
+          .order('as_of_date', { ascending: false })
+          .limit(1)
+          .single()
+        
+        if (aiError || !aiReview) {
+          return new Response(JSON.stringify({ error: 'AI review not found' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(aiReview), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
       default:
         return new Response(JSON.stringify({ error: 'Not found' }), {
           status: 404,
