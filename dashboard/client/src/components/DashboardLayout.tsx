@@ -370,12 +370,12 @@ export default function DashboardLayout({
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         {/* Row 1: Logo, Data Status, Search, Page Links */}
         <div className="container py-2 flex items-center justify-between">
-          {/* Left: Logo + Data Status */}
-          <div className="flex items-center gap-3">
+          {/* Left: Logo + Data Status stacked vertically */}
+          <div className="flex flex-col">
             <Tooltip>
               <TooltipTrigger asChild>
-                <h1 className="text-xl font-bold tracking-tight flex items-center gap-2 cursor-help">
-                  <Activity className="w-5 h-5 text-primary" />
+                <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2 cursor-help">
+                  <Activity className="w-8 h-8 text-primary" />
                   <span className="hidden sm:inline">STRATOS</span>
                   <span className="sm:hidden">S</span>
                   <span className="text-muted-foreground font-normal hidden sm:inline">BRAIN</span>
@@ -387,8 +387,8 @@ export default function DashboardLayout({
               </TooltipContent>
             </Tooltip>
             
-            {/* Data Status - under logo in two rows */}
-            <div className="hidden md:flex flex-col text-[10px] font-mono text-muted-foreground mt-1">
+            {/* Data Status - directly under logo */}
+            <div className="hidden md:flex flex-col text-[10px] font-mono text-muted-foreground mt-1 pl-10">
               <div className="flex items-center gap-1.5">
                 <span className="text-muted-foreground/70">Equities Last Updated:</span>
                 <span className="font-medium">{formatDate(health?.latest_dates?.equity)}</span>
