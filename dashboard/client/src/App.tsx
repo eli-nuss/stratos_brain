@@ -9,6 +9,7 @@ import Documentation from "./pages/Documentation";
 import TemplateEditor from "./pages/TemplateEditor";
 import MemoLibrary from "./pages/MemoLibrary";
 import MemoViewer from "./pages/MemoViewer";
+import CompanyChat from "./pages/CompanyChat";
 
 
 function Router() {
@@ -24,6 +25,8 @@ function Router() {
       <Route path={"/admin/templates"} component={TemplateEditor} />
       <Route path={"/memos"} component={MemoLibrary} />
       <Route path={"/memo/:id"} component={MemoViewer} />
+      <Route path={"/chat"} component={CompanyChat} />
+      <Route path={"/chat/:chatId"} component={CompanyChat} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

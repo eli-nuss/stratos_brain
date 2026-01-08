@@ -424,6 +424,13 @@ export default function DashboardLayout({
             <div className="h-3 w-px bg-border/50 hidden sm:block" />
             
             <a
+              href="/chat"
+              className="px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
+            >
+              Research
+            </a>
+            
+            <a
               href="/memos"
               className="px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
             >

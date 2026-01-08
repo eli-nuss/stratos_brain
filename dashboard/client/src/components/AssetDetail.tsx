@@ -191,7 +191,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                 Open chart on TradingView
               </TooltipContent>
             </Tooltip>
-            {/* Chat button */}
+            {/* Quick Chat button */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <button 
@@ -206,7 +206,21 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                {isChatOpen ? 'Close chat' : 'Chat with AI about this analysis'}
+                {isChatOpen ? 'Close chat' : 'Quick chat about this analysis'}
+              </TooltipContent>
+            </Tooltip>
+            {/* Research Chat button */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <a 
+                  href={`/chat?asset_id=${assetId}&symbol=${encodeURIComponent(asset?.symbol || '')}&name=${encodeURIComponent(asset?.name || '')}&asset_type=${asset?.asset_type || 'equity'}`}
+                  className="p-2 rounded-full transition-colors hover:bg-muted text-muted-foreground hover:text-foreground"
+                >
+                  <Activity className="w-5 h-5" />
+                </a>
+              </TooltipTrigger>
+              <TooltipContent>
+                Open full research chat
               </TooltipContent>
             </Tooltip>
             <button 
