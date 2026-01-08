@@ -384,7 +384,7 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
       {/* Header */}
       <div className="p-3 border-b border-border space-y-3">
         <h3 className="text-sm font-semibold text-foreground">
-          {assetType === "crypto" ? "🪙" : "📈"} All {assetType === "crypto" ? "Crypto" : "Equity"} Assets
+          All {assetType === "crypto" ? "Crypto" : "Equity"} Assets
           <span className="text-xs text-muted-foreground ml-2">({filteredData.length} / {total} total)</span>
         </h3>
         

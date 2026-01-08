@@ -231,7 +231,7 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
       <div className="p-3 border-b border-border space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            {assetType === "crypto" ? "🪙" : "📈"} All {assetType === "crypto" ? "Crypto" : "Equity"} Assets
+            All {assetType === "crypto" ? "Crypto" : "Equity"} Assets
             <span className="text-xs text-muted-foreground font-normal">({filteredData.length} / {total} total)</span>
           </h3>
         </div>
@@ -511,7 +511,7 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                   )}
                   <td className="px-2 py-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs">{row.asset_type === "crypto" ? "🪙" : "📈"}</span>
+                      <span className={`text-[10px] px-1 py-0.5 rounded font-medium ${row.asset_type === "crypto" ? "text-orange-400 bg-orange-400/10" : "text-blue-400 bg-blue-400/10"}`}>{row.asset_type === "crypto" ? "C" : "E"}</span>
                       <div>
                         <div className="font-medium text-foreground">{row.symbol}</div>
                         <div className="text-[10px] text-muted-foreground truncate max-w-[100px]">{row.name}</div>

@@ -146,7 +146,7 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
       {/* Header */}
       <div className="p-3 border-b border-border space-y-3">
         <h3 className="text-sm font-semibold text-foreground">
-          ⭐ Watchlist
+          Watchlist
           <span className="text-xs text-muted-foreground ml-2">({total} assets)</span>
         </h3>
         
@@ -274,7 +274,7 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
                           ? 'text-orange-400 bg-orange-400/10' 
                           : 'text-blue-400 bg-blue-400/10'
                       }`}>
-                        {row.asset_type === 'crypto' ? '🪙' : '📈'}
+                        {row.asset_type === 'crypto' ? 'C' : 'E'}
                       </span>
                       <div className="flex flex-col">
                         <span className="font-mono font-medium text-foreground">{row.symbol}</span>

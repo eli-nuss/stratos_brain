@@ -97,7 +97,7 @@ export default function DashboardLayout({
                         : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                     }`}
                   >
-                    ⭐ Watchlist
+                    Watchlist
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>Your personal watchlist</TooltipContent>
