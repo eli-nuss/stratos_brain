@@ -69,6 +69,11 @@ function isPublicDashboardEndpoint(req: Request): boolean {
     return true
   }
   
+  // Allow public access to templates endpoints (all methods)
+  if (path.startsWith('/dashboard/templates')) {
+    return true
+  }
+  
   // NOTE: memo-status endpoints removed - Gemini generation is synchronous
   
   return false
@@ -1816,9 +1821,41 @@ If asked about something not in the data, acknowledge the limitation.`
         const companyName = assetData.asset?.name || symbol
         const todayDate = new Date().toISOString().split('T')[0]
         
-        // Step 2: Prepare the prompt
+        // Step 2: Fetch templates from database (with fallback to hardcoded)
+        let systemPrompt = SYSTEM_PROMPT
+        let template = docType === 'memo' ? MEMO_TEMPLATE : ONE_PAGER_TEMPLATE
+        
+        try {
+          // Fetch system prompt from database
+          const { data: systemPromptData } = await supabase
+            .from('document_templates')
+            .select('template_content')
+            .eq('template_key', 'system_prompt')
+            .single()
+          
+          if (systemPromptData?.template_content) {
+            systemPrompt = systemPromptData.template_content
+            console.log('Using system prompt from database')
+          }
+          
+          // Fetch document template from database
+          const templateKey = docType === 'memo' ? 'memo_template' : 'one_pager_template'
+          const { data: templateData } = await supabase
+            .from('document_templates')
+            .select('template_content')
+            .eq('template_key', templateKey)
+            .single()
+          
+          if (templateData?.template_content) {
+            template = templateData.template_content
+            console.log(`Using ${templateKey} from database`)
+          }
+        } catch (templateError) {
+          console.log('Using hardcoded templates (database fetch failed):', templateError)
+        }
+        
+        // Prepare the prompt
         const databaseContext = formatDatabaseContext(assetData)
-        const template = docType === 'memo' ? MEMO_TEMPLATE : ONE_PAGER_TEMPLATE
         
         const geminiPrompt = `
 # TASK: Generate Investment ${docType === 'memo' ? 'Memo' : 'One Pager'} for ${symbol}
@@ -1870,7 +1907,7 @@ ${template}
             }
           ],
           systemInstruction: {
-            parts: [{ text: SYSTEM_PROMPT }]
+            parts: [{ text: systemPrompt }]
           },
           tools: [
             {
@@ -2317,6 +2354,82 @@ ${template}
         await supabase.from('watchlist').delete().eq('asset_id', assetId)
         
         return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // ==================== TEMPLATE MANAGEMENT ENDPOINTS ====================
+
+      // GET /dashboard/templates - Get all templates
+      case req.method === 'GET' && path === '/dashboard/templates': {
+        const { data: templates, error } = await supabase
+          .from('document_templates')
+          .select('*')
+          .order('template_key', { ascending: true })
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(templates || []), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /dashboard/templates/:key - Get a specific template by key
+      case req.method === 'GET' && /^\/dashboard\/templates\/[a-z_]+$/.test(path): {
+        const templateKey = path.split('/').pop()!
+        
+        const { data: template, error } = await supabase
+          .from('document_templates')
+          .select('*')
+          .eq('template_key', templateKey)
+          .single()
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(template), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // PUT /dashboard/templates/:key - Update a template
+      case req.method === 'PUT' && /^\/dashboard\/templates\/[a-z_]+$/.test(path): {
+        const templateKey = path.split('/').pop()!
+        const body = await req.json()
+        const { template_content, template_name, description } = body
+        
+        const updateData: Record<string, unknown> = {
+          updated_at: new Date().toISOString()
+        }
+        
+        if (template_content !== undefined) updateData.template_content = template_content
+        if (template_name !== undefined) updateData.template_name = template_name
+        if (description !== undefined) updateData.description = description
+        
+        const { data: template, error } = await supabase
+          .from('document_templates')
+          .update(updateData)
+          .eq('template_key', templateKey)
+          .select()
+          .single()
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(template), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
