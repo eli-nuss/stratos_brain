@@ -46,7 +46,8 @@ export function InlineOnePager({ assetId, symbol }: InlineDocumentViewerProps) {
     setIsExporting(true);
     try {
       // Dynamically import html2pdf to avoid SSR issues
-      const html2pdf = (await import('html2pdf.js')).default;
+      const html2pdfModule = await import('html2pdf.js');
+      const html2pdf = html2pdfModule.default || html2pdfModule;
       
       // Create a clone of the content for PDF generation with better styling
       const element = contentRef.current.cloneNode(true) as HTMLElement;
