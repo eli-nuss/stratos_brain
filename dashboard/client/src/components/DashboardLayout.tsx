@@ -387,15 +387,15 @@ export default function DashboardLayout({
               </TooltipContent>
             </Tooltip>
             
-            {/* Data Status - hidden on mobile */}
-            <div className="hidden md:flex flex-col gap-0.5 text-[10px] font-mono text-muted-foreground/70">
-              <div className="flex items-center gap-1">
-                <span className="text-muted-foreground/50">Crypto:</span>
-                <span>{formatDate(health?.latest_dates?.crypto)}</span>
+            {/* Data Status - hidden on mobile, aligned with logo */}
+            <div className="hidden md:flex items-center gap-4 text-[11px] font-mono text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground/70">Crypto Last Updated:</span>
+                <span className="font-medium">{formatDate(health?.latest_dates?.crypto)}</span>
               </div>
-              <div className="flex items-center gap-1">
-                <span className="text-muted-foreground/50">Equity:</span>
-                <span>{formatDate(health?.latest_dates?.equity)}</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground/70">Equity Last Updated:</span>
+                <span className="font-medium">{formatDate(health?.latest_dates?.equity)}</span>
               </div>
             </div>
           </div>
