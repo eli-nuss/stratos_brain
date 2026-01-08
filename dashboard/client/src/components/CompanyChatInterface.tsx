@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Sparkles, RefreshCw, ChevronRight, Bot, User } from 'lucide-react';
 import {
   useChatMessages,
@@ -10,56 +10,12 @@ import {
 import { CodeExecutionBlock } from './CodeExecutionBlock';
 import { SearchCitationBlock } from './SearchCitationBlock';
 import { ToolCallBlock } from './ToolCallBlock';
+import { MarkdownRenderer } from './MarkdownRenderer';
 import { cn } from '@/lib/utils';
 
 interface CompanyChatInterfaceProps {
   chat: CompanyChat;
   onRefresh?: () => void;
-}
-
-// Markdown renderer for chat messages
-function MarkdownContent({ content, className = '' }: { content: string; className?: string }) {
-  const rendered = useMemo(() => {
-    let html = content
-      // Escape HTML first
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      // Bold: **text** or __text__
-      .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold text-white">$1</strong>')
-      .replace(/__(.+?)__/g, '<strong class="font-semibold text-white">$1</strong>')
-      // Italic: *text* or _text_
-      .replace(/\*([^*]+)\*/g, '<em class="italic">$1</em>')
-      .replace(/_([^_]+)_/g, '<em class="italic">$1</em>')
-      // Code inline: `code`
-      .replace(/`([^`]+)`/g, '<code class="bg-zinc-700/50 px-1.5 py-0.5 rounded text-emerald-300 text-xs font-mono">$1</code>')
-      // Headers: ### Header
-      .replace(/^### (.+)$/gm, '<h3 class="text-base font-semibold text-white mt-3 mb-1">$1</h3>')
-      .replace(/^## (.+)$/gm, '<h2 class="text-lg font-semibold text-white mt-3 mb-1">$1</h2>')
-      .replace(/^# (.+)$/gm, '<h1 class="text-xl font-bold text-white mt-3 mb-2">$1</h1>')
-      // Bullet lists: - item or * item
-      .replace(/^[\-\*] (.+)$/gm, '<li class="ml-4 list-disc list-outside text-zinc-200">$1</li>')
-      // Numbered lists: 1. item
-      .replace(/^\d+\. (.+)$/gm, '<li class="ml-4 list-decimal list-outside text-zinc-200">$1</li>')
-      // Line breaks
-      .replace(/\n\n/g, '</p><p class="mt-2">')
-      .replace(/\n/g, '<br/>');
-    
-    // Wrap consecutive list items
-    html = html.replace(/(<li[^>]*>.*?<\/li>)(\s*<br\/>)*(<li)/g, '$1$3');
-    html = html.replace(/(<li class="ml-4 list-disc[^>]*>)/g, '<ul class="my-2">$1');
-    html = html.replace(/(<li class="ml-4 list-decimal[^>]*>)/g, '<ol class="my-2">$1');
-    html = html.replace(/(<\/li>)(?![\s\S]*<li)/g, '$1</ul>');
-    
-    return `<p>${html}</p>`;
-  }, [content]);
-
-  return (
-    <div 
-      className={`prose prose-sm prose-invert max-w-none ${className}`}
-      dangerouslySetInnerHTML={{ __html: rendered }}
-    />
-  );
 }
 
 // Individual message component
@@ -99,7 +55,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
             isUser ? (
               <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
             ) : (
-              <MarkdownContent content={message.content} className="text-sm leading-relaxed" />
+              <MarkdownRenderer content={message.content} className="text-sm" />
             )
           )}
 
