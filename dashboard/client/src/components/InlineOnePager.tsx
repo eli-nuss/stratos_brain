@@ -13,23 +13,32 @@ interface AssetFile {
   created_at: string;
 }
 
-interface InlineOnePagerProps {
+interface InlineDocumentViewerProps {
   assetId: number;
   symbol: string;
 }
 
+type DocumentType = 'one_pager' | 'memo';
+
 const API_BASE = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/control-api';
 
-export function InlineOnePager({ assetId, symbol }: InlineOnePagerProps) {
+export function InlineOnePager({ assetId, symbol }: InlineDocumentViewerProps) {
+  const [activeTab, setActiveTab] = useState<DocumentType>('one_pager');
   const [onePager, setOnePager] = useState<AssetFile | null>(null);
-  const [content, setContent] = useState<string | null>(null);
+  const [memo, setMemo] = useState<AssetFile | null>(null);
+  const [onePagerContent, setOnePagerContent] = useState<string | null>(null);
+  const [memoContent, setMemoContent] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isExpanded, setIsExpanded] = useState(true);
-  const [contentError, setContentError] = useState(false);
-  const [manusTaskUrl, setManusTaskUrl] = useState<string | null>(null);
+  const [contentError, setContentError] = useState<{ one_pager: boolean; memo: boolean }>({ one_pager: false, memo: false });
 
-  // Fetch the most recent one pager
-  const fetchOnePager = async () => {
+  // Get the current document based on active tab
+  const currentDocument = activeTab === 'one_pager' ? onePager : memo;
+  const currentContent = activeTab === 'one_pager' ? onePagerContent : memoContent;
+  const currentError = contentError[activeTab];
+
+  // Fetch documents
+  const fetchDocuments = async () => {
     setIsLoading(true);
     try {
       const response = await fetch(`${API_BASE}/dashboard/files/${assetId}`);
@@ -41,36 +50,61 @@ export function InlineOnePager({ assetId, symbol }: InlineOnePagerProps) {
         .filter(f => f.file_type === 'one_pager' && !f.file_path.includes('manus.im'))
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       
+      // Find the most recent memo that has actual content
+      const memos = files
+        .filter(f => f.file_type === 'memo' && !f.file_path.includes('manus.im'))
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      
       if (onePagers.length > 0) {
         setOnePager(onePagers[0]);
-        
-        // Extract Manus task URL from description
-        const taskMatch = onePagers[0].description?.match(/Task: ([A-Za-z0-9]+)/);
-        if (taskMatch) {
-          setManusTaskUrl(`https://manus.im/app/${taskMatch[1]}`);
-        }
-        
-        // Fetch the content if it's a markdown file
+        // Fetch content if markdown
         if (onePagers[0].file_name.endsWith('.md')) {
           try {
             const contentResponse = await fetch(onePagers[0].file_path);
             if (contentResponse.ok) {
               const text = await contentResponse.text();
-              setContent(text);
+              setOnePagerContent(text);
             } else {
-              setContentError(true);
+              setContentError(prev => ({ ...prev, one_pager: true }));
             }
           } catch (err) {
             console.error('Error fetching one pager content:', err);
-            setContentError(true);
+            setContentError(prev => ({ ...prev, one_pager: true }));
           }
         } else {
-          // For non-markdown files (docx, pdf), we can't display inline
-          setContentError(true);
+          setContentError(prev => ({ ...prev, one_pager: true }));
         }
       }
+
+      if (memos.length > 0) {
+        setMemo(memos[0]);
+        // Fetch content if markdown
+        if (memos[0].file_name.endsWith('.md')) {
+          try {
+            const contentResponse = await fetch(memos[0].file_path);
+            if (contentResponse.ok) {
+              const text = await contentResponse.text();
+              setMemoContent(text);
+            } else {
+              setContentError(prev => ({ ...prev, memo: true }));
+            }
+          } catch (err) {
+            console.error('Error fetching memo content:', err);
+            setContentError(prev => ({ ...prev, memo: true }));
+          }
+        } else {
+          setContentError(prev => ({ ...prev, memo: true }));
+        }
+      }
+
+      // Auto-select the tab based on what's available
+      if (onePagers.length > 0) {
+        setActiveTab('one_pager');
+      } else if (memos.length > 0) {
+        setActiveTab('memo');
+      }
     } catch (error) {
-      console.error('Error fetching one pager:', error);
+      console.error('Error fetching documents:', error);
     } finally {
       setIsLoading(false);
     }
@@ -78,17 +112,19 @@ export function InlineOnePager({ assetId, symbol }: InlineOnePagerProps) {
 
   // Fetch on mount and when assetId changes
   useEffect(() => {
-    fetchOnePager();
+    fetchDocuments();
   }, [assetId]);
 
   // Listen for document completion events to refresh the inline view
   useEffect(() => {
     const handleDocumentCompleted = (e: CustomEvent) => {
       const { assetId: completedAssetId, documentType } = e.detail;
-      // Refresh if a one_pager was completed for this asset
-      if (completedAssetId === assetId && documentType === 'one_pager') {
-        console.log('[InlineOnePager] New one pager completed, refreshing...');
-        fetchOnePager();
+      // Refresh if a document was completed for this asset
+      if (completedAssetId === assetId && (documentType === 'one_pager' || documentType === 'memo')) {
+        console.log('[InlineDocumentViewer] New document completed, refreshing...');
+        fetchDocuments();
+        // Switch to the newly completed document type
+        setActiveTab(documentType);
       }
     };
 
@@ -98,8 +134,8 @@ export function InlineOnePager({ assetId, symbol }: InlineOnePagerProps) {
     };
   }, [assetId]);
 
-  // Don't render anything if no one pager exists
-  if (!isLoading && !onePager) {
+  // Don't render anything if no documents exist
+  if (!isLoading && !onePager && !memo) {
     return null;
   }
 
@@ -113,54 +149,71 @@ export function InlineOnePager({ assetId, symbol }: InlineOnePagerProps) {
 
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden">
-      {/* Header */}
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full bg-muted/30 px-4 py-2.5 border-b border-border flex items-center justify-between hover:bg-muted/40 transition-colors"
-      >
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-emerald-400" />
-          {manusTaskUrl ? (
-            <a
-              href={manusTaskUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="font-semibold text-sm hover:text-primary transition-colors flex items-center gap-1"
-              title="Open Manus AI chat"
-            >
-              One Pager
-              <ExternalLink className="w-3 h-3 opacity-50" />
-            </a>
-          ) : (
-            <h3 className="font-semibold text-sm">One Pager</h3>
-          )}
-          {onePager && (
-            <span className="text-xs text-muted-foreground">
-              • {formatDate(onePager.created_at)}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {onePager && (
-            <a
-              href={onePager.file_path}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
+      {/* Header with Toggle */}
+      <div className="bg-muted/30 border-b border-border">
+        <div className="flex items-center justify-between px-4 py-2.5">
+          <div className="flex items-center gap-3">
+            <Sparkles className="w-4 h-4 text-emerald-400" />
+            
+            {/* Toggle Buttons */}
+            <div className="flex items-center bg-muted/50 rounded-lg p-0.5">
+              <button
+                onClick={() => setActiveTab('one_pager')}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                  activeTab === 'one_pager'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                } ${!onePager ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={!onePager}
+              >
+                One Pager
+              </button>
+              <button
+                onClick={() => setActiveTab('memo')}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                  activeTab === 'memo'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                } ${!memo ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={!memo}
+              >
+                Memo
+              </button>
+            </div>
+
+            {currentDocument && (
+              <span className="text-xs text-muted-foreground">
+                • {formatDate(currentDocument.created_at)}
+              </span>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {currentDocument && (
+              <a
+                href={currentDocument.file_path}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="p-1 rounded hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
+                title="Open in new tab"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            )}
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
               className="p-1 rounded hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
-              title="Open in new tab"
             >
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          )}
-          {isExpanded ? (
-            <ChevronUp className="w-4 h-4 text-muted-foreground" />
-          ) : (
-            <ChevronDown className="w-4 h-4 text-muted-foreground" />
-          )}
+              {isExpanded ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+            </button>
+          </div>
         </div>
-      </button>
+      </div>
 
       {/* Content */}
       {isExpanded && (
@@ -169,7 +222,7 @@ export function InlineOnePager({ assetId, symbol }: InlineOnePagerProps) {
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
             </div>
-          ) : content ? (
+          ) : currentContent ? (
             <div className="markdown-content">
               <ReactMarkdown 
                 remarkPlugins={[remarkGfm]}
@@ -301,17 +354,17 @@ export function InlineOnePager({ assetId, symbol }: InlineOnePagerProps) {
                   ),
                 }}
               >
-                {content}
+                {currentContent}
               </ReactMarkdown>
             </div>
-          ) : contentError && onePager ? (
+          ) : currentError && currentDocument ? (
             <div className="text-center py-4">
               <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
               <p className="text-sm text-muted-foreground mb-2">
-                {onePager.file_name}
+                {currentDocument.file_name}
               </p>
               <a
-                href={onePager.file_path}
+                href={currentDocument.file_path}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
@@ -320,9 +373,15 @@ export function InlineOnePager({ assetId, symbol }: InlineOnePagerProps) {
                 Open document
               </a>
             </div>
+          ) : !currentDocument ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No {activeTab === 'one_pager' ? 'one pager' : 'memo'} available yet.
+              <br />
+              <span className="text-xs">Generate one from the AI Documents panel.</span>
+            </p>
           ) : (
             <p className="text-sm text-muted-foreground text-center py-4">
-              No one pager available
+              No content available
             </p>
           )}
         </div>
