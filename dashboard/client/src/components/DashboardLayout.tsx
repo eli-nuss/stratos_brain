@@ -57,12 +57,14 @@ function SortableListTab({
   list, 
   activeTab, 
   onTabChange,
-  onContextMenu
+  onContextMenu,
+  showDivider
 }: { 
   list: StockList; 
   activeTab: TabType; 
   onTabChange: (tab: TabType) => void;
   onContextMenu: (e: React.MouseEvent, list: StockList) => void;
+  showDivider?: boolean;
 }) {
   const tabId = `list-${list.id}` as TabType;
   
@@ -84,14 +86,15 @@ function SortableListTab({
 
   return (
     <div ref={setNodeRef} style={style} className="flex items-center">
+      {showDivider && <div className="h-3 w-px bg-border/50 mx-1" />}
       <Tooltip>
         <TooltipTrigger asChild>
           <button
             onClick={() => onTabChange(tabId)}
             onContextMenu={(e) => onContextMenu(e, list)}
-            className={`px-2.5 py-1 text-xs font-medium rounded transition-all flex items-center gap-1 group ${
+            className={`px-2 py-1 text-xs font-medium rounded transition-all flex items-center gap-1 group ${
               activeTab === tabId
-                ? "bg-background text-foreground shadow-sm"
+                ? "bg-muted text-foreground"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
             }`}
           >
@@ -104,10 +107,6 @@ function SortableListTab({
             >
               <GripVertical className="w-3 h-3" />
             </span>
-            <span 
-              className="w-2 h-2 rounded-full shrink-0" 
-              style={{ backgroundColor: list.color }}
-            />
             {list.name}
           </button>
         </TooltipTrigger>
@@ -411,16 +410,16 @@ export default function DashboardLayout({
 
           {/* Navigation - Two rows */}
           <nav className="flex-1 flex flex-col items-center gap-1.5">
-            {/* Row 1: Fixed views */}
-            <div className="flex items-center bg-muted/30 p-0.5 rounded-lg gap-0.5">
+            {/* Row 1: Fixed views - highlighted with primary color */}
+            <div className="flex items-center bg-primary/10 border border-primary/20 p-0.5 rounded-lg gap-0.5">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => onTabChange("watchlist")}
-                    className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${
+                    className={`px-3 py-1.5 text-xs font-semibold rounded transition-all ${
                       activeTab === "watchlist"
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-primary/70 hover:text-primary hover:bg-primary/20"
                     }`}
                   >
                     Watchlist
@@ -433,10 +432,10 @@ export default function DashboardLayout({
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => onTabChange("equity")}
-                    className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${
+                    className={`px-3 py-1.5 text-xs font-semibold rounded transition-all ${
                       activeTab === "equity"
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-primary/70 hover:text-primary hover:bg-primary/20"
                     }`}
                   >
                     Equities
@@ -449,10 +448,10 @@ export default function DashboardLayout({
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => onTabChange("crypto")}
-                    className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${
+                    className={`px-3 py-1.5 text-xs font-semibold rounded transition-all ${
                       activeTab === "crypto"
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-primary/70 hover:text-primary hover:bg-primary/20"
                     }`}
                   >
                     Crypto
@@ -474,14 +473,15 @@ export default function DashboardLayout({
                     items={stockLists.map((list) => list.id)}
                     strategy={horizontalListSortingStrategy}
                   >
-                    <div className="flex items-center gap-0.5">
-                      {(showAllLists ? stockLists : stockLists.slice(0, 5)).map((list) => (
+                    <div className="flex items-center">
+                      {(showAllLists ? stockLists : stockLists.slice(0, 5)).map((list, index) => (
                         <SortableListTab
                           key={list.id}
                           list={list}
                           activeTab={activeTab}
                           onTabChange={onTabChange}
                           onContextMenu={handleContextMenu}
+                          showDivider={index > 0}
                         />
                       ))}
                     </div>
