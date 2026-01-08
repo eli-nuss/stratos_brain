@@ -87,6 +87,7 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
   const [showFilters, setShowFilters] = useState(false);
   
   const [filterThresholds, setFilterThresholds] = useState<FilterThresholds>({});
+  const [filterMode, setFilterMode] = useState<'and' | 'or'>('and');
   const [filterInputs, setFilterInputs] = useState({
     aiDirScoreMin: "",
     aiDirScoreMax: "",
@@ -125,71 +126,105 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
+  // Helper function to check if a row passes a specific filter
+  const checkFilter = (row: any, filterKey: keyof FilterThresholds): boolean => {
+    const threshold = filterThresholds[filterKey];
+    if (!threshold) return true; // No filter set, passes by default
+    
+    switch (filterKey) {
+      case 'aiDirScore': {
+        const score = row.ai_direction_score || 0;
+        if ((threshold as any).min !== undefined && score < (threshold as any).min) return false;
+        if ((threshold as any).max !== undefined && score > (threshold as any).max) return false;
+        return true;
+      }
+      case 'aiQualityScore': {
+        const score = row.ai_setup_quality_score || 0;
+        if ((threshold as any).min !== undefined && score < (threshold as any).min) return false;
+        if ((threshold as any).max !== undefined && score > (threshold as any).max) return false;
+        return true;
+      }
+      case 'return1d': {
+        const ret = row.return_1d || 0;
+        if ((threshold as any).min !== undefined && ret < (threshold as any).min) return false;
+        if ((threshold as any).max !== undefined && ret > (threshold as any).max) return false;
+        return true;
+      }
+      case 'volume7d': {
+        const vol = row.dollar_volume_7d || 0;
+        if ((threshold as any).min !== undefined && vol < (threshold as any).min) return false;
+        return true;
+      }
+      case 'marketCap': {
+        const mc = row.market_cap || 0;
+        if ((threshold as any).min !== undefined && mc < (threshold as any).min) return false;
+        return true;
+      }
+      case 'peRatio': {
+        const pe = row.pe_ratio;
+        if (pe === null || pe === undefined) return false;
+        if ((threshold as any).min !== undefined && pe < (threshold as any).min) return false;
+        if ((threshold as any).max !== undefined && pe > (threshold as any).max) return false;
+        return true;
+      }
+      case 'forwardPe': {
+        const fpe = row.forward_pe;
+        if (fpe === null || fpe === undefined) return false;
+        if ((threshold as any).min !== undefined && fpe < (threshold as any).min) return false;
+        if ((threshold as any).max !== undefined && fpe > (threshold as any).max) return false;
+        return true;
+      }
+      case 'pegRatio': {
+        const peg = row.peg_ratio;
+        if (peg === null || peg === undefined) return false;
+        if ((threshold as any).min !== undefined && peg < (threshold as any).min) return false;
+        if ((threshold as any).max !== undefined && peg > (threshold as any).max) return false;
+        return true;
+      }
+      case 'priceToSalesTtm': {
+        const ps = row.price_to_sales_ttm;
+        if (ps === null || ps === undefined) return false;
+        if ((threshold as any).min !== undefined && ps < (threshold as any).min) return false;
+        if ((threshold as any).max !== undefined && ps > (threshold as any).max) return false;
+        return true;
+      }
+      case 'forwardPs': {
+        const fps = row.forward_ps;
+        if (fps === null || fps === undefined) return false;
+        if ((threshold as any).min !== undefined && fps < (threshold as any).min) return false;
+        if ((threshold as any).max !== undefined && fps > (threshold as any).max) return false;
+        return true;
+      }
+      case 'psg': {
+        const psgVal = row.psg;
+        if (psgVal === null || psgVal === undefined) return false;
+        if ((threshold as any).min !== undefined && psgVal < (threshold as any).min) return false;
+        if ((threshold as any).max !== undefined && psgVal > (threshold as any).max) return false;
+        return true;
+      }
+      default:
+        return true;
+    }
+  };
+
   const filteredData = data.filter(row => {
-    if (filterThresholds.aiDirScore) {
-      const score = row.ai_direction_score || 0;
-      if (filterThresholds.aiDirScore.min !== undefined && score < filterThresholds.aiDirScore.min) return false;
-      if (filterThresholds.aiDirScore.max !== undefined && score > filterThresholds.aiDirScore.max) return false;
-    }
-    if (filterThresholds.aiQualityScore) {
-      const score = row.ai_setup_quality_score || 0;
-      if (filterThresholds.aiQualityScore.min !== undefined && score < filterThresholds.aiQualityScore.min) return false;
-      if (filterThresholds.aiQualityScore.max !== undefined && score > filterThresholds.aiQualityScore.max) return false;
-    }
-    if (filterThresholds.return1d) {
-      const ret = row.return_1d || 0;
-      if (filterThresholds.return1d.min !== undefined && ret < filterThresholds.return1d.min) return false;
-      if (filterThresholds.return1d.max !== undefined && ret > filterThresholds.return1d.max) return false;
-    }
-    if (filterThresholds.volume7d) {
-      const vol = row.dollar_volume_7d || 0;
-      if (filterThresholds.volume7d.min !== undefined && vol < filterThresholds.volume7d.min) return false;
-    }
-    if (filterThresholds.marketCap) {
-      const mc = row.market_cap || 0;
-      if (filterThresholds.marketCap.min !== undefined && mc < filterThresholds.marketCap.min) return false;
-    }
-    if (filterThresholds.peRatio) {
-      const pe = row.pe_ratio;
-      if (pe === null || pe === undefined) return false; // Exclude assets without P/E if filter is set
-      if (filterThresholds.peRatio.min !== undefined && pe < filterThresholds.peRatio.min) return false;
-      if (filterThresholds.peRatio.max !== undefined && pe > filterThresholds.peRatio.max) return false;
-    }
-    if (filterThresholds.forwardPe) {
-      const fpe = row.forward_pe;
-      if (fpe === null || fpe === undefined) return false; // Exclude assets without Forward P/E if filter is set
-      if (filterThresholds.forwardPe.min !== undefined && fpe < filterThresholds.forwardPe.min) return false;
-      if (filterThresholds.forwardPe.max !== undefined && fpe > filterThresholds.forwardPe.max) return false;
-    }
-    if (filterThresholds.pegRatio) {
-      const peg = row.peg_ratio;
-      if (peg === null || peg === undefined) return false; // Exclude assets without PEG if filter is set
-      if (filterThresholds.pegRatio.min !== undefined && peg < filterThresholds.pegRatio.min) return false;
-      if (filterThresholds.pegRatio.max !== undefined && peg > filterThresholds.pegRatio.max) return false;
-    }
-    if (filterThresholds.priceToSalesTtm) {
-      const ps = row.price_to_sales_ttm;
-      if (ps === null || ps === undefined) return false;
-      if (filterThresholds.priceToSalesTtm.min !== undefined && ps < filterThresholds.priceToSalesTtm.min) return false;
-      if (filterThresholds.priceToSalesTtm.max !== undefined && ps > filterThresholds.priceToSalesTtm.max) return false;
-    }
-    if (filterThresholds.forwardPs) {
-      const fps = row.forward_ps;
-      if (fps === null || fps === undefined) return false;
-      if (filterThresholds.forwardPs.min !== undefined && fps < filterThresholds.forwardPs.min) return false;
-      if (filterThresholds.forwardPs.max !== undefined && fps > filterThresholds.forwardPs.max) return false;
-    }
-    if (filterThresholds.psg) {
-      const psgVal = row.psg;
-      if (psgVal === null || psgVal === undefined) return false;
-      if (filterThresholds.psg.min !== undefined && psgVal < filterThresholds.psg.min) return false;
-      if (filterThresholds.psg.max !== undefined && psgVal > filterThresholds.psg.max) return false;
-    }
-    // Category filter
+    // Category filter always applies (AND logic)
     if (filterInputs.category && row.category !== filterInputs.category) {
       return false;
     }
-    return true;
+    
+    // Get all active filter keys
+    const activeFilterKeys = Object.keys(filterThresholds) as (keyof FilterThresholds)[];
+    
+    if (activeFilterKeys.length === 0) return true;
+    
+    if (filterMode === 'and') {
+      // AND mode: all filters must pass
+      return activeFilterKeys.every(key => checkFilter(row, key));
+    } else {
+      // OR mode: at least one filter must pass
+      return activeFilterKeys.some(key => checkFilter(row, key));
+    }
   });
 
   const handleSort = (field: SortField) => {
@@ -574,17 +609,51 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                 </>
               )}
             </div>
-            <div className="flex gap-2 pt-2">
-              <button onClick={applyThresholdFilters}
-                className="text-xs px-3 py-1 bg-signal-bullish/20 border border-signal-bullish/50 rounded hover:bg-signal-bullish/30 transition-colors">
-                Apply
-              </button>
-              {hasActiveFilters && (
-                <button onClick={clearThresholdFilters}
-                  className="text-xs px-3 py-1 bg-muted/20 border border-border rounded hover:bg-muted/30 transition-colors">
-                  Clear
+            <div className="flex items-center gap-3 pt-2">
+              {/* AND/OR Toggle */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-muted-foreground uppercase font-medium">Filter Mode:</span>
+                <div className="flex items-center bg-muted/30 rounded-md p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setFilterMode('and')}
+                    className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
+                      filterMode === 'and'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    AND
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFilterMode('or')}
+                    className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
+                      filterMode === 'or'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    OR
+                  </button>
+                </div>
+                <span className="text-[9px] text-muted-foreground">
+                  {filterMode === 'and' ? 'Match all filters' : 'Match any filter'}
+                </span>
+              </div>
+              
+              <div className="flex gap-2 ml-auto">
+                <button onClick={applyThresholdFilters}
+                  className="text-xs px-3 py-1 bg-signal-bullish/20 border border-signal-bullish/50 rounded hover:bg-signal-bullish/30 transition-colors">
+                  Apply
                 </button>
-              )}
+                {hasActiveFilters && (
+                  <button onClick={clearThresholdFilters}
+                    className="text-xs px-3 py-1 bg-muted/20 border border-border rounded hover:bg-muted/30 transition-colors">
+                    Clear
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}
