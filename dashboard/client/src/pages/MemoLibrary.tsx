@@ -1,9 +1,10 @@
 import useSWR from "swr";
-import { Search, FileText, Calendar, ExternalLink, File, Loader2 } from "lucide-react";
+import { Search, FileText, Calendar, FileDown, File, Loader2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import html2pdf from "html2pdf.js";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -30,6 +31,44 @@ function MemoDetailModal({ memo, onClose }: MemoDetailModalProps) {
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const handleOpenAsPdf = async () => {
+    if (!contentRef.current || generatingPdf) return;
+    
+    setGeneratingPdf(true);
+    try {
+      const element = contentRef.current;
+      const filename = memo.file_name.replace('.md', '.pdf');
+      
+      const opt = {
+        margin: [0.75, 0.75, 0.75, 0.75],
+        filename: filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#18181b'
+        },
+        jsPDF: { 
+          unit: 'in', 
+          format: 'letter', 
+          orientation: 'portrait' 
+        },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+      };
+      
+      // Generate PDF blob and open in new tab
+      const pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob');
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      window.open(pdfUrl, '_blank');
+    } catch (err) {
+      console.error('Failed to generate PDF:', err);
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
 
   // Fetch the markdown content
   useEffect(() => {
@@ -70,15 +109,18 @@ function MemoDetailModal({ memo, onClose }: MemoDetailModalProps) {
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <a 
-              href={memo.file_path} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors"
+            <button 
+              onClick={handleOpenAsPdf}
+              disabled={generatingPdf || loading}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <ExternalLink className="w-4 h-4" />
-              Open Raw
-            </a>
+              {generatingPdf ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <FileDown className="w-4 h-4" />
+              )}
+              {generatingPdf ? 'Generating...' : 'Open as PDF'}
+            </button>
             <button 
               onClick={onClose} 
               className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors"
@@ -99,8 +141,8 @@ function MemoDetailModal({ memo, onClose }: MemoDetailModalProps) {
               Failed to load memo content: {error}
             </div>
           ) : (
-            <div className="px-8 py-6">
-              <article className="memo-content">
+            <div className="px-8 py-6" ref={contentRef}>
+              <article className="memo-content" style={{ backgroundColor: '#18181b' }}>
                 <ReactMarkdown 
                   remarkPlugins={[remarkGfm]}
                   components={{
