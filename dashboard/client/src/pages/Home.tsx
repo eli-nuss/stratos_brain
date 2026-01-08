@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useLocation, useRoute } from "wouter";
 import DashboardLayout from "@/components/DashboardLayout";
-import AllAssetsTable from "@/components/AllAssetsTable";
-import WatchlistTable from "@/components/WatchlistTable";
-import StockListTable from "@/components/StockListTable";
+import CustomizableAssetTable from "@/components/CustomizableAssetTable";
+import CustomizableWatchlistTable from "@/components/CustomizableWatchlistTable";
+import CustomizableStockListTable from "@/components/CustomizableStockListTable";
 import AssetDetail from "@/components/AssetDetail";
 import useSWR from "swr";
 import { useStockLists, StockList } from "@/hooks/useStockLists";
@@ -111,18 +111,18 @@ export default function Home() {
     >
       <div className="h-[calc(100vh-10rem)] sm:h-[calc(100vh-8rem)]">
         {activeTab === "watchlist" ? (
-          <WatchlistTable
+          <CustomizableWatchlistTable
             key="watchlist"
             onAssetClick={handleAssetClick}
           />
         ) : isStockListTab && currentList ? (
-          <StockListTable
+          <CustomizableStockListTable
             key={`list-${currentListId}`}
             list={currentList}
             onAssetClick={handleAssetClick}
           />
         ) : (
-          <AllAssetsTable
+          <CustomizableAssetTable
             key={`all-${activeTab}`}
             assetType={activeTab as "crypto" | "equity"}
             date={date}
