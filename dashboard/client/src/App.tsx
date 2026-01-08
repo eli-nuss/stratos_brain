@@ -15,6 +15,10 @@ function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Home} />
+      <Route path={"/watchlist"} component={Home} />
+      <Route path={"/equities"} component={Home} />
+      <Route path={"/crypto"} component={Home} />
+      <Route path={"/list/:listId"} component={Home} />
       <Route path={"/docs"} component={Documentation} />
       <Route path={"/admin/templates"} component={TemplateEditor} />
       <Route path={"/memos"} component={MemoLibrary} />

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation, useRoute } from "wouter";
 import DashboardLayout from "@/components/DashboardLayout";
 import AllAssetsTable from "@/components/AllAssetsTable";
 import WatchlistTable from "@/components/WatchlistTable";
@@ -12,9 +13,41 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 export type TabType = "watchlist" | "crypto" | "equity" | `list-${number}`;
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<TabType>("watchlist");
+  const [location, setLocation] = useLocation();
+  const [, listParams] = useRoute("/list/:listId");
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const { lists, mutate: mutateLists } = useStockLists();
+
+  // Derive active tab from URL
+  const getTabFromUrl = (): TabType => {
+    if (location === "/equities") return "equity";
+    if (location === "/crypto") return "crypto";
+    if (location === "/watchlist" || location === "/") return "watchlist";
+    if (listParams?.listId) return `list-${listParams.listId}` as TabType;
+    return "watchlist";
+  };
+
+  const [activeTab, setActiveTab] = useState<TabType>(getTabFromUrl());
+
+  // Sync activeTab with URL changes
+  useEffect(() => {
+    setActiveTab(getTabFromUrl());
+  }, [location, listParams?.listId]);
+
+  // Handle tab change - update URL
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    if (tab === "watchlist") {
+      setLocation("/watchlist");
+    } else if (tab === "equity") {
+      setLocation("/equities");
+    } else if (tab === "crypto") {
+      setLocation("/crypto");
+    } else if (tab.startsWith("list-")) {
+      const listId = tab.split("-")[1];
+      setLocation(`/list/${listId}`);
+    }
+  };
 
   // Get latest date for the active tab
   const { data: health } = useSWR("/api/dashboard/health", fetcher);
@@ -39,7 +72,7 @@ export default function Home() {
   return (
     <DashboardLayout 
       activeTab={activeTab} 
-      onTabChange={setActiveTab}
+      onTabChange={handleTabChange}
       stockLists={lists}
       onListCreated={mutateLists}
       onListsReordered={handleListsReordered}
