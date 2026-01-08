@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { TrendingUp, TrendingDown, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, X, Star } from "lucide-react";
+import { TrendingUp, TrendingDown, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { NoteCell } from "@/components/NoteCell";
 import AddToListButton from "@/components/AddToListButton";
@@ -16,8 +16,8 @@ type SortOrder = "asc" | "desc";
 const PAGE_SIZE = 50;
 
 export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
-  const { assets, isLoading, mutate: mutateAssets } = useWatchlistAssets();
-  const { removeFromWatchlist, mutate: mutateWatchlist } = useWatchlist();
+  const { assets, isLoading } = useWatchlistAssets();
+  const { mutate: mutateWatchlist } = useWatchlist();
   const [page, setPage] = useState(0);
   const [sortBy, setSortBy] = useState<SortField>("ai_direction_score");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
@@ -61,13 +61,6 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
     e.preventDefault();
     setSearch(searchInput);
     setPage(0);
-  };
-
-  const handleRemove = async (e: React.MouseEvent, assetId: number) => {
-    e.stopPropagation();
-    await removeFromWatchlist(assetId);
-    mutateAssets();
-    mutateWatchlist();
   };
 
   const getDirectionIcon = (score: number | null | undefined) => {
@@ -255,16 +248,14 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
               <th className="px-2 py-2 font-medium text-center">
                 <HeaderWithTooltip tooltip="Your personal notes">Notes</HeaderWithTooltip>
               </th>
-              <th className="px-2 py-2 font-medium text-center w-12">
-                <HeaderWithTooltip tooltip="Remove from watchlist">★</HeaderWithTooltip>
-              </th>
+
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={hasEquities ? 22 : 16} className="px-2 py-4 text-center text-muted-foreground">Loading...</td></tr>
+              <tr><td colSpan={hasEquities ? 21 : 15} className="px-2 py-4 text-center text-muted-foreground">Loading...</td></tr>
             ) : paginatedAssets.length === 0 ? (
-              <tr><td colSpan={hasEquities ? 22 : 16} className="px-2 py-4 text-center text-muted-foreground">
+              <tr><td colSpan={hasEquities ? 21 : 15} className="px-2 py-4 text-center text-muted-foreground">
                 {search ? `No assets found matching "${search}"` : "Your watchlist is empty. Add assets from the Crypto or Equities tabs."}
               </td></tr>
             ) : (
@@ -373,19 +364,6 @@ export default function WatchlistTable({ onAssetClick }: WatchlistTableProps) {
                     </Tooltip>
                   </td>
                   <NoteCell assetId={row.asset_id} />
-                  <td className="px-2 py-2 text-center">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={(e) => handleRemove(e, row.asset_id)}
-                          className="p-1 rounded-full hover:scale-110 transition-all duration-200"
-                        >
-                          <Star className="w-4 h-4 fill-yellow-400 text-yellow-400 hover:fill-transparent hover:text-muted-foreground transition-colors" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>Remove from watchlist</TooltipContent>
-                    </Tooltip>
-                  </td>
                 </tr>
               ))
             )}
