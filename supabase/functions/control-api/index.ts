@@ -514,7 +514,6 @@ serve(async (req) => {
         let query = supabase
           .from('asset_ai_reviews')
           .select(`
-            id,
             asset_id,
             as_of_date,
             universe_id,
