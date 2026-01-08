@@ -304,3 +304,4 @@ export function DocumentsSection({ assetId, symbol, companyName }: DocumentsSect
     </div>
   );
 }
+
