@@ -45,32 +45,41 @@ export function InlineOnePager({ assetId, symbol }: InlineDocumentViewerProps) {
     
     setIsExporting(true);
     try {
-      // Dynamically import html2pdf to avoid SSR issues
-      const html2pdfModule = await import('html2pdf.js');
-      const html2pdf = html2pdfModule.default || html2pdfModule;
+      // Dynamically import jspdf and html2canvas
+      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+        import('jspdf'),
+        import('html2canvas')
+      ]);
       
       // Create a clone of the content for PDF generation with better styling
       const element = contentRef.current.cloneNode(true) as HTMLElement;
       
-      // Apply print-friendly styles
-      element.style.padding = '20px';
-      element.style.backgroundColor = 'white';
-      element.style.color = 'black';
+      // Create a temporary container for rendering
+      const container = document.createElement('div');
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      container.style.top = '0';
+      container.style.width = '800px';
+      container.style.padding = '40px';
+      container.style.backgroundColor = 'white';
+      container.style.color = 'black';
+      container.appendChild(element);
+      document.body.appendChild(container);
       
-      // Fix text colors for PDF (dark mode -> light mode)
-      const allElements = element.querySelectorAll('*');
-      allElements.forEach((el) => {
+      // Apply print-friendly styles
+      element.style.backgroundColor = 'white';
+      element.style.color = '#1a1a1a';
+      
+      // Style all text elements
+      element.querySelectorAll('*').forEach((el) => {
         const htmlEl = el as HTMLElement;
-        const computedStyle = window.getComputedStyle(htmlEl);
-        // Make text darker for PDF
-        if (computedStyle.color.includes('rgb(')) {
-          htmlEl.style.color = '#1a1a1a';
-        }
+        htmlEl.style.color = '#1a1a1a';
       });
       
       // Style headings
       element.querySelectorAll('h1, h2, h3, h4').forEach((el) => {
         (el as HTMLElement).style.color = '#111827';
+        (el as HTMLElement).style.fontWeight = 'bold';
       });
       
       // Style paragraphs and list items
@@ -82,33 +91,60 @@ export function InlineOnePager({ assetId, symbol }: InlineDocumentViewerProps) {
       element.querySelectorAll('th').forEach((el) => {
         (el as HTMLElement).style.backgroundColor = '#f3f4f6';
         (el as HTMLElement).style.color = '#111827';
+        (el as HTMLElement).style.padding = '8px';
+        (el as HTMLElement).style.border = '1px solid #e5e7eb';
       });
       element.querySelectorAll('td').forEach((el) => {
         (el as HTMLElement).style.color = '#374151';
-        (el as HTMLElement).style.borderColor = '#e5e7eb';
+        (el as HTMLElement).style.padding = '8px';
+        (el as HTMLElement).style.border = '1px solid #e5e7eb';
+      });
+      element.querySelectorAll('table').forEach((el) => {
+        (el as HTMLElement).style.borderCollapse = 'collapse';
+        (el as HTMLElement).style.width = '100%';
       });
 
-      const filename = `${symbol}_${activeTab === 'one_pager' ? 'One_Pager' : 'Investment_Memo'}_${new Date().toISOString().split('T')[0]}.pdf`;
+      // Generate canvas from the element
+      const canvas = await html2canvas(container, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false
+      });
       
-      const opt = {
-        margin: [10, 10, 10, 10],
-        filename: filename,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-          scale: 2,
-          useCORS: true,
-          letterRendering: true,
-          backgroundColor: '#ffffff'
-        },
-        jsPDF: { 
-          unit: 'mm', 
-          format: 'a4', 
-          orientation: 'portrait' as const
-        },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-      };
-
-      await html2pdf().set(opt).from(element).save();
+      // Remove temporary container
+      document.body.removeChild(container);
+      
+      // Create PDF
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pdfWidth - 20; // 10mm margin on each side
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      let heightLeft = imgHeight;
+      let position = 10; // Top margin
+      
+      // Add first page
+      pdf.addImage(imgData, 'JPEG', 10, position, imgWidth, imgHeight);
+      heightLeft -= (pdfHeight - 20);
+      
+      // Add additional pages if needed
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight + 10;
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 10, position, imgWidth, imgHeight);
+        heightLeft -= (pdfHeight - 20);
+      }
+      
+      const filename = `${symbol}_${activeTab === 'one_pager' ? 'One_Pager' : 'Investment_Memo'}_${new Date().toISOString().split('T')[0]}.pdf`;
+      pdf.save(filename);
     } catch (error) {
       console.error('Error exporting to PDF:', error);
       alert('Failed to export PDF. Please try again.');
