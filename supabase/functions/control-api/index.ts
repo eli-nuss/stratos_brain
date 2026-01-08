@@ -1765,7 +1765,7 @@ If asked about something not in the data, acknowledge the limitation.`
             .select('*')
             .in('asset_id', assetIds)
             .eq('as_of_date', equityDate)
-            .eq('universe_id', 'equities_all')
+            .eq('universe_id', 'equity_all')
         ])
         
         const assets = [...(cryptoResult.data || []), ...(equityResult.data || [])]
