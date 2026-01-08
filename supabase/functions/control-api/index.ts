@@ -1801,23 +1801,24 @@ If asked about something not in the data, acknowledge the limitation.`
         
         console.log(`Creating ${docType} with prompt: ${prompt}`)
         
-        // Check if there's an existing task for this asset/document type
+        // Check if there's an existing task for this asset (any document type - shared chat per asset)
         let existingTaskId: string | null = null
         if (asset_id) {
           const { data: existingFiles } = await supabase
             .from('asset_files')
-            .select('description')
+            .select('description, file_type')
             .eq('asset_id', asset_id)
-            .eq('file_type', docType)
+            .in('file_type', ['one_pager', 'memo'])
             .order('created_at', { ascending: false })
-            .limit(5)
+            .limit(10)
           
-          // Find the most recent task ID from descriptions
+          // Find the most recent task ID from descriptions (any doc type)
           if (existingFiles) {
             for (const file of existingFiles) {
               const match = file.description?.match(/Task: ([A-Za-z0-9]+)/)
               if (match) {
                 existingTaskId = match[1]
+                console.log(`Found existing task ${existingTaskId} from ${file.file_type}`)
                 break
               }
             }

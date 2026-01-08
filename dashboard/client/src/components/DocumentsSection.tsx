@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileText, Sparkles, ChevronDown, ChevronUp, ExternalLink, Loader2, Clock } from 'lucide-react';
+import { FileText, Sparkles, ChevronDown, ChevronUp, ExternalLink, Loader2, Clock, MessageSquare, Plus, X } from 'lucide-react';
 import { 
   registerPendingDocument, 
   isPendingForAsset, 
@@ -22,6 +22,13 @@ interface DocumentsSectionProps {
   companyName?: string;
 }
 
+interface ChoiceDialogState {
+  isOpen: boolean;
+  docType: 'one_pager' | 'memo' | null;
+  existingTaskUrl: string | null;
+  existingTaskId: string | null;
+}
+
 const API_BASE = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/control-api';
 
 export function DocumentsSection({ assetId, symbol, companyName }: DocumentsSectionProps) {
@@ -31,6 +38,12 @@ export function DocumentsSection({ assetId, symbol, companyName }: DocumentsSect
   const [showMemoHistory, setShowMemoHistory] = useState(false);
   const [generatingOnePager, setGeneratingOnePager] = useState(false);
   const [generatingMemo, setGeneratingMemo] = useState(false);
+  const [choiceDialog, setChoiceDialog] = useState<ChoiceDialogState>({
+    isOpen: false,
+    docType: null,
+    existingTaskUrl: null,
+    existingTaskId: null
+  });
 
   // Fetch documents on mount and when assetId changes
   useEffect(() => {
@@ -97,7 +110,53 @@ export function DocumentsSection({ assetId, symbol, companyName }: DocumentsSect
     }
   };
 
-  const generateDocument = async (docType: 'one_pager' | 'memo') => {
+  // Find existing task ID from any document for this asset
+  const findExistingTaskInfo = (): { taskId: string; taskUrl: string } | null => {
+    const allDocs = [...onePagers, ...memos];
+    for (const doc of allDocs) {
+      const match = doc.description?.match(/Task: ([A-Za-z0-9]+)/);
+      if (match) {
+        return {
+          taskId: match[1],
+          taskUrl: `https://manus.im/app/${match[1]}`
+        };
+      }
+    }
+    return null;
+  };
+
+  const handleGenerateClick = (docType: 'one_pager' | 'memo') => {
+    const existingTask = findExistingTaskInfo();
+    
+    if (existingTask) {
+      // Show choice dialog
+      setChoiceDialog({
+        isOpen: true,
+        docType,
+        existingTaskUrl: existingTask.taskUrl,
+        existingTaskId: existingTask.taskId
+      });
+    } else {
+      // No existing task, create new directly
+      generateDocument(docType, false);
+    }
+  };
+
+  const handleContinueExisting = () => {
+    if (choiceDialog.existingTaskUrl) {
+      window.open(choiceDialog.existingTaskUrl, '_blank');
+    }
+    setChoiceDialog({ isOpen: false, docType: null, existingTaskUrl: null, existingTaskId: null });
+  };
+
+  const handleCreateNew = () => {
+    if (choiceDialog.docType) {
+      generateDocument(choiceDialog.docType, true);
+    }
+    setChoiceDialog({ isOpen: false, docType: null, existingTaskUrl: null, existingTaskId: null });
+  };
+
+  const generateDocument = async (docType: 'one_pager' | 'memo', forceNew: boolean = false) => {
     if (docType === 'one_pager') {
       setGeneratingOnePager(true);
     } else {
@@ -112,7 +171,8 @@ export function DocumentsSection({ assetId, symbol, companyName }: DocumentsSect
           symbol,
           company_name: companyName,
           asset_id: assetId,
-          document_type: docType
+          document_type: docType,
+          force_new: forceNew
         })
       });
 
@@ -179,7 +239,7 @@ export function DocumentsSection({ assetId, symbol, companyName }: DocumentsSect
             {title}
           </h4>
           <button
-            onClick={() => generateDocument(docType)}
+            onClick={() => handleGenerateClick(docType)}
             disabled={isGeneratingNew}
             className="flex items-center gap-1 px-2 py-1 text-xs bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-600 disabled:cursor-not-allowed rounded transition-colors"
           >
@@ -307,6 +367,59 @@ export function DocumentsSection({ assetId, symbol, companyName }: DocumentsSect
           generatingMemo
         )}
       </div>
+
+      {/* Choice Dialog */}
+      {choiceDialog.isOpen && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-xl border border-gray-700 p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white">
+                Generate {choiceDialog.docType === 'one_pager' ? 'One Pager' : 'Memo'}
+              </h3>
+              <button
+                onClick={() => setChoiceDialog({ isOpen: false, docType: null, existingTaskUrl: null, existingTaskId: null })}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <p className="text-gray-400 text-sm mb-6">
+              This asset already has an existing Manus AI chat. Would you like to continue in that chat or start a new one?
+            </p>
+            
+            <div className="space-y-3">
+              <button
+                onClick={handleContinueExisting}
+                className="w-full flex items-center gap-3 p-4 bg-gray-800 hover:bg-gray-750 border border-gray-700 hover:border-emerald-500/50 rounded-lg transition-colors text-left group relative"
+                title="You'll need to manually type your request in the existing chat"
+              >
+                <div className="p-2 bg-emerald-600/20 rounded-lg">
+                  <MessageSquare className="w-5 h-5 text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-white font-medium">Continue existing chat</p>
+                  <p className="text-gray-400 text-xs mt-0.5">Open the previous Manus conversation</p>
+                  <p className="text-amber-500/80 text-xs mt-1 italic">Note: You'll need to manually request the document</p>
+                </div>
+              </button>
+              
+              <button
+                onClick={handleCreateNew}
+                className="w-full flex items-center gap-3 p-4 bg-gray-800 hover:bg-gray-750 border border-gray-700 hover:border-blue-500/50 rounded-lg transition-colors text-left"
+              >
+                <div className="p-2 bg-blue-600/20 rounded-lg">
+                  <Plus className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <p className="text-white font-medium">Create new chat</p>
+                  <p className="text-gray-400 text-xs mt-0.5">Start fresh with auto-generated prompt</p>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
