@@ -48,6 +48,11 @@ function isPublicDashboardEndpoint(req: Request): boolean {
     return true
   }
   
+  // Allow public access to stock-lists endpoints (all methods)
+  if (path.startsWith('/dashboard/stock-lists')) {
+    return true
+  }
+  
   // Allow public access to create-document endpoint
   if (req.method === 'POST' && path === '/dashboard/create-document') {
     return true
@@ -2073,6 +2078,150 @@ If asked about something not in the data, acknowledge the limitation.`
           credit_usage: taskData.credit_usage,
           output_file: outputFile
         }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // ==================== STOCK LISTS ENDPOINTS ====================
+
+      // GET /dashboard/stock-lists - Get all stock lists
+      case req.method === 'GET' && path === '/dashboard/stock-lists': {
+        const { data: lists, error } = await supabase
+          .from('stock_lists')
+          .select('*')
+          .order('display_order', { ascending: true })
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(lists || []), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /dashboard/stock-lists/:list_id/assets - Get assets in a specific list
+      case req.method === 'GET' && /^\/dashboard\/stock-lists\/\d+\/assets$/.test(path): {
+        const listId = parseInt(path.split('/')[3])
+        
+        // Get the latest dates for each asset type
+        const { data: latestDates } = await supabase
+          .from('latest_dates')
+          .select('asset_type, latest_date')
+        
+        const dateMap: Record<string, string> = {}
+        latestDates?.forEach(d => { dateMap[d.asset_type] = d.latest_date })
+        
+        const cryptoDate = dateMap['crypto'] || new Date().toISOString().split('T')[0]
+        const equityDate = dateMap['equity'] || new Date().toISOString().split('T')[0]
+        
+        // Get assets from the stock list view
+        const [cryptoResult, equityResult] = await Promise.all([
+          supabase
+            .from('v_stock_list_assets')
+            .select('*')
+            .eq('list_id', listId)
+            .eq('as_of_date', cryptoDate)
+            .eq('universe_id', 'crypto_all'),
+          supabase
+            .from('v_stock_list_assets')
+            .select('*')
+            .eq('list_id', listId)
+            .eq('as_of_date', equityDate)
+            .or('universe_id.eq.equity_all,universe_id.eq.equities_all')
+        ])
+        
+        const assets = [...(cryptoResult.data || []), ...(equityResult.data || [])]
+        
+        return new Response(JSON.stringify(assets), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /dashboard/stock-lists/asset/:asset_id - Get lists that contain a specific asset
+      case req.method === 'GET' && /^\/dashboard\/stock-lists\/asset\/\d+$/.test(path): {
+        const assetId = parseInt(path.split('/').pop()!)
+        
+        const { data: listItems, error } = await supabase
+          .from('stock_list_items')
+          .select('list_id, stock_lists(id, name, color, icon)')
+          .eq('asset_id', assetId)
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const lists = listItems?.map(item => item.stock_lists) || []
+        
+        return new Response(JSON.stringify(lists), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // POST /dashboard/stock-lists/:list_id/assets - Add asset to a list
+      case req.method === 'POST' && /^\/dashboard\/stock-lists\/\d+\/assets$/.test(path): {
+        const listId = parseInt(path.split('/')[3])
+        const body = await req.json()
+        const { asset_id } = body
+        
+        if (!asset_id) {
+          return new Response(JSON.stringify({ error: 'asset_id is required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const { data, error } = await supabase
+          .from('stock_list_items')
+          .insert({ list_id: listId, asset_id })
+          .select()
+          .single()
+        
+        if (error) {
+          // If already exists, return success
+          if (error.code === '23505') {
+            return new Response(JSON.stringify({ success: true, already_exists: true }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            })
+          }
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(data), {
+          status: 201,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // DELETE /dashboard/stock-lists/:list_id/assets/:asset_id - Remove asset from a list
+      case req.method === 'DELETE' && /^\/dashboard\/stock-lists\/\d+\/assets\/\d+$/.test(path): {
+        const pathParts = path.split('/')
+        const listId = parseInt(pathParts[3])
+        const assetId = parseInt(pathParts[5])
+        
+        const { error } = await supabase
+          .from('stock_list_items')
+          .delete()
+          .eq('list_id', listId)
+          .eq('asset_id', assetId)
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }

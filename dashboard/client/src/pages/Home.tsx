@@ -2,35 +2,56 @@ import { useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import AllAssetsTable from "@/components/AllAssetsTable";
 import WatchlistTable from "@/components/WatchlistTable";
+import StockListTable from "@/components/StockListTable";
 import AssetDetail from "@/components/AssetDetail";
 import useSWR from "swr";
+import { useStockLists, StockList } from "@/hooks/useStockLists";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
+export type TabType = "watchlist" | "crypto" | "equity" | `list-${number}`;
+
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<"watchlist" | "crypto" | "equity">("watchlist");
+  const [activeTab, setActiveTab] = useState<TabType>("watchlist");
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
+  const { lists } = useStockLists();
 
   // Get latest date for the active tab
   const { data: health } = useSWR("/api/dashboard/health", fetcher);
-  const date = activeTab !== "watchlist" ? health?.latest_dates?.[activeTab] : undefined;
+  const assetType = activeTab === "crypto" ? "crypto" : activeTab === "equity" ? "equity" : undefined;
+  const date = assetType ? health?.latest_dates?.[assetType] : undefined;
 
   const handleAssetClick = (assetId: string) => {
     setSelectedAssetId(assetId);
   };
 
+  // Check if current tab is a stock list
+  const isStockListTab = activeTab.startsWith("list-");
+  const currentListId = isStockListTab ? parseInt(activeTab.split("-")[1]) : null;
+  const currentList = currentListId ? lists.find((l: StockList) => l.id === currentListId) : null;
+
   return (
-    <DashboardLayout activeTab={activeTab} onTabChange={setActiveTab}>
+    <DashboardLayout 
+      activeTab={activeTab} 
+      onTabChange={setActiveTab}
+      stockLists={lists}
+    >
       <div className="h-[calc(100vh-8rem)]">
         {activeTab === "watchlist" ? (
           <WatchlistTable
             key="watchlist"
             onAssetClick={handleAssetClick}
           />
+        ) : isStockListTab && currentList ? (
+          <StockListTable
+            key={`list-${currentListId}`}
+            list={currentList}
+            onAssetClick={handleAssetClick}
+          />
         ) : (
           <AllAssetsTable
             key={`all-${activeTab}`}
-            assetType={activeTab}
+            assetType={activeTab as "crypto" | "equity"}
             date={date}
             onAssetClick={handleAssetClick}
           />

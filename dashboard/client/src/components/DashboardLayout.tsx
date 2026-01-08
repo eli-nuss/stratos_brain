@@ -1,21 +1,36 @@
 import { ReactNode } from "react";
 import useSWR from "swr";
-import { Activity, Database, Brain, Clock, AlertTriangle, Info, BookOpen } from "lucide-react";
+import { Activity, Database, Brain, Clock, AlertTriangle, Info, BookOpen, Bot, Pill, Rocket } from "lucide-react";
 import { format } from "date-fns";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { StockList } from "@/hooks/useStockLists";
+import { TabType } from "@/pages/Home";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
+// Map icon names to Lucide icons
+const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+  brain: Brain,
+  robot: Bot,
+  pill: Pill,
+  rocket: Rocket,
+};
+
 interface DashboardLayoutProps {
   children: ReactNode;
-  activeTab: "watchlist" | "crypto" | "equity";
-  onTabChange: (tab: "watchlist" | "crypto" | "equity") => void;
+  activeTab: TabType;
+  onTabChange: (tab: TabType) => void;
+  stockLists?: StockList[];
 }
 
-export default function DashboardLayout({ children, activeTab, onTabChange }: DashboardLayoutProps) {
+export default function DashboardLayout({ children, activeTab, onTabChange, stockLists = [] }: DashboardLayoutProps) {
   const { data: health } = useSWR("/api/dashboard/health", fetcher, {
     refreshInterval: 60000, // Refresh every minute
   });
+
+  const getIcon = (iconName: string) => {
+    return iconMap[iconName] || Brain;
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
@@ -107,58 +122,87 @@ export default function DashboardLayout({ children, activeTab, onTabChange }: Da
               </TooltipContent>
             </Tooltip>
             <div className="h-4 w-px bg-border" />
-            <div className="flex items-center bg-muted/50 p-1 rounded-lg">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => onTabChange("watchlist")}
-                  className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
-                    activeTab === "watchlist"
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  ⭐ Watchlist
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Your personal watchlist. Add assets from Crypto or Equities tabs.
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => onTabChange("crypto")}
-                  className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
-                    activeTab === "crypto"
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Crypto
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Cryptocurrency assets including BTC, ETH, and altcoins. Data updates 24/7.
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => onTabChange("equity")}
-                  className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
-                    activeTab === "equity"
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Equities
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                US equity stocks. Data updates after market close (4 PM ET).
-              </TooltipContent>
-            </Tooltip>
+            <div className="flex items-center bg-muted/50 p-1 rounded-lg gap-0.5">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => onTabChange("watchlist")}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                      activeTab === "watchlist"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    ⭐ Watchlist
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Your personal watchlist. Add assets from Crypto or Equities tabs.
+                </TooltipContent>
+              </Tooltip>
+              
+              {/* Stock List Tabs */}
+              {stockLists.map((list) => {
+                const Icon = getIcon(list.icon);
+                const tabId = `list-${list.id}` as TabType;
+                return (
+                  <Tooltip key={list.id}>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => onTabChange(tabId)}
+                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-1.5 ${
+                          activeTab === tabId
+                            ? "bg-background text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        <Icon className="w-3.5 h-3.5" style={{ color: list.color }} />
+                        {list.name}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {list.description}
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+              
+              <div className="h-4 w-px bg-border mx-1" />
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => onTabChange("crypto")}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                      activeTab === "crypto"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Crypto
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Cryptocurrency assets including BTC, ETH, and altcoins. Data updates 24/7.
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => onTabChange("equity")}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                      activeTab === "equity"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Equities
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  US equity stocks. Data updates after market close (4 PM ET).
+                </TooltipContent>
+              </Tooltip>
             </div>
           </div>
         </div>
