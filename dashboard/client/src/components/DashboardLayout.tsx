@@ -1,10 +1,11 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useRef, useEffect } from "react";
 import useSWR from "swr";
-import { Activity, BookOpen, Settings, Search, GripVertical } from "lucide-react";
+import { Activity, BookOpen, Settings, Search, GripVertical, Pencil, Trash2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { StockList } from "@/hooks/useStockLists";
 import { TabType } from "@/pages/Home";
 import CreateListButton from "@/components/CreateListButton";
+import { createPortal } from "react-dom";
 import {
   DndContext,
   closestCenter,
@@ -34,17 +35,34 @@ interface DashboardLayoutProps {
   onSearchChange?: (query: string) => void;
   onListCreated?: () => void;
   onListsReordered?: (lists: StockList[]) => void;
+  onListDeleted?: () => void;
+  onListRenamed?: () => void;
 }
 
-// Sortable list item component
+interface ContextMenuState {
+  isOpen: boolean;
+  x: number;
+  y: number;
+  list: StockList | null;
+}
+
+interface RenameModalState {
+  isOpen: boolean;
+  list: StockList | null;
+  newName: string;
+}
+
+// Sortable list item component with context menu
 function SortableListTab({ 
   list, 
   activeTab, 
-  onTabChange 
+  onTabChange,
+  onContextMenu
 }: { 
   list: StockList; 
   activeTab: TabType; 
   onTabChange: (tab: TabType) => void;
+  onContextMenu: (e: React.MouseEvent, list: StockList) => void;
 }) {
   const tabId = `list-${list.id}` as TabType;
   
@@ -70,6 +88,7 @@ function SortableListTab({
         <TooltipTrigger asChild>
           <button
             onClick={() => onTabChange(tabId)}
+            onContextMenu={(e) => onContextMenu(e, list)}
             className={`px-2.5 py-1 text-xs font-medium rounded transition-all flex items-center gap-1 group ${
               activeTab === tabId
                 ? "bg-background text-foreground shadow-sm"
@@ -92,7 +111,7 @@ function SortableListTab({
             {list.name}
           </button>
         </TooltipTrigger>
-        <TooltipContent>{list.description}</TooltipContent>
+        <TooltipContent>Right-click for options</TooltipContent>
       </Tooltip>
     </div>
   );
@@ -106,11 +125,130 @@ export default function DashboardLayout({
   searchQuery = "",
   onSearchChange,
   onListCreated,
-  onListsReordered
+  onListsReordered,
+  onListDeleted,
+  onListRenamed
 }: DashboardLayoutProps) {
   const { data: health } = useSWR("/api/dashboard/health", fetcher, {
     refreshInterval: 60000, // Refresh every minute
   });
+
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<ContextMenuState>({
+    isOpen: false,
+    x: 0,
+    y: 0,
+    list: null
+  });
+  
+  // Rename modal state
+  const [renameModal, setRenameModal] = useState<RenameModalState>({
+    isOpen: false,
+    list: null,
+    newName: ""
+  });
+  
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
+
+  // Close context menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+        setContextMenu(prev => ({ ...prev, isOpen: false }));
+      }
+    };
+    
+    if (contextMenu.isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [contextMenu.isOpen]);
+
+  // Focus rename input when modal opens
+  useEffect(() => {
+    if (renameModal.isOpen && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [renameModal.isOpen]);
+
+  const handleContextMenu = (e: React.MouseEvent, list: StockList) => {
+    e.preventDefault();
+    setContextMenu({
+      isOpen: true,
+      x: e.clientX,
+      y: e.clientY,
+      list
+    });
+  };
+
+  const handleRename = () => {
+    if (contextMenu.list) {
+      setRenameModal({
+        isOpen: true,
+        list: contextMenu.list,
+        newName: contextMenu.list.name
+      });
+    }
+    setContextMenu(prev => ({ ...prev, isOpen: false }));
+  };
+
+  const handleRenameSubmit = async () => {
+    if (!renameModal.list || !renameModal.newName.trim()) return;
+    
+    setIsRenaming(true);
+    try {
+      await fetch(`/api/dashboard/stock-lists/${renameModal.list.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: renameModal.newName.trim() })
+      });
+      
+      if (onListRenamed) {
+        onListRenamed();
+      }
+      
+      setRenameModal({ isOpen: false, list: null, newName: "" });
+    } catch (error) {
+      console.error("Failed to rename list:", error);
+    } finally {
+      setIsRenaming(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!contextMenu.list) return;
+    
+    const listToDelete = contextMenu.list;
+    setContextMenu(prev => ({ ...prev, isOpen: false }));
+    
+    if (!confirm(`Are you sure you want to delete "${listToDelete.name}"? This cannot be undone.`)) {
+      return;
+    }
+    
+    setIsDeleting(true);
+    try {
+      await fetch(`/api/dashboard/stock-lists/${listToDelete.id}`, {
+        method: "DELETE"
+      });
+      
+      // Switch to watchlist if we deleted the active tab
+      if (activeTab === `list-${listToDelete.id}`) {
+        onTabChange("watchlist");
+      }
+      
+      if (onListDeleted) {
+        onListDeleted();
+      }
+    } catch (error) {
+      console.error("Failed to delete list:", error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -148,7 +286,6 @@ export default function DashboardLayout({
         });
       } catch (error) {
         console.error("Failed to save list order:", error);
-        // Could revert here if needed
       }
     }
   };
@@ -163,6 +300,69 @@ export default function DashboardLayout({
       return dateStr;
     }
   };
+
+  // Context menu portal
+  const contextMenuPortal = contextMenu.isOpen && createPortal(
+    <div
+      ref={contextMenuRef}
+      className="fixed bg-popover border border-border rounded-md shadow-lg py-1 min-w-[140px] z-[9999]"
+      style={{ left: contextMenu.x, top: contextMenu.y }}
+    >
+      <button
+        onClick={handleRename}
+        className="w-full px-3 py-1.5 text-sm text-left flex items-center gap-2 hover:bg-muted/50 transition-colors"
+      >
+        <Pencil className="w-3.5 h-3.5" />
+        Rename
+      </button>
+      <button
+        onClick={handleDelete}
+        disabled={isDeleting}
+        className="w-full px-3 py-1.5 text-sm text-left flex items-center gap-2 hover:bg-muted/50 transition-colors text-destructive"
+      >
+        <Trash2 className="w-3.5 h-3.5" />
+        {isDeleting ? "Deleting..." : "Delete"}
+      </button>
+    </div>,
+    document.body
+  );
+
+  // Rename modal portal
+  const renameModalPortal = renameModal.isOpen && createPortal(
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+      <div className="bg-popover border border-border rounded-lg shadow-xl p-4 w-80">
+        <h3 className="text-sm font-medium mb-3">Rename List</h3>
+        <input
+          ref={renameInputRef}
+          type="text"
+          value={renameModal.newName}
+          onChange={(e) => setRenameModal(prev => ({ ...prev, newName: e.target.value }))}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleRenameSubmit();
+            if (e.key === "Escape") setRenameModal({ isOpen: false, list: null, newName: "" });
+          }}
+          className="w-full px-3 py-2 text-sm bg-background border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+          placeholder="List name"
+        />
+        <div className="flex justify-end gap-2 mt-4">
+          <button
+            onClick={() => setRenameModal({ isOpen: false, list: null, newName: "" })}
+            className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleRenameSubmit}
+            disabled={isRenaming || !renameModal.newName.trim()}
+            className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            {isRenaming ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
@@ -271,6 +471,7 @@ export default function DashboardLayout({
                         list={list}
                         activeTab={activeTab}
                         onTabChange={onTabChange}
+                        onContextMenu={handleContextMenu}
                       />
                     ))}
                   </div>
@@ -331,6 +532,10 @@ export default function DashboardLayout({
       <main className="flex-1 container py-4">
         {children}
       </main>
+
+      {/* Portals */}
+      {contextMenuPortal}
+      {renameModalPortal}
     </div>
   );
 }

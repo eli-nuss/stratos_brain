@@ -2265,6 +2265,71 @@ ${template}
         })
       }
 
+      // DELETE /dashboard/stock-lists/:list_id - Delete a stock list
+      case req.method === 'DELETE' && /^\/dashboard\/stock-lists\/\d+$/.test(path): {
+        const listId = parseInt(path.split('/')[3])
+        
+        // First delete all items in the list
+        await supabase
+          .from('stock_list_items')
+          .delete()
+          .eq('list_id', listId)
+        
+        // Then delete the list itself
+        const { error } = await supabase
+          .from('stock_lists')
+          .delete()
+          .eq('id', listId)
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // PATCH /dashboard/stock-lists/:list_id - Update a stock list (rename, change color, etc.)
+      case req.method === 'PATCH' && /^\/dashboard\/stock-lists\/\d+$/.test(path): {
+        const listId = parseInt(path.split('/')[3])
+        const body = await req.json()
+        const { name, description, color } = body
+        
+        const updates: Record<string, string> = {}
+        if (name !== undefined) updates.name = name
+        if (description !== undefined) updates.description = description
+        if (color !== undefined) updates.color = color
+        
+        if (Object.keys(updates).length === 0) {
+          return new Response(JSON.stringify({ error: 'No fields to update' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const { data, error } = await supabase
+          .from('stock_lists')
+          .update(updates)
+          .eq('id', listId)
+          .select()
+          .single()
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(data), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
       // ==================== REVIEWED ENDPOINTS ====================
 
       // GET /dashboard/reviewed - Get all reviewed asset IDs

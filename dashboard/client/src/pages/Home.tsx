@@ -43,6 +43,8 @@ export default function Home() {
       stockLists={lists}
       onListCreated={mutateLists}
       onListsReordered={handleListsReordered}
+      onListDeleted={mutateLists}
+      onListRenamed={mutateLists}
     >
       <div className="h-[calc(100vh-8rem)]">
         {activeTab === "watchlist" ? (
