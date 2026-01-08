@@ -499,9 +499,9 @@ export default function DashboardLayout({
             </Tooltip>
           </div>
           
-          {/* Custom lists - centered, max 5 visible, scrollable on mobile */}
+          {/* Custom lists - centered, max 5 visible collapsed, rows of 9 when expanded */}
           {(stockLists.length > 0 || onListCreated) && (
-            <div className="flex items-center justify-center gap-1 w-full overflow-x-auto scrollbar-hide">
+            <div className="flex flex-col items-center gap-1 w-full">
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
@@ -511,37 +511,60 @@ export default function DashboardLayout({
                   items={stockLists.map((list) => list.id)}
                   strategy={horizontalListSortingStrategy}
                 >
-                  <div className="flex items-center">
-                    {(showAllLists ? stockLists : stockLists.slice(0, 5)).map((list, index) => (
-                      <SortableListTab
-                        key={list.id}
-                        list={list}
-                        activeTab={activeTab}
-                        onTabChange={onTabChange}
-                        onContextMenu={handleContextMenu}
-                        showDivider={index > 0}
-                      />
-                    ))}
-                  </div>
+                  {showAllLists ? (
+                    // Expanded view: show all lists in rows of 9
+                    <div className="flex flex-col items-center gap-1">
+                      {Array.from({ length: Math.ceil(stockLists.length / 9) }, (_, rowIndex) => (
+                        <div key={rowIndex} className="flex items-center justify-center">
+                          {stockLists.slice(rowIndex * 9, (rowIndex + 1) * 9).map((list, index) => (
+                            <SortableListTab
+                              key={list.id}
+                              list={list}
+                              activeTab={activeTab}
+                              onTabChange={onTabChange}
+                              onContextMenu={handleContextMenu}
+                              showDivider={index > 0}
+                            />
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    // Collapsed view: show first 5 lists
+                    <div className="flex items-center">
+                      {stockLists.slice(0, 5).map((list, index) => (
+                        <SortableListTab
+                          key={list.id}
+                          list={list}
+                          activeTab={activeTab}
+                          onTabChange={onTabChange}
+                          onContextMenu={handleContextMenu}
+                          showDivider={index > 0}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </SortableContext>
               </DndContext>
               
-              {/* Show more/less button */}
-              {stockLists.length > 5 && (
-                <button
-                  onClick={() => setShowAllLists(!showAllLists)}
-                  className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all flex items-center gap-0.5"
-                >
-                  {showAllLists ? (
-                    <><ChevronUp className="w-3 h-3" /> Less</>
-                  ) : (
-                    <><ChevronDown className="w-3 h-3" /> +{stockLists.length - 5}</>
-                  )}
-                </button>
-              )}
-              
-              {/* Create new list button */}
-              {onListCreated && <CreateListButton onListCreated={onListCreated} />}
+              {/* Show more/less button and Create button row */}
+              <div className="flex items-center gap-1">
+                {stockLists.length > 5 && (
+                  <button
+                    onClick={() => setShowAllLists(!showAllLists)}
+                    className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all flex items-center gap-0.5"
+                  >
+                    {showAllLists ? (
+                      <><ChevronUp className="w-3 h-3" /> Less</>
+                    ) : (
+                      <><ChevronDown className="w-3 h-3" /> +{stockLists.length - 5}</>
+                    )}
+                  </button>
+                )}
+                
+                {/* Create new list button */}
+                {onListCreated && <CreateListButton onListCreated={onListCreated} />}
+              </div>
             </div>
           )}
         </div>
