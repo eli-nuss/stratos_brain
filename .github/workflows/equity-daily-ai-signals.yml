@@ -1,6 +1,7 @@
 # Equity Daily AI Signals Generation
 # Runs after equity features calculation to generate AI trading signals
-# Uses v3.0 prompt with gemini-3-pro-preview model
+# Uses v3.1 prompt with gemini-3-pro-preview model
+# Filters: $100M+ market cap, $1M+ daily volume, operating companies only (no ETFs/Funds/REITs )
 
 name: Equity Daily AI Signals
 
@@ -23,10 +24,15 @@ on:
         required: false
         default: 'gemini-3-pro-preview'
         type: string
-      limit:
-        description: 'Number of top equities to process'
+      min_market_cap:
+        description: 'Minimum market cap in dollars (default: 100000000 = $100M)'
         required: false
-        default: '500'
+        default: '100000000'
+        type: string
+      min_daily_volume:
+        description: 'Minimum daily dollar volume (default: 1000000 = $1M)'
+        required: false
+        default: '1000000'
         type: string
 
 jobs:
@@ -35,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     # Only run if the triggering workflow succeeded (or if manually triggered)
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
-    timeout-minutes: 120  # Longer timeout for 500 equities with parallel processing
+    timeout-minutes: 120  # Longer timeout for ~2900 equities with parallel processing
     
     steps:
       - name: Checkout repository
@@ -70,18 +76,27 @@ jobs:
             echo "model=gemini-3-pro-preview" >> $GITHUB_OUTPUT
           fi
       
-      - name: Determine limit
-        id: limit
+      - name: Determine min market cap
+        id: min_market_cap
         run: |
-          if [ -n "${{ github.event.inputs.limit }}" ]; then
-            echo "limit=${{ github.event.inputs.limit }}" >> $GITHUB_OUTPUT
+          if [ -n "${{ github.event.inputs.min_market_cap }}" ]; then
+            echo "min_market_cap=${{ github.event.inputs.min_market_cap }}" >> $GITHUB_OUTPUT
           else
-            echo "limit=500" >> $GITHUB_OUTPUT
+            echo "min_market_cap=100000000" >> $GITHUB_OUTPUT
           fi
       
-      - name: Run equity AI signals generation (v3.0)
+      - name: Determine min daily volume
+        id: min_daily_volume
+        run: |
+          if [ -n "${{ github.event.inputs.min_daily_volume }}" ]; then
+            echo "min_daily_volume=${{ github.event.inputs.min_daily_volume }}" >> $GITHUB_OUTPUT
+          else
+            echo "min_daily_volume=1000000" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Run equity AI signals generation (v3.1)
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          python run_all_equities.py --date ${{ steps.date.outputs.date }} --model ${{ steps.model.outputs.model }} --limit ${{ steps.limit.outputs.limit }}
+          python run_all_equities.py --date ${{ steps.date.outputs.date }} --model ${{ steps.model.outputs.model }} --min-market-cap ${{ steps.min_market_cap.outputs.min_market_cap }} --min-daily-volume ${{ steps.min_daily_volume.outputs.min_daily_volume }}
