@@ -1127,21 +1127,19 @@ serve(async (req: Request) => {
           })
         }
         
-        // Get fundamentals from equity_fundamentals table
+        // Get fundamentals from equity_metadata table
         const { data: fundamentals } = await supabase
-          .from('equity_fundamentals')
+          .from('equity_metadata')
           .select('*')
           .eq('asset_id', assetId)
-          .order('fetched_at', { ascending: false })
-          .limit(1)
           .single()
         
         // Get latest price for 52-week calculation
         const { data: priceData } = await supabase
-          .from('asset_bars_daily')
-          .select('close_price, high_price, low_price')
+          .from('daily_bars')
+          .select('close, high, low')
           .eq('asset_id', assetId)
-          .order('bar_date', { ascending: false })
+          .order('date', { ascending: false })
           .limit(1)
           .single()
         
@@ -1164,7 +1162,6 @@ serve(async (req: Request) => {
           forward_pe: fundamentals?.forward_pe,
           peg_ratio: fundamentals?.peg_ratio,
           price_to_sales_ttm: fundamentals?.price_to_sales_ttm,
-          forward_price_to_sales: fundamentals?.forward_price_to_sales,
           price_to_book: fundamentals?.price_to_book,
           
           // Profitability
@@ -1179,10 +1176,10 @@ serve(async (req: Request) => {
           week_52_low: fundamentals?.week_52_low,
           week_52_high: fundamentals?.week_52_high,
           dividend_yield: fundamentals?.dividend_yield,
-          current_price: priceData?.close_price,
+          current_price: priceData?.close,
           
           // Meta
-          last_updated: fundamentals?.fetched_at
+          last_updated: fundamentals?.last_updated
         }
         
         return new Response(JSON.stringify(result), {
