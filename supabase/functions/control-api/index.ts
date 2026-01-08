@@ -1784,10 +1784,17 @@ If asked about something not in the data, acknowledge the limitation.`
         const MANUS_PROJECT_ID = 'YAnGyJK4v46h9LD9MgoN2g'
         
         // Create prompt based on document type
-        const displayName = company_name ? `${company_name} (${symbol})` : symbol
+        // If company_name is provided, use "Company Name (TICKER)" format
+        // If not, use "TICKER" and let Manus identify the company
+        const displayName = company_name && company_name !== symbol 
+          ? `${company_name} (${symbol})` 
+          : symbol
+        
         const prompt = docType === 'one_pager'
           ? `${displayName} One Pager`
           : `${displayName} Memo`
+        
+        console.log(`Creating ${docType} with prompt: ${prompt}`)
         
         // Call Manus API
         const manusResponse = await fetch('https://api.manus.ai/v1/tasks', {
