@@ -64,7 +64,17 @@ function TradingViewWidget({
       "withdateranges": true,
       "details": false,
       "hotlist": false,
-      "studies": []
+      "studies": [
+        "STD;RSI",
+        "STD;SMA",
+        "STD;SMA"
+      ],
+      "studies_overrides": {
+        "moving average.length": 20,
+        "moving average.plot.color": "#2962FF",
+        "moving average#1.length": 50,
+        "moving average#1.plot.color": "#FF6D00"
+      }
     });
 
     const widgetContainer = document.createElement("div");

@@ -75,7 +75,7 @@ function ConfidenceMeter({ confidence }: { confidence: number }) {
 export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
   const { data, isLoading } = useSWR(`/api/dashboard/asset?asset_id=${assetId}`, fetcher);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [chartView, setChartView] = useState<'ai_score' | 'tradingview'>('ai_score');
+  const [chartView, setChartView] = useState<'ai_score' | 'tradingview'>('tradingview');
   const [isChartFullscreen, setIsChartFullscreen] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
@@ -503,19 +503,9 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
             </div>
           </div>
 
-          {/* Right Column: Fundamentals, About, Notes, Files (30% = 3 cols) */}
+          {/* Right Column: About, Fundamentals, Documents, Notes, Files (30% = 3 cols) */}
           <div className="lg:col-span-3 space-y-3">
-            {/* Fundamentals Summary - TOP */}
-            <FundamentalsSummary asset={{...asset, close: ohlcv?.[0]?.close}} />
-
-            {/* AI Documents Section */}
-            <DocumentsSection 
-              assetId={parseInt(assetId)} 
-              symbol={asset.symbol} 
-              companyName={asset.name}
-            />
-
-            {/* About Section */}
+            {/* About Section - TOP */}
             <div className="bg-card border border-border rounded-lg overflow-hidden">
               <button
                 onClick={() => toggleSection('about')}
@@ -552,6 +542,16 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               </div>
               )}
             </div>
+
+            {/* Fundamentals Summary */}
+            <FundamentalsSummary asset={{...asset, close: ohlcv?.[0]?.close}} />
+
+            {/* AI Documents Section */}
+            <DocumentsSection 
+              assetId={parseInt(assetId)} 
+              symbol={asset.symbol} 
+              companyName={asset.name}
+            />
 
             {/* Notes History */}
             <NotesHistory assetId={parseInt(assetId)} />
