@@ -32,9 +32,9 @@ function MemoDetailModal({ memo, onClose }: MemoDetailModalProps) {
   const [error, setError] = useState<string | null>(null);
 
   const handleOpenAsPdf = () => {
-    // Open the formatted HTML view in a new tab (user can print to PDF from there)
-    const pdfUrl = `/api/dashboard/memo-pdf/${memo.file_id}`;
-    window.open(pdfUrl, '_blank');
+    // Open the formatted viewer page in a new tab (user can print to PDF from there)
+    const viewerUrl = `/memo/${memo.file_id}`;
+    window.open(viewerUrl, '_blank');
   };
 
   // Fetch the markdown content
