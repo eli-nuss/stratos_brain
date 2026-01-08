@@ -531,6 +531,9 @@ serve(async (req) => {
           .order('created_at', { ascending: false })
           .range(offset, offset + limit - 1)
         
+        // Only include memos that have actual summary content (not null and not empty)
+        query = query.or('summary_text.neq.null,ai_summary_text.neq.null')
+        
         if (direction && direction !== 'all') {
           query = query.eq('direction', direction)
         }
@@ -562,7 +565,7 @@ serve(async (req) => {
           name: assetMap.get(String(r.asset_id))?.name || '',
           // Use summary_text or ai_summary_text as fallback
           summary_text: r.summary_text || r.ai_summary_text || ''
-        }))
+        })).filter(m => m.summary_text && m.summary_text.trim().length > 0)
         
         // Filter by search if provided (client-side for now)
         let filteredMemos = memos
