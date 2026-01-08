@@ -9,7 +9,7 @@ Based on Gemini recommendations for independent scoring.
 Usage:
     python run_all_equities.py --date 2026-01-06
     python run_all_equities.py --date 2026-01-06 --limit 100
-    python run_all_equities.py  # defaults to yesterday
+    python run_all_equities.py  # defaults to today
 """
 
 import os
@@ -522,7 +522,7 @@ def main():
     parser.add_argument(
         '--date', 
         type=str, 
-        help='Target date (YYYY-MM-DD). Defaults to yesterday.',
+        help='Target date (YYYY-MM-DD). Defaults to today.',
         default=None
     )
     parser.add_argument(
@@ -544,7 +544,7 @@ def main():
     if args.date:
         as_of_date = args.date
     else:
-        as_of_date = (date.today() - timedelta(days=1)).isoformat()
+        as_of_date = date.today().isoformat()
     
     # Update model if specified
     MODEL_NAME = args.model

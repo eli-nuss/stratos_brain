@@ -7,7 +7,7 @@ Designed to run after equity_daily_ohlcv.py completes.
 
 Usage:
     python jobs/equity_daily_features.py --date 2026-01-06
-    python jobs/equity_daily_features.py  # defaults to yesterday
+    python jobs/equity_daily_features.py  # defaults to today
 """
 
 import os
@@ -370,7 +370,7 @@ def update_latest_date(target_date: str, asset_type: str = 'equity'):
 
 def main():
     parser = argparse.ArgumentParser(description='Equity Daily Features Calculation')
-    parser.add_argument('--date', type=str, help='Target date (YYYY-MM-DD). Defaults to yesterday.')
+    parser.add_argument('--date', type=str, help='Target date (YYYY-MM-DD). Defaults to today.')
     parser.add_argument('--workers', type=int, default=8, help='Number of parallel workers')
     parser.add_argument('--batch-size', type=int, default=100, help='Batch size for DB writes')
     args = parser.parse_args()
@@ -379,7 +379,7 @@ def main():
     if args.date:
         target_date = args.date
     else:
-        target_date = (date.today() - timedelta(days=1)).isoformat()
+        target_date = date.today().isoformat()
     
     logger.info("=" * 60)
     logger.info("EQUITY DAILY FEATURES CALCULATION")
