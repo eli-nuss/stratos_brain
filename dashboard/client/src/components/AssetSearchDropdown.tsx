@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import { Search, Plus, Check, X, Loader2 } from "lucide-react";
 import useSWR from "swr";
 
@@ -31,8 +32,10 @@ export default function AssetSearchDropdown({
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [addingId, setAddingId] = useState<number | null>(null);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 320 });
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Debounce search query
   useEffect(() => {
@@ -93,14 +96,26 @@ export default function AssetSearchDropdown({
   // Limit to 15 results
   const displayResults = results.slice(0, 15);
 
+  // Update dropdown position when input is focused or query changes
+  useLayoutEffect(() => {
+    if (isOpen && inputRef.current) {
+      const rect = inputRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + window.scrollY + 4,
+        left: rect.left + window.scrollX,
+        width: 320,
+      });
+    }
+  }, [isOpen, query]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
         dropdownRef.current &&
         !dropdownRef.current.contains(event.target as Node) &&
-        inputRef.current &&
-        !inputRef.current.contains(event.target as Node)
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
       ) {
         setIsOpen(false);
       }
@@ -109,6 +124,18 @@ export default function AssetSearchDropdown({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Close dropdown on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      if (isOpen) {
+        setIsOpen(false);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, true);
+    return () => window.removeEventListener("scroll", handleScroll, true);
+  }, [isOpen]);
 
   const handleAddAsset = async (assetId: number) => {
     setAddingId(assetId);
@@ -135,8 +162,105 @@ export default function AssetSearchDropdown({
     return "";
   };
 
+  const dropdownContent = isOpen && query.length >= 1 && (
+    <div
+      ref={dropdownRef}
+      style={{
+        position: "fixed",
+        top: dropdownPosition.top,
+        left: dropdownPosition.left,
+        width: dropdownPosition.width,
+        zIndex: 9999,
+      }}
+      className="max-h-80 overflow-auto bg-popover border border-border rounded-lg shadow-lg"
+    >
+      {isLoading && displayResults.length === 0 ? (
+        <div className="flex items-center justify-center py-4 text-muted-foreground">
+          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+          Searching...
+        </div>
+      ) : displayResults.length === 0 ? (
+        <div className="py-4 text-center text-muted-foreground text-xs">
+          No assets found for "{query}"
+        </div>
+      ) : (
+        <div className="py-1">
+          {displayResults.map((asset) => {
+            const isInList = existingAssetIds.has(asset.asset_id);
+            const isAdding = addingId === asset.asset_id;
+
+            return (
+              <div
+                key={asset.asset_id}
+                className="flex items-center justify-between px-3 py-2 hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  {/* Asset type badge */}
+                  <span
+                    className={`text-[9px] px-1 py-0.5 rounded font-medium shrink-0 ${
+                      asset.asset_type === "crypto"
+                        ? "text-orange-400 bg-orange-400/10"
+                        : "text-blue-400 bg-blue-400/10"
+                    }`}
+                  >
+                    {asset.asset_type === "crypto" ? "C" : "E"}
+                  </span>
+
+                  {/* Symbol and name */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-medium text-foreground text-sm">
+                        {asset.symbol}
+                      </span>
+                      <span className="text-xs text-muted-foreground truncate">
+                        {asset.name}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Price and market cap */}
+                  <div className="text-right shrink-0">
+                    <div className="text-xs font-mono text-foreground">
+                      {formatPrice(asset.close)}
+                    </div>
+                    {asset.market_cap && (
+                      <div className="text-[10px] text-muted-foreground">
+                        {formatMarketCap(asset.market_cap)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Add/Check button */}
+                <button
+                  onClick={() => !isInList && !isAdding && handleAddAsset(asset.asset_id)}
+                  disabled={isInList || isAdding}
+                  className={`ml-2 p-1 rounded transition-colors shrink-0 ${
+                    isInList
+                      ? "text-signal-bullish bg-signal-bullish/10 cursor-default"
+                      : isAdding
+                      ? "text-muted-foreground cursor-wait"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
+                >
+                  {isAdding ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : isInList ? (
+                    <Check className="w-4 h-4" />
+                  ) : (
+                    <Plus className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
   return (
-    <div className="relative">
+    <div ref={containerRef} className="relative">
       <div className="relative">
         <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
         <input
@@ -166,96 +290,8 @@ export default function AssetSearchDropdown({
         )}
       </div>
 
-      {/* Dropdown */}
-      {isOpen && query.length >= 1 && (
-        <div
-          ref={dropdownRef}
-          className="absolute top-full left-0 mt-1 w-80 max-h-80 overflow-auto bg-popover border border-border rounded-lg shadow-lg z-50"
-        >
-          {isLoading && displayResults.length === 0 ? (
-            <div className="flex items-center justify-center py-4 text-muted-foreground">
-              <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              Searching...
-            </div>
-          ) : displayResults.length === 0 ? (
-            <div className="py-4 text-center text-muted-foreground text-xs">
-              No assets found for "{query}"
-            </div>
-          ) : (
-            <div className="py-1">
-              {displayResults.map((asset) => {
-                const isInList = existingAssetIds.has(asset.asset_id);
-                const isAdding = addingId === asset.asset_id;
-
-                return (
-                  <div
-                    key={asset.asset_id}
-                    className="flex items-center justify-between px-3 py-2 hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      {/* Asset type badge */}
-                      <span
-                        className={`text-[9px] px-1 py-0.5 rounded font-medium shrink-0 ${
-                          asset.asset_type === "crypto"
-                            ? "text-orange-400 bg-orange-400/10"
-                            : "text-blue-400 bg-blue-400/10"
-                        }`}
-                      >
-                        {asset.asset_type === "crypto" ? "C" : "E"}
-                      </span>
-
-                      {/* Symbol and name */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-medium text-foreground text-sm">
-                            {asset.symbol}
-                          </span>
-                          <span className="text-xs text-muted-foreground truncate">
-                            {asset.name}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Price and market cap */}
-                      <div className="text-right shrink-0">
-                        <div className="text-xs font-mono text-foreground">
-                          {formatPrice(asset.close)}
-                        </div>
-                        {asset.market_cap && (
-                          <div className="text-[10px] text-muted-foreground">
-                            {formatMarketCap(asset.market_cap)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Add/Check button */}
-                    <button
-                      onClick={() => !isInList && !isAdding && handleAddAsset(asset.asset_id)}
-                      disabled={isInList || isAdding}
-                      className={`ml-2 p-1 rounded transition-colors shrink-0 ${
-                        isInList
-                          ? "text-signal-bullish bg-signal-bullish/10 cursor-default"
-                          : isAdding
-                          ? "text-muted-foreground cursor-wait"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                      }`}
-                    >
-                      {isAdding ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : isInList ? (
-                        <Check className="w-4 h-4" />
-                      ) : (
-                        <Plus className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
+      {/* Portal dropdown to body to avoid overflow issues */}
+      {dropdownContent && createPortal(dropdownContent, document.body)}
     </div>
   );
 }
