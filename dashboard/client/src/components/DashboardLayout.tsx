@@ -295,7 +295,10 @@ export default function DashboardLayout({
     if (!dateStr) return "...";
     try {
       const date = new Date(dateStr + "T00:00:00");
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${month}-${day}-${year}`;
     } catch {
       return dateStr;
     }
@@ -369,33 +372,35 @@ export default function DashboardLayout({
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         {/* Row 1: Logo, Data Status, Search, Page Links */}
-        <div className="container py-2 flex items-center justify-between">
+        <div className="container py-2 flex items-start justify-between">
           {/* Left: Logo + Data Status stacked vertically */}
           <div className="flex flex-col">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2 cursor-help">
-                  <Activity className="w-8 h-8 text-primary" />
-                  <span className="hidden sm:inline">STRATOS</span>
-                  <span className="sm:hidden">S</span>
-                  <span className="text-muted-foreground font-normal hidden sm:inline">BRAIN</span>
-                  <span className="text-muted-foreground font-normal sm:hidden">B</span>
-                </h1>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                AI-powered technical analysis dashboard for crypto and equity markets.
-              </TooltipContent>
-            </Tooltip>
+            <div className="flex items-center">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2 cursor-help">
+                    <Activity className="w-8 h-8 text-primary" />
+                    <span className="hidden sm:inline">STRATOS</span>
+                    <span className="sm:hidden">S</span>
+                    <span className="text-muted-foreground font-normal hidden sm:inline">BRAIN</span>
+                    <span className="text-muted-foreground font-normal sm:hidden">B</span>
+                  </h1>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  AI-powered technical analysis dashboard for crypto and equity markets.
+                </TooltipContent>
+              </Tooltip>
+            </div>
             
-            {/* Data Status - directly under logo */}
-            <div className="hidden md:flex flex-col text-[10px] font-mono text-muted-foreground mt-1 pl-10">
+            {/* Data Status - directly under logo with more spacing */}
+            <div className="hidden md:flex flex-col text-[10px] font-mono text-muted-foreground mt-2 pl-10 gap-0.5">
               <div className="flex items-center gap-1.5">
                 <span className="text-muted-foreground/70">Equities Last Updated:</span>
-                <span className="font-medium">{formatDate(health?.latest_dates?.equity)}</span>
+                <span className="font-medium text-blue-400">{formatDate(health?.latest_dates?.equity)}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="text-muted-foreground/70">Crypto Last Updated:</span>
-                <span className="font-medium">{formatDate(health?.latest_dates?.crypto)}</span>
+                <span className="font-medium text-blue-400">{formatDate(health?.latest_dates?.crypto)}</span>
               </div>
             </div>
           </div>
