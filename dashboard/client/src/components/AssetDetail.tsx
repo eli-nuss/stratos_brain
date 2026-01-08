@@ -17,6 +17,7 @@ import { FilesSection } from "./FilesSection";
 import TradingViewWidget from "./TradingViewWidget";
 import { FundamentalsSummary } from "./FundamentalsSummary";
 import { DocumentsSection } from "./DocumentsSection";
+import { InlineOnePager } from "./InlineOnePager";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -501,6 +502,9 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                 </div>
               </div>
             </div>
+
+            {/* Inline One Pager - Full width in left column */}
+            <InlineOnePager assetId={parseInt(assetId)} symbol={asset.symbol} />
           </div>
 
           {/* Right Column: About, Fundamentals, Documents, Notes, Files (30% = 3 cols) */}
