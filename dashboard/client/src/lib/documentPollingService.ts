@@ -40,30 +40,36 @@ async function checkAndSaveDocument(pending: PendingDocument): Promise<boolean> 
     if (!response.ok) return false;
     
     const data = await response.json();
+    console.log(`[DocumentPolling] Task ${pending.taskId} status: ${data.status}`);
     
-    if (data.status === 'completed' && data.output?.length > 0) {
-      // Find the markdown file in output
-      const mdFile = data.output.find((f: any) => f.file_name?.endsWith('.md'));
-      if (mdFile) {
-        // Save the file to storage
-        const saveResponse = await fetch(`${API_BASE}/dashboard/memo-status/${pending.taskId}/save`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            asset_id: pending.assetId,
-            file_url: mdFile.file_url,
-            file_name: mdFile.file_name,
-            document_type: pending.documentType
-          })
-        });
-        
-        if (saveResponse.ok) {
-          console.log(`[DocumentPolling] Saved ${pending.documentType} for ${pending.symbol} (task: ${pending.taskId})`);
-          notifyCompletion(pending.taskId, pending.assetId, pending.documentType);
-          return true; // Document saved successfully
-        }
+    if (data.status === 'completed' && data.output_file) {
+      // Use the output_file from the API response
+      const fileUrl = data.output_file.fileUrl;
+      const fileName = data.output_file.fileName;
+      
+      console.log(`[DocumentPolling] Task completed with file: ${fileName}`);
+      
+      // Save the file to storage
+      const saveResponse = await fetch(`${API_BASE}/dashboard/memo-status/${pending.taskId}/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          asset_id: pending.assetId,
+          file_url: fileUrl,
+          file_name: fileName,
+          document_type: pending.documentType
+        })
+      });
+      
+      if (saveResponse.ok) {
+        console.log(`[DocumentPolling] Saved ${pending.documentType} for ${pending.symbol} (task: ${pending.taskId})`);
+        notifyCompletion(pending.taskId, pending.assetId, pending.documentType);
+        return true; // Document saved successfully
+      } else {
+        const errorText = await saveResponse.text();
+        console.error(`[DocumentPolling] Save failed: ${errorText}`);
       }
-      return true; // Completed but no file found, stop polling
+      return true; // Completed, stop polling even if save failed
     } else if (data.status === 'failed' || data.status === 'cancelled') {
       console.log(`[DocumentPolling] Task ${pending.taskId} ${data.status}`);
       return true; // Stop polling
