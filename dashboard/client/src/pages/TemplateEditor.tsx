@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Save, RefreshCw, FileText, Settings, AlertCircle, CheckCircle } from 'lucide-react';
+import { Save, RefreshCw, FileText, Settings, AlertCircle, CheckCircle, Code, Eye } from 'lucide-react';
+import RichMarkdownEditor from '@/components/RichMarkdownEditor';
 
 interface Template {
   id: number;
@@ -21,6 +22,7 @@ export function TemplateEditor() {
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [editorMode, setEditorMode] = useState<'rich' | 'raw'>('rich');
 
   useEffect(() => {
     fetchTemplates();
@@ -143,6 +145,34 @@ export function TemplateEditor() {
           </div>
           
           <div className="flex items-center gap-3">
+            {/* Editor Mode Toggle */}
+            <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
+              <button
+                onClick={() => setEditorMode('rich')}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
+                  editorMode === 'rich' 
+                    ? 'bg-gray-700 text-white' 
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <Eye className="w-3.5 h-3.5" />
+                Rich
+              </button>
+              <button
+                onClick={() => setEditorMode('raw')}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
+                  editorMode === 'raw' 
+                    ? 'bg-gray-700 text-white' 
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <Code className="w-3.5 h-3.5" />
+                Raw
+              </button>
+            </div>
+            
+            <div className="h-4 w-px bg-gray-700" />
+            
             {saveStatus === 'success' && (
               <span className="text-green-400 flex items-center gap-1 text-sm">
                 <CheckCircle className="w-4 h-4" />
@@ -229,24 +259,31 @@ export function TemplateEditor() {
 
             {/* Info Panel */}
             <div className="mt-4 p-4 bg-gray-900/50 rounded-lg border border-gray-800">
+              <h3 className="text-sm font-medium text-gray-300 mb-2">Editor Tips</h3>
+              <ul className="text-xs text-gray-500 space-y-1.5">
+                <li>• <strong>Rich mode:</strong> Visual editing with toolbar</li>
+                <li>• <strong>Raw mode:</strong> Direct Markdown editing</li>
+                <li>• Use the toolbar to insert tables</li>
+                <li>• Select text for quick formatting</li>
+                <li>• Ctrl+B for bold, Ctrl+I for italic</li>
+              </ul>
+            </div>
+
+            {/* About Panel */}
+            <div className="mt-4 p-4 bg-gray-900/50 rounded-lg border border-gray-800">
               <h3 className="text-sm font-medium text-gray-300 mb-2">About Templates</h3>
               <p className="text-xs text-gray-500 leading-relaxed">
                 These templates control how Gemini AI generates investment documents. 
                 Changes take effect immediately for new document generations.
               </p>
-              <ul className="mt-3 text-xs text-gray-500 space-y-1">
-                <li>• <strong>System Prompt:</strong> AI behavior instructions</li>
-                <li>• <strong>Memo Template:</strong> Full investment memo format</li>
-                <li>• <strong>One Pager:</strong> Concise snapshot format</li>
-              </ul>
             </div>
           </div>
 
           {/* Editor Panel */}
           <div className="col-span-9">
             {selectedTemplate ? (
-              <div className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden h-[calc(100vh-180px)]">
-                <div className="p-3 border-b border-gray-800 bg-gray-800/50 flex items-center justify-between">
+              <div className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden h-[calc(100vh-180px)] flex flex-col">
+                <div className="p-3 border-b border-gray-800 bg-gray-800/50 flex items-center justify-between flex-shrink-0">
                   <div>
                     <h2 className="font-medium flex items-center gap-2">
                       {getTemplateIcon(selectedTemplate.template_key)}
@@ -262,13 +299,24 @@ export function TemplateEditor() {
                     </span>
                   )}
                 </div>
-                <textarea
-                  value={editedContent}
-                  onChange={(e) => setEditedContent(e.target.value)}
-                  className="w-full h-[calc(100%-60px)] p-4 bg-gray-950 text-gray-100 font-mono text-sm resize-none focus:outline-none"
-                  placeholder="Enter template content..."
-                  spellCheck={false}
-                />
+                
+                <div className="flex-1 overflow-hidden">
+                  {editorMode === 'rich' ? (
+                    <RichMarkdownEditor
+                      content={editedContent}
+                      onChange={setEditedContent}
+                      placeholder="Start typing your template..."
+                    />
+                  ) : (
+                    <textarea
+                      value={editedContent}
+                      onChange={(e) => setEditedContent(e.target.value)}
+                      className="w-full h-full p-4 bg-gray-950 text-gray-100 font-mono text-sm resize-none focus:outline-none"
+                      placeholder="Enter template content..."
+                      spellCheck={false}
+                    />
+                  )}
+                </div>
               </div>
             ) : (
               <div className="bg-gray-900 rounded-lg border border-gray-800 h-[calc(100vh-180px)] flex items-center justify-center">
