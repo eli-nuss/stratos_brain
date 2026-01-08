@@ -44,9 +44,8 @@ async function startServer() {
         responseType: endpoint.includes('memo-pdf') ? 'text' : 'json'
       });
       
-      // Check if response is HTML (for memo-pdf endpoint)
-      const contentType = response.headers['content-type'] || '';
-      if (contentType.includes('text/html')) {
+      // Check if this is the memo-pdf endpoint (returns HTML)
+      if (endpoint.includes('memo-pdf')) {
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.status(response.status).send(response.data);
       } else {
