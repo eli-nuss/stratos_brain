@@ -9,8 +9,20 @@
       "destination": "https://wfogbaipiqootjrsprde.supabase.co/functions/v1/control-api/dashboard/:path*"
     },
     {
+      "source": "/api/company-chat-api/:path*",
+      "destination": "https://wfogbaipiqootjrsprde.supabase.co/functions/v1/company-chat-api/:path*"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/company-chat-api/:path*",
+      "headers": [
+        { "key": "x-stratos-key", "value": "stratos_brain_api_key_2024" }
+      ]
     }
   ]
 }

@@ -12,7 +12,7 @@ const corsHeaders = {
 
 // Gemini API configuration
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
-const GEMINI_MODEL = 'gemini-2.5-pro-preview-05-06' // Using latest available model
+const GEMINI_MODEL = 'gemini-2.5-pro-preview-06-05' // Using latest available model
 
 // Function declarations for Stratos Brain database access
 const stratosFunctionDeclarations = [
