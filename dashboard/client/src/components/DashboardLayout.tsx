@@ -366,153 +366,45 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
-      {/* Top Status Bar */}
+      {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container h-auto min-h-[48px] py-2 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2">
-          {/* Top row on mobile: Logo + Right links */}
-          <div className="flex items-center justify-between lg:justify-start lg:gap-4 shrink-0">
-            {/* Left: Logo + Data Status */}
-            <div className="flex items-center gap-3">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <h1 className="text-base font-bold tracking-tight flex items-center gap-1.5 cursor-help">
-                    <Activity className="w-4 h-4 text-primary" />
-                    <span className="hidden sm:inline">STRATOS</span>
-                    <span className="sm:hidden">S</span>
-                    <span className="text-muted-foreground font-normal hidden sm:inline">BRAIN</span>
-                    <span className="text-muted-foreground font-normal sm:hidden">B</span>
-                  </h1>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  AI-powered technical analysis dashboard for crypto and equity markets.
-                </TooltipContent>
-              </Tooltip>
-              
-              {/* Data Status - hidden on mobile */}
-              <div className="hidden md:flex flex-col gap-0.5 text-[10px] font-mono text-muted-foreground/70">
-                <div className="flex items-center gap-1">
-                  <span className="text-muted-foreground/50">Crypto:</span>
-                  <span>{formatDate(health?.latest_dates?.crypto)}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-muted-foreground/50">Equity:</span>
-                  <span>{formatDate(health?.latest_dates?.equity)}</span>
-                </div>
-              </div>
-            </div>
+        {/* Row 1: Logo, Data Status, Search, Page Links */}
+        <div className="container py-2 flex items-center justify-between">
+          {/* Left: Logo + Data Status */}
+          <div className="flex items-center gap-3">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <h1 className="text-base font-bold tracking-tight flex items-center gap-1.5 cursor-help">
+                  <Activity className="w-4 h-4 text-primary" />
+                  <span className="hidden sm:inline">STRATOS</span>
+                  <span className="sm:hidden">S</span>
+                  <span className="text-muted-foreground font-normal hidden sm:inline">BRAIN</span>
+                  <span className="text-muted-foreground font-normal sm:hidden">B</span>
+                </h1>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                AI-powered technical analysis dashboard for crypto and equity markets.
+              </TooltipContent>
+            </Tooltip>
             
-            {/* Right links - visible on mobile in top row */}
-            <div className="flex items-center gap-1 lg:hidden">
-              <a href="/memos" className="px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground rounded">Memos</a>
-              <a href="/docs" className="px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground rounded">Docs</a>
+            {/* Data Status - hidden on mobile */}
+            <div className="hidden md:flex flex-col gap-0.5 text-[10px] font-mono text-muted-foreground/70">
+              <div className="flex items-center gap-1">
+                <span className="text-muted-foreground/50">Crypto:</span>
+                <span>{formatDate(health?.latest_dates?.crypto)}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-muted-foreground/50">Equity:</span>
+                <span>{formatDate(health?.latest_dates?.equity)}</span>
+              </div>
             </div>
           </div>
-
-          {/* Navigation - Two rows */}
-          <nav className="flex-1 flex flex-col items-center gap-1.5">
-            {/* Row 1: Fixed views - highlighted with primary color */}
-            <div className="flex items-center bg-primary/10 border border-primary/20 p-0.5 rounded-lg gap-0.5">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => onTabChange("watchlist")}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded transition-all ${
-                      activeTab === "watchlist"
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-primary/70 hover:text-primary hover:bg-primary/20"
-                    }`}
-                  >
-                    Watchlist
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Your personal watchlist</TooltipContent>
-              </Tooltip>
-              
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => onTabChange("equity")}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded transition-all ${
-                      activeTab === "equity"
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-primary/70 hover:text-primary hover:bg-primary/20"
-                    }`}
-                  >
-                    Equities
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>US equity stocks</TooltipContent>
-              </Tooltip>
-              
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => onTabChange("crypto")}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded transition-all ${
-                      activeTab === "crypto"
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-primary/70 hover:text-primary hover:bg-primary/20"
-                    }`}
-                  >
-                    Crypto
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Cryptocurrency assets (24/7 data)</TooltipContent>
-              </Tooltip>
-            </div>
-            
-            {/* Row 2: Custom lists - centered, max 5 visible */}
-            {(stockLists.length > 0 || onListCreated) && (
-              <div className="flex items-center justify-center gap-1">
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext
-                    items={stockLists.map((list) => list.id)}
-                    strategy={horizontalListSortingStrategy}
-                  >
-                    <div className="flex items-center">
-                      {(showAllLists ? stockLists : stockLists.slice(0, 5)).map((list, index) => (
-                        <SortableListTab
-                          key={list.id}
-                          list={list}
-                          activeTab={activeTab}
-                          onTabChange={onTabChange}
-                          onContextMenu={handleContextMenu}
-                          showDivider={index > 0}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
-                
-                {/* Show more/less button */}
-                {stockLists.length > 5 && (
-                  <button
-                    onClick={() => setShowAllLists(!showAllLists)}
-                    className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all flex items-center gap-0.5"
-                  >
-                    {showAllLists ? (
-                      <><ChevronUp className="w-3 h-3" /> Less</>
-                    ) : (
-                      <><ChevronDown className="w-3 h-3" /> +{stockLists.length - 5}</>
-                    )}
-                  </button>
-                )}
-                
-                {/* Create new list button */}
-                {onListCreated && <CreateListButton onListCreated={onListCreated} />}
-              </div>
-            )}
-          </nav>
-
-          {/* Right: Search + Links - hidden on mobile */}
-          <div className="hidden lg:flex items-center gap-2 shrink-0">
-            {/* Global Search */}
+          
+          {/* Right: Search + Page Links */}
+          <div className="flex items-center gap-2">
+            {/* Global Search - hidden on small mobile */}
             {onSearchChange && (
-              <div className="relative">
+              <div className="relative hidden sm:block">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
                 <input
                   type="text"
@@ -524,29 +416,129 @@ export default function DashboardLayout({
               </div>
             )}
             
-            <div className="h-3 w-px bg-border/50" />
+            <div className="h-3 w-px bg-border/50 hidden sm:block" />
             
             <a
               href="/memos"
-              className="px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
+              className="px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
             >
               Memos
             </a>
             
             <a
               href="/docs"
-              className="px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
+              className="px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
             >
               Docs
             </a>
             
             <a
               href="/admin/templates"
-              className="px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
+              className="px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all hidden sm:block"
             >
               Templates
             </a>
           </div>
+        </div>
+        
+        {/* Row 2: Navigation - centered below */}
+        <div className="container pb-2 flex flex-col items-center gap-1.5">
+          {/* Fixed views - highlighted with primary color */}
+          <div className="flex items-center bg-primary/10 border border-primary/20 p-0.5 rounded-lg gap-0.5">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => onTabChange("watchlist")}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded transition-all ${
+                    activeTab === "watchlist"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-primary/70 hover:text-primary hover:bg-primary/20"
+                  }`}
+                >
+                  Watchlist
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Your personal watchlist</TooltipContent>
+            </Tooltip>
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => onTabChange("equity")}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded transition-all ${
+                    activeTab === "equity"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-primary/70 hover:text-primary hover:bg-primary/20"
+                  }`}
+                >
+                  Equities
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>US equity stocks</TooltipContent>
+            </Tooltip>
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => onTabChange("crypto")}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded transition-all ${
+                    activeTab === "crypto"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-primary/70 hover:text-primary hover:bg-primary/20"
+                  }`}
+                >
+                  Crypto
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Cryptocurrency assets (24/7 data)</TooltipContent>
+            </Tooltip>
+          </div>
+          
+          {/* Custom lists - centered, max 5 visible */}
+          {(stockLists.length > 0 || onListCreated) && (
+            <div className="flex items-center justify-center gap-1">
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={stockLists.map((list) => list.id)}
+                  strategy={horizontalListSortingStrategy}
+                >
+                  <div className="flex items-center">
+                    {(showAllLists ? stockLists : stockLists.slice(0, 5)).map((list, index) => (
+                      <SortableListTab
+                        key={list.id}
+                        list={list}
+                        activeTab={activeTab}
+                        onTabChange={onTabChange}
+                        onContextMenu={handleContextMenu}
+                        showDivider={index > 0}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+              
+              {/* Show more/less button */}
+              {stockLists.length > 5 && (
+                <button
+                  onClick={() => setShowAllLists(!showAllLists)}
+                  className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all flex items-center gap-0.5"
+                >
+                  {showAllLists ? (
+                    <><ChevronUp className="w-3 h-3" /> Less</>
+                  ) : (
+                    <><ChevronDown className="w-3 h-3" /> +{stockLists.length - 5}</>
+                  )}
+                </button>
+              )}
+              
+              {/* Create new list button */}
+              {onListCreated && <CreateListButton onListCreated={onListCreated} />}
+            </div>
+          )}
         </div>
       </header>
 
