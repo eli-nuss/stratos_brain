@@ -148,10 +148,10 @@ function DataTable({ data }: { data: Record<string, unknown> }) {
               <BarChart3 className="w-3.5 h-3.5" />
               {groupName}
             </h5>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
               {items.map(([key, value]) => (
-                <div key={key} className="flex justify-between items-center py-1.5 border-b border-zinc-800/50">
-                  <span className="text-xs text-zinc-400">{formatKey(key)}</span>
+                <div key={key} className="flex justify-between items-center py-1.5 border-b border-zinc-800/50 min-w-0 overflow-hidden">
+                  <span className="text-xs text-zinc-400 truncate flex-shrink-0 mr-2">{formatKey(key)}</span>
                   <FormattedValue keyName={key} value={value} />
                 </div>
               ))}
@@ -164,10 +164,10 @@ function DataTable({ data }: { data: Record<string, unknown> }) {
 
   // Simple table for ungrouped data
   return (
-    <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
       {entries.map(([key, value]) => (
-        <div key={key} className="flex justify-between items-center py-1.5 border-b border-zinc-800/50">
-          <span className="text-xs text-zinc-400">{formatKey(key)}</span>
+        <div key={key} className="flex justify-between items-center py-1.5 border-b border-zinc-800/50 min-w-0 overflow-hidden">
+          <span className="text-xs text-zinc-400 truncate flex-shrink-0 mr-2">{formatKey(key)}</span>
           <FormattedValue keyName={key} value={value} />
         </div>
       ))}

@@ -42,10 +42,10 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       </div>
 
       {/* Content */}
-      <div className={cn('flex-1 max-w-[85%]', isUser ? 'text-right' : 'text-left')}>
+      <div className={cn('flex-1 max-w-[85%] min-w-0 overflow-hidden', isUser ? 'text-right' : 'text-left')}>
         <div
           className={cn(
-            'inline-block rounded-2xl px-4 py-3 text-left',
+            'inline-block rounded-2xl px-4 py-3 text-left max-w-full overflow-hidden',
             isUser
               ? 'bg-emerald-600 text-white rounded-br-md'
               : 'bg-zinc-800/80 text-zinc-100 rounded-bl-md border border-zinc-700/30'
@@ -194,7 +194,7 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-5 space-y-6">
         {messagesLoading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-zinc-500" />

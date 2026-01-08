@@ -54,7 +54,7 @@ export function CodeExecutionBlock({ code, language = 'python', output, outcome 
   const displayError = parsedOutput?.error;
 
   return (
-    <div className="my-4 rounded-xl border border-zinc-700/50 overflow-hidden bg-zinc-900/80 shadow-lg">
+    <div className="my-4 rounded-xl border border-zinc-700/50 overflow-hidden bg-zinc-900/80 shadow-lg max-w-full">
       {/* Header */}
       <div
         className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-zinc-800/80 to-zinc-800/60 cursor-pointer hover:from-zinc-800 hover:to-zinc-800/80 transition-all"
@@ -130,12 +130,16 @@ export function CodeExecutionBlock({ code, language = 'python', output, outcome 
               <SyntaxHighlighter
                 language={language}
                 style={oneDark}
+                wrapLines={true}
+                wrapLongLines={true}
                 customStyle={{
                   margin: 0,
                   padding: '1rem 1.25rem',
                   background: 'transparent',
                   fontSize: '0.8125rem',
                   lineHeight: '1.7',
+                  overflowX: 'auto',
+                  maxWidth: '100%',
                 }}
                 codeTagProps={{
                   style: {

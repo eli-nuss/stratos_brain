@@ -97,7 +97,7 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
   }, [content]);
 
   return (
-    <div className={cn('markdown-content', className)}>
+    <div className={cn('markdown-content overflow-hidden break-words', className)}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -233,7 +233,7 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
             </th>
           ),
           td: ({ children }) => (
-            <td className="px-4 py-3 text-zinc-200 whitespace-nowrap">
+            <td className="px-4 py-3 text-zinc-200 whitespace-normal break-words max-w-xs">
               {children}
             </td>
           ),

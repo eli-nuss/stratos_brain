@@ -81,7 +81,7 @@ export default function CompanyChatPage() {
   };
 
   return (
-    <div className="flex h-screen bg-zinc-950">
+    <div className="flex h-screen bg-zinc-950 overflow-hidden">
       {/* Sidebar */}
       <div className="w-72 flex-shrink-0">
         <CompanyChatList
@@ -92,7 +92,7 @@ export default function CompanyChatPage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Bar */}
         <div className="flex items-center gap-4 px-4 py-2 border-b border-zinc-800 bg-zinc-900">
           <a
