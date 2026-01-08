@@ -1,6 +1,6 @@
 import useSWR from "swr";
-import { useState, useRef, useEffect, useCallback } from "react";
-import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, Activity, Info, MessageCircle, ExternalLink, Tag, FileText, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera, Sparkles, Loader2 } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, Activity, Info, MessageCircle, ExternalLink, Tag, FileText, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera } from "lucide-react";
 import html2canvas from "html2canvas";
 import { Area, Line, ComposedChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis, Legend } from "recharts";
 import { format } from "date-fns";
@@ -16,6 +16,7 @@ import { NotesHistory } from "./NotesHistory";
 import { FilesSection } from "./FilesSection";
 import TradingViewWidget from "./TradingViewWidget";
 import { FundamentalsSummary } from "./FundamentalsSummary";
+import { DocumentsSection } from "./DocumentsSection";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -77,10 +78,6 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
   const [chartView, setChartView] = useState<'ai_score' | 'tradingview'>('ai_score');
   const [isChartFullscreen, setIsChartFullscreen] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
-  const [isCreatingMemo, setIsCreatingMemo] = useState(false);
-  const [memoResult, setMemoResult] = useState<{ task_url: string; task_id: string } | null>(null);
-  const [memoStatus, setMemoStatus] = useState<'idle' | 'generating' | 'completed' | 'error'>('idle');
-  const [memoPollingId, setMemoPollingId] = useState<string | null>(null);
 
   const toggleSection = (section: string) => {
     setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -150,104 +147,6 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
   const signalColor = isBullish ? "text-signal-bullish" : "text-signal-bearish";
   const signalBg = isBullish ? "bg-signal-bullish/10" : "bg-signal-bearish/10";
 
-
-  // Check memo status and save file when complete
-  const checkMemoStatus = useCallback(async (taskId: string) => {
-    try {
-      const response = await fetch(`/api/dashboard/memo-status/${taskId}`);
-      if (!response.ok) return null;
-      
-      const status = await response.json();
-      
-      if (status.status === 'completed' && status.output_file) {
-        // Save the file to Supabase storage
-        const saveResponse = await fetch(`/api/dashboard/memo-status/${taskId}/save`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            asset_id: asset?.asset_id,
-            file_url: status.output_file.fileUrl,
-            file_name: status.output_file.fileName,
-          }),
-        });
-        
-        if (saveResponse.ok) {
-          setMemoStatus('completed');
-          setMemoPollingId(null);
-          // Trigger a refresh of the files section
-          window.dispatchEvent(new CustomEvent('memo-completed', { detail: { taskId } }));
-        }
-        return status;
-      } else if (status.status === 'failed' || status.status === 'cancelled') {
-        setMemoStatus('error');
-        setMemoPollingId(null);
-        return status;
-      }
-      
-      return status;
-    } catch (error) {
-      console.error('Error checking memo status:', error);
-      return null;
-    }
-  }, [asset?.asset_id]);
-
-  // Poll for memo completion
-  useEffect(() => {
-    if (!memoPollingId) return;
-    
-    const pollInterval = setInterval(async () => {
-      const status = await checkMemoStatus(memoPollingId);
-      if (status?.status === 'completed' || status?.status === 'failed' || status?.status === 'cancelled') {
-        clearInterval(pollInterval);
-      }
-    }, 60000); // Poll every 60 seconds (1 minute)
-    
-    // Initial check
-    checkMemoStatus(memoPollingId);
-    
-    return () => clearInterval(pollInterval);
-  }, [memoPollingId, checkMemoStatus]);
-
-  // Create investment memo via Manus API
-  const createMemo = async () => {
-    if (!asset || isCreatingMemo) return;
-    
-    setIsCreatingMemo(true);
-    setMemoResult(null);
-    setMemoStatus('generating');
-    
-    try {
-      const response = await fetch('/api/dashboard/create-memo', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          symbol: asset.symbol,
-          company_name: asset.name,
-          asset_id: asset.asset_id,
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to create memo');
-      }
-      
-      const result = await response.json();
-      setMemoResult({ task_url: result.task_url, task_id: result.task_id });
-      setMemoPollingId(result.task_id); // Start polling for completion
-      
-      // Open the memo in a new tab
-      window.open(result.task_url, '_blank');
-    } catch (error) {
-      console.error('Error creating memo:', error);
-      setMemoStatus('error');
-      alert('Failed to create memo. Please try again.');
-    } finally {
-      setIsCreatingMemo(false);
-    }
-  };
-
   const getTradingViewUrl = (symbol: string, assetType: string) => {
     if (assetType === 'crypto') {
       // For crypto, use CRYPTO exchange with USD pair
@@ -275,29 +174,6 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {/* Create Memo button */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={createMemo}
-                  disabled={isCreatingMemo}
-                  className={`p-2 rounded-full transition-colors ${
-                    isCreatingMemo
-                      ? 'bg-primary/20 text-primary cursor-wait'
-                      : 'text-muted-foreground hover:text-primary hover:bg-primary/10'
-                  }`}
-                >
-                  {isCreatingMemo ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <Sparkles className="w-5 h-5" />
-                  )}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {isCreatingMemo ? 'Creating memo...' : 'Generate investment memo with AI'}
-              </TooltipContent>
-            </Tooltip>
             {/* TradingView link */}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -631,6 +507,13 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
           <div className="lg:col-span-3 space-y-3">
             {/* Fundamentals Summary - TOP */}
             <FundamentalsSummary asset={{...asset, close: ohlcv?.[0]?.close}} />
+
+            {/* AI Documents Section */}
+            <DocumentsSection 
+              assetId={parseInt(assetId)} 
+              symbol={asset.symbol} 
+              companyName={asset.name}
+            />
 
             {/* About Section */}
             <div className="bg-card border border-border rounded-lg overflow-hidden">

@@ -48,8 +48,8 @@ function isPublicDashboardEndpoint(req: Request): boolean {
     return true
   }
   
-  // Allow public access to create-memo endpoint
-  if (req.method === 'POST' && path === '/dashboard/create-memo') {
+  // Allow public access to create-document endpoint
+  if (req.method === 'POST' && path === '/dashboard/create-document') {
     return true
   }
   
@@ -1763,10 +1763,10 @@ If asked about something not in the data, acknowledge the limitation.`
         })
       }
 
-      // POST /dashboard/create-memo - Create investment memo via Manus API
-      case req.method === 'POST' && path === '/dashboard/create-memo': {
+      // POST /dashboard/create-document - Create one pager or memo via Manus API
+      case req.method === 'POST' && path === '/dashboard/create-document': {
         const body = await req.json()
-        const { symbol, company_name, asset_id } = body
+        const { symbol, company_name, asset_id, document_type } = body
         
         if (!symbol) {
           return new Response(JSON.stringify({ error: 'Symbol is required' }), {
@@ -1775,14 +1775,19 @@ If asked about something not in the data, acknowledge the limitation.`
           })
         }
         
+        // Validate document type
+        const validTypes = ['one_pager', 'memo']
+        const docType = validTypes.includes(document_type) ? document_type : 'one_pager'
+        
         // Manus API configuration
         const MANUS_API_KEY = Deno.env.get('MANUS_API_KEY') || 'sk-sadyDbuEGGdU1kyqcaM7HY6E4-YXoouBbYEGQeMpaNf7eDpelHglEVLnTP2Gjk75RUhy5W79WTebyco_TTek43U7emlg'
         const MANUS_PROJECT_ID = 'YAnGyJK4v46h9LD9MgoN2g'
         
-        // Create prompt for the memo
-        const prompt = company_name 
-          ? `Generate investment memo for ${symbol} (${company_name})`
-          : `Generate investment memo for ${symbol}`
+        // Create prompt based on document type
+        const displayName = company_name ? `${company_name} (${symbol})` : symbol
+        const prompt = docType === 'one_pager'
+          ? `${displayName} One Pager`
+          : `${displayName} Memo`
         
         // Call Manus API
         const manusResponse = await fetch('https://api.manus.ai/v1/tasks', {
@@ -1801,7 +1806,7 @@ If asked about something not in the data, acknowledge the limitation.`
         if (!manusResponse.ok) {
           const errorText = await manusResponse.text()
           console.error('Manus API error:', errorText)
-          return new Response(JSON.stringify({ error: 'Failed to create memo task', details: errorText }), {
+          return new Response(JSON.stringify({ error: 'Failed to create document task', details: errorText }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
@@ -1809,19 +1814,20 @@ If asked about something not in the data, acknowledge the limitation.`
         
         const manusResult = await manusResponse.json()
         
-        // Optionally save the task reference to the database
+        // Save the task reference to the database
         if (asset_id && manusResult.task_id) {
+          const fileName = docType === 'one_pager' 
+            ? `${symbol}_One_Pager.md`
+            : `${symbol}_Investment_Memo.md`
+          
           await supabase
             .from('asset_files')
             .insert({
               asset_id,
-              file_name: `${symbol} Investment Memo`,
-              file_url: manusResult.task_url,
-              file_type: 'memo',
-              metadata: {
-                manus_task_id: manusResult.task_id,
-                status: 'generating'
-              }
+              file_name: fileName,
+              file_path: manusResult.task_url,
+              file_type: docType,
+              description: `Generating via Manus AI (Task: ${manusResult.task_id})`
             })
         }
         
@@ -1829,7 +1835,8 @@ If asked about something not in the data, acknowledge the limitation.`
           success: true,
           task_id: manusResult.task_id,
           task_url: manusResult.task_url,
-          task_title: manusResult.task_title
+          task_title: manusResult.task_title,
+          document_type: docType
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
