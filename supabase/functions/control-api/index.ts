@@ -523,6 +523,7 @@ serve(async (req) => {
             setup_type,
             confidence,
             summary_text,
+            ai_summary_text,
             review_json,
             created_at
           `)
@@ -542,22 +543,25 @@ serve(async (req) => {
         
         if (error) throw error
         
-        // Get unique asset IDs to fetch asset info
-        const assetIds = [...new Set((reviews || []).map(r => r.asset_id))]
+        // Get unique asset IDs to fetch asset info (convert to strings for consistent lookup)
+        const assetIds = [...new Set((reviews || []).map(r => String(r.asset_id)))]
         
-        // Fetch asset info (symbol, name)
+        // Fetch asset info (symbol, name) - assets table has bigint asset_id
         const { data: assets } = await supabase
           .from('assets')
           .select('asset_id, symbol, name')
-          .in('asset_id', assetIds)
+          .in('asset_id', assetIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id)))
         
-        const assetMap = new Map((assets || []).map(a => [a.asset_id, a]))
+        // Create map with string keys for consistent lookup
+        const assetMap = new Map((assets || []).map(a => [String(a.asset_id), a]))
         
-        // Merge asset info into reviews
+        // Merge asset info into reviews, also check ai_summary_text as fallback
         const memos = (reviews || []).map(r => ({
           ...r,
-          symbol: assetMap.get(r.asset_id)?.symbol || r.asset_id,
-          name: assetMap.get(r.asset_id)?.name || ''
+          symbol: assetMap.get(String(r.asset_id))?.symbol || r.asset_id,
+          name: assetMap.get(String(r.asset_id))?.name || '',
+          // Use summary_text or ai_summary_text as fallback
+          summary_text: r.summary_text || r.ai_summary_text || ''
         }))
         
         // Filter by search if provided (client-side for now)
