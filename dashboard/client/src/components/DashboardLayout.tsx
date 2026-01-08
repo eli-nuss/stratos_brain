@@ -1,6 +1,6 @@
 import { ReactNode, useState, useRef, useEffect } from "react";
 import useSWR from "swr";
-import { Activity, BookOpen, Settings, Search, GripVertical, Pencil, Trash2, FileText } from "lucide-react";
+import { Activity, BookOpen, Settings, Search, GripVertical, Pencil, Trash2, FileText, ChevronDown, ChevronUp } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { StockList } from "@/hooks/useStockLists";
 import { TabType } from "@/pages/Home";
@@ -150,6 +150,7 @@ export default function DashboardLayout({
   
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
+  const [showAllLists, setShowAllLists] = useState(false);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
 
@@ -408,15 +409,15 @@ export default function DashboardLayout({
             </div>
           </div>
 
-          {/* Center: Navigation Tabs - scrollable on mobile */}
-          <nav className="flex-1 overflow-x-auto scrollbar-hide lg:flex lg:justify-center">
-            <div className="flex items-center bg-muted/30 p-0.5 rounded-lg gap-0.5 w-max">
-              {/* Watchlist - Fixed */}
+          {/* Navigation - Two rows */}
+          <nav className="flex-1 flex flex-col items-center gap-1.5">
+            {/* Row 1: Fixed views */}
+            <div className="flex items-center bg-muted/30 p-0.5 rounded-lg gap-0.5">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => onTabChange("watchlist")}
-                    className={`px-2.5 py-1 text-xs font-medium rounded transition-all ${
+                    className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${
                       activeTab === "watchlist"
                         ? "bg-background text-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -428,14 +429,11 @@ export default function DashboardLayout({
                 <TooltipContent>Your personal watchlist</TooltipContent>
               </Tooltip>
               
-              <div className="h-3 w-px bg-border/50 mx-0.5" />
-              
-              {/* Equities - Fixed */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => onTabChange("equity")}
-                    className={`px-2.5 py-1 text-xs font-medium rounded transition-all ${
+                    className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${
                       activeTab === "equity"
                         ? "bg-background text-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -447,12 +445,11 @@ export default function DashboardLayout({
                 <TooltipContent>US equity stocks</TooltipContent>
               </Tooltip>
               
-              {/* Crypto - Fixed */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => onTabChange("crypto")}
-                    className={`px-2.5 py-1 text-xs font-medium rounded transition-all ${
+                    className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${
                       activeTab === "crypto"
                         ? "bg-background text-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -463,36 +460,52 @@ export default function DashboardLayout({
                 </TooltipTrigger>
                 <TooltipContent>Cryptocurrency assets (24/7 data)</TooltipContent>
               </Tooltip>
-              
-              {/* Stock Lists - Draggable */}
-              {stockLists.length > 0 && <div className="h-3 w-px bg-border/50 mx-0.5" />}
-              
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={stockLists.map((list) => list.id)}
-                  strategy={horizontalListSortingStrategy}
-                >
-                  <div className="flex items-center gap-0.5">
-                    {stockLists.map((list) => (
-                      <SortableListTab
-                        key={list.id}
-                        list={list}
-                        activeTab={activeTab}
-                        onTabChange={onTabChange}
-                        onContextMenu={handleContextMenu}
-                      />
-                    ))}
-                  </div>
-                </SortableContext>
-              </DndContext>
-              
-              {/* Create new list button */}
-              {onListCreated && <CreateListButton onListCreated={onListCreated} />}
             </div>
+            
+            {/* Row 2: Custom lists - centered, max 5 visible */}
+            {(stockLists.length > 0 || onListCreated) && (
+              <div className="flex items-center justify-center gap-1">
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={stockLists.map((list) => list.id)}
+                    strategy={horizontalListSortingStrategy}
+                  >
+                    <div className="flex items-center gap-0.5">
+                      {(showAllLists ? stockLists : stockLists.slice(0, 5)).map((list) => (
+                        <SortableListTab
+                          key={list.id}
+                          list={list}
+                          activeTab={activeTab}
+                          onTabChange={onTabChange}
+                          onContextMenu={handleContextMenu}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+                
+                {/* Show more/less button */}
+                {stockLists.length > 5 && (
+                  <button
+                    onClick={() => setShowAllLists(!showAllLists)}
+                    className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all flex items-center gap-0.5"
+                  >
+                    {showAllLists ? (
+                      <><ChevronUp className="w-3 h-3" /> Less</>
+                    ) : (
+                      <><ChevronDown className="w-3 h-3" /> +{stockLists.length - 5}</>
+                    )}
+                  </button>
+                )}
+                
+                {/* Create new list button */}
+                {onListCreated && <CreateListButton onListCreated={onListCreated} />}
+              </div>
+            )}
           </nav>
 
           {/* Right: Search + Links - hidden on mobile */}
