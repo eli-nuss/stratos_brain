@@ -502,6 +502,81 @@ serve(async (req) => {
         })
       }
 
+      // GET /dashboard/memos - Get all AI reviews for the memo library
+      case req.method === 'GET' && path === '/dashboard/memos': {
+        const limit = parseInt(url.searchParams.get('limit') || '500')
+        const offset = parseInt(url.searchParams.get('offset') || '0')
+        const search = url.searchParams.get('search')
+        const direction = url.searchParams.get('direction')
+        const attention = url.searchParams.get('attention')
+        
+        // Get reviews with asset info joined
+        let query = supabase
+          .from('asset_ai_reviews')
+          .select(`
+            id,
+            asset_id,
+            as_of_date,
+            universe_id,
+            source_scope,
+            attention_level,
+            direction,
+            setup_type,
+            confidence,
+            summary_text,
+            review_json,
+            created_at
+          `)
+          .order('as_of_date', { ascending: false })
+          .order('created_at', { ascending: false })
+          .range(offset, offset + limit - 1)
+        
+        if (direction && direction !== 'all') {
+          query = query.eq('direction', direction)
+        }
+        
+        if (attention && attention !== 'all') {
+          query = query.eq('attention_level', attention)
+        }
+        
+        const { data: reviews, error } = await query
+        
+        if (error) throw error
+        
+        // Get unique asset IDs to fetch asset info
+        const assetIds = [...new Set((reviews || []).map(r => r.asset_id))]
+        
+        // Fetch asset info (symbol, name)
+        const { data: assets } = await supabase
+          .from('assets')
+          .select('asset_id, symbol, name')
+          .in('asset_id', assetIds)
+        
+        const assetMap = new Map((assets || []).map(a => [a.asset_id, a]))
+        
+        // Merge asset info into reviews
+        const memos = (reviews || []).map(r => ({
+          ...r,
+          symbol: assetMap.get(r.asset_id)?.symbol || r.asset_id,
+          name: assetMap.get(r.asset_id)?.name || ''
+        }))
+        
+        // Filter by search if provided (client-side for now)
+        let filteredMemos = memos
+        if (search) {
+          const searchLower = search.toLowerCase()
+          filteredMemos = memos.filter(m => 
+            m.symbol?.toLowerCase().includes(searchLower) ||
+            m.name?.toLowerCase().includes(searchLower) ||
+            m.summary_text?.toLowerCase().includes(searchLower)
+          )
+        }
+        
+        return new Response(JSON.stringify(filteredMemos), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
       // GET /dashboard/reviews/:asset_id - Get AI review for a specific asset
       case req.method === 'GET' && path.startsWith('/dashboard/reviews/'): {
         const assetId = decodeURIComponent(path.split('/')[3])

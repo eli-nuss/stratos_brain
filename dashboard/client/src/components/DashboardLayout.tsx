@@ -1,6 +1,6 @@
 import { ReactNode, useState, useRef, useEffect } from "react";
 import useSWR from "swr";
-import { Activity, BookOpen, Settings, Search, GripVertical, Pencil, Trash2 } from "lucide-react";
+import { Activity, BookOpen, Settings, Search, GripVertical, Pencil, Trash2, FileText } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { StockList } from "@/hooks/useStockLists";
 import { TabType } from "@/pages/Home";
@@ -500,6 +500,18 @@ export default function DashboardLayout({
             )}
             
             <div className="h-3 w-px bg-border/50" />
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <a
+                  href="/memos"
+                  className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                </a>
+              </TooltipTrigger>
+              <TooltipContent>Memo Library</TooltipContent>
+            </Tooltip>
             
             <Tooltip>
               <TooltipTrigger asChild>
