@@ -509,7 +509,7 @@ serve(async (req) => {
         const search = url.searchParams.get('search')
         const docType = url.searchParams.get('type') || 'memo' // 'memo' or 'one_pager' or 'all'
         
-        // Get generated documents from asset_files table
+        // Get generated documents from asset_files table with embedded asset info
         let query = supabase
           .from('asset_files')
           .select(`
@@ -520,7 +520,8 @@ serve(async (req) => {
             file_size,
             file_type,
             description,
-            created_at
+            created_at,
+            assets!inner(symbol, name, asset_type)
           `)
           .order('created_at', { ascending: false })
           .range(offset, offset + limit - 1)
@@ -537,27 +538,28 @@ serve(async (req) => {
         
         const { data: files, error } = await query
         
-        if (error) throw error
+        if (error) {
+          console.error('Memos query error:', error)
+          throw error
+        }
         
-        // Get unique asset IDs to fetch asset info
-        const assetIds = [...new Set((files || []).map(f => f.asset_id).filter(Boolean))]
-        
-        // Fetch asset info (symbol, name)
-        const { data: assets } = await supabase
-          .from('assets')
-          .select('asset_id, symbol, name, universe_id')
-          .in('asset_id', assetIds)
-        
-        // Create map for asset lookup
-        const assetMap = new Map((assets || []).map(a => [a.asset_id, a]))
-        
-        // Merge asset info into files
-        const memos = (files || []).map(f => ({
-          ...f,
-          symbol: assetMap.get(f.asset_id)?.symbol || `Asset ${f.asset_id}`,
-          name: assetMap.get(f.asset_id)?.name || '',
-          universe_id: assetMap.get(f.asset_id)?.universe_id || ''
-        }))
+        // Flatten the nested asset info
+        const memos = (files || []).map(f => {
+          const asset = f.assets as { symbol?: string; name?: string; asset_type?: string } | null
+          return {
+            file_id: f.file_id,
+            asset_id: f.asset_id,
+            file_name: f.file_name,
+            file_path: f.file_path,
+            file_size: f.file_size,
+            file_type: f.file_type,
+            description: f.description,
+            created_at: f.created_at,
+            symbol: asset?.symbol || `Asset ${f.asset_id}`,
+            name: asset?.name || '',
+            asset_type: asset?.asset_type || ''
+          }
+        })
         
         // Filter by search if provided
         let filteredMemos = memos
