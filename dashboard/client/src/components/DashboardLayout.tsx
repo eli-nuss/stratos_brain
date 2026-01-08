@@ -1,7 +1,6 @@
 import { ReactNode } from "react";
 import useSWR from "swr";
-import { Activity, Database, Brain, Clock, AlertTriangle, Info, BookOpen, Bot, Pill, Rocket, Settings } from "lucide-react";
-import { format } from "date-fns";
+import { Activity, Brain, Bot, Pill, Rocket, BookOpen, Settings, Search } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { StockList } from "@/hooks/useStockLists";
 import { TabType } from "@/pages/Home";
@@ -21,9 +20,18 @@ interface DashboardLayoutProps {
   activeTab: TabType;
   onTabChange: (tab: TabType) => void;
   stockLists?: StockList[];
+  searchQuery?: string;
+  onSearchChange?: (query: string) => void;
 }
 
-export default function DashboardLayout({ children, activeTab, onTabChange, stockLists = [] }: DashboardLayoutProps) {
+export default function DashboardLayout({ 
+  children, 
+  activeTab, 
+  onTabChange, 
+  stockLists = [],
+  searchQuery = "",
+  onSearchChange
+}: DashboardLayoutProps) {
   const { data: health } = useSWR("/api/dashboard/health", fetcher, {
     refreshInterval: 60000, // Refresh every minute
   });
@@ -32,130 +40,74 @@ export default function DashboardLayout({ children, activeTab, onTabChange, stoc
     return iconMap[iconName] || Brain;
   };
 
+  // Format date to be more compact (e.g., "Jan 7" instead of "2026-01-07")
+  const formatDate = (dateStr: string | undefined) => {
+    if (!dateStr) return "...";
+    try {
+      const date = new Date(dateStr + "T00:00:00");
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } catch {
+      return dateStr;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       {/* Top Status Bar */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container h-14 flex items-center justify-between">
-          <div className="flex items-center gap-6">
+        <div className="container h-12 flex items-center justify-between">
+          {/* Left: Logo + Data Status */}
+          <div className="flex items-center gap-4">
             <Tooltip>
               <TooltipTrigger asChild>
-                <h1 className="text-lg font-bold tracking-tight flex items-center gap-2 cursor-help">
-                  <Activity className="w-5 h-5 text-primary" />
+                <h1 className="text-base font-bold tracking-tight flex items-center gap-1.5 cursor-help">
+                  <Activity className="w-4 h-4 text-primary" />
                   STRATOS<span className="text-muted-foreground font-normal">BRAIN</span>
                 </h1>
               </TooltipTrigger>
               <TooltipContent className="max-w-xs">
-                AI-powered technical analysis dashboard. Monitors crypto and equity markets for high-probability trading setups using quantitative signals and chart pattern recognition.
+                AI-powered technical analysis dashboard for crypto and equity markets.
               </TooltipContent>
             </Tooltip>
             
-            <div className="h-4 w-px bg-border" />
-            
-            {/* Health Stats */}
-            <div className="flex items-center gap-6 text-xs font-mono text-muted-foreground">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center gap-2 cursor-help">
-                    <Clock className="w-3 h-3" />
-                    <span>EQ: {health?.latest_dates?.equity || "..."}</span>
-                    <span className="text-border">|</span>
-                    <span>CRYPTO: {health?.latest_dates?.crypto || "..."}</span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  Latest data dates for each asset class. Equity data updates after market close (4 PM ET). Crypto data updates continuously (24/7).
-                </TooltipContent>
-              </Tooltip>
-              
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center gap-2 cursor-help">
-                    <Database className="w-3 h-3" />
-                    <span>{(health?.eligible_assets?.equity || 0) + (health?.eligible_assets?.crypto || 0)} ASSETS</span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  Total number of assets being monitored. Assets must meet minimum liquidity and volume requirements to be included in the analysis universe.
-                </TooltipContent>
-              </Tooltip>
-              
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center gap-2 cursor-help">
-                    <Brain className="w-3 h-3" />
-                    <span>AI REVIEWS: {health?.ai_reviews_today?.total || 0}</span>
-                    {health?.ai_reviews_today?.urgent > 0 && (
-                      <span className="text-attention-urgent flex items-center gap-1">
-                        <AlertTriangle className="w-3 h-3" />
-                        {health.ai_reviews_today.urgent} URGENT
-                      </span>
-                    )}
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  <div className="space-y-1">
-                    <div><strong>AI Reviews:</strong> Number of assets analyzed by AI today based on signal triggers.</div>
-                    {health?.ai_reviews_today?.urgent > 0 && (
-                      <div><strong>URGENT:</strong> High-conviction setups requiring immediate attention. These have strong technical evidence and favorable risk/reward.</div>
-                    )}
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            </div>
+            {/* Compact Data Status */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground/70 cursor-help">
+                  <span className="px-1.5 py-0.5 rounded bg-muted/50">EQ {formatDate(health?.latest_dates?.equity)}</span>
+                  <span className="px-1.5 py-0.5 rounded bg-muted/50">CR {formatDate(health?.latest_dates?.crypto)}</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs text-xs">
+                <div className="space-y-1">
+                  <div><strong>EQ:</strong> Equity data as of {health?.latest_dates?.equity || "..."}</div>
+                  <div><strong>CR:</strong> Crypto data as of {health?.latest_dates?.crypto || "..."}</div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
           </div>
 
-          {/* Tab Navigation */}
-          <div className="flex items-center gap-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <a
-                  href="/docs"
-                  className="px-3 py-1.5 text-sm font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all flex items-center gap-1.5"
-                >
-                  <BookOpen className="w-4 h-4" />
-                  Docs
-                </a>
-              </TooltipTrigger>
-              <TooltipContent>
-                AI Analysis system documentation and methodology
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <a
-                  href="/admin/templates"
-                  className="px-3 py-1.5 text-sm font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all flex items-center gap-1.5"
-                >
-                  <Settings className="w-4 h-4" />
-                  Templates
-                </a>
-              </TooltipTrigger>
-              <TooltipContent>
-                Edit AI document generation templates (memos, one pagers)
-              </TooltipContent>
-            </Tooltip>
-            <div className="h-4 w-px bg-border" />
-            <div className="flex items-center bg-muted/50 p-1 rounded-lg gap-0.5">
+          {/* Center: Navigation Tabs */}
+          <nav className="flex items-center">
+            <div className="flex items-center bg-muted/30 p-0.5 rounded-lg gap-0.5">
+              {/* Watchlist */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => onTabChange("watchlist")}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                    className={`px-2.5 py-1 text-xs font-medium rounded transition-all ${
                       activeTab === "watchlist"
                         ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                     }`}
                   >
                     ⭐ Watchlist
                   </button>
                 </TooltipTrigger>
-                <TooltipContent>
-                  Your personal watchlist. Add assets from Crypto or Equities tabs.
-                </TooltipContent>
+                <TooltipContent>Your personal watchlist</TooltipContent>
               </Tooltip>
               
-              {/* Stock List Tabs */}
+              {/* Stock Lists */}
               {stockLists.map((list) => {
                 const Icon = getIcon(list.icon);
                 const tabId = `list-${list.id}` as TabType;
@@ -164,66 +116,106 @@ export default function DashboardLayout({ children, activeTab, onTabChange, stoc
                     <TooltipTrigger asChild>
                       <button
                         onClick={() => onTabChange(tabId)}
-                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-1.5 ${
+                        className={`px-2.5 py-1 text-xs font-medium rounded transition-all flex items-center gap-1 ${
                           activeTab === tabId
                             ? "bg-background text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                         }`}
                       >
-                        <Icon className="w-3.5 h-3.5" style={{ color: list.color }} />
+                        <span style={{ color: list.color }}><Icon className="w-3 h-3" /></span>
                         {list.name}
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent>
-                      {list.description}
-                    </TooltipContent>
+                    <TooltipContent>{list.description}</TooltipContent>
                   </Tooltip>
                 );
               })}
               
-              <div className="h-4 w-px bg-border mx-1" />
+              <div className="h-3 w-px bg-border/50 mx-0.5" />
               
+              {/* Crypto */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => onTabChange("crypto")}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                    className={`px-2.5 py-1 text-xs font-medium rounded transition-all ${
                       activeTab === "crypto"
                         ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                     }`}
                   >
                     Crypto
                   </button>
                 </TooltipTrigger>
-                <TooltipContent>
-                  Cryptocurrency assets including BTC, ETH, and altcoins. Data updates 24/7.
-                </TooltipContent>
+                <TooltipContent>Cryptocurrency assets (24/7 data)</TooltipContent>
               </Tooltip>
+              
+              {/* Equities */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => onTabChange("equity")}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                    className={`px-2.5 py-1 text-xs font-medium rounded transition-all ${
                       activeTab === "equity"
                         ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                     }`}
                   >
                     Equities
                   </button>
                 </TooltipTrigger>
-                <TooltipContent>
-                  US equity stocks. Data updates after market close (4 PM ET).
-                </TooltipContent>
+                <TooltipContent>US equity stocks</TooltipContent>
               </Tooltip>
             </div>
+          </nav>
+
+          {/* Right: Search + Links */}
+          <div className="flex items-center gap-2">
+            {/* Global Search */}
+            {onSearchChange && (
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => onSearchChange(e.target.value)}
+                  className="w-32 pl-7 pr-2 py-1 text-xs bg-muted/30 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-primary focus:w-48 transition-all"
+                />
+              </div>
+            )}
+            
+            <div className="h-3 w-px bg-border/50" />
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <a
+                  href="/docs"
+                  className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                </a>
+              </TooltipTrigger>
+              <TooltipContent>Documentation</TooltipContent>
+            </Tooltip>
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <a
+                  href="/admin/templates"
+                  className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                </a>
+              </TooltipTrigger>
+              <TooltipContent>Template Editor</TooltipContent>
+            </Tooltip>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 container py-6">
+      <main className="flex-1 container py-4">
         {children}
       </main>
     </div>
