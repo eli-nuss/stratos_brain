@@ -60,6 +60,9 @@ MAX_CONCURRENT = 5  # Concurrent requests
 RATE_LIMIT_DELAY = 2.5  # Seconds between requests (24 req/min)
 REQUEST_TIMEOUT = 30  # Seconds
 
+# Minimum coverage threshold - fail workflow if below this
+MIN_SUCCESS_RATE = 0.90  # 90% minimum coverage required
+
 # Logging setup
 logging.basicConfig(
     level=logging.INFO,
@@ -430,13 +433,20 @@ async def run_ingestion(target_date: str, limit: Optional[int] = None) -> int:
     conn.close()
     
     # Summary
+    success_rate = success / len(assets) if len(assets) > 0 else 0
     logger.info("=" * 60)
     logger.info(f"INGESTION COMPLETE")
     logger.info(f"  Assets processed: {len(assets)}")
     logger.info(f"  Records inserted: {inserted}")
-    logger.info(f"  Success rate: {success * 100 / len(assets):.1f}%")
+    logger.info(f"  Success rate: {success_rate * 100:.1f}%")
     logger.info(f"  Errors: {errors}")
     logger.info("=" * 60)
+    
+    # Check minimum coverage gate
+    if success_rate < MIN_SUCCESS_RATE:
+        logger.error(f"COVERAGE GATE FAILED: {success_rate*100:.1f}% < {MIN_SUCCESS_RATE*100:.0f}% minimum")
+        logger.error("Workflow will fail to prevent incomplete data from propagating downstream.")
+        return -1  # Signal failure
     
     return inserted
 
@@ -469,6 +479,8 @@ def main():
     
     try:
         inserted = asyncio.run(run_ingestion(target_date, args.limit))
+        if inserted < 0:  # Coverage gate failed
+            sys.exit(1)
         sys.exit(0 if inserted > 0 else 1)
     except Exception as e:
         logger.error(f"Fatal error: {e}")

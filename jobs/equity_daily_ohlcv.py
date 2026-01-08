@@ -34,6 +34,15 @@ import aiohttp
 import psycopg2
 from psycopg2.extras import execute_values
 
+# Exchange calendar for accurate market day detection
+try:
+    import exchange_calendars as xcals
+    NYSE_CALENDAR = xcals.get_calendar('XNYS')
+    USE_EXCHANGE_CALENDAR = True
+except ImportError:
+    NYSE_CALENDAR = None
+    USE_EXCHANGE_CALENDAR = False
+
 # ============================================================================
 # Configuration
 # ============================================================================
@@ -49,6 +58,9 @@ RATE_LIMIT_DELAY = 60.0 / CALLS_PER_MINUTE  # ~1 second between calls
 # Batch settings
 BATCH_SIZE = 50  # Insert in batches of 50
 REQUEST_TIMEOUT = 30  # Seconds
+
+# Minimum coverage threshold - fail workflow if below this
+MIN_SUCCESS_RATE = 0.90  # 90% minimum coverage required
 
 # Logging setup
 logging.basicConfig(
@@ -82,8 +94,18 @@ US_MARKET_HOLIDAYS = {
 def is_trading_day(date_str: str) -> bool:
     """
     Check if a date is a US stock market trading day.
-    Returns False for weekends and market holidays.
+    Uses exchange_calendars library if available, falls back to hardcoded holidays.
     """
+    import pandas as pd
+    
+    if USE_EXCHANGE_CALENDAR and NYSE_CALENDAR:
+        try:
+            ts = pd.Timestamp(date_str, tz='UTC')
+            return NYSE_CALENDAR.is_session(ts)
+        except Exception as e:
+            logger.warning(f"exchange_calendars error: {e}, falling back to hardcoded holidays")
+    
+    # Fallback to hardcoded logic
     dt = datetime.strptime(date_str, "%Y-%m-%d")
     
     # Check weekend (Monday=0, Sunday=6)
@@ -99,11 +121,24 @@ def is_trading_day(date_str: str) -> bool:
 
 def get_last_trading_day(from_date: str) -> str:
     """Get the most recent trading day on or before the given date."""
-    dt = datetime.strptime(from_date, "%Y-%m-%d")
+    import pandas as pd
     
+    if USE_EXCHANGE_CALENDAR and NYSE_CALENDAR:
+        try:
+            ts = pd.Timestamp(from_date, tz='UTC')
+            # Get the previous valid session
+            sessions = NYSE_CALENDAR.sessions_in_range(
+                ts - pd.Timedelta(days=10), ts
+            )
+            if len(sessions) > 0:
+                return sessions[-1].strftime("%Y-%m-%d")
+        except Exception as e:
+            logger.warning(f"exchange_calendars error: {e}, falling back to hardcoded logic")
+    
+    # Fallback
+    dt = datetime.strptime(from_date, "%Y-%m-%d")
     while not is_trading_day(dt.strftime("%Y-%m-%d")):
         dt -= timedelta(days=1)
-    
     return dt.strftime("%Y-%m-%d")
 
 
@@ -415,13 +450,20 @@ async def run_ingestion(target_date: str, limit: Optional[int] = None) -> int:
     conn.close()
     
     # Summary
+    success_rate = inserted / len(assets) if len(assets) > 0 else 0
     logger.info("=" * 60)
     logger.info(f"INGESTION COMPLETE")
     logger.info(f"  Assets processed: {len(assets)}")
     logger.info(f"  Records inserted: {inserted}")
-    logger.info(f"  Success rate: {inserted * 100 / len(assets):.1f}%")
+    logger.info(f"  Success rate: {success_rate * 100:.1f}%")
     logger.info(f"  Elapsed time: {elapsed / 60:.1f} minutes")
     logger.info("=" * 60)
+    
+    # Check minimum coverage gate
+    if success_rate < MIN_SUCCESS_RATE:
+        logger.error(f"COVERAGE GATE FAILED: {success_rate*100:.1f}% < {MIN_SUCCESS_RATE*100:.0f}% minimum")
+        logger.error("Workflow will fail to prevent incomplete data from propagating downstream.")
+        return -1  # Signal failure
     
     return inserted
 
@@ -445,6 +487,8 @@ def main():
     
     try:
         inserted = asyncio.run(run_ingestion(args.date, args.limit))
+        if inserted < 0:  # Coverage gate failed
+            sys.exit(1)
         # Exit 0 even if no records (could be non-trading day)
         sys.exit(0)
     except Exception as e:

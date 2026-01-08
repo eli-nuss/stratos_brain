@@ -1,28 +1,31 @@
-# Core
-psycopg2-binary>=2.9.9
-pyyaml>=6.0.1
-python-dotenv>=1.0.0
+# Core dependencies - pinned for reproducibility
+psycopg2-binary==2.9.9
+pyyaml==6.0.1
+python-dotenv==1.0.1
 
 # Supabase
-supabase>=2.0.0
+supabase==2.10.0
 
 # AI (for AI stages)
-openai>=1.0.0
-google-genai>=1.0.0
+openai==1.58.1
+google-genai==1.0.0
 
-# Data processing (for Stage1Fetch)
-pandas>=2.0.0
-numpy>=1.24.0
-requests>=2.31.0
-aiohttp>=3.9.0
+# Data processing
+pandas==2.2.3
+numpy==1.26.4
+requests==2.32.3
+aiohttp==3.11.11
+
+# Exchange calendar for market day detection
+exchange_calendars==4.5.6
 
 # Utilities
-structlog>=23.2.0
-tenacity>=8.2.3
+structlog==24.4.0
+tenacity==9.0.0
 
 # Development
-pytest>=7.4.0
-pytest-asyncio>=0.21.0
-black>=23.0.0
-ruff>=0.1.0
-mypy>=1.0.0
+pytest==8.3.4
+pytest-asyncio==0.24.0
+black==24.10.0
+ruff==0.8.4
+mypy==1.14.1
