@@ -19,6 +19,7 @@ function Router() {
       <Route path={"/equities"} component={Home} />
       <Route path={"/crypto"} component={Home} />
       <Route path={"/list/:listId"} component={Home} />
+      <Route path={"/asset/:assetId"} component={Home} />
       <Route path={"/docs"} component={Documentation} />
       <Route path={"/admin/templates"} component={TemplateEditor} />
       <Route path={"/memos"} component={MemoLibrary} />

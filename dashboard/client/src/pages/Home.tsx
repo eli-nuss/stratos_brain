@@ -15,11 +15,27 @@ export type TabType = "watchlist" | "crypto" | "equity" | `list-${number}`;
 export default function Home() {
   const [location, setLocation] = useLocation();
   const [, listParams] = useRoute("/list/:listId");
-  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
+  const [, assetParams] = useRoute("/asset/:assetId");
   const { lists, mutate: mutateLists } = useStockLists();
 
-  // Derive active tab from URL
+  // Track the previous view for when closing asset detail
+  const [previousView, setPreviousView] = useState<string>("/watchlist");
+
+  // Derive selected asset from URL
+  const selectedAssetId = assetParams?.assetId || null;
+
+  // Derive active tab from URL (ignore asset routes for tab selection)
   const getTabFromUrl = (): TabType => {
+    // If we're on an asset page, use the previous view's tab
+    if (location.startsWith("/asset/")) {
+      if (previousView === "/equities") return "equity";
+      if (previousView === "/crypto") return "crypto";
+      if (previousView.startsWith("/list/")) {
+        const listId = previousView.split("/list/")[1];
+        return `list-${listId}` as TabType;
+      }
+      return "watchlist";
+    }
     if (location === "/equities") return "equity";
     if (location === "/crypto") return "crypto";
     if (location === "/watchlist" || location === "/") return "watchlist";
@@ -32,7 +48,14 @@ export default function Home() {
   // Sync activeTab with URL changes
   useEffect(() => {
     setActiveTab(getTabFromUrl());
-  }, [location, listParams?.listId]);
+  }, [location, listParams?.listId, previousView]);
+
+  // Track previous view when navigating away from asset pages
+  useEffect(() => {
+    if (!location.startsWith("/asset/")) {
+      setPreviousView(location);
+    }
+  }, [location]);
 
   // Handle tab change - update URL
   const handleTabChange = (tab: TabType) => {
@@ -49,14 +72,20 @@ export default function Home() {
     }
   };
 
+  // Handle asset click - update URL to show asset detail
+  const handleAssetClick = (assetId: string) => {
+    setLocation(`/asset/${assetId}`);
+  };
+
+  // Handle closing asset detail - go back to previous view
+  const handleCloseAssetDetail = () => {
+    setLocation(previousView || "/watchlist");
+  };
+
   // Get latest date for the active tab
   const { data: health } = useSWR("/api/dashboard/health", fetcher);
   const assetType = activeTab === "crypto" ? "crypto" : activeTab === "equity" ? "equity" : undefined;
   const date = assetType ? health?.latest_dates?.[assetType] : undefined;
-
-  const handleAssetClick = (assetId: string) => {
-    setSelectedAssetId(assetId);
-  };
 
   // Check if current tab is a stock list
   const isStockListTab = activeTab.startsWith("list-");
@@ -107,7 +136,7 @@ export default function Home() {
           <div className="bg-card border border-border rounded-lg shadow-lg w-full sm:w-[90vw] lg:w-[80vw] max-w-[1600px] h-[95vh] sm:h-[90vh] lg:h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <AssetDetail 
               assetId={selectedAssetId} 
-              onClose={() => setSelectedAssetId(null)} 
+              onClose={handleCloseAssetDetail} 
             />
           </div>
         </div>
