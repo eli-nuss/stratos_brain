@@ -39,10 +39,19 @@ async function startServer() {
         headers: {
           "x-stratos-key": STRATOS_API_KEY,
           "Content-Type": "application/json"
-        }
+        },
+        // Don't transform response data for HTML content
+        responseType: endpoint.includes('memo-pdf') ? 'text' : 'json'
       });
       
-      res.status(response.status).json(response.data);
+      // Check if response is HTML (for memo-pdf endpoint)
+      const contentType = response.headers['content-type'] || '';
+      if (contentType.includes('text/html')) {
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.status(response.status).send(response.data);
+      } else {
+        res.status(response.status).json(response.data);
+      }
     } catch (error: any) {
       console.error("Proxy error:", error.message);
       if (error.response) {
