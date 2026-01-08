@@ -368,37 +368,49 @@ export default function DashboardLayout({
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       {/* Top Status Bar */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container h-12 flex items-center justify-between">
-          {/* Left: Logo + Data Status */}
-          <div className="flex items-center gap-4">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <h1 className="text-base font-bold tracking-tight flex items-center gap-1.5 cursor-help">
-                  <Activity className="w-4 h-4 text-primary" />
-                  STRATOS<span className="text-muted-foreground font-normal">BRAIN</span>
-                </h1>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                AI-powered technical analysis dashboard for crypto and equity markets.
-              </TooltipContent>
-            </Tooltip>
+        <div className="container h-auto min-h-[48px] py-2 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2">
+          {/* Top row on mobile: Logo + Right links */}
+          <div className="flex items-center justify-between lg:justify-start lg:gap-4 shrink-0">
+            {/* Left: Logo + Data Status */}
+            <div className="flex items-center gap-3">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <h1 className="text-base font-bold tracking-tight flex items-center gap-1.5 cursor-help">
+                    <Activity className="w-4 h-4 text-primary" />
+                    <span className="hidden sm:inline">STRATOS</span>
+                    <span className="sm:hidden">S</span>
+                    <span className="text-muted-foreground font-normal hidden sm:inline">BRAIN</span>
+                    <span className="text-muted-foreground font-normal sm:hidden">B</span>
+                  </h1>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  AI-powered technical analysis dashboard for crypto and equity markets.
+                </TooltipContent>
+              </Tooltip>
+              
+              {/* Data Status - hidden on mobile */}
+              <div className="hidden md:flex flex-col gap-0.5 text-[10px] font-mono text-muted-foreground/70">
+                <div className="flex items-center gap-1">
+                  <span className="text-muted-foreground/50">Crypto:</span>
+                  <span>{formatDate(health?.latest_dates?.crypto)}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-muted-foreground/50">Equity:</span>
+                  <span>{formatDate(health?.latest_dates?.equity)}</span>
+                </div>
+              </div>
+            </div>
             
-            {/* Data Status - 2 row layout */}
-            <div className="flex flex-col gap-0.5 text-[10px] font-mono text-muted-foreground/70">
-              <div className="flex items-center gap-1">
-                <span className="text-muted-foreground/50">Crypto:</span>
-                <span>{formatDate(health?.latest_dates?.crypto)}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-muted-foreground/50">Equity:</span>
-                <span>{formatDate(health?.latest_dates?.equity)}</span>
-              </div>
+            {/* Right links - visible on mobile in top row */}
+            <div className="flex items-center gap-1 lg:hidden">
+              <a href="/memos" className="px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground rounded">Memos</a>
+              <a href="/docs" className="px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground rounded">Docs</a>
             </div>
           </div>
 
-          {/* Center: Navigation Tabs */}
-          <nav className="flex items-center">
-            <div className="flex items-center bg-muted/30 p-0.5 rounded-lg gap-0.5">
+          {/* Center: Navigation Tabs - scrollable on mobile */}
+          <nav className="flex-1 overflow-x-auto scrollbar-hide lg:flex lg:justify-center">
+            <div className="flex items-center bg-muted/30 p-0.5 rounded-lg gap-0.5 w-max">
               {/* Watchlist - Fixed */}
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -483,8 +495,8 @@ export default function DashboardLayout({
             </div>
           </nav>
 
-          {/* Right: Search + Links */}
-          <div className="flex items-center gap-2">
+          {/* Right: Search + Links - hidden on mobile */}
+          <div className="hidden lg:flex items-center gap-2 shrink-0">
             {/* Global Search */}
             {onSearchChange && (
               <div className="relative">

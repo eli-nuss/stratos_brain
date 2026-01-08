@@ -413,8 +413,8 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-auto scrollbar-thin">
-        <table className="w-full text-sm text-left">
+      <div className="flex-1 overflow-x-auto overflow-y-auto scrollbar-thin">
+        <table className="w-full text-sm text-left min-w-[1200px]">
           <thead className="sticky top-0 bg-muted/50 border-b border-border">
             <tr>
               {showWatchlistColumn && <th className="px-2 py-2 w-8"></th>}
