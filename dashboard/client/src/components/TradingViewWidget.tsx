@@ -48,32 +48,33 @@ function TradingViewWidget({
       "autosize": true,
       "symbol": tvSymbol,
       "interval": interval,
-      "timezone": "Etc/UTC",
+      "timezone": "America/New_York",
       "theme": theme,
       "style": "1", // Candlestick
       "locale": "en",
       "allow_symbol_change": false,
       "calendar": false,
       "support_host": "https://www.tradingview.com",
-      "hide_side_toolbar": true,
+      "hide_side_toolbar": false,
       "hide_top_toolbar": false,
       "hide_legend": false,
-      "save_image": false,
-      "backgroundColor": theme === 'dark' ? "rgba(0, 0, 0, 0)" : "rgba(255, 255, 255, 1)",
-      "gridColor": theme === 'dark' ? "rgba(66, 66, 66, 0.3)" : "rgba(200, 200, 200, 0.3)",
+      "hide_volume": false,
+      "save_image": true,
+      "backgroundColor": theme === 'dark' ? "rgba(17, 17, 17, 1)" : "rgba(255, 255, 255, 1)",
+      "gridColor": theme === 'dark' ? "rgba(66, 66, 66, 0.4)" : "rgba(200, 200, 200, 0.3)",
       "withdateranges": true,
       "details": false,
       "hotlist": false,
       "studies": [
-        { "id": "STD;RSI" },
-        { "id": "MASimple@tv-basicstudies", "inputs": { "length": 20 } },
-        { "id": "MAExp@tv-basicstudies", "inputs": { "length": 50 } }
+        "STD;RSI",
+        "STD;SMA",
+        "STD;SMA"
       ],
       "studies_overrides": {
-        "moving average.ma.color": "#2962FF",
-        "moving average.ma.linewidth": 2,
-        "moving average exponential.ma.color": "#FF6D00",
-        "moving average exponential.ma.linewidth": 2
+        "rsi.rsi.color": "#7E57C2",
+        "rsi.rsi.linewidth": 2,
+        "volume.volume.color.0": "#EF5350",
+        "volume.volume.color.1": "#26A69A"
       }
     });
 
