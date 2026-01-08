@@ -67,8 +67,14 @@ function TradingViewWidget({
       "studies": [
         { "id": "STD;RSI" },
         { "id": "MASimple@tv-basicstudies", "inputs": { "length": 20 } },
-        { "id": "MASimple@tv-basicstudies", "inputs": { "length": 50 } }
-      ]
+        { "id": "MAExp@tv-basicstudies", "inputs": { "length": 50 } }
+      ],
+      "studies_overrides": {
+        "moving average.ma.color": "#2962FF",
+        "moving average.ma.linewidth": 2,
+        "moving average exponential.ma.color": "#FF6D00",
+        "moving average exponential.ma.linewidth": 2
+      }
     });
 
     const widgetContainer = document.createElement("div");
