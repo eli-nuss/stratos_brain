@@ -9,6 +9,8 @@ interface PendingDocument {
   documentType: 'one_pager' | 'memo';
   symbol: string;
   startedAt: number;
+  lastKnownOutputName?: string; // Track last output to detect new files
+  isExistingTask?: boolean; // Whether this is polling an existing task vs new
 }
 
 // Store pending documents in memory (persists across component re-renders)
@@ -49,6 +51,15 @@ async function checkAndSaveDocument(pending: PendingDocument): Promise<boolean> 
       
       console.log(`[DocumentPolling] Task completed with file: ${fileName}`);
       
+      // For existing tasks, check if this is a new output
+      if (pending.isExistingTask && pending.lastKnownOutputName) {
+        if (fileName === pending.lastKnownOutputName) {
+          // Same file as before, keep polling for new output
+          console.log(`[DocumentPolling] Same output as before, continuing to poll...`);
+          return false;
+        }
+      }
+      
       // Save the file to storage
       const saveResponse = await fetch(`${API_BASE}/dashboard/memo-status/${pending.taskId}/save`, {
         method: 'POST',
@@ -69,10 +80,24 @@ async function checkAndSaveDocument(pending: PendingDocument): Promise<boolean> 
         const errorText = await saveResponse.text();
         console.error(`[DocumentPolling] Save failed: ${errorText}`);
       }
+      
+      // For existing tasks, update lastKnownOutputName and keep polling
+      if (pending.isExistingTask) {
+        pending.lastKnownOutputName = fileName;
+        return false; // Keep polling for more outputs
+      }
+      
       return true; // Completed, stop polling even if save failed
     } else if (data.status === 'failed' || data.status === 'cancelled') {
       console.log(`[DocumentPolling] Task ${pending.taskId} ${data.status}`);
       return true; // Stop polling
+    } else if (data.status === 'running' && pending.isExistingTask && data.output_file) {
+      // Task is running but has an output - record it as the baseline
+      const fileName = data.output_file.fileName;
+      if (!pending.lastKnownOutputName) {
+        pending.lastKnownOutputName = fileName;
+        console.log(`[DocumentPolling] Recorded baseline output: ${fileName}`);
+      }
     }
     
     return false; // Still running, continue polling
@@ -132,20 +157,22 @@ export function registerPendingDocument(
   taskId: string,
   assetId: number,
   documentType: 'one_pager' | 'memo',
-  symbol: string
+  symbol: string,
+  isExistingTask: boolean = false
 ) {
   const pending: PendingDocument = {
     taskId,
     assetId,
     documentType,
     symbol,
-    startedAt: Date.now()
+    startedAt: Date.now(),
+    isExistingTask
   };
   
   pendingDocuments.set(taskId, pending);
   startPolling(taskId);
   
-  console.log(`[DocumentPolling] Registered ${documentType} for ${symbol} (task: ${taskId})`);
+  console.log(`[DocumentPolling] Registered ${documentType} for ${symbol} (task: ${taskId}, existing: ${isExistingTask})`);
 }
 
 export function isPendingForAsset(assetId: number, documentType: 'one_pager' | 'memo'): boolean {
