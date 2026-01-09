@@ -93,7 +93,7 @@ export interface UpdateHoldingInput {
 // Hook to fetch all portfolio holdings
 export function useCorePortfolioHoldings() {
   const { data, error, isLoading, mutate } = useSWR<CorePortfolioHolding[]>(
-    "/api/core-portfolio-holdings",
+    "/api/dashboard/core-portfolio-holdings",
     fetcher
   );
 
@@ -183,7 +183,7 @@ export function useCorePortfolioByCategory() {
 
 // Add a new holding
 export async function addHolding(input: AddHoldingInput): Promise<CorePortfolioHolding> {
-  const response = await fetch("/api/core-portfolio-holdings", {
+  const response = await fetch("/api/dashboard/core-portfolio-holdings", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
@@ -198,7 +198,7 @@ export async function addHolding(input: AddHoldingInput): Promise<CorePortfolioH
 
 // Update an existing holding
 export async function updateHolding(input: UpdateHoldingInput): Promise<CorePortfolioHolding> {
-  const response = await fetch(`/api/core-portfolio-holdings/${input.id}`, {
+  const response = await fetch(`/api/dashboard/core-portfolio-holdings/${input.id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
@@ -213,7 +213,7 @@ export async function updateHolding(input: UpdateHoldingInput): Promise<CorePort
 
 // Remove a holding (soft delete)
 export async function removeHolding(id: number): Promise<void> {
-  const response = await fetch(`/api/core-portfolio-holdings/${id}`, {
+  const response = await fetch(`/api/dashboard/core-portfolio-holdings/${id}`, {
     method: "DELETE",
   });
   
