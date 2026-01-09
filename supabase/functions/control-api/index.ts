@@ -113,6 +113,11 @@ function isPublicDashboardEndpoint(req: Request): boolean {
     return true
   }
   
+  // Allow public access to chat-config endpoints (all methods)
+  if (path.startsWith('/dashboard/chat-config')) {
+    return true
+  }
+  
   // Allow public access to model-portfolio endpoints (all methods)
   if (path.startsWith('/dashboard/model-portfolio')) {
     return true
@@ -2790,6 +2795,82 @@ ${template}
         }
         
         return new Response(JSON.stringify(template), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // ==================== CHAT CONFIG ENDPOINTS ====================
+
+      // GET /dashboard/chat-config - Get all chat configuration
+      case req.method === 'GET' && path === '/dashboard/chat-config': {
+        const { data: configs, error } = await supabase
+          .from('chat_config')
+          .select('*')
+          .order('display_order', { ascending: true })
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(configs || []), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /dashboard/chat-config/:key - Get a specific config by key
+      case req.method === 'GET' && /^\/dashboard\/chat-config\/[a-z_]+$/.test(path): {
+        const configKey = path.split('/').pop()!
+        
+        const { data: config, error } = await supabase
+          .from('chat_config')
+          .select('*')
+          .eq('config_key', configKey)
+          .single()
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(config), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // PUT /dashboard/chat-config/:key - Update a config value
+      case req.method === 'PUT' && /^\/dashboard\/chat-config\/[a-z_]+$/.test(path): {
+        const configKey = path.split('/').pop()!
+        const body = await req.json()
+        const { config_value, config_name, description } = body
+        
+        const updateData: Record<string, unknown> = {
+          updated_at: new Date().toISOString()
+        }
+        
+        if (config_value !== undefined) updateData.config_value = config_value
+        if (config_name !== undefined) updateData.config_name = config_name
+        if (description !== undefined) updateData.description = description
+        
+        const { data: config, error } = await supabase
+          .from('chat_config')
+          .update(updateData)
+          .eq('config_key', configKey)
+          .select()
+          .single()
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(config), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
