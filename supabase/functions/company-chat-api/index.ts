@@ -15,6 +15,10 @@ const corsHeaders = {
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
 const GEMINI_MODEL = 'gemini-3-pro-preview' // Using Gemini 3 Pro as requested
 
+// Google Custom Search API configuration
+const GOOGLE_SEARCH_API_KEY = Deno.env.get('GOOGLE_SEARCH_API_KEY') || ''
+const GOOGLE_SEARCH_CX = Deno.env.get('GOOGLE_SEARCH_CX') || ''
+
 // Unified function declarations - includes DB access, search, and code execution as functions
 const unifiedFunctionDeclarations = [
   // Database functions
@@ -176,24 +180,64 @@ const unifiedFunctionDeclarations = [
   }
 ]
 
-// Execute web search using Google Custom Search API or fallback
+// Execute web search using Google Custom Search API
 async function executeWebSearch(query: string): Promise<unknown> {
-  // Use Google's Programmable Search Engine (requires API key)
-  // For now, we'll use a simple approach that works without additional API keys
-  // by leveraging the Gemini model's built-in knowledge
-  
-  // In production, you would integrate with:
-  // - Google Custom Search API
-  // - SerpApi
-  // - Brave Search API
-  // - Bing Search API
-  
-  // For now, return a structured response indicating search was attempted
-  // The model can use its training data to provide relevant information
-  return {
-    query: query,
-    note: "Web search executed. The model will provide information based on its training data and knowledge cutoff.",
-    timestamp: new Date().toISOString()
+  // Check if API credentials are configured
+  if (!GOOGLE_SEARCH_API_KEY || !GOOGLE_SEARCH_CX) {
+    console.warn('Google Search API not configured - missing GOOGLE_SEARCH_API_KEY or GOOGLE_SEARCH_CX')
+    return {
+      query: query,
+      error: 'Web search not configured. Please set GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_CX environment variables.',
+      timestamp: new Date().toISOString()
+    }
+  }
+
+  try {
+    // Build the Google Custom Search API URL
+    const searchUrl = new URL('https://www.googleapis.com/customsearch/v1')
+    searchUrl.searchParams.set('key', GOOGLE_SEARCH_API_KEY)
+    searchUrl.searchParams.set('cx', GOOGLE_SEARCH_CX)
+    searchUrl.searchParams.set('q', query)
+    searchUrl.searchParams.set('num', '10') // Return up to 10 results
+
+    console.log(`Executing web search for: "${query}"`)
+
+    const response = await fetch(searchUrl.toString())
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('Google Search API error:', errorText)
+      return {
+        query: query,
+        error: `Search API error: ${response.status} - ${errorText}`,
+        timestamp: new Date().toISOString()
+      }
+    }
+
+    const data = await response.json()
+
+    // Extract and format search results
+    const results = (data.items || []).map((item: { title: string; link: string; snippet: string; displayLink?: string }) => ({
+      title: item.title,
+      url: item.link,
+      snippet: item.snippet,
+      source: item.displayLink || new URL(item.link).hostname
+    }))
+
+    return {
+      query: query,
+      total_results: data.searchInformation?.totalResults || results.length,
+      results: results,
+      timestamp: new Date().toISOString()
+    }
+
+  } catch (error) {
+    console.error('Web search error:', error)
+    return {
+      query: query,
+      error: error instanceof Error ? error.message : 'Unknown error during web search',
+      timestamp: new Date().toISOString()
+    }
   }
 }
 
