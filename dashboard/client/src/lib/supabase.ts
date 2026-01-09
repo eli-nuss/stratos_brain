@@ -10,9 +10,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    // IMPORTANT: Disable automatic URL detection - we handle the code exchange manually in AuthCallback
-    // Having this enabled causes a race condition where both Supabase and our code try to exchange the code
-    detectSessionInUrl: false,
+    // Enable automatic URL detection - let Supabase handle the OAuth code exchange
+    detectSessionInUrl: true,
     // Use PKCE flow for better security and reliability with OAuth
     flowType: 'pkce',
     storage: typeof window !== 'undefined' ? window.localStorage : undefined,
