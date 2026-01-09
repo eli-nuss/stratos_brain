@@ -18,6 +18,24 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Allowed email domains for Google sign-in
 const ALLOWED_DOMAINS = ['stratos.xyz'];
 
+// Parse hash fragment from OAuth redirect
+function parseHashParams(hash: string): Record<string, string> {
+  const params: Record<string, string> = {};
+  if (!hash || hash.length <= 1) return params;
+  
+  const hashContent = hash.substring(1); // Remove the leading #
+  const pairs = hashContent.split('&');
+  
+  for (const pair of pairs) {
+    const [key, value] = pair.split('=');
+    if (key && value) {
+      params[decodeURIComponent(key)] = decodeURIComponent(value);
+    }
+  }
+  
+  return params;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -59,34 +77,82 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // 1. Get initial session - Supabase will automatically detect and process
-    // any OAuth tokens in the URL hash when this is called
-    const getInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      console.log('Initial session check:', session?.user?.email || 'No session');
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        const profileData = await fetchProfile(session.user.id);
-        setProfile(profileData);
+    const initAuth = async () => {
+      console.log('[Auth] Initializing auth...');
+      
+      // Check if we have an OAuth callback in the URL hash
+      const hash = window.location.hash;
+      if (hash && hash.includes('access_token')) {
+        console.log('[Auth] OAuth callback detected in URL hash');
+        
+        const params = parseHashParams(hash);
+        const accessToken = params['access_token'];
+        const refreshToken = params['refresh_token'];
+        
+        if (accessToken && refreshToken) {
+          console.log('[Auth] Setting session from hash tokens...');
+          
+          try {
+            // Manually set the session using the tokens from the hash
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+            
+            if (error) {
+              console.error('[Auth] Error setting session:', error);
+            } else if (data.session) {
+              console.log('[Auth] Session set successfully:', data.session.user?.email);
+              setSession(data.session);
+              setUser(data.session.user);
+              
+              // Fetch profile
+              if (data.session.user) {
+                const profileData = await fetchProfile(data.session.user.id);
+                setProfile(profileData);
+              }
+              
+              // Clean up the URL hash
+              window.history.replaceState(null, '', window.location.pathname + window.location.search);
+            }
+          } catch (err) {
+            console.error('[Auth] Exception setting session:', err);
+          }
+        }
+      } else {
+        // No OAuth callback, check for existing session
+        console.log('[Auth] Checking for existing session...');
+        const { data: { session: existingSession } } = await supabase.auth.getSession();
+        
+        if (existingSession) {
+          console.log('[Auth] Found existing session:', existingSession.user?.email);
+          setSession(existingSession);
+          setUser(existingSession.user);
+          
+          if (existingSession.user) {
+            const profileData = await fetchProfile(existingSession.user.id);
+            setProfile(profileData);
+          }
+        } else {
+          console.log('[Auth] No existing session found');
+        }
       }
+      
       setLoading(false);
     };
-    
-    getInitialSession();
 
-    // 2. Listen for auth state changes
-    // This will fire when the session is first established (from hash)
-    // and on subsequent login/logout events
+    initAuth();
+
+    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state change:', event, session?.user?.email || 'No session');
+      async (event, currentSession) => {
+        console.log('[Auth] Auth state change:', event, currentSession?.user?.email || 'No session');
         
         // Check domain restriction for new sign-ins
-        if (event === 'SIGNED_IN' && session?.user) {
-          const email = session.user.email;
+        if (event === 'SIGNED_IN' && currentSession?.user) {
+          const email = currentSession.user.email;
           if (!isEmailDomainAllowed(email)) {
-            console.warn(`Domain not allowed for email: ${email}`);
+            console.warn(`[Auth] Domain not allowed for email: ${email}`);
             await supabase.auth.signOut();
             setUser(null);
             setProfile(null);
@@ -96,11 +162,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        setSession(session);
-        setUser(session?.user ?? null);
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
         
-        if (session?.user) {
-          const profileData = await fetchProfile(session.user.id);
+        if (currentSession?.user) {
+          const profileData = await fetchProfile(currentSession.user.id);
           setProfile(profileData);
         } else {
           setProfile(null);
