@@ -3,9 +3,11 @@
 Run AI analysis for operating companies using parallel processing.
 Uses gemini-3-pro-preview model with concurrent API calls for faster execution.
 
-VERSION 3.1: Filter by market cap and volume, exclude ETFs/Funds/Trusts/REITs.
+VERSION 3.2: Filter by market cap and volume, exclude ETFs/Funds/Trusts/REITs.
 - Default: $100M+ market cap, $1M+ daily volume
 - Excludes: ETFs, Funds, Trusts (by name pattern), REITs (by industry)
+- Resume capability: skips assets already processed for the date
+- Increased concurrency to 10 for faster processing
 - Based on Gemini recommendations for independent direction/quality scoring.
 
 Usage:
@@ -45,8 +47,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Configuration
-AI_REVIEW_VERSION = "v3.1"
-MAX_CONCURRENT_REQUESTS = 5  # Number of parallel API calls (reduced to avoid rate limits)
+AI_REVIEW_VERSION = "v3.2"
+MAX_CONCURRENT_REQUESTS = 10  # Number of parallel API calls (increased for faster processing)
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 MODEL_NAME = "gemini-3-pro-preview"  # Gemini 3 Pro Preview model
 
@@ -108,6 +110,21 @@ def get_features(asset_id: str, as_of_date: str) -> dict:
                 for k, v in dict(row).items() 
                 if v is not None and k not in ['asset_id', 'date', 'created_at', 'updated_at']}
     return {}
+
+
+def get_already_processed_assets(as_of_date: str) -> set:
+    """
+    Get set of asset_ids that have already been processed for the given date.
+    Used for resume capability - skip assets that already have AI reviews.
+    """
+    db = get_db()
+    query = """
+        SELECT DISTINCT asset_id
+        FROM asset_ai_reviews
+        WHERE as_of_date = %s
+    """
+    rows = db.fetch_all(query, (as_of_date,))
+    return {row['asset_id'] for row in rows}
 
 
 def get_operating_companies(as_of_date: str, min_market_cap: float = 100_000_000, min_daily_volume: float = 1_000_000) -> list:
@@ -502,9 +519,9 @@ async def process_asset(session: aiohttp.ClientSession, asset: dict, as_of_date:
 
 
 async def main_async(as_of_date: str, min_market_cap: float = 100_000_000, min_daily_volume: float = 1_000_000):
-    """Main async function."""
+    """Main async function with resume capability."""
     logger.info("=" * 60)
-    logger.info("EQUITY AI ANALYSIS - VERSION 3.1")
+    logger.info("EQUITY AI ANALYSIS - VERSION 3.2")
     logger.info(f"Date: {as_of_date}")
     logger.info(f"Model: {MODEL_NAME}")
     logger.info(f"Min Market Cap: ${min_market_cap/1e6:.0f}M")
@@ -514,19 +531,32 @@ async def main_async(as_of_date: str, min_market_cap: float = 100_000_000, min_d
     logger.info("=" * 60)
     
     # Get operating companies (filtered by market cap, volume, excluding ETFs/Funds/REITs)
-    equities = get_operating_companies(as_of_date, min_market_cap=min_market_cap, min_daily_volume=min_daily_volume)
-    logger.info(f"Found {len(equities)} operating companies to analyze")
+    all_equities = get_operating_companies(as_of_date, min_market_cap=min_market_cap, min_daily_volume=min_daily_volume)
+    logger.info(f"Found {len(all_equities)} total operating companies")
+    
+    if not all_equities:
+        logger.warning("No equities found for the specified date. Check if data exists.")
+        return
+    
+    # Resume capability: filter out already processed assets
+    already_processed = get_already_processed_assets(as_of_date)
+    logger.info(f"Already processed: {len(already_processed)} assets")
+    
+    # Filter to only unprocessed assets
+    equities = [e for e in all_equities if str(e['asset_id']) not in already_processed]
+    logger.info(f"Remaining to process: {len(equities)} assets")
     
     if not equities:
-        logger.warning("No equities found for the specified date. Check if data exists.")
+        logger.info("All assets already processed for this date. Nothing to do.")
         return
     
     # Create semaphore for rate limiting
     semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
     
-    # Process all assets
+    # Process remaining assets
     successful = 0
     failed = 0
+    skipped = len(already_processed)
     direction_scores = []
     quality_scores = []
     
@@ -544,9 +574,17 @@ async def main_async(as_of_date: str, min_market_cap: float = 100_000_000, min_d
     
     logger.info("=" * 60)
     logger.info("SUMMARY")
-    logger.info(f"Successful: {successful}")
+    logger.info(f"Previously processed (skipped): {skipped}")
+    logger.info(f"Newly processed: {successful}")
     logger.info(f"Failed: {failed}")
-    logger.info(f"Total: {successful + failed}")
+    logger.info(f"Total complete: {skipped + successful} / {len(all_equities)}")
+    
+    # Check if complete
+    if skipped + successful >= len(all_equities):
+        logger.info("✓ All assets processed successfully!")
+    else:
+        remaining = len(all_equities) - skipped - successful
+        logger.info(f"⚠ {remaining} assets remaining - re-run to continue")
     
     # Calculate correlation
     if len(direction_scores) > 10:
@@ -565,7 +603,7 @@ def main():
     global MODEL_NAME
     
     parser = argparse.ArgumentParser(
-        description='Run AI analysis for operating companies (v3.1) - filters by market cap, volume, excludes ETFs/Funds/REITs'
+        description='Run AI analysis for operating companies (v3.2) - with resume capability, increased concurrency'
     )
     parser.add_argument(
         '--date', 
