@@ -125,39 +125,96 @@ function htmlToMarkdown(html: string): string {
   // Horizontal rules
   md = md.replace(/<hr\s*\/?>/g, '\n---\n');
   
-  // Lists
-  md = md.replace(/<ul>([\s\S]*?)<\/ul>/g, (match, content) => {
-    return content.replace(/<li>(.*?)<\/li>/g, '- $1\n');
+  // Lists - handle lists with attributes/classes
+  md = md.replace(/<ul[^>]*>([\s\S]*?)<\/ul>/g, (match, content) => {
+    return content.replace(/<li[^>]*>(.*?)<\/li>/g, '- $1\n');
   });
-  md = md.replace(/<ol>([\s\S]*?)<\/ol>/g, (match, content) => {
+  md = md.replace(/<ol[^>]*>([\s\S]*?)<\/ol>/g, (match, content) => {
     let i = 1;
-    return content.replace(/<li>(.*?)<\/li>/g, () => `${i++}. $1\n`);
+    return content.replace(/<li[^>]*>(.*?)<\/li>/g, () => `${i++}. $1\n`);
   });
   
-  // Tables
-  md = md.replace(/<table>([\s\S]*?)<\/table>/g, (match, content) => {
-    const headerMatch = content.match(/<thead>([\s\S]*?)<\/thead>/);
-    const bodyMatch = content.match(/<tbody>([\s\S]*?)<\/tbody>/);
+  // Tables - handle TipTap's styled tables with classes and attributes
+  // This regex matches tables with any attributes (class, style, etc.)
+  md = md.replace(/<table[^>]*>([\s\S]*?)<\/table>/g, (match, content) => {
+    // First, strip colgroup elements entirely
+    let cleanContent = content.replace(/<colgroup>[\s\S]*?<\/colgroup>/g, '');
+    
+    const headerMatch = cleanContent.match(/<thead[^>]*>([\s\S]*?)<\/thead>/);
+    const bodyMatch = cleanContent.match(/<tbody[^>]*>([\s\S]*?)<\/tbody>/);
     
     let result = '';
     
     if (headerMatch) {
-      const headers = headerMatch[1].match(/<th>(.*?)<\/th>/g) || [];
-      const headerCells = headers.map((h: string) => h.replace(/<\/?th>/g, '').trim());
-      result += '| ' + headerCells.join(' | ') + ' |\n';
-      result += '|' + headerCells.map(() => '--------').join('|') + '|\n';
+      // Match th tags with any attributes and capture content (including nested tags)
+      const headerRowMatch = headerMatch[1].match(/<tr[^>]*>([\s\S]*?)<\/tr>/);
+      if (headerRowMatch) {
+        const headerCells: string[] = [];
+        const thRegex = /<th[^>]*>([\s\S]*?)<\/th>/g;
+        let thMatch;
+        while ((thMatch = thRegex.exec(headerRowMatch[1])) !== null) {
+          // Strip any remaining HTML tags and clean up whitespace
+          const cellContent = thMatch[1]
+            .replace(/<[^>]*>/g, '')
+            .replace(/\n+/g, ' ')
+            .trim();
+          headerCells.push(cellContent);
+        }
+        if (headerCells.length > 0) {
+          result += '| ' + headerCells.join(' | ') + ' |\n';
+          result += '| ' + headerCells.map(() => '---').join(' | ') + ' |\n';
+        }
+      }
     }
     
     if (bodyMatch) {
-      const rows = bodyMatch[1].match(/<tr>([\s\S]*?)<\/tr>/g) || [];
+      const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/g;
+      let rowMatch;
+      while ((rowMatch = rowRegex.exec(bodyMatch[1])) !== null) {
+        const cellValues: string[] = [];
+        const tdRegex = /<td[^>]*>([\s\S]*?)<\/td>/g;
+        let tdMatch;
+        while ((tdMatch = tdRegex.exec(rowMatch[1])) !== null) {
+          // Strip any remaining HTML tags and clean up whitespace
+          const cellContent = tdMatch[1]
+            .replace(/<[^>]*>/g, '')
+            .replace(/\n+/g, ' ')
+            .trim();
+          cellValues.push(cellContent);
+        }
+        if (cellValues.length > 0) {
+          result += '| ' + cellValues.join(' | ') + ' |\n';
+        }
+      }
+    }
+    
+    // If we couldn't parse thead/tbody, try parsing rows directly (for tables without thead/tbody)
+    if (!result) {
+      const rows = cleanContent.match(/<tr[^>]*>([\s\S]*?)<\/tr>/g) || [];
+      let isFirstRow = true;
       rows.forEach((row: string) => {
-        const cells = row.match(/<td>(.*?)<\/td>/g) || [];
-        const cellValues = cells.map((c: string) => c.replace(/<\/?td>/g, '').trim());
-        result += '| ' + cellValues.join(' | ') + ' |\n';
+        const cellValues: string[] = [];
+        // Try th first, then td
+        const cellRegex = /<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/g;
+        let cellMatch;
+        while ((cellMatch = cellRegex.exec(row)) !== null) {
+          const cellContent = cellMatch[1]
+            .replace(/<[^>]*>/g, '')
+            .replace(/\n+/g, ' ')
+            .trim();
+          cellValues.push(cellContent);
+        }
+        if (cellValues.length > 0) {
+          result += '| ' + cellValues.join(' | ') + ' |\n';
+          if (isFirstRow) {
+            result += '| ' + cellValues.map(() => '---').join(' | ') + ' |\n';
+            isFirstRow = false;
+          }
+        }
       });
     }
     
-    return result;
+    return result + '\n';
   });
   
   // Paragraphs
