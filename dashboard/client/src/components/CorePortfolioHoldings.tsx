@@ -532,23 +532,24 @@ export default function CorePortfolioHoldings({ onAssetClick }: { onAssetClick: 
         </table>
         
         {/* Add Entry Row - Always visible at bottom of table */}
-        <div className="border-t border-border" ref={addMenuRef}>
-          <button
-            onClick={() => {
-              setShowAddMenu(!showAddMenu);
-              setAddMode(null);
-              setSearchQuery("");
-            }}
-            className="w-full px-4 py-3 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add Entry
-          </button>
-        </div>
+        <div ref={addMenuRef}>
+          <div className="border-t border-border">
+            <button
+              onClick={() => {
+                setShowAddMenu(!showAddMenu);
+                setAddMode(null);
+                setSearchQuery("");
+              }}
+              className="w-full px-4 py-3 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Entry
+            </button>
+          </div>
           
-        {/* Add Menu - Inline below button */}
-        {showAddMenu && (
-          <div className="border-t border-border bg-muted/10">
+          {/* Add Menu - Inline below button */}
+          {showAddMenu && (
+            <div className="border-t border-border bg-muted/10">
               {!addMode && (
                 <div className="p-2 flex gap-2">
                   <button
@@ -819,8 +820,9 @@ export default function CorePortfolioHoldings({ onAssetClick }: { onAssetClick: 
                   </div>
                 </div>
               )}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
         
         {holdings.length === 0 && !showAddMenu && (
           <div className="text-center py-12 text-muted-foreground border-t border-border">
