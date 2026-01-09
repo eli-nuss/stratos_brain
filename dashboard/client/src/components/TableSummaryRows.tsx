@@ -207,19 +207,18 @@ export default function TableSummaryRows({ assets, visibleColumns, listName }: T
     }
   };
 
-  // Sticky row base styling - these rows stick below the page header and table header
-  // Page header is ~140px, table header is ~28px = 168px base
+  // Sticky row base styling - these rows stick below the table header
   // Using fully opaque backgrounds so content is visible when scrolling
   const stickyBase = "sticky z-20";
   const baseRowClass = "border-b border-border text-xs";
   
-  // Toggle row - sticks below table header (140px page header + 28px table header = 168px)
-  const toggleRowClass = `${baseRowClass} ${stickyBase} top-[168px] bg-[#1e1e24] cursor-pointer hover:bg-[#2a2a32] transition-colors`;
+  // Toggle row - sticks below table header (~28px)
+  const toggleRowClass = `${baseRowClass} ${stickyBase} top-[28px] bg-[#1e1e24] cursor-pointer hover:bg-[#2a2a32] transition-colors`;
   
   // Summary rows - stack below toggle row - fully opaque backgrounds
-  const meanRowClass = `${baseRowClass} ${stickyBase} top-[192px] bg-[#18181c]`;
-  const mcWeightedRowClass = `${baseRowClass} ${stickyBase} top-[216px] bg-[#0c1929]`;
-  const medianRowClass = `${baseRowClass} ${stickyBase} top-[240px] bg-[#18181c]`;
+  const meanRowClass = `${baseRowClass} ${stickyBase} top-[52px] bg-[#18181c]`;
+  const mcWeightedRowClass = `${baseRowClass} ${stickyBase} top-[76px] bg-[#0c1929]`;
+  const medianRowClass = `${baseRowClass} ${stickyBase} top-[100px] bg-[#18181c]`;
 
   // Toggle row
   const toggleRow = (
