@@ -393,7 +393,7 @@ async function executePythonCode(code: string, purpose: string): Promise<unknown
 async function executeFunctionCall(
   functionCall: { name: string; args: Record<string, unknown> },
   supabase: ReturnType<typeof createClient>
-): Promise<unknown> {
+): Promise<Record<string, unknown>> { // Enforce Object return type for Gemini API
   const { name, args } = functionCall
   
   switch (name) {
@@ -544,11 +544,15 @@ async function executeFunctionCall(
     }
     
     case "web_search": {
-      return await executeWebSearch(args.query as string)
+      const result = await executeWebSearch(args.query as string)
+      // Wrap in object for Gemini API compatibility
+      return { search_output: result }
     }
     
     case "execute_python": {
-      return await executePythonCode(args.code as string, args.purpose as string)
+      const result = await executePythonCode(args.code as string, args.purpose as string)
+      // Wrap in object for Gemini API compatibility
+      return { execution_result: result }
     }
     
     default:
