@@ -8,11 +8,15 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signInWithEmail: (email: string) => Promise<{ error: Error | null }>;
+  signInWithGoogle: () => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Allowed email domains for Google sign-in
+const ALLOWED_DOMAINS = ['stratos.xyz'];
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -47,6 +51,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Check if email domain is allowed
+  const isEmailDomainAllowed = (email: string | undefined): boolean => {
+    if (!email) return false;
+    const domain = email.split('@')[1]?.toLowerCase();
+    return ALLOWED_DOMAINS.includes(domain);
+  };
+
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -61,6 +72,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        // Check domain restriction for new sign-ins
+        if (event === 'SIGNED_IN' && session?.user) {
+          const email = session.user.email;
+          if (!isEmailDomainAllowed(email)) {
+            // Sign out user if domain is not allowed
+            console.warn(`Domain not allowed for email: ${email}`);
+            await supabase.auth.signOut();
+            setUser(null);
+            setProfile(null);
+            setSession(null);
+            setLoading(false);
+            return;
+          }
+        }
+
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -81,10 +107,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Sign in with magic link
   const signInWithEmail = async (email: string) => {
     try {
+      // Check domain restriction before sending magic link
+      if (!isEmailDomainAllowed(email)) {
+        return { error: new Error(`Only @${ALLOWED_DOMAINS.join(', @')} email addresses are allowed`) };
+      }
+
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
           emailRedirectTo: `${window.location.origin}/`,
+        },
+      });
+      
+      if (error) {
+        return { error };
+      }
+      return { error: null };
+    } catch (err) {
+      return { error: err as Error };
+    }
+  };
+
+  // Sign in with Google OAuth
+  const signInWithGoogle = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/`,
+          queryParams: {
+            // Restrict to organization domain (Google Workspace)
+            hd: 'stratos.xyz',
+          },
         },
       });
       
@@ -111,6 +165,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     loading,
     signInWithEmail,
+    signInWithGoogle,
     signOut,
     refreshProfile,
   };

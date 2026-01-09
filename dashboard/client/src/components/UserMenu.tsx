@@ -1,32 +1,35 @@
 import { useState } from 'react';
-import { User, LogOut, Mail, Loader2 } from 'lucide-react';
+import { User, LogOut, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
+// Google icon component
+const GoogleIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+  </svg>
+);
+
 export default function UserMenu() {
-  const { user, profile, loading, signInWithEmail, signOut } = useAuth();
+  const { user, profile, loading, signInWithGoogle, signOut } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [emailSent, setEmailSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-
+  const handleGoogleLogin = async () => {
     setIsSubmitting(true);
     setError(null);
 
-    const { error } = await signInWithEmail(email.trim());
-    
-    setIsSubmitting(false);
+    const { error } = await signInWithGoogle();
     
     if (error) {
       setError(error.message);
-    } else {
-      setEmailSent(true);
+      setIsSubmitting(false);
     }
+    // Note: On success, the page will redirect to Google OAuth
   };
 
   const handleLogout = async () => {
@@ -35,9 +38,8 @@ export default function UserMenu() {
 
   const closeModal = () => {
     setShowLoginModal(false);
-    setEmail('');
-    setEmailSent(false);
     setError(null);
+    setIsSubmitting(false);
   };
 
   if (loading) {
@@ -107,74 +109,53 @@ export default function UserMenu() {
           onClick={(e) => e.target === e.currentTarget && closeModal()}
         >
           <div className="bg-card border border-border rounded-lg shadow-xl p-6 w-96 max-w-[90vw]">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Mail className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
+              <User className="w-5 h-5 text-primary" />
               Sign in to Stratos Brain
             </h2>
             
-            {emailSent ? (
-              <div className="text-center py-4">
-                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Mail className="w-6 h-6 text-primary" />
-                </div>
-                <h3 className="font-medium mb-2">Check your email</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  We sent a magic link to <strong>{email}</strong>. 
-                  Click the link to sign in.
-                </p>
-                <button
-                  onClick={closeModal}
-                  className="px-4 py-2 text-sm bg-muted hover:bg-muted/80 rounded transition-colors"
-                >
-                  Close
-                </button>
+            <p className="text-sm text-muted-foreground mb-6">
+              Sign in with your Stratos Google account to save your preferences across devices.
+            </p>
+
+            {error && (
+              <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded text-sm text-destructive">
+                {error}
               </div>
-            ) : (
-              <form onSubmit={handleLogin}>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Enter your email to receive a magic link. No password needed.
-                </p>
-                
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="w-full px-3 py-2 text-sm bg-muted/30 border border-border rounded focus:outline-none focus:ring-2 focus:ring-primary mb-3"
-                  autoFocus
-                  disabled={isSubmitting}
-                />
-                
-                {error && (
-                  <p className="text-sm text-destructive mb-3">{error}</p>
-                )}
-                
-                <div className="flex justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={closeModal}
-                    className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                    disabled={isSubmitting}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting || !email.trim()}
-                    className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        Sending...
-                      </>
-                    ) : (
-                      'Send magic link'
-                    )}
-                  </button>
-                </div>
-              </form>
             )}
+
+            <button
+              onClick={handleGoogleLogin}
+              disabled={isSubmitting}
+              className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 font-medium"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Redirecting...
+                </>
+              ) : (
+                <>
+                  <GoogleIcon className="w-5 h-5" />
+                  Continue with Google
+                </>
+              )}
+            </button>
+
+            <p className="text-xs text-muted-foreground text-center mt-4">
+              Only @stratos.xyz accounts are allowed
+            </p>
+
+            <div className="mt-4 pt-4 border-t border-border">
+              <button
+                type="button"
+                onClick={closeModal}
+                className="w-full px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
