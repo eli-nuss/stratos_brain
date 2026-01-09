@@ -1,6 +1,7 @@
 import { ReactNode, useState, useRef, useEffect } from "react";
 import useSWR from "swr";
 import { Activity, BookOpen, Settings, Search, GripVertical, Pencil, Trash2, FileText, ChevronDown, ChevronUp } from "lucide-react";
+import UserMenu from "@/components/UserMenu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { StockList } from "@/hooks/useStockLists";
 import { TabType } from "@/pages/Home";
@@ -450,6 +451,10 @@ export default function DashboardLayout({
             >
               Templates
             </a>
+            
+            <div className="h-3 w-px bg-border/50" />
+            
+            <UserMenu />
           </div>
         </div>
         
