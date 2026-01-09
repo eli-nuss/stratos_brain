@@ -4,64 +4,74 @@ import { supabase } from '../lib/supabase';
 export function AuthCallback() {
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [error, setError] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string>('');
 
   useEffect(() => {
     const handleCallback = async () => {
       console.log('[AuthCallback] Starting callback processing...');
-      console.log('[AuthCallback] URL:', window.location.href);
-      console.log('[AuthCallback] Hash present:', !!window.location.hash);
+      console.log('[AuthCallback] Full URL:', window.location.href);
+      console.log('[AuthCallback] Search params:', window.location.search);
 
-      // Give Supabase time to process the hash automatically
-      // The detectSessionInUrl option should handle this
-      let attempts = 0;
-      const maxAttempts = 10;
-      
-      const checkSession = async (): Promise<boolean> => {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        console.log('[AuthCallback] Check attempt', attempts + 1, '- Session:', session?.user?.email || 'None');
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const errorParam = urlParams.get('error');
+        const errorDescription = urlParams.get('error_description');
+
+        // Check for error from Supabase/OAuth redirect
+        if (errorParam) {
+          throw new Error(`Authentication error: ${errorDescription || errorParam}`);
+        }
+
+        // PKCE flow requires a code parameter
+        if (!code) {
+          console.warn('[AuthCallback] No "code" parameter found in URL.');
+          const debug = `URL: ${window.location.href}\nCode: missing\nThis might indicate an incomplete OAuth flow.`;
+          setDebugInfo(debug);
+          throw new Error('Authentication failed: Missing authorization code.');
+        }
+
+        console.log('[AuthCallback] Processing PKCE code exchange...');
+        const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
         
-        if (sessionError) {
-          console.error('[AuthCallback] Session error:', sessionError);
-          return false;
+        if (exchangeError) {
+          console.error('[AuthCallback] Code exchange error:', exchangeError);
+          throw exchangeError;
         }
         
-        return !!session;
-      };
-
-      // Poll for session (Supabase should process the hash automatically)
-      while (attempts < maxAttempts) {
-        const hasSession = await checkSession();
-        
-        if (hasSession) {
-          console.log('[AuthCallback] Session found! Redirecting...');
+        const session = data.session;
+        if (session) {
+          console.log('[AuthCallback] PKCE exchange successful, session for:', session.user.email);
           setStatus('success');
           
-          // Clean up URL and redirect
+          // Clean up URL (remove query params) and redirect
+          window.history.replaceState({}, document.title, window.location.pathname);
+          
+          // Brief delay to show success message, then redirect
           setTimeout(() => {
             window.location.href = '/watchlist';
-          }, 1000);
-          return;
+          }, 500);
+        } else {
+          // This should not happen if exchangeCodeForSession was successful
+          const debug = `URL: ${window.location.href}\nCode: present\nSession: null after exchange`;
+          setDebugInfo(debug);
+          throw new Error('No session returned after code exchange');
         }
-        
-        attempts++;
-        if (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
+      } catch (err: any) {
+        console.error('[AuthCallback] Error:', err);
+        setError(err.message || 'Authentication failed');
+        setStatus('error');
       }
-
-      // If we get here, no session was found
-      console.error('[AuthCallback] No session found after', maxAttempts, 'attempts');
-      setError('Authentication timed out. Please try again.');
-      setStatus('error');
     };
 
-    // Small delay to let Supabase initialize
-    setTimeout(handleCallback, 100);
+    // Small delay to ensure Supabase client is ready
+    const timer = setTimeout(handleCallback, 100);
+    return () => clearTimeout(timer);
   }, []);
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center">
-      <div className="text-center max-w-md">
+      <div className="text-center max-w-md px-4">
         {status === 'processing' && (
           <>
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
@@ -79,6 +89,11 @@ export function AuthCallback() {
             <div className="text-red-500 text-4xl mb-4">✗</div>
             <p className="text-white text-lg mb-2">Authentication failed</p>
             <p className="text-red-400 text-sm mb-4">{error}</p>
+            {debugInfo && (
+              <pre className="text-xs text-gray-500 mb-4 text-left bg-gray-900 p-2 rounded overflow-auto max-h-32">
+                {debugInfo}
+              </pre>
+            )}
             <button 
               onClick={() => window.location.href = '/watchlist'}
               className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700"

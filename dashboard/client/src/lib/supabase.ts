@@ -4,13 +4,15 @@ const supabaseUrl = 'https://wfogbaipiqootjrsprde.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indmb2diYWlwaXFvb3RqcnNwcmRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzMxNjQ3NzEsImV4cCI6MjA0ODc0MDc3MX0.LQEvaVwrk-Vc8QJpfMnfpfYHvOCKg-lZpYwzQcL8xGM';
 
 // Create Supabase client with auth configuration
-// detectSessionInUrl: true will automatically handle OAuth callbacks
+// Using PKCE flow for better security in SPAs (recommended by Supabase)
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
-    flowType: 'implicit',
+    flowType: 'pkce', // PKCE is more secure for SPAs
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    storageKey: 'stratos-auth-token',
   },
 });
 
