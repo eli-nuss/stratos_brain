@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://wfogbaipiqootjrsprde.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indmb2diYWlwaXFvb3RqcnNwcmRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzMxNjQ3NzEsImV4cCI6MjA0ODc0MDc3MX0.LQEvaVwrk-Vc8QJpfMnfpfYHvOCKg-lZpYwzQcL8xGM';
+// Updated anon key - the previous key was rotated/invalidated
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indmb2diYWlwaXFvb3RqcnNwcmRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxOTQ4NDQsImV4cCI6MjA4MTc3MDg0NH0.DWjb0nVian7a9njxbGR9VjAsWQuWuHI375PgEHH1TRw';
 
 // Create Supabase client with auth configuration
 // Using implicit flow with manual token handling to work around Chrome's
