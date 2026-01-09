@@ -1,8 +1,8 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import React from "react";
 import { 
-  Plus, X, Edit2, Save, ChevronDown, ChevronUp, 
-  TrendingUp, TrendingDown, Activity, DollarSign, Search, Loader2
+  Plus, X, ChevronDown, ChevronUp, 
+  Activity, Search, Loader2, AlertCircle, DollarSign
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import useSWR from "swr";
@@ -37,8 +37,8 @@ interface SearchResult {
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function ModelPortfolioHoldings({ onAssetClick }: { onAssetClick: (assetId: string) => void }) {
-  const { holdings, isLoading, mutate } = useModelPortfolioHoldings();
-  const { categories, categorySummaries, totalValue } = useModelPortfolioByCategory();
+  const { holdings, isLoading: holdingsLoading, mutate } = useModelPortfolioHoldings();
+  const { categories, categorySummaries, corePortfolioValue, totalWeight, isLoading } = useModelPortfolioByCategory();
   
   const [expandedCategories, setExpandedCategories] = useState<Set<PortfolioCategory>>(
     new Set(CATEGORY_ORDER)
@@ -56,7 +56,7 @@ export default function ModelPortfolioHoldings({ onAssetClick }: { onAssetClick:
   // Manual entry state
   const [newHolding, setNewHolding] = useState<Partial<AddHoldingInput>>({
     category: 'other',
-    quantity: 0,
+    target_weight: 0,
   });
 
   // Debounce search query
@@ -128,16 +128,6 @@ export default function ModelPortfolioHoldings({ onAssetClick }: { onAssetClick:
     [holdings]
   );
 
-  // Calculate portfolio summary with defensive array check
-  const summary = useMemo(() => {
-    const safeHoldings = Array.isArray(holdings) ? holdings : [];
-    const totalCost = safeHoldings.reduce((sum, h) => sum + (h.total_cost || 0), 0);
-    const totalVal = safeHoldings.reduce((sum, h) => sum + (h.current_value || 0), 0);
-    const gainLoss = totalVal - totalCost;
-    const gainLossPct = totalCost > 0 ? (gainLoss / totalCost) * 100 : 0;
-    return { totalCost, totalValue: totalVal, gainLoss, gainLossPct };
-  }, [holdings]);
-
   const toggleCategory = (category: PortfolioCategory) => {
     setExpandedCategories(prev => {
       const next = new Set(prev);
@@ -158,7 +148,7 @@ export default function ModelPortfolioHoldings({ onAssetClick }: { onAssetClick:
       await addModelHolding({
         asset_id: asset.asset_id,
         category,
-        quantity: 0,
+        target_weight: 0, // User will set the weight after adding
       });
       mutate();
     } catch (error) {
@@ -177,9 +167,7 @@ export default function ModelPortfolioHoldings({ onAssetClick }: { onAssetClick:
         custom_name: newHolding.custom_name || newHolding.custom_symbol,
         custom_asset_type: newHolding.custom_asset_type || 'other',
         category: newHolding.category,
-        quantity: newHolding.quantity || 0,
-        cost_basis: newHolding.cost_basis,
-        total_cost: newHolding.total_cost,
+        target_weight: newHolding.target_weight || 0,
         manual_price: newHolding.manual_price,
         notes: newHolding.notes,
         strike_price: newHolding.strike_price,
@@ -189,7 +177,7 @@ export default function ModelPortfolioHoldings({ onAssetClick }: { onAssetClick:
       mutate();
       setShowAddMenu(false);
       setAddMode(null);
-      setNewHolding({ category: 'other', quantity: 0 });
+      setNewHolding({ category: 'other', target_weight: 0 });
     } catch (error) {
       console.error('Failed to add manual holding:', error);
     }
@@ -224,8 +212,11 @@ export default function ModelPortfolioHoldings({ onAssetClick }: { onAssetClick:
     }
   };
 
-  const formatCurrency = (value: number | null) => {
+  const formatCurrency = (value: number | null | undefined) => {
     if (value === null || value === undefined) return '-';
+    if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
+    if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
+    if (value >= 1e3) return `$${(value / 1e3).toFixed(1)}K`;
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
@@ -234,7 +225,7 @@ export default function ModelPortfolioHoldings({ onAssetClick }: { onAssetClick:
     }).format(value);
   };
 
-  const formatNumber = (value: number | null, decimals = 2) => {
+  const formatNumber = (value: number | null | undefined, decimals = 4) => {
     if (value === null || value === undefined) return '-';
     return value.toLocaleString(undefined, { 
       minimumFractionDigits: decimals, 
@@ -242,15 +233,9 @@ export default function ModelPortfolioHoldings({ onAssetClick }: { onAssetClick:
     });
   };
 
-  const formatPercent = (value: number | null) => {
+  const formatPercent = (value: number | null | undefined) => {
     if (value === null || value === undefined) return '-';
-    const sign = value >= 0 ? '+' : '';
-    return `${sign}${value.toFixed(1)}%`;
-  };
-
-  const getPercentColor = (value: number | null) => {
-    if (value === null || value === undefined) return 'text-muted-foreground';
-    return value >= 0 ? 'text-signal-bullish' : 'text-signal-bearish';
+    return `${value.toFixed(2)}%`;
   };
 
   const formatPrice = (num: number | null | undefined) => {
@@ -277,6 +262,8 @@ export default function ModelPortfolioHoldings({ onAssetClick }: { onAssetClick:
     );
   }
 
+  const remainingWeight = 100 - totalWeight;
+
   return (
     <div className="space-y-4">
       {/* Header with Summary */}
@@ -291,20 +278,30 @@ export default function ModelPortfolioHoldings({ onAssetClick }: { onAssetClick:
           </h2>
           <div className="flex items-center gap-4 text-sm">
             <span className="text-muted-foreground">
-              Value: <span className="text-foreground font-mono">{formatCurrency(summary.totalValue)}</span>
+              Base Value: <span className="text-foreground font-mono">{formatCurrency(corePortfolioValue)}</span>
+              <span className="text-xs text-muted-foreground ml-1">(from Core)</span>
             </span>
             <span className="text-muted-foreground">
-              Cost: <span className="text-foreground font-mono">{formatCurrency(summary.totalCost)}</span>
-            </span>
-            <span className={getPercentColor(summary.gainLossPct)}>
-              <span className="font-mono">{formatPercent(summary.gainLossPct)}</span>
-              <span className="text-muted-foreground ml-1">
-                ({formatCurrency(summary.gainLoss)})
+              Allocated: <span className={`font-mono ${totalWeight > 100 ? 'text-signal-bearish' : 'text-foreground'}`}>
+                {formatPercent(totalWeight)}
               </span>
             </span>
+            {remainingWeight !== 0 && (
+              <span className={`font-mono ${remainingWeight < 0 ? 'text-signal-bearish' : 'text-signal-bullish'}`}>
+                {remainingWeight > 0 ? `+${formatPercent(remainingWeight)} unallocated` : `${formatPercent(remainingWeight)} over`}
+              </span>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Warning if no Core Portfolio value */}
+      {corePortfolioValue === 0 && (
+        <div className="flex items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-yellow-500 text-sm">
+          <AlertCircle className="w-4 h-4" />
+          <span>Add positions to your Core Portfolio first to set the base value for modeling.</span>
+        </div>
+      )}
 
       {/* Portfolio Table by Category */}
       <div className="bg-card border border-border rounded-lg overflow-hidden">
@@ -313,13 +310,10 @@ export default function ModelPortfolioHoldings({ onAssetClick }: { onAssetClick:
             <tr>
               <th className="text-left px-3 py-2 font-medium text-muted-foreground w-8"></th>
               <th className="text-left px-3 py-2 font-medium text-muted-foreground">Asset</th>
-              <th className="text-right px-3 py-2 font-medium text-muted-foreground">Quantity</th>
-              <th className="text-right px-3 py-2 font-medium text-muted-foreground">Cost Basis</th>
-              <th className="text-right px-3 py-2 font-medium text-muted-foreground">Total Cost</th>
+              <th className="text-right px-3 py-2 font-medium text-muted-foreground">Weight %</th>
+              <th className="text-right px-3 py-2 font-medium text-muted-foreground">Target Value</th>
               <th className="text-right px-3 py-2 font-medium text-muted-foreground">Price</th>
-              <th className="text-right px-3 py-2 font-medium text-muted-foreground">Value</th>
-              <th className="text-right px-3 py-2 font-medium text-muted-foreground">Gain/Loss</th>
-              <th className="text-right px-3 py-2 font-medium text-muted-foreground">Weight</th>
+              <th className="text-right px-3 py-2 font-medium text-muted-foreground">Target Qty</th>
               <th className="text-left px-3 py-2 font-medium text-muted-foreground">Notes</th>
               <th className="text-center px-3 py-2 font-medium text-muted-foreground w-20">Actions</th>
             </tr>
@@ -352,490 +346,407 @@ export default function ModelPortfolioHoldings({ onAssetClick }: { onAssetClick:
                         ({categoryHoldings.length})
                       </span>
                     </td>
-                    <td className="text-right px-3 py-2"></td>
-                    <td className="text-right px-3 py-2"></td>
+                    <td className="text-right px-3 py-2 font-mono font-semibold">
+                      {formatPercent(catSummary?.target_weight_pct || 0)}
+                    </td>
                     <td className="text-right px-3 py-2 font-mono">
-                      {formatCurrency(catSummary?.category_cost || 0)}
+                      {formatCurrency(catSummary?.target_value || 0)}
                     </td>
                     <td className="text-right px-3 py-2"></td>
-                    <td className="text-right px-3 py-2 font-mono">
-                      {formatCurrency(catSummary?.category_value || 0)}
-                    </td>
-                    <td className={`text-right px-3 py-2 font-mono ${getPercentColor(catSummary?.category_gain_loss_pct || 0)}`}>
-                      {formatPercent(catSummary?.category_gain_loss_pct || 0)}
-                    </td>
-                    <td className="text-right px-3 py-2 font-mono text-muted-foreground">
-                      {formatPercent(catSummary?.weight_pct || 0)}
-                    </td>
+                    <td className="text-right px-3 py-2"></td>
                     <td className="px-3 py-2"></td>
                     <td className="px-3 py-2"></td>
                   </tr>
                   
                   {/* Holdings Rows */}
-                  {isExpanded && categoryHoldings.map((holding) => {
-                    const weight = totalValue > 0 ? ((holding.current_value || 0) / totalValue) * 100 : 0;
-                    
-                    return (
-                      <tr key={holding.id} className="border-b border-border/50 hover:bg-muted/10">
-                        <td className="px-3 py-2"></td>
-                        <td className="px-3 py-2">
-                          <div className="flex items-center gap-2">
+                  {isExpanded && categoryHoldings.map((holding) => (
+                    <tr key={holding.id} className="border-b border-border/50 hover:bg-muted/10">
+                      <td className="px-3 py-2"></td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <span 
+                            className={`text-[9px] px-1 py-0.5 rounded font-medium ${
+                              holding.asset_type === 'crypto' 
+                                ? 'text-orange-400 bg-orange-400/10' 
+                                : 'text-blue-400 bg-blue-400/10'
+                            }`}
+                          >
+                            {holding.asset_type === 'crypto' ? 'C' : 'E'}
+                          </span>
+                          <div>
                             <span 
-                              className={`text-[9px] px-1 py-0.5 rounded font-medium ${
-                                holding.asset_type === 'crypto' 
-                                  ? 'text-orange-400 bg-orange-400/10' 
-                                  : 'text-blue-400 bg-blue-400/10'
-                              }`}
+                              className="font-mono font-medium cursor-pointer hover:text-primary"
+                              onClick={() => holding.asset_id && onAssetClick(String(holding.asset_id))}
                             >
-                              {holding.asset_type === 'crypto' ? 'C' : 'E'}
+                              {holding.symbol}
                             </span>
-                            <div>
-                              <span 
-                                className="font-mono font-medium cursor-pointer hover:text-primary"
-                                onClick={() => holding.asset_id && onAssetClick(String(holding.asset_id))}
-                              >
-                                {holding.symbol}
-                              </span>
-                              <span className="text-xs text-muted-foreground ml-2">
-                                {holding.name}
-                              </span>
-                            </div>
+                            <span className="text-xs text-muted-foreground ml-2">
+                              {holding.name}
+                            </span>
                           </div>
-                        </td>
-                        <td className="text-right px-3 py-2">
-                          {editing?.id === holding.id && editing.field === 'quantity' ? (
-                            <input
-                              type="number"
-                              value={editing.value}
-                              onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-                              onBlur={saveEditing}
-                              onKeyDown={(e) => e.key === 'Enter' && saveEditing()}
-                              className="w-24 px-1 py-0.5 bg-background border border-primary rounded text-sm text-right font-mono"
-                              autoFocus
-                            />
-                          ) : (
-                            <span 
-                              className="font-mono cursor-pointer hover:text-primary"
-                              onClick={() => startEditing(holding.id, 'quantity', holding.quantity)}
-                            >
-                              {formatNumber(holding.quantity, 4)}
-                            </span>
-                          )}
-                        </td>
-                        <td className="text-right px-3 py-2">
-                          {editing?.id === holding.id && editing.field === 'cost_basis' ? (
-                            <input
-                              type="number"
-                              value={editing.value}
-                              onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-                              onBlur={saveEditing}
-                              onKeyDown={(e) => e.key === 'Enter' && saveEditing()}
-                              className="w-24 px-1 py-0.5 bg-background border border-primary rounded text-sm text-right font-mono"
-                              autoFocus
-                            />
-                          ) : (
-                            <span 
-                              className="font-mono cursor-pointer hover:text-primary"
-                              onClick={() => startEditing(holding.id, 'cost_basis', holding.cost_basis)}
-                            >
-                              {formatPrice(holding.cost_basis)}
-                            </span>
-                          )}
-                        </td>
-                        <td className="text-right px-3 py-2 font-mono">
-                          {formatCurrency(holding.total_cost)}
-                        </td>
-                        <td className="text-right px-3 py-2">
-                          {holding.manual_price !== null ? (
-                            editing?.id === holding.id && editing.field === 'manual_price' ? (
-                              <input
-                                type="number"
-                                value={editing.value}
-                                onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-                                onBlur={saveEditing}
-                                onKeyDown={(e) => e.key === 'Enter' && saveEditing()}
-                                className="w-24 px-1 py-0.5 bg-background border border-primary rounded text-sm text-right font-mono"
-                                autoFocus
-                              />
-                            ) : (
-                              <span 
-                                className="font-mono cursor-pointer hover:text-primary"
-                                onClick={() => startEditing(holding.id, 'manual_price', holding.manual_price)}
-                                title="Manual price (click to edit)"
+                        </div>
+                      </td>
+                      <td className="text-right px-3 py-2">
+                        {editing?.id === holding.id && editing.field === 'target_weight' ? (
+                          <input
+                            type="number"
+                            step="0.1"
+                            className="w-20 px-2 py-1 bg-background border border-border rounded text-right font-mono"
+                            value={editing.value}
+                            onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+                            onBlur={saveEditing}
+                            onKeyDown={(e) => e.key === 'Enter' && saveEditing()}
+                            autoFocus
+                          />
+                        ) : (
+                          <span 
+                            className="font-mono cursor-pointer hover:text-primary"
+                            onClick={() => startEditing(holding.id, 'target_weight', holding.target_weight)}
+                          >
+                            {formatPercent(holding.target_weight)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="text-right px-3 py-2 font-mono text-muted-foreground">
+                        {formatCurrency(holding.target_value)}
+                      </td>
+                      <td className="text-right px-3 py-2 font-mono">
+                        {formatPrice(holding.current_price || holding.manual_price)}
+                      </td>
+                      <td className="text-right px-3 py-2 font-mono text-muted-foreground">
+                        {formatNumber(holding.target_quantity)}
+                      </td>
+                      <td className="px-3 py-2">
+                        {editing?.id === holding.id && editing.field === 'notes' ? (
+                          <input
+                            type="text"
+                            className="w-full px-2 py-1 bg-background border border-border rounded text-sm"
+                            value={editing.value}
+                            onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+                            onBlur={saveEditing}
+                            onKeyDown={(e) => e.key === 'Enter' && saveEditing()}
+                            autoFocus
+                          />
+                        ) : (
+                          <span 
+                            className="text-xs text-muted-foreground cursor-pointer hover:text-primary truncate block max-w-[150px]"
+                            onClick={() => startEditing(holding.id, 'notes', holding.notes)}
+                          >
+                            {holding.notes || '-'}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center justify-center gap-1">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <a
+                                href={`/chat?asset=${holding.symbol}`}
+                                className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-primary"
+                                onClick={(e) => e.stopPropagation()}
                               >
-                                {formatPrice(holding.manual_price)}*
-                              </span>
-                            )
-                          ) : (
-                            <span className="font-mono">
-                              {formatPrice(holding.current_price)}
-                            </span>
-                          )}
-                        </td>
-                        <td className="text-right px-3 py-2 font-mono">
-                          {formatCurrency(holding.current_value)}
-                        </td>
-                        <td className={`text-right px-3 py-2 font-mono ${getPercentColor(holding.gain_loss_pct)}`}>
-                          {formatPercent(holding.gain_loss_pct)}
-                        </td>
-                        <td className="text-right px-3 py-2 font-mono text-muted-foreground">
-                          {formatPercent(weight)}
-                        </td>
-                        <td className="px-3 py-2">
-                          {editing?.id === holding.id && editing.field === 'notes' ? (
-                            <input
-                              type="text"
-                              value={editing.value}
-                              onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-                              onBlur={saveEditing}
-                              onKeyDown={(e) => e.key === 'Enter' && saveEditing()}
-                              className="w-full px-1 py-0.5 bg-background border border-primary rounded text-sm"
-                              autoFocus
-                            />
-                          ) : (
-                            <span 
-                              className="text-xs text-muted-foreground cursor-pointer hover:text-foreground truncate block max-w-[150px]"
-                              onClick={() => startEditing(holding.id, 'notes', holding.notes)}
-                              title={holding.notes || 'Click to add notes'}
-                            >
-                              {holding.notes || '-'}
-                            </span>
-                          )}
-                        </td>
-                        <td className="text-center px-3 py-2">
-                          <div className="flex items-center justify-center gap-1">
-                            {holding.asset_id && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <a
-                                    href={`/chat?asset_id=${holding.asset_id}&symbol=${encodeURIComponent(holding.symbol || '')}&name=${encodeURIComponent(holding.name || '')}&asset_type=${holding.asset_type || 'equity'}`}
-                                    className="p-1 rounded hover:bg-primary/20 transition-colors text-muted-foreground hover:text-primary"
-                                  >
-                                    <Activity className="w-3.5 h-3.5" />
-                                  </a>
-                                </TooltipTrigger>
-                                <TooltipContent>Research chat</TooltipContent>
-                              </Tooltip>
-                            )}
-                            <button
-                              onClick={() => handleRemove(holding.id)}
-                              className="p-1 text-muted-foreground hover:text-signal-bearish transition-colors"
-                              title="Remove position"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                                <Activity className="w-4 h-4" />
+                              </a>
+                            </TooltipTrigger>
+                            <TooltipContent>Research Chat</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-signal-bearish"
+                                onClick={() => handleRemove(holding.id)}
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>Remove</TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </React.Fragment>
               );
             })}
-          </tbody>
-        </table>
-        
-        {/* Add Entry Row - Always visible at bottom of table */}
-        <div ref={addMenuRef}>
-          <div className="border-t border-border">
-            <button
-              onClick={() => {
-                setShowAddMenu(!showAddMenu);
-                setAddMode(null);
-                setSearchQuery("");
-              }}
-              className="w-full px-4 py-3 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Add Entry
-            </button>
-          </div>
-          
-          {/* Add Menu - Inline below button */}
-          {showAddMenu && (
-            <div className="border-t border-border bg-muted/10">
-              {!addMode && (
-                <div className="p-2 flex gap-2">
+            
+            {/* Add Entry Row */}
+            <tr className="border-t border-border">
+              <td colSpan={8} className="p-0">
+                <div ref={addMenuRef}>
                   <button
-                    onClick={() => setAddMode('search')}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-muted/30 hover:bg-muted/50 rounded-lg transition-colors"
+                    className="w-full px-3 py-3 text-center text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors flex items-center justify-center gap-2"
+                    onClick={() => setShowAddMenu(!showAddMenu)}
                   >
-                    <Search className="w-4 h-4" />
-                    <span>Search Database</span>
+                    <Plus className="w-4 h-4" />
+                    Add Entry
                   </button>
-                  <button
-                    onClick={() => setAddMode('manual')}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-muted/30 hover:bg-muted/50 rounded-lg transition-colors"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                    <span>Manual Entry</span>
-                  </button>
-                </div>
-              )}
-              
-              {/* Search Mode */}
-              {addMode === 'search' && (
-                <div className="p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <button
-                      onClick={() => setAddMode(null)}
-                      className="p-1 text-muted-foreground hover:text-foreground"
-                    >
-                      <ChevronUp className="w-4 h-4" />
-                    </button>
-                    <span className="text-sm font-medium">Search Database</span>
-                  </div>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <input
-                      type="text"
-                      placeholder="Search by symbol or name..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                      autoFocus
-                    />
-                  </div>
                   
-                  {/* Search Results */}
-                  {searchQuery.length >= 1 && (
-                    <div className="mt-2 max-h-64 overflow-auto">
-                      {searchLoading && searchResults.length === 0 ? (
-                        <div className="flex items-center justify-center py-4 text-muted-foreground">
-                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                          Searching...
+                  {/* Expanded Add Menu */}
+                  {showAddMenu && (
+                    <div className="border-t border-border bg-muted/10">
+                      {/* Mode Selection */}
+                      {!addMode && (
+                        <div className="grid grid-cols-2 divide-x divide-border">
+                          <button
+                            className="px-4 py-3 hover:bg-muted/30 flex items-center justify-center gap-2 text-muted-foreground hover:text-foreground"
+                            onClick={() => setAddMode('search')}
+                          >
+                            <Search className="w-4 h-4" />
+                            Search Database
+                          </button>
+                          <button
+                            className="px-4 py-3 hover:bg-muted/30 flex items-center justify-center gap-2 text-muted-foreground hover:text-foreground"
+                            onClick={() => setAddMode('manual')}
+                          >
+                            <Plus className="w-4 h-4" />
+                            Manual Entry
+                          </button>
                         </div>
-                      ) : searchResults.length === 0 ? (
-                        <div className="py-4 text-center text-muted-foreground text-sm">
-                          No assets found for "{searchQuery}"
-                        </div>
-                      ) : (
-                        <div className="space-y-1">
-                          {searchResults.map((asset) => {
-                            const isInPortfolio = existingAssetIds.has(asset.asset_id);
-                            const isAdding = addingAssetId === asset.asset_id;
-                            
-                            return (
-                              <div
-                                key={asset.asset_id}
-                                className="flex items-center justify-between px-3 py-2 hover:bg-muted/50 rounded-lg transition-colors"
-                              >
-                                <div className="flex items-center gap-2 flex-1 min-w-0">
-                                  <span
-                                    className={`text-[9px] px-1 py-0.5 rounded font-medium shrink-0 ${
-                                      asset.asset_type === "crypto"
-                                        ? "text-orange-400 bg-orange-400/10"
-                                        : "text-blue-400 bg-blue-400/10"
-                                    }`}
+                      )}
+                      
+                      {/* Search Mode */}
+                      {addMode === 'search' && (
+                        <div className="p-4 space-y-3">
+                          <div className="flex items-center gap-2">
+                            <button
+                              className="text-muted-foreground hover:text-foreground"
+                              onClick={() => { setAddMode(null); setSearchQuery(""); }}
+                            >
+                              <ChevronUp className="w-4 h-4" />
+                            </button>
+                            <span className="font-medium">Search Database</span>
+                          </div>
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <input
+                              type="text"
+                              placeholder="Search by symbol or name..."
+                              className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-lg"
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                              autoFocus
+                            />
+                          </div>
+                          
+                          {/* Search Results */}
+                          {searchLoading && (
+                            <div className="flex items-center justify-center py-4">
+                              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                            </div>
+                          )}
+                          
+                          {!searchLoading && searchResults.length > 0 && (
+                            <div className="max-h-64 overflow-y-auto space-y-1">
+                              {searchResults.map((result) => {
+                                const isAdded = existingAssetIds.has(result.asset_id);
+                                const isAdding = addingAssetId === result.asset_id;
+                                
+                                return (
+                                  <div
+                                    key={result.asset_id}
+                                    className="flex items-center justify-between px-3 py-2 hover:bg-muted/30 rounded-lg"
                                   >
-                                    {asset.asset_type === "crypto" ? "C" : "E"}
-                                  </span>
-                                  <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2">
-                                      <span className="font-mono font-medium text-foreground text-sm">
-                                        {asset.symbol}
+                                      <span 
+                                        className={`text-[9px] px-1 py-0.5 rounded font-medium ${
+                                          result.asset_type === 'crypto' 
+                                            ? 'text-orange-400 bg-orange-400/10' 
+                                            : 'text-blue-400 bg-blue-400/10'
+                                        }`}
+                                      >
+                                        {result.asset_type === 'crypto' ? 'C' : 'E'}
                                       </span>
-                                      <span className="text-xs text-muted-foreground truncate">
-                                        {asset.name}
+                                      <span className="font-mono font-medium">{result.symbol}</span>
+                                      <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                                        {result.name}
                                       </span>
                                     </div>
-                                  </div>
-                                  <div className="text-right shrink-0">
-                                    <div className="text-xs font-mono text-foreground">
-                                      {formatPrice(asset.close)}
-                                    </div>
-                                    {asset.market_cap && (
-                                      <div className="text-[10px] text-muted-foreground">
-                                        {formatMarketCap(asset.market_cap)}
+                                    <div className="flex items-center gap-3">
+                                      <div className="text-right">
+                                        <div className="font-mono text-sm">{formatPrice(result.close)}</div>
+                                        <div className="text-xs text-muted-foreground">{formatMarketCap(result.market_cap)}</div>
                                       </div>
-                                    )}
+                                      {isAdded ? (
+                                        <span className="text-xs text-signal-bullish px-2 py-1 bg-signal-bullish/10 rounded">
+                                          Added
+                                        </span>
+                                      ) : (
+                                        <button
+                                          className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-primary disabled:opacity-50"
+                                          onClick={() => handleAddFromSearch(result)}
+                                          disabled={isAdding}
+                                        >
+                                          {isAdding ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                          ) : (
+                                            <Plus className="w-4 h-4" />
+                                          )}
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
-                                <button
-                                  onClick={() => !isInPortfolio && !isAdding && handleAddFromSearch(asset)}
-                                  disabled={isInPortfolio || isAdding}
-                                  className={`ml-2 p-1.5 rounded transition-colors shrink-0 ${
-                                    isInPortfolio
-                                      ? "text-signal-bullish bg-signal-bullish/10 cursor-default"
-                                      : isAdding
-                                      ? "text-muted-foreground cursor-wait"
-                                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                                  }`}
-                                >
-                                  {isAdding ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                  ) : isInPortfolio ? (
-                                    <span className="text-xs">Added</span>
-                                  ) : (
-                                    <Plus className="w-4 h-4" />
-                                  )}
-                                </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                          
+                          {!searchLoading && debouncedQuery.length >= 1 && searchResults.length === 0 && (
+                            <div className="text-center py-4 text-muted-foreground text-sm">
+                              No results found for "{debouncedQuery}"
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Manual Entry Mode */}
+                      {addMode === 'manual' && (
+                        <div className="p-4 space-y-4">
+                          <div className="flex items-center gap-2">
+                            <button
+                              className="text-muted-foreground hover:text-foreground"
+                              onClick={() => setAddMode(null)}
+                            >
+                              <ChevronUp className="w-4 h-4" />
+                            </button>
+                            <span className="font-medium">Manual Entry</span>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div>
+                              <label className="text-xs text-muted-foreground block mb-1">Symbol *</label>
+                              <input
+                                type="text"
+                                className="w-full px-3 py-2 bg-background border border-border rounded"
+                                placeholder="BTC"
+                                value={newHolding.custom_symbol || ''}
+                                onChange={(e) => setNewHolding({ ...newHolding, custom_symbol: e.target.value.toUpperCase() })}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-muted-foreground block mb-1">Name</label>
+                              <input
+                                type="text"
+                                className="w-full px-3 py-2 bg-background border border-border rounded"
+                                placeholder="Bitcoin"
+                                value={newHolding.custom_name || ''}
+                                onChange={(e) => setNewHolding({ ...newHolding, custom_name: e.target.value })}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-muted-foreground block mb-1">Category *</label>
+                              <select
+                                className="w-full px-3 py-2 bg-background border border-border rounded"
+                                value={newHolding.category || 'other'}
+                                onChange={(e) => setNewHolding({ ...newHolding, category: e.target.value as PortfolioCategory })}
+                              >
+                                {CATEGORY_ORDER.map(cat => (
+                                  <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="text-xs text-muted-foreground block mb-1">Target Weight %</label>
+                              <input
+                                type="number"
+                                step="0.1"
+                                className="w-full px-3 py-2 bg-background border border-border rounded"
+                                placeholder="0"
+                                value={newHolding.target_weight || ''}
+                                onChange={(e) => setNewHolding({ ...newHolding, target_weight: parseFloat(e.target.value) || 0 })}
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div>
+                              <label className="text-xs text-muted-foreground block mb-1">Manual Price</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                className="w-full px-3 py-2 bg-background border border-border rounded"
+                                placeholder="0.00"
+                                value={newHolding.manual_price || ''}
+                                onChange={(e) => setNewHolding({ ...newHolding, manual_price: parseFloat(e.target.value) || undefined })}
+                              />
+                            </div>
+                            <div className="col-span-2 md:col-span-3">
+                              <label className="text-xs text-muted-foreground block mb-1">Notes</label>
+                              <input
+                                type="text"
+                                className="w-full px-3 py-2 bg-background border border-border rounded"
+                                placeholder="Optional notes..."
+                                value={newHolding.notes || ''}
+                                onChange={(e) => setNewHolding({ ...newHolding, notes: e.target.value })}
+                              />
+                            </div>
+                          </div>
+                          
+                          {/* Options fields */}
+                          {newHolding.category === 'options' && (
+                            <div className="grid grid-cols-3 gap-4">
+                              <div>
+                                <label className="text-xs text-muted-foreground block mb-1">Strike Price</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  className="w-full px-3 py-2 bg-background border border-border rounded"
+                                  value={newHolding.strike_price || ''}
+                                  onChange={(e) => setNewHolding({ ...newHolding, strike_price: parseFloat(e.target.value) || undefined })}
+                                />
                               </div>
-                            );
-                          })}
+                              <div>
+                                <label className="text-xs text-muted-foreground block mb-1">Expiration</label>
+                                <input
+                                  type="date"
+                                  className="w-full px-3 py-2 bg-background border border-border rounded"
+                                  value={newHolding.expiration_date || ''}
+                                  onChange={(e) => setNewHolding({ ...newHolding, expiration_date: e.target.value })}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs text-muted-foreground block mb-1">Type</label>
+                                <select
+                                  className="w-full px-3 py-2 bg-background border border-border rounded"
+                                  value={newHolding.option_type || ''}
+                                  onChange={(e) => setNewHolding({ ...newHolding, option_type: e.target.value })}
+                                >
+                                  <option value="">Select...</option>
+                                  <option value="call">Call</option>
+                                  <option value="put">Put</option>
+                                </select>
+                              </div>
+                            </div>
+                          )}
+                          
+                          <div className="flex justify-end">
+                            <button
+                              className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50"
+                              onClick={handleAddManual}
+                              disabled={!newHolding.custom_symbol}
+                            >
+                              Add Position
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
                   )}
                 </div>
-              )}
-              
-              {/* Manual Entry Mode */}
-              {addMode === 'manual' && (
-                <div className="p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <button
-                      onClick={() => setAddMode(null)}
-                      className="p-1 text-muted-foreground hover:text-foreground"
-                    >
-                      <ChevronUp className="w-4 h-4" />
-                    </button>
-                    <span className="text-sm font-medium">Manual Entry</span>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div>
-                      <label className="text-xs text-muted-foreground">Symbol *</label>
-                      <input
-                        type="text"
-                        value={newHolding.custom_symbol || ''}
-                        onChange={(e) => setNewHolding({ ...newHolding, custom_symbol: e.target.value })}
-                        className="w-full px-2 py-1.5 bg-background border border-border rounded text-sm"
-                        placeholder="e.g., BTC-CALL"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground">Name</label>
-                      <input
-                        type="text"
-                        value={newHolding.custom_name || ''}
-                        onChange={(e) => setNewHolding({ ...newHolding, custom_name: e.target.value })}
-                        className="w-full px-2 py-1.5 bg-background border border-border rounded text-sm"
-                        placeholder="e.g., BTC Jan Call"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground">Category *</label>
-                      <select
-                        value={newHolding.category}
-                        onChange={(e) => setNewHolding({ ...newHolding, category: e.target.value as PortfolioCategory })}
-                        className="w-full px-2 py-1.5 bg-background border border-border rounded text-sm"
-                      >
-                        {CATEGORY_ORDER.map(cat => (
-                          <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground">Quantity</label>
-                      <input
-                        type="number"
-                        value={newHolding.quantity || ''}
-                        onChange={(e) => setNewHolding({ ...newHolding, quantity: parseFloat(e.target.value) || 0 })}
-                        className="w-full px-2 py-1.5 bg-background border border-border rounded text-sm"
-                        placeholder="0"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground">Cost Basis</label>
-                      <input
-                        type="number"
-                        value={newHolding.cost_basis || ''}
-                        onChange={(e) => setNewHolding({ ...newHolding, cost_basis: parseFloat(e.target.value) || undefined })}
-                        className="w-full px-2 py-1.5 bg-background border border-border rounded text-sm"
-                        placeholder="Per unit cost"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground">Manual Price</label>
-                      <input
-                        type="number"
-                        value={newHolding.manual_price || ''}
-                        onChange={(e) => setNewHolding({ ...newHolding, manual_price: parseFloat(e.target.value) || undefined })}
-                        className="w-full px-2 py-1.5 bg-background border border-border rounded text-sm"
-                        placeholder="Current price"
-                      />
-                    </div>
-                    <div className="col-span-2">
-                      <label className="text-xs text-muted-foreground">Notes</label>
-                      <input
-                        type="text"
-                        value={newHolding.notes || ''}
-                        onChange={(e) => setNewHolding({ ...newHolding, notes: e.target.value })}
-                        className="w-full px-2 py-1.5 bg-background border border-border rounded text-sm"
-                        placeholder="Optional notes..."
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* Options fields if category is options */}
-                  {newHolding.category === 'options' && (
-                    <div className="grid grid-cols-3 gap-3 mt-3">
-                      <div>
-                        <label className="text-xs text-muted-foreground">Strike Price</label>
-                        <input
-                          type="number"
-                          value={newHolding.strike_price || ''}
-                          onChange={(e) => setNewHolding({ ...newHolding, strike_price: parseFloat(e.target.value) || undefined })}
-                          className="w-full px-2 py-1.5 bg-background border border-border rounded text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground">Expiration</label>
-                        <input
-                          type="date"
-                          value={newHolding.expiration_date || ''}
-                          onChange={(e) => setNewHolding({ ...newHolding, expiration_date: e.target.value })}
-                          className="w-full px-2 py-1.5 bg-background border border-border rounded text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground">Option Type</label>
-                        <select
-                          value={newHolding.option_type || ''}
-                          onChange={(e) => setNewHolding({ ...newHolding, option_type: e.target.value })}
-                          className="w-full px-2 py-1.5 bg-background border border-border rounded text-sm"
-                        >
-                          <option value="">Select...</option>
-                          <option value="call">Call</option>
-                          <option value="put">Put</option>
-                        </select>
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className="flex justify-end gap-2 mt-4">
-                    <button
-                      onClick={() => {
-                        setAddMode(null);
-                        setNewHolding({ category: 'other', quantity: 0 });
-                      }}
-                      className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleAddManual}
-                      disabled={!newHolding.custom_symbol}
-                      className="px-4 py-1.5 text-sm bg-primary text-primary-foreground rounded-md disabled:opacity-50"
-                    >
-                      Add Position
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
         
+        {/* Empty State */}
         {holdings.length === 0 && !showAddMenu && (
-          <div className="text-center py-12 text-muted-foreground border-t border-border">
-            <DollarSign className="w-12 h-12 mx-auto mb-4 opacity-20" />
-            <p>No positions in portfolio</p>
-            <p className="text-sm mt-1">Click "Add Entry" below to get started</p>
+          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+            <DollarSign className="w-12 h-12 mb-4 opacity-20" />
+            <p className="text-lg">No positions in model portfolio</p>
+            <p className="text-sm">Click "Add Entry" to start building your model</p>
           </div>
         )}
       </div>
     </div>
   );
 }
+
