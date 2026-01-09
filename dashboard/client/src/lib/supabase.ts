@@ -5,16 +5,15 @@ const supabaseUrl = 'https://wfogbaipiqootjrsprde.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indmb2diYWlwaXFvb3RqcnNwcmRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxOTQ4NDQsImV4cCI6MjA4MTc3MDg0NH0.DWjb0nVian7a9njxbGR9VjAsWQuWuHI375PgEHH1TRw';
 
 // Create Supabase client with auth configuration
-// Using implicit flow with manual token handling to work around Chrome's
-// bounce tracking mitigation that blocks Supabase's automatic session detection
+// Using PKCE flow which is more reliable for OAuth redirects
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    // Disable automatic URL detection - we handle it manually in AuthCallback
-    // This avoids Chrome blocking Supabase's internal storage operations during redirect
-    detectSessionInUrl: false,
-    flowType: 'implicit',
+    // Enable automatic URL detection - let Supabase handle the OAuth callback
+    detectSessionInUrl: true,
+    // Use PKCE flow for better security and reliability with OAuth
+    flowType: 'pkce',
     storage: typeof window !== 'undefined' ? window.localStorage : undefined,
     storageKey: 'stratos-auth-token',
   },

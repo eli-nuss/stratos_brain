@@ -4,13 +4,11 @@ import { supabase } from '../lib/supabase';
 export function AuthCallback() {
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [error, setError] = useState<string | null>(null);
-  const [debugInfo, setDebugInfo] = useState<string>('');
 
   useEffect(() => {
     const handleCallback = async () => {
       console.log('[AuthCallback] Starting callback processing...');
       console.log('[AuthCallback] Full URL:', window.location.href);
-      console.log('[AuthCallback] Hash:', window.location.hash);
 
       try {
         // Check for error in URL params first
@@ -22,46 +20,58 @@ export function AuthCallback() {
           throw new Error(`Authentication error: ${errorDescription || errorParam}`);
         }
 
-        // For implicit flow, tokens come in the URL hash (#access_token=...)
-        // Chrome's bounce tracking mitigation blocks Supabase's automatic detection
-        // So we manually parse the hash and set the session directly
+        // With PKCE flow and detectSessionInUrl: true, Supabase automatically
+        // exchanges the code for a session. We just need to wait for it.
+        // The onAuthStateChange listener in AuthContext will handle the session.
         
-        const hash = window.location.hash;
-        if (hash && hash.includes('access_token')) {
-          console.log('[AuthCallback] Found tokens in hash, manually parsing...');
+        // Give Supabase a moment to process the auth code exchange
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Check if we have a session now
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('[AuthCallback] Session error:', sessionError);
+          throw sessionError;
+        }
+
+        if (session) {
+          console.log('[AuthCallback] Session established for:', session.user.email);
           
-          // Parse the hash fragment (remove leading #)
-          const hashParams = new URLSearchParams(hash.substring(1));
-          const accessToken = hashParams.get('access_token');
-          const refreshToken = hashParams.get('refresh_token');
-          const expiresIn = hashParams.get('expires_in');
-          const tokenType = hashParams.get('token_type');
+          // Validate domain restriction
+          const email = session.user.email || '';
+          if (!email.endsWith('@stratos.xyz')) {
+            console.warn('[AuthCallback] Domain restriction: user email not @stratos.xyz');
+            await supabase.auth.signOut();
+            throw new Error('Access restricted to @stratos.xyz email addresses only.');
+          }
           
-          console.log('[AuthCallback] Parsed tokens:', {
-            hasAccessToken: !!accessToken,
-            hasRefreshToken: !!refreshToken,
-            expiresIn,
-            tokenType
-          });
+          setStatus('success');
+          
+          // Clean up URL and redirect
+          window.history.replaceState({}, document.title, '/auth/callback');
+          
+          setTimeout(() => {
+            window.location.href = '/watchlist';
+          }, 500);
+          return;
+        }
 
-          if (!accessToken) {
-            throw new Error('No access token found in URL');
+        // If no session yet, check if there's a code in the URL that needs processing
+        const code = urlParams.get('code');
+        if (code) {
+          console.log('[AuthCallback] Auth code found, exchanging for session...');
+          
+          // Exchange the code for a session
+          const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          
+          if (exchangeError) {
+            console.error('[AuthCallback] Code exchange error:', exchangeError);
+            throw exchangeError;
           }
-
-          // Manually set the session using the tokens from the URL
-          // This bypasses Chrome's blocking of Supabase's automatic detection
-          const { data, error: setSessionError } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken || '',
-          });
-
-          if (setSessionError) {
-            console.error('[AuthCallback] setSession error:', setSessionError);
-            throw setSessionError;
-          }
-
+          
           if (data.session) {
-            console.log('[AuthCallback] Session manually set for:', data.session.user.email);
+            console.log('[AuthCallback] Session established via code exchange for:', data.session.user.email);
             
             // Validate domain restriction
             const email = data.session.user.email || '';
@@ -73,35 +83,18 @@ export function AuthCallback() {
             
             setStatus('success');
             
-            // Clean up URL (remove hash) and redirect
+            // Clean up URL and redirect
             window.history.replaceState({}, document.title, '/auth/callback');
             
             setTimeout(() => {
               window.location.href = '/watchlist';
             }, 500);
             return;
-          } else {
-            throw new Error('Session was not created after setSession call');
           }
         }
 
-        // No hash token found - check if there's already a session
-        console.log('[AuthCallback] No hash token found, checking for existing session...');
-        const { data: { session: existingSession } } = await supabase.auth.getSession();
-        
-        if (existingSession) {
-          console.log('[AuthCallback] Found existing session for:', existingSession.user.email);
-          setStatus('success');
-          setTimeout(() => {
-            window.location.href = '/watchlist';
-          }, 500);
-          return;
-        }
-
-        // No session found at all
-        const debug = `URL: ${window.location.href}\nHash: ${hash || 'none'}\nNo tokens found in URL`;
-        setDebugInfo(debug);
-        throw new Error('Authentication failed: No tokens received. Please try again.');
+        // No session and no code - something went wrong
+        throw new Error('Authentication failed: No session established. Please try again.');
 
       } catch (err: any) {
         console.error('[AuthCallback] Error:', err);
@@ -135,11 +128,6 @@ export function AuthCallback() {
             <div className="text-red-500 text-4xl mb-4">✗</div>
             <p className="text-white text-lg mb-2">Authentication failed</p>
             <p className="text-red-400 text-sm mb-4">{error}</p>
-            {debugInfo && (
-              <pre className="text-xs text-gray-500 mb-4 text-left bg-gray-900 p-2 rounded overflow-auto max-h-32">
-                {debugInfo}
-              </pre>
-            )}
             <button 
               onClick={() => window.location.href = '/watchlist'}
               className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700"

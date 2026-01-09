@@ -61,7 +61,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     console.log('[Auth] Initializing auth...');
     console.log('[Auth] Current URL:', window.location.href);
-    console.log('[Auth] Hash present:', !!window.location.hash);
     
     // Get initial session
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
@@ -91,11 +90,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setSession(null);
             setLoading(false);
             return;
-          }
-          
-          // Clean up URL hash after successful sign-in
-          if (window.location.hash.includes('access_token')) {
-            window.history.replaceState(null, '', window.location.pathname + window.location.search);
           }
         }
 
@@ -146,7 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[Auth] Starting Google OAuth...');
       console.log('[Auth] Redirect URL:', `${window.location.origin}/auth/callback`);
       
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
@@ -160,6 +154,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('[Auth] Google OAuth error:', error);
         return { error };
       }
+      
+      // With PKCE flow, signInWithOAuth returns a URL to redirect to
+      // The redirect should happen automatically, but if not, we can handle it
+      if (data?.url) {
+        console.log('[Auth] Redirecting to:', data.url);
+        window.location.href = data.url;
+      }
+      
       return { error: null };
     } catch (err) {
       console.error('[Auth] Google OAuth exception:', err);
@@ -167,9 +169,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Sign out
+  // Sign out - use global scope to invalidate all sessions
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut({ scope: 'global' });
+    } catch (err) {
+      console.error('[Auth] Sign out error:', err);
+      // Still clear local state even if server-side signout fails
+    }
     setUser(null);
     setProfile(null);
     setSession(null);
