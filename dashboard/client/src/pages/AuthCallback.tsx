@@ -9,6 +9,7 @@ export function AuthCallback() {
   useEffect(() => {
     // Prevent double execution in React strict mode
     if (hasProcessed.current) {
+      console.log('[AuthCallback] Already processed, skipping...');
       return;
     }
     hasProcessed.current = true;
@@ -41,6 +42,8 @@ export function AuthCallback() {
             throw exchangeError;
           }
           
+          console.log('[AuthCallback] Exchange result:', data);
+          
           if (data.session) {
             console.log('[AuthCallback] Session established via code exchange for:', data.session.user.email);
             
@@ -52,15 +55,17 @@ export function AuthCallback() {
               throw new Error('Access restricted to @stratos.xyz email addresses only.');
             }
             
+            console.log('[AuthCallback] Domain validation passed, redirecting...');
             setStatus('success');
             
-            // Clean up URL and redirect
+            // Clean up URL and redirect immediately
             window.history.replaceState({}, document.title, '/auth/callback');
             
-            setTimeout(() => {
-              window.location.href = '/watchlist';
-            }, 500);
+            // Use replace to prevent back button issues
+            window.location.replace('/watchlist');
             return;
+          } else {
+            console.log('[AuthCallback] No session in exchange response');
           }
         }
 
@@ -84,16 +89,15 @@ export function AuthCallback() {
             throw new Error('Access restricted to @stratos.xyz email addresses only.');
           }
           
+          console.log('[AuthCallback] Existing session valid, redirecting...');
           setStatus('success');
           
-          setTimeout(() => {
-            window.location.href = '/watchlist';
-          }, 500);
+          window.location.replace('/watchlist');
           return;
         }
 
         // No session and no code - user probably landed here directly
-        console.log('[AuthCallback] No session or code found, redirecting to dashboard...');
+        console.log('[AuthCallback] No session or code found');
         setStatus('error');
         setError('No authentication data found. Please try signing in again.');
 
