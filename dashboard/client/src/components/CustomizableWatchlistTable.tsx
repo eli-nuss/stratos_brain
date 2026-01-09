@@ -370,7 +370,7 @@ export default function CustomizableWatchlistTable({ onAssetClick }: Customizabl
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-x-auto overflow-y-auto scrollbar-thin">
+      <div className="overflow-x-auto scrollbar-thin">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
