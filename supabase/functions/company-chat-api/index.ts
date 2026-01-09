@@ -418,7 +418,8 @@ async function executeFunctionCall(
         .limit(days)
       
       if (error) return { error: error.message }
-      return data?.reverse() || []
+      // Wrap array in object for Gemini API compatibility
+      return { bars: data?.reverse() || [], count: data?.length || 0 }
     }
     
     case "get_technical_indicators": {
@@ -446,7 +447,8 @@ async function executeFunctionCall(
         .order('strength', { ascending: false })
       
       if (error) return { error: error.message }
-      return data || []
+      // Wrap array in object for Gemini API compatibility
+      return { signals: data || [], count: data?.length || 0, as_of_date: targetDate }
     }
     
     case "get_ai_reviews": {
@@ -459,7 +461,8 @@ async function executeFunctionCall(
         .limit(limit)
       
       if (error) return { error: error.message }
-      return data || []
+      // Wrap array in object for Gemini API compatibility
+      return { reviews: data || [], count: data?.length || 0 }
     }
     
     case "get_sector_comparison": {
@@ -534,7 +537,8 @@ async function executeFunctionCall(
       const { data, error } = await query
       
       if (error) return { error: error.message }
-      return data || []
+      // Wrap array in object for Gemini API compatibility
+      return { assets: data || [], count: data?.length || 0, query: args.query }
     }
     
     case "web_search": {
