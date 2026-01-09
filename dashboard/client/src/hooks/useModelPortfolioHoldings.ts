@@ -1,0 +1,265 @@
+import useSWR from "swr";
+
+const fetcher = async (url: string) => {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`API error: ${res.status}`);
+  }
+  const data = await res.json();
+  // Ensure we always return an array
+  return Array.isArray(data) ? data : [];
+};
+
+export type PortfolioCategory = 'dats' | 'tokens' | 'equities' | 'options' | 'cash' | 'other';
+
+export interface ModelPortfolioHolding {
+  id: number;
+  asset_id: number | null;
+  custom_symbol: string | null;
+  custom_name: string | null;
+  custom_asset_type: string | null;
+  category: PortfolioCategory;
+  quantity: number;
+  cost_basis: number | null;
+  total_cost: number | null;
+  target_weight: number | null;
+  strike_price: number | null;
+  expiration_date: string | null;
+  option_type: string | null;
+  manual_price: number | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  // Computed fields from view
+  symbol: string;
+  name: string;
+  asset_type: string;
+  current_price: number | null;
+  current_value: number | null;
+  calculated_total_cost: number | null;
+  gain_loss_pct: number | null;
+}
+
+export interface PortfolioSummary {
+  total_positions: number;
+  total_value: number;
+  total_cost: number;
+  total_gain_loss_pct: number;
+  total_gain_loss_value: number;
+}
+
+export interface CategorySummary {
+  category: PortfolioCategory;
+  position_count: number;
+  category_value: number;
+  category_cost: number;
+  category_gain_loss_pct: number;
+  weight_pct: number;
+  target_weight_pct: number;
+}
+
+export interface AddHoldingInput {
+  asset_id?: number | null;
+  custom_symbol?: string | null;
+  custom_name?: string | null;
+  custom_asset_type?: string | null;
+  category: PortfolioCategory;
+  quantity: number;
+  cost_basis?: number | null;
+  total_cost?: number | null;
+  target_weight?: number | null;
+  strike_price?: number | null;
+  expiration_date?: string | null;
+  option_type?: string | null;
+  manual_price?: number | null;
+  notes?: string | null;
+}
+
+export interface UpdateHoldingInput {
+  id: number;
+  quantity?: number;
+  cost_basis?: number | null;
+  total_cost?: number | null;
+  target_weight?: number | null;
+  strike_price?: number | null;
+  expiration_date?: string | null;
+  option_type?: string | null;
+  manual_price?: number | null;
+  notes?: string | null;
+  category?: PortfolioCategory;
+  display_order?: number;
+}
+
+// Hook to fetch all model portfolio holdings
+export function useModelPortfolioHoldings() {
+  const { data, error, isLoading, mutate } = useSWR<ModelPortfolioHolding[]>(
+    "/api/dashboard/model-portfolio-holdings",
+    fetcher
+  );
+
+  // Ensure holdings is always an array
+  const holdings = Array.isArray(data) ? data : [];
+
+  return {
+    holdings,
+    isLoading,
+    isError: error,
+    mutate,
+  };
+}
+
+// Hook to get portfolio summary
+export function useModelPortfolioSummary() {
+  const { holdings } = useModelPortfolioHoldings();
+  
+  // Ensure holdings is an array
+  const safeHoldings = Array.isArray(holdings) ? holdings : [];
+  
+  const summary: PortfolioSummary = {
+    total_positions: safeHoldings.length,
+    total_value: safeHoldings.reduce((sum, h) => sum + (h.current_value || 0), 0),
+    total_cost: safeHoldings.reduce((sum, h) => sum + (h.total_cost || h.calculated_total_cost || 0), 0),
+    total_gain_loss_pct: 0,
+    total_gain_loss_value: 0,
+  };
+  
+  if (summary.total_cost > 0) {
+    summary.total_gain_loss_value = summary.total_value - summary.total_cost;
+    summary.total_gain_loss_pct = (summary.total_gain_loss_value / summary.total_cost) * 100;
+  }
+  
+  return summary;
+}
+
+// Hook to get holdings grouped by category
+export function useModelPortfolioByCategory() {
+  const { holdings, isLoading, mutate } = useModelPortfolioHoldings();
+  
+  // Ensure holdings is an array
+  const safeHoldings = Array.isArray(holdings) ? holdings : [];
+  
+  const totalValue = safeHoldings.reduce((sum, h) => sum + (h.current_value || 0), 0);
+  
+  const categories: Record<PortfolioCategory, ModelPortfolioHolding[]> = {
+    dats: [],
+    tokens: [],
+    equities: [],
+    options: [],
+    cash: [],
+    other: [],
+  };
+  
+  safeHoldings.forEach((h) => {
+    if (h.category && categories[h.category]) {
+      categories[h.category].push(h);
+    } else {
+      categories.other.push(h);
+    }
+  });
+  
+  const categorySummaries: CategorySummary[] = Object.entries(categories)
+    .filter(([_, items]) => items.length > 0)
+    .map(([category, items]) => {
+      const categoryValue = items.reduce((sum, h) => sum + (h.current_value || 0), 0);
+      const categoryCost = items.reduce((sum, h) => sum + (h.total_cost || h.calculated_total_cost || 0), 0);
+      const targetWeight = items.reduce((sum, h) => sum + (h.target_weight || 0), 0);
+      return {
+        category: category as PortfolioCategory,
+        position_count: items.length,
+        category_value: categoryValue,
+        category_cost: categoryCost,
+        category_gain_loss_pct: categoryCost > 0 ? ((categoryValue - categoryCost) / categoryCost) * 100 : 0,
+        weight_pct: totalValue > 0 ? (categoryValue / totalValue) * 100 : 0,
+        target_weight_pct: targetWeight,
+      };
+    });
+  
+  return {
+    categories,
+    categorySummaries,
+    totalValue,
+    isLoading,
+    mutate,
+  };
+}
+
+// Add a new holding
+export async function addModelHolding(input: AddHoldingInput): Promise<ModelPortfolioHolding> {
+  const response = await fetch("/api/dashboard/model-portfolio-holdings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  
+  if (!response.ok) {
+    throw new Error("Failed to add holding");
+  }
+  
+  return response.json();
+}
+
+// Update an existing holding
+export async function updateModelHolding(input: UpdateHoldingInput): Promise<ModelPortfolioHolding> {
+  const response = await fetch(`/api/dashboard/model-portfolio-holdings/${input.id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  
+  if (!response.ok) {
+    throw new Error("Failed to update holding");
+  }
+  
+  return response.json();
+}
+
+// Remove a holding
+export async function removeModelHolding(id: number): Promise<void> {
+  const response = await fetch(`/api/dashboard/model-portfolio-holdings/${id}`, {
+    method: "DELETE",
+  });
+  
+  if (!response.ok) {
+    throw new Error("Failed to remove holding");
+  }
+}
+
+// Add holding from existing asset
+export async function addModelHoldingFromAsset(
+  assetId: number,
+  category: PortfolioCategory,
+  quantity: number,
+  costBasis?: number,
+  targetWeight?: number,
+  notes?: string
+): Promise<ModelPortfolioHolding> {
+  return addModelHolding({
+    asset_id: assetId,
+    category,
+    quantity,
+    cost_basis: costBasis,
+    total_cost: costBasis ? quantity * costBasis : undefined,
+    target_weight: targetWeight,
+    notes,
+  });
+}
+
+// Category display names
+export const CATEGORY_LABELS: Record<PortfolioCategory, string> = {
+  dats: "DATS",
+  tokens: "Tokens",
+  equities: "Equities",
+  options: "Options",
+  cash: "Cash",
+  other: "Other",
+};
+
+// Category order for display
+export const CATEGORY_ORDER: PortfolioCategory[] = [
+  'dats',
+  'tokens',
+  'equities',
+  'options',
+  'cash',
+  'other',
+];
