@@ -82,7 +82,7 @@ export default function CorePortfolioHoldings({ onAssetClick }: { onAssetClick: 
   // Search results
   const { data: cryptoData, isLoading: cryptoLoading } = useSWR<{ data: SearchResult[] }>(
     debouncedQuery.length >= 1
-      ? `/api/dashboard/all-assets?search=${encodeURIComponent(debouncedQuery)}&universe_id=crypto_top_500&limit=10`
+      ? `/api/dashboard/all-assets?search=${encodeURIComponent(debouncedQuery)}&universe_id=crypto_all&limit=10`
       : null,
     fetcher
   );
