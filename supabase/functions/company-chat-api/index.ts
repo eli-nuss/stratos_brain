@@ -560,26 +560,98 @@ async function executeFunctionCall(
   }
 }
 
+// Chat config interface
+interface ChatConfig {
+  model?: string;
+  temperature?: number;
+  max_output_tokens?: number;
+  system_prompt_intro?: string;
+  grounding_rules?: string;
+  role_description?: string;
+  guidelines?: string;
+  response_format?: string;
+}
+
+// Fetch chat config from database
+async function fetchChatConfig(supabase: ReturnType<typeof createClient>): Promise<ChatConfig> {
+  const { data, error } = await supabase
+    .from('chat_config')
+    .select('config_key, config_value')
+  
+  if (error) {
+    console.log('Failed to fetch chat config, using defaults:', error.message)
+    return {}
+  }
+  
+  const config: ChatConfig = {}
+  for (const row of data || []) {
+    if (row.config_key === 'model') config.model = row.config_value
+    else if (row.config_key === 'temperature') config.temperature = parseFloat(row.config_value)
+    else if (row.config_key === 'max_output_tokens') config.max_output_tokens = parseInt(row.config_value)
+    else if (row.config_key === 'system_prompt_intro') config.system_prompt_intro = row.config_value
+    else if (row.config_key === 'grounding_rules') config.grounding_rules = row.config_value
+    else if (row.config_key === 'role_description') config.role_description = row.config_value
+    else if (row.config_key === 'guidelines') config.guidelines = row.config_value
+    else if (row.config_key === 'response_format') config.response_format = row.config_value
+  }
+  
+  return config
+}
+
 // Build system prompt for a company chat
-function buildSystemPrompt(asset: Record<string, unknown>, contextSnapshot: Record<string, unknown> | null): string {
+function buildSystemPrompt(asset: Record<string, unknown>, contextSnapshot: Record<string, unknown> | null, chatConfig: ChatConfig = {}): string {
   const today = new Date().toISOString().split('T')[0];
   
-  return `You are an AI research analyst assistant for ${asset.name} (${asset.symbol}).
-
-## CRITICAL GROUNDING RULES (READ FIRST)
-1. **Trust Data Over Memory**: Your internal training data is OUTDATED. The "Latest Context Snapshot" and "Database Functions" contain the REAL-TIME truth. ALWAYS query the database before making claims.
+  // Use config values or defaults
+  const intro = chatConfig.system_prompt_intro 
+    ? chatConfig.system_prompt_intro
+        .replace('{company_name}', String(asset.name))
+        .replace('{symbol}', String(asset.symbol))
+    : `You are an AI research analyst assistant for ${asset.name} (${asset.symbol}).`
+  
+  const groundingRules = chatConfig.grounding_rules
+    ? chatConfig.grounding_rules
+        .replace(/{asset_id}/g, String(asset.asset_id))
+        .replace(/{asset_type}/g, String(asset.asset_type))
+        .replace(/{today}/g, today)
+    : `1. **Trust Data Over Memory**: Your internal training data is OUTDATED. The "Latest Context Snapshot" and "Database Functions" contain the REAL-TIME truth. ALWAYS query the database before making claims.
 2. **Public Status Verification**: This asset has ID ${asset.asset_id} and Type '${asset.asset_type}'.
    - If 'asset_type' is 'equity', IT IS ALREADY A PUBLIC COMPANY trading on stock exchanges.
    - If 'asset_type' is 'crypto', IT IS ALREADY A LISTED TOKEN trading on exchanges.
    - **NEVER** discuss "upcoming IPOs", "listing rumors", or "going public soon" for this asset. It is ALREADY trading.
 3. **Date Awareness**: Today is **${today}**. Any news older than 7 days is "History", not "News". Do not confuse past events with current status.
-4. **Sanity Check**: Before answering any question about company status, IPO, or news, first check: "Does the database show active price history for this asset?" If yes, treat it as a mature public company/token.
-
-## Your Role
-You are helping a trader/investor research and analyze this company. You have access to:
+4. **Sanity Check**: Before answering any question about company status, IPO, or news, first check: "Does the database show active price history for this asset?" If yes, treat it as a mature public company/token.`
+  
+  const roleDescription = chatConfig.role_description || `You are helping a trader/investor research and analyze this company. You have access to:
 1. **Database Functions**: Query financial data, price history, technical indicators, signals, and AI reviews from the Stratos Brain database.
 2. **Web Search**: Search for current news, market conditions, and real-time information using the web_search function.
-3. **Python Code Execution**: Run Python code for calculations, statistical analysis, and data processing using the execute_python function.
+3. **Python Code Execution**: Run Python code for calculations, statistical analysis, and data processing using the execute_python function.`
+  
+  const guidelines = chatConfig.guidelines
+    ? chatConfig.guidelines.replace(/{asset_id}/g, String(asset.asset_id))
+    : `1. Always use the asset_id (${asset.asset_id}) when calling database functions that require it.
+2. **ALWAYS** query the database FIRST before making any claims about the company's status, price, or performance.
+3. Start by gathering relevant data using the available functions before providing analysis.
+4. When asked about current events or news, use the web_search function, but verify claims against database data.
+5. For complex calculations or data analysis, use the execute_python function.
+6. Provide clear, actionable insights backed by data.
+7. Be transparent about data limitations and uncertainty.
+8. Format responses with clear sections and bullet points for readability.
+9. If your internal memory conflicts with database data, ALWAYS trust the database.`
+  
+  const responseFormat = chatConfig.response_format || `- Use markdown formatting for clarity
+- Include relevant metrics and data points
+- Cite which functions/data sources you used
+- Provide both bullish and bearish perspectives when relevant
+- End with key takeaways or action items when appropriate`
+  
+  return `${intro}
+
+## CRITICAL GROUNDING RULES (READ FIRST)
+${groundingRules}
+
+## Your Role
+${roleDescription}
 
 ## Company Context
 - **Symbol**: ${asset.symbol}
@@ -595,29 +667,18 @@ ${contextSnapshot ? `## Latest Context Snapshot (REAL-TIME DATA - TRUST THIS)
 ${JSON.stringify(contextSnapshot, null, 2)}` : ''}
 
 ## Guidelines
-1. Always use the asset_id (${asset.asset_id}) when calling database functions that require it.
-2. **ALWAYS** query the database FIRST before making any claims about the company's status, price, or performance.
-3. Start by gathering relevant data using the available functions before providing analysis.
-4. When asked about current events or news, use the web_search function, but verify claims against database data.
-5. For complex calculations or data analysis, use the execute_python function.
-6. Provide clear, actionable insights backed by data.
-7. Be transparent about data limitations and uncertainty.
-8. Format responses with clear sections and bullet points for readability.
-9. If your internal memory conflicts with database data, ALWAYS trust the database.
+${guidelines}
 
 ## Response Format
-- Use markdown formatting for clarity
-- Include relevant metrics and data points
-- Cite which functions/data sources you used
-- Provide both bullish and bearish perspectives when relevant
-- End with key takeaways or action items when appropriate`
+${responseFormat}`
 }
 
 // Call Gemini with unified function calling
 async function callGeminiWithTools(
   messages: Array<{ role: string; parts: Array<{ text?: string; functionCall?: unknown; functionResponse?: unknown }> }>,
   systemInstruction: string,
-  supabase: ReturnType<typeof createClient>
+  supabase: ReturnType<typeof createClient>,
+  chatConfig: ChatConfig = {}
 ): Promise<{
   response: string;
   toolCalls: unknown[];
@@ -627,6 +688,13 @@ async function callGeminiWithTools(
   const toolCalls: unknown[] = []
   const codeExecutions: unknown[] = []
   const groundingMetadata: unknown | null = null
+  
+  // Use config values or defaults
+  const model = chatConfig.model || GEMINI_MODEL
+  const temperature = chatConfig.temperature ?? 0.7
+  const maxOutputTokens = chatConfig.max_output_tokens ?? 8192
+  
+  console.log(`Using model: ${model}, temperature: ${temperature}, maxTokens: ${maxOutputTokens}`)
   
   // Gemini API request with unified function calling only
   const requestBody = {
@@ -638,14 +706,14 @@ async function callGeminiWithTools(
       }
     ],
     generationConfig: {
-      temperature: 0.7,
-      maxOutputTokens: 8192,
+      temperature: temperature,
+      maxOutputTokens: maxOutputTokens,
       candidateCount: 1
     }
   }
   
   let response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1012,6 +1080,9 @@ serve(async (req: Request) => {
           })
         }
         
+        // Fetch chat configuration from database
+        const chatConfig = await fetchChatConfig(supabase)
+        
         // Get current sequence number
         const { data: lastMessage } = await supabase
           .from('chat_messages')
@@ -1056,12 +1127,12 @@ serve(async (req: Request) => {
           }
         }
         
-        // Build system prompt
-        const systemPrompt = buildSystemPrompt(asset, chat.context_snapshot)
+        // Build system prompt with config
+        const systemPrompt = buildSystemPrompt(asset, chat.context_snapshot, chatConfig)
         
-        // Call Gemini with tools
+        // Call Gemini with tools and config
         const startTime = Date.now()
-        const geminiResult = await callGeminiWithTools(geminiMessages, systemPrompt, supabase)
+        const geminiResult = await callGeminiWithTools(geminiMessages, systemPrompt, supabase, chatConfig)
         const latencyMs = Date.now() - startTime
         
         // Save assistant message
@@ -1076,7 +1147,7 @@ serve(async (req: Request) => {
             executable_code: geminiResult.codeExecutions.length > 0 ? (geminiResult.codeExecutions[0] as { code?: string })?.code : null,
             code_execution_result: geminiResult.codeExecutions.length > 0 ? JSON.stringify((geminiResult.codeExecutions[0] as { result?: unknown })?.result) : null,
             grounding_metadata: geminiResult.groundingMetadata,
-            model: GEMINI_MODEL,
+            model: chatConfig.model || GEMINI_MODEL,
             latency_ms: latencyMs
           })
           .select()
