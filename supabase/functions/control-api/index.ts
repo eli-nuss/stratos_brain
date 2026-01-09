@@ -1023,6 +1023,11 @@ ${markdownToHtml(markdown)}
           .order('date', { ascending: false })
           .limit(365)
         
+        // Add latest close price to asset for the 52-week range gauge
+        if (ohlcv && ohlcv.length > 0) {
+          asset.close = ohlcv[0].close
+        }
+        
         // Get features snapshot
         const { data: features } = await supabase
           .from('daily_features')
