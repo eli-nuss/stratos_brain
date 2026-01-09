@@ -532,7 +532,7 @@ export default function CorePortfolioHoldings({ onAssetClick }: { onAssetClick: 
         </table>
         
         {/* Add Entry Row - Always visible at bottom of table */}
-        <div className="border-t border-border relative" ref={addMenuRef}>
+        <div className="border-t border-border" ref={addMenuRef}>
           <button
             onClick={() => {
               setShowAddMenu(!showAddMenu);
@@ -544,10 +544,11 @@ export default function CorePortfolioHoldings({ onAssetClick }: { onAssetClick: 
             <Plus className="w-4 h-4" />
             Add Entry
           </button>
+        </div>
           
-          {/* Add Menu Dropdown */}
-          {showAddMenu && (
-            <div className="absolute top-full left-0 right-0 bg-card border border-border rounded-b-lg shadow-lg z-50">
+        {/* Add Menu - Inline below button */}
+        {showAddMenu && (
+          <div className="border-t border-border bg-muted/10">
               {!addMode && (
                 <div className="p-2 flex gap-2">
                   <button
@@ -818,9 +819,8 @@ export default function CorePortfolioHoldings({ onAssetClick }: { onAssetClick: 
                   </div>
                 </div>
               )}
-            </div>
-          )}
-        </div>
+          </div>
+        )}
         
         {holdings.length === 0 && !showAddMenu && (
           <div className="text-center py-12 text-muted-foreground border-t border-border">
