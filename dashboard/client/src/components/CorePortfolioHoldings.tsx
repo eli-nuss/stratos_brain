@@ -203,8 +203,24 @@ export default function CorePortfolioHoldings({ onAssetClick }: { onAssetClick: 
         
         <div className="flex items-center gap-2">
           <AssetSearchDropdown
-            onSelect={handleAddFromSearch}
-            placeholder="Add from database..."
+            existingAssetIds={new Set(holdings.filter(h => h.asset_id).map(h => h.asset_id as number))}
+            onAddAsset={async (assetId: number) => {
+              // Find the asset info from the search results (we'll fetch it)
+              try {
+                const res = await fetch(`/api/dashboard/asset/${assetId}`);
+                const asset = await res.json();
+                const category: PortfolioCategory = asset.asset_type === 'crypto' ? 'tokens' : 'equities';
+                await addHolding({
+                  asset_id: assetId,
+                  category,
+                  quantity: 0,
+                });
+                mutate();
+              } catch (error) {
+                console.error('Failed to add holding:', error);
+              }
+            }}
+            placeholder="Search to add..."
           />
           <button
             onClick={() => setShowAddManual(!showAddManual)}
