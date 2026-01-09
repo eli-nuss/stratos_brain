@@ -4,7 +4,7 @@ import {
   Bug, Lightbulb, Sparkles, Check, Clock, Play, 
   Trash2, ChevronDown, ChevronRight, Filter,
   AlertCircle, Circle, ArrowUp, ArrowRight, ArrowDown,
-  Plus, X, Send, Loader2
+  Plus, X, Send, Loader2, CheckCircle2
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -47,6 +47,18 @@ const priorityConfig = {
   low: { icon: ArrowDown, label: 'Low', color: 'text-muted-foreground' },
 };
 
+// Priority order for sorting (high = 0, medium = 1, low = 2)
+const priorityOrder: Record<FeedbackPriority, number> = {
+  high: 0,
+  medium: 1,
+  low: 2,
+};
+
+// Sort items by priority (high to low)
+const sortByPriority = (items: FeedbackItem[]): FeedbackItem[] => {
+  return [...items].sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+};
+
 // Available pages for selection
 const availablePages = [
   'Home',
@@ -74,6 +86,7 @@ export default function TodoList() {
   const { user, profile } = useAuth();
 
   const [expandedPages, setExpandedPages] = useState<Set<string>>(new Set());
+  const [expandedCompletedPages, setExpandedCompletedPages] = useState<Set<string>>(new Set());
   const [filterStatus, setFilterStatus] = useState<FeedbackStatus | 'all'>('all');
   const [filterCategory, setFilterCategory] = useState<FeedbackCategory | 'all'>('all');
   
@@ -116,6 +129,18 @@ export default function TodoList() {
 
   const togglePage = (page: string) => {
     setExpandedPages(prev => {
+      const next = new Set(prev);
+      if (next.has(page)) {
+        next.delete(page);
+      } else {
+        next.add(page);
+      }
+      return next;
+    });
+  };
+
+  const toggleCompletedSection = (page: string) => {
+    setExpandedCompletedPages(prev => {
       const next = new Set(prev);
       if (next.has(page)) {
         next.delete(page);
@@ -189,6 +214,79 @@ export default function TodoList() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Render a single item row
+  const renderItem = (item: FeedbackItem) => {
+    const catConfig = categoryConfig[item.category];
+    const statConfig = statusConfig[item.status];
+    const priConfig = priorityConfig[item.priority];
+    const CatIcon = catConfig.icon;
+    const PriIcon = priConfig.icon;
+
+    return (
+      <div
+        key={item.id}
+        className={`px-4 py-3 border-b border-border last:border-b-0 hover:bg-muted/20 transition-colors ${
+          item.status === 'done' ? 'opacity-60' : ''
+        }`}
+      >
+        <div className="flex items-start gap-3">
+          {/* Category Icon */}
+          <div className={`p-1.5 rounded ${catConfig.bgColor}`}>
+            <CatIcon className={`w-4 h-4 ${catConfig.color}`} />
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className={`font-medium ${item.status === 'done' ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                {item.title}
+              </span>
+              <PriIcon className={`w-3.5 h-3.5 ${priConfig.color}`} />
+            </div>
+            {item.description && (
+              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                {item.description}
+              </p>
+            )}
+            <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+              <span>{new Date(item.created_at).toLocaleDateString()}</span>
+              <span className={`px-1.5 py-0.5 rounded ${catConfig.bgColor} ${catConfig.color}`}>
+                {catConfig.label}
+              </span>
+              <span className="text-muted-foreground/70">•</span>
+              <span title={item.user_email || undefined}>
+                by {item.submitted_by || 'Anon'}
+              </span>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-2">
+            {/* Status Dropdown */}
+            <select
+              value={item.status}
+              onChange={(e) => updateStatus(item.id, e.target.value as FeedbackStatus)}
+              className={`px-2 py-1 text-xs rounded-lg border-0 ${statConfig.bgColor} ${statConfig.color} focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer`}
+            >
+              <option value="open">Open</option>
+              <option value="in_progress">In Progress</option>
+              <option value="done">Done</option>
+            </select>
+
+            {/* Delete Button */}
+            <button
+              onClick={() => deleteItem(item.id)}
+              className="p-1.5 text-muted-foreground hover:text-red-400 transition-colors"
+              title="Delete"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // Stats
@@ -296,6 +394,12 @@ export default function TodoList() {
             {sortedPages.map(page => {
               const pageItems = groupedByPage[page];
               const isExpanded = expandedPages.has(page);
+              const isCompletedExpanded = expandedCompletedPages.has(page);
+              
+              // Separate active and completed items, then sort by priority
+              const activeItems = sortByPriority(pageItems.filter(i => i.status !== 'done'));
+              const completedItems = sortByPriority(pageItems.filter(i => i.status === 'done'));
+              
               const openCount = pageItems.filter(i => i.status === 'open').length;
               const inProgressCount = pageItems.filter(i => i.status === 'in_progress').length;
 
@@ -326,83 +430,48 @@ export default function TodoList() {
                           {inProgressCount} in progress
                         </span>
                       )}
+                      {completedItems.length > 0 && (
+                        <span className="px-2 py-0.5 text-xs rounded-full bg-green-500/10 text-green-400">
+                          {completedItems.length} done
+                        </span>
+                      )}
                     </div>
                   </button>
 
                   {/* Page Items */}
                   {isExpanded && (
                     <div className="border-t border-border">
-                      {pageItems.map(item => {
-                        const catConfig = categoryConfig[item.category];
-                        const statConfig = statusConfig[item.status];
-                        const priConfig = priorityConfig[item.priority];
-                        const CatIcon = catConfig.icon;
-                        const PriIcon = priConfig.icon;
-
-                        return (
-                          <div
-                            key={item.id}
-                            className={`px-4 py-3 border-b border-border last:border-b-0 hover:bg-muted/20 transition-colors ${
-                              item.status === 'done' ? 'opacity-60' : ''
-                            }`}
+                      {/* Active Items (Open & In Progress) - sorted by priority */}
+                      {activeItems.map(item => renderItem(item))}
+                      
+                      {/* Completed Items Section - Collapsible */}
+                      {completedItems.length > 0 && (
+                        <div className="border-t border-border">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleCompletedSection(page);
+                            }}
+                            className="w-full px-4 py-2 flex items-center gap-2 hover:bg-muted/20 transition-colors bg-muted/10"
                           >
-                            <div className="flex items-start gap-3">
-                              {/* Category Icon */}
-                              <div className={`p-1.5 rounded ${catConfig.bgColor}`}>
-                                <CatIcon className={`w-4 h-4 ${catConfig.color}`} />
-                              </div>
-
-                              {/* Content */}
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className={`font-medium ${item.status === 'done' ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
-                                    {item.title}
-                                  </span>
-                                  <PriIcon className={`w-3.5 h-3.5 ${priConfig.color}`} />
-                                </div>
-                                {item.description && (
-                                  <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                                    {item.description}
-                                  </p>
-                                )}
-                                <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                                  <span>{new Date(item.created_at).toLocaleDateString()}</span>
-                                  <span className={`px-1.5 py-0.5 rounded ${catConfig.bgColor} ${catConfig.color}`}>
-                                    {catConfig.label}
-                                  </span>
-                                  <span className="text-muted-foreground/70">•</span>
-                                  <span title={item.user_email || undefined}>
-                                    by {item.submitted_by || 'Anon'}
-                                  </span>
-                                </div>
-                              </div>
-
-                              {/* Actions */}
-                              <div className="flex items-center gap-2">
-                                {/* Status Dropdown */}
-                                <select
-                                  value={item.status}
-                                  onChange={(e) => updateStatus(item.id, e.target.value as FeedbackStatus)}
-                                  className={`px-2 py-1 text-xs rounded-lg border-0 ${statConfig.bgColor} ${statConfig.color} focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer`}
-                                >
-                                  <option value="open">Open</option>
-                                  <option value="in_progress">In Progress</option>
-                                  <option value="done">Done</option>
-                                </select>
-
-                                {/* Delete Button */}
-                                <button
-                                  onClick={() => deleteItem(item.id)}
-                                  className="p-1.5 text-muted-foreground hover:text-red-400 transition-colors"
-                                  title="Delete"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
+                            {isCompletedExpanded ? (
+                              <ChevronDown className="w-3.5 h-3.5 text-green-400" />
+                            ) : (
+                              <ChevronRight className="w-3.5 h-3.5 text-green-400" />
+                            )}
+                            <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
+                            <span className="text-sm text-green-400 font-medium">
+                              Completed ({completedItems.length})
+                            </span>
+                          </button>
+                          
+                          {isCompletedExpanded && (
+                            <div className="bg-muted/5">
+                              {completedItems.map(item => renderItem(item))}
                             </div>
-                          </div>
-                        );
-                      })}
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
