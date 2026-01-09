@@ -59,19 +59,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Handle OAuth callback - check if there's a hash with access_token
+    const handleOAuthCallback = async () => {
+      const hash = window.location.hash;
+      if (hash && hash.includes('access_token')) {
+        console.log('OAuth callback detected, processing...');
+        // The hash contains OAuth tokens - Supabase should handle this automatically
+        // but we need to wait for it to process
+        try {
+          // Give Supabase a moment to process the hash
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          // Get the session after Supabase processes the hash
+          const { data: { session }, error } = await supabase.auth.getSession();
+          
+          if (error) {
+            console.error('Error getting session after OAuth:', error);
+          } else if (session) {
+            console.log('Session established after OAuth:', session.user?.email);
+            setSession(session);
+            setUser(session.user);
+            if (session.user) {
+              const profileData = await fetchProfile(session.user.id);
+              setProfile(profileData);
+            }
+            // Clean up the URL hash
+            window.history.replaceState(null, '', window.location.pathname);
+          }
+        } catch (err) {
+          console.error('Error processing OAuth callback:', err);
+        }
+      }
+    };
+
+    // Initialize auth
+    const initAuth = async () => {
+      // First check for OAuth callback
+      await handleOAuthCallback();
+      
+      // Then get current session
+      const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile(session.user.id).then(setProfile);
+        const profileData = await fetchProfile(session.user.id);
+        setProfile(profileData);
       }
       setLoading(false);
-    });
+    };
+
+    initAuth();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
+        
         // Check domain restriction for new sign-ins
         if (event === 'SIGNED_IN' && session?.user) {
           const email = session.user.email;
