@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, UserProfile } from '@/lib/supabase';
 
@@ -23,6 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const initialized = useRef(false);
 
   // Fetch user profile from our user_profiles table
   const fetchProfile = async (userId: string) => {
@@ -59,20 +60,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    // Prevent double initialization in React strict mode
+    if (initialized.current) {
+      return;
+    }
+    initialized.current = true;
+
     console.log('[Auth] Initializing auth...');
     console.log('[Auth] Current URL:', window.location.href);
     
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-      console.log('[Auth] Initial session:', initialSession?.user?.email || 'None');
-      setSession(initialSession);
-      setUser(initialSession?.user ?? null);
-      
-      if (initialSession?.user) {
-        fetchProfile(initialSession.user.id).then(setProfile);
+    // Get initial session with error handling
+    const initializeAuth = async () => {
+      try {
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('[Auth] Error getting session:', error);
+          setLoading(false);
+          return;
+        }
+        
+        console.log('[Auth] Initial session:', initialSession?.user?.email || 'None');
+        setSession(initialSession);
+        setUser(initialSession?.user ?? null);
+        
+        if (initialSession?.user) {
+          const profileData = await fetchProfile(initialSession.user.id);
+          setProfile(profileData);
+        }
+      } catch (err) {
+        console.error('[Auth] Exception during initialization:', err);
+      } finally {
+        // Always set loading to false, even on error
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    };
+
+    initializeAuth();
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
