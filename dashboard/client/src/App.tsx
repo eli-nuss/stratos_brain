@@ -11,6 +11,7 @@ import TemplateEditor from "./pages/TemplateEditor";
 import MemoLibrary from "./pages/MemoLibrary";
 import MemoViewer from "./pages/MemoViewer";
 import CompanyChat from "./pages/CompanyChat";
+import { AuthCallback } from "./pages/AuthCallback";
 
 
 function Router() {
@@ -30,6 +31,7 @@ function Router() {
       <Route path={"/memo/:id"} component={MemoViewer} />
       <Route path={"/chat"} component={CompanyChat} />
       <Route path={"/chat/:chatId"} component={CompanyChat} />
+      <Route path={"/auth/callback"} component={AuthCallback} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
@@ -61,4 +63,3 @@ function App() {
 }
 
 export default App;
-// Trigger deploy Thu Jan  8 14:55:21 EST 2026

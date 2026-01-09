@@ -59,6 +59,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    console.log('[Auth] Initializing auth...');
+    console.log('[Auth] Current URL:', window.location.href);
+    console.log('[Auth] Hash present:', !!window.location.hash);
+    
     // Get initial session
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
       console.log('[Auth] Initial session:', initialSession?.user?.email || 'None');
@@ -123,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
       
@@ -139,10 +143,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Sign in with Google OAuth
   const signInWithGoogle = async () => {
     try {
+      console.log('[Auth] Starting Google OAuth...');
+      console.log('[Auth] Redirect URL:', `${window.location.origin}/auth/callback`);
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/`,
+          redirectTo: `${window.location.origin}/auth/callback`,
           queryParams: {
             hd: 'stratos.xyz',
           },
@@ -150,10 +157,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       
       if (error) {
+        console.error('[Auth] Google OAuth error:', error);
         return { error };
       }
       return { error: null };
     } catch (err) {
+      console.error('[Auth] Google OAuth exception:', err);
       return { error: err as Error };
     }
   };
