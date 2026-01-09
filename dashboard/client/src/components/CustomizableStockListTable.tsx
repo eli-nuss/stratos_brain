@@ -3,6 +3,7 @@ import { useState, useMemo } from "react";
 import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, X, GripVertical } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { NoteCell } from "@/components/NoteCell";
+import ListSummaryRow from "@/components/ListSummaryRow";
 import { useStockListAssets, removeFromList, addToList, StockList } from "@/hooks/useStockLists";
 import AddToListButton from "@/components/AddToListButton";
 import AssetTagButton from "@/components/AssetTagButton";
@@ -416,6 +417,10 @@ export default function CustomizableStockListTable({ list, onAssetClick }: Custo
               </SortableContext>
             </thead>
             <tbody>
+              {/* Summary Row */}
+              {!isLoading && assets.length > 0 && (
+                <ListSummaryRow assets={assets} visibleColumns={visibleColumns} listName={list.name} />
+              )}
               {isLoading ? (
                 <tr><td colSpan={colCount} className="px-2 py-4 text-center text-muted-foreground">Loading...</td></tr>
               ) : paginatedAssets.length === 0 ? (

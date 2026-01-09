@@ -5,6 +5,7 @@ import { useAllAssets, AssetType, SortField, SortOrder } from "@/hooks/useAllAss
 import { useColumnConfig, ColumnDef, ALL_COLUMNS } from "@/hooks/useColumnConfig";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { NoteCell } from "@/components/NoteCell";
+import ListSummaryRow from "@/components/ListSummaryRow";
 import AddToListButton from "@/components/AddToListButton";
 import AssetTagButton from "@/components/AssetTagButton";
 import ColumnCustomizer from "@/components/ColumnCustomizer";
@@ -912,6 +913,10 @@ export default function CustomizableAssetTable({
               </SortableContext>
             </thead>
             <tbody>
+              {/* Summary Row */}
+              {!isLoading && filteredData.length > 0 && (
+                <ListSummaryRow assets={filteredData} visibleColumns={visibleColumns} listName={assetType === 'crypto' ? 'Crypto' : 'Equities'} />
+              )}
               {isLoading ? (
                 <tr><td colSpan={colCount} className="px-2 py-4 text-center text-muted-foreground">Loading...</td></tr>
               ) : filteredData.length === 0 ? (
