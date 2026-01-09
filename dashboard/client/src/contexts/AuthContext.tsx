@@ -81,17 +81,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         
         console.log('[Auth] Initial session:', initialSession?.user?.email || 'None');
-        setSession(initialSession);
-        setUser(initialSession?.user ?? null);
         
         if (initialSession?.user) {
+          console.log('[Auth] Setting initial user:', initialSession.user.email);
+          setSession(initialSession);
+          setUser(initialSession.user);
           const profileData = await fetchProfile(initialSession.user.id);
           setProfile(profileData);
         }
+        
+        setLoading(false);
+        console.log('[Auth] Initialization complete, loading set to false');
       } catch (err) {
         console.error('[Auth] Exception during initialization:', err);
-      } finally {
-        // Always set loading to false, even on error
         setLoading(false);
       }
     };
@@ -115,8 +117,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setLoading(false);
             return;
           }
+          
+          // Valid sign in - update state immediately
+          console.log('[Auth] Valid sign in, updating state for:', email);
+          setSession(currentSession);
+          setUser(currentSession.user);
+          setLoading(false);
+          console.log('[Auth] User state updated, loading set to false');
+          
+          // Fetch profile in background (don't block state update)
+          fetchProfile(currentSession.user.id).then(profileData => {
+            console.log('[Auth] Profile fetched:', profileData?.display_name);
+            setProfile(profileData);
+          });
+          return;
         }
 
+        // Handle other events
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         
@@ -216,6 +233,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signOut,
     refreshProfile,
   };
+
+  // Log context value changes
+  console.log('[Auth] Context value - user:', user?.email || 'null', 'loading:', loading);
 
   return (
     <AuthContext.Provider value={value}>

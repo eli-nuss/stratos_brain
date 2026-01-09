@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 export function AuthCallback() {
@@ -7,8 +7,33 @@ export function AuthCallback() {
   const [error, setError] = useState<string | null>(null);
   const [hasRedirected, setHasRedirected] = useState(false);
 
+  // Log every render to track state changes
+  console.log('[AuthCallback] Render - loading:', loading, 'user:', user?.email || 'null', 'status:', status, 'hasRedirected:', hasRedirected);
+
+  const handleRedirect = useCallback(() => {
+    if (hasRedirected) return;
+    
+    console.log('[AuthCallback] Handling redirect for user:', user?.email);
+    
+    // Validate domain
+    const email = user?.email || '';
+    if (!email.endsWith('@stratos.xyz')) {
+      console.warn('[AuthCallback] Domain restriction failed for:', email);
+      setError('Access restricted to @stratos.xyz email addresses only.');
+      setStatus('error');
+      return;
+    }
+
+    console.log('[AuthCallback] Domain validation passed, redirecting to /watchlist...');
+    setStatus('success');
+    setHasRedirected(true);
+    
+    // Redirect immediately
+    window.location.href = '/watchlist';
+  }, [user, hasRedirected]);
+
   useEffect(() => {
-    console.log('[AuthCallback] State check - loading:', loading, 'user:', user?.email, 'hasRedirected:', hasRedirected);
+    console.log('[AuthCallback] useEffect triggered - loading:', loading, 'user:', user?.email || 'null');
     
     // Check for error in URL params
     const urlParams = new URLSearchParams(window.location.search);
@@ -22,65 +47,44 @@ export function AuthCallback() {
       return;
     }
 
-    // Wait for auth to finish loading
+    // If still loading, wait
     if (loading) {
       console.log('[AuthCallback] Still loading auth state...');
       return;
     }
 
-    // If we have a user and haven't redirected yet, redirect now
-    if (user && !hasRedirected) {
-      console.log('[AuthCallback] User authenticated:', user.email);
-      
-      // Validate domain
-      const email = user.email || '';
-      if (!email.endsWith('@stratos.xyz')) {
-        console.warn('[AuthCallback] Domain restriction failed for:', email);
-        setError('Access restricted to @stratos.xyz email addresses only.');
-        setStatus('error');
-        return;
-      }
-
-      console.log('[AuthCallback] Domain validation passed, redirecting to /watchlist...');
-      setStatus('success');
-      setHasRedirected(true);
-      
-      // Use a small delay to show success state, then redirect
-      setTimeout(() => {
-        window.location.href = '/watchlist';
-      }, 500);
+    // If we have a user, redirect
+    if (user) {
+      handleRedirect();
       return;
     }
 
-    // If not loading and no user, check if we have a code that needs processing
+    // Check if we have a code that might still be processing
     const code = urlParams.get('code');
-    if (code && !user) {
-      console.log('[AuthCallback] Code present but no user yet - waiting for auth state change...');
-      // The AuthContext should handle this via onAuthStateChange
-      // Just wait a bit more
+    if (code) {
+      console.log('[AuthCallback] Code present, waiting for auth to process it...');
+      // Don't show error yet, the code might still be processing
       return;
     }
 
-    // No user and no code - show error
-    if (!user && !code) {
-      console.log('[AuthCallback] No user and no code - showing error');
-      setError('No authentication data found. Please try signing in again.');
-      setStatus('error');
-    }
-  }, [user, loading, hasRedirected]);
+    // No user, no code, no loading - show error
+    console.log('[AuthCallback] No user, no code, not loading - showing error');
+    setError('No authentication data found. Please try signing in again.');
+    setStatus('error');
+  }, [user, loading, handleRedirect]);
 
   // Add a timeout to prevent infinite loading
   useEffect(() => {
     const timeout = setTimeout(() => {
-      if (status === 'processing') {
-        console.log('[AuthCallback] Timeout reached - forcing error state');
+      if (status === 'processing' && !hasRedirected) {
+        console.log('[AuthCallback] Timeout reached after 15s');
         setError('Authentication timed out. Please try again.');
         setStatus('error');
       }
-    }, 15000); // 15 second timeout
+    }, 15000);
 
     return () => clearTimeout(timeout);
-  }, [status]);
+  }, [status, hasRedirected]);
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center">
@@ -89,7 +93,9 @@ export function AuthCallback() {
           <>
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
             <p className="text-white text-lg">Signing you in...</p>
-            <p className="text-gray-500 text-sm mt-2">Please wait...</p>
+            <p className="text-gray-500 text-sm mt-2">
+              {loading ? 'Verifying session...' : 'Processing...'}
+            </p>
           </>
         )}
         {status === 'success' && (
