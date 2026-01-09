@@ -405,7 +405,8 @@ async function executeFunctionCall(
         .single()
       
       if (error) return { error: error.message }
-      return data
+      // Wrap in object for Gemini API compatibility
+      return { fundamentals: data }
     }
     
     case "get_price_history": {
@@ -434,7 +435,8 @@ async function executeFunctionCall(
         .single()
       
       if (error) return { error: error.message }
-      return data
+      // Wrap in object for Gemini API compatibility
+      return { indicators: data, as_of_date: targetDate }
     }
     
     case "get_active_signals": {
@@ -705,8 +707,9 @@ async function callGeminiWithTools(
       parts: content.parts
     })
     
+    // Use 'function' role for tool outputs (required by Gemini API)
     messages.push({
-      role: 'user',
+      role: 'function',
       parts: functionResponses
     })
     
