@@ -416,7 +416,7 @@ function AIAnalysisTab({ aiReview, currentPrice }: { aiReview: AIReviewData | nu
           )}
 
           {/* Targets */}
-          {aiReview.ai_targets && aiReview.ai_targets.length > 0 && (
+          {Array.isArray(aiReview.ai_targets) && aiReview.ai_targets.length > 0 && (
             <div>
               <div className="text-[10px] text-zinc-500 uppercase mb-1.5">Targets</div>
               <div className="flex flex-wrap gap-1.5">
@@ -444,7 +444,7 @@ function AIAnalysisTab({ aiReview, currentPrice }: { aiReview: AIReviewData | nu
       <CollapsibleSection title="Key Levels" icon={Target} iconColor="text-amber-400">
         <div className="space-y-3">
           {/* Support */}
-          {aiReview.ai_key_levels?.support && aiReview.ai_key_levels.support.length > 0 && (
+          {aiReview.ai_key_levels?.support && Array.isArray(aiReview.ai_key_levels.support) && aiReview.ai_key_levels.support.length > 0 && (
             <div>
               <div className="flex items-center gap-1.5 mb-1.5">
                 <TrendingUp className="w-3 h-3 text-emerald-400" />
@@ -459,7 +459,7 @@ function AIAnalysisTab({ aiReview, currentPrice }: { aiReview: AIReviewData | nu
           )}
 
           {/* Resistance */}
-          {aiReview.ai_key_levels?.resistance && aiReview.ai_key_levels.resistance.length > 0 && (
+          {aiReview.ai_key_levels?.resistance && Array.isArray(aiReview.ai_key_levels.resistance) && aiReview.ai_key_levels.resistance.length > 0 && (
             <div>
               <div className="flex items-center gap-1.5 mb-1.5">
                 <TrendingDown className="w-3 h-3 text-red-400" />
@@ -476,7 +476,7 @@ function AIAnalysisTab({ aiReview, currentPrice }: { aiReview: AIReviewData | nu
       </CollapsibleSection>
 
       {/* Risks */}
-      {aiReview.ai_risks && aiReview.ai_risks.length > 0 && (
+      {Array.isArray(aiReview.ai_risks) && aiReview.ai_risks.length > 0 && (
         <CollapsibleSection title="Risks" icon={AlertTriangle} iconColor="text-red-400" defaultOpen={false}>
           <ul className="space-y-2">
             {aiReview.ai_risks.map((risk, i) => (
