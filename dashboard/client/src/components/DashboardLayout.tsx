@@ -446,6 +446,13 @@ export default function DashboardLayout({
             </a>
             
             <a
+              href="/todo"
+              className="px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
+            >
+              To-Do
+            </a>
+            
+            <a
               href="/admin/templates"
               className="px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all hidden sm:block"
             >

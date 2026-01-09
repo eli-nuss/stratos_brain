@@ -11,7 +11,9 @@ import TemplateEditor from "./pages/TemplateEditor";
 import MemoLibrary from "./pages/MemoLibrary";
 import MemoViewer from "./pages/MemoViewer";
 import CompanyChat from "./pages/CompanyChat";
+import TodoList from "./pages/TodoList";
 import { AuthCallback } from "./pages/AuthCallback";
+import FeedbackButton from "./components/FeedbackButton";
 
 
 function Router() {
@@ -31,6 +33,7 @@ function Router() {
       <Route path={"/memo/:id"} component={MemoViewer} />
       <Route path={"/chat"} component={CompanyChat} />
       <Route path={"/chat/:chatId"} component={CompanyChat} />
+      <Route path={"/todo"} component={TodoList} />
       <Route path={"/auth/callback"} component={AuthCallback} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
@@ -55,6 +58,7 @@ function App() {
           <TooltipProvider>
             <Toaster />
             <Router />
+            <FeedbackButton />
           </TooltipProvider>
         </AuthProvider>
       </ThemeProvider>

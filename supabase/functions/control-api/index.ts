@@ -3470,6 +3470,117 @@ ${template}
         })
       }
 
+      // ==================== FEEDBACK ENDPOINTS ====================
+
+      // GET /dashboard/feedback - Get all feedback items
+      case req.method === 'GET' && path === '/dashboard/feedback': {
+        const { data: items, error } = await supabase
+          .from('feedback_items')
+          .select('*')
+          .order('created_at', { ascending: false })
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(items || []), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // POST /dashboard/feedback - Create a new feedback item
+      case req.method === 'POST' && path === '/dashboard/feedback': {
+        const body = await req.json()
+        const { title, description, category, priority, page_name } = body
+        
+        if (!title || !page_name) {
+          return new Response(JSON.stringify({ error: 'Title and page_name are required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const { data, error } = await supabase
+          .from('feedback_items')
+          .insert({
+            title,
+            description: description || null,
+            category: category || 'bug',
+            priority: priority || 'medium',
+            page_name,
+            status: 'open'
+          })
+          .select()
+          .single()
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(data), {
+          status: 201,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // PATCH /dashboard/feedback/:id - Update a feedback item
+      case req.method === 'PATCH' && /^\/dashboard\/feedback\/\d+$/.test(path): {
+        const feedbackId = parseInt(path.split('/').pop()!)
+        const body = await req.json()
+        
+        const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() }
+        if (body.title !== undefined) updateData.title = body.title
+        if (body.description !== undefined) updateData.description = body.description
+        if (body.category !== undefined) updateData.category = body.category
+        if (body.priority !== undefined) updateData.priority = body.priority
+        if (body.status !== undefined) updateData.status = body.status
+        
+        const { data, error } = await supabase
+          .from('feedback_items')
+          .update(updateData)
+          .eq('id', feedbackId)
+          .select()
+          .single()
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(data), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // DELETE /dashboard/feedback/:id - Delete a feedback item
+      case req.method === 'DELETE' && /^\/dashboard\/feedback\/\d+$/.test(path): {
+        const feedbackId = parseInt(path.split('/').pop()!)
+        
+        const { error } = await supabase
+          .from('feedback_items')
+          .delete()
+          .eq('id', feedbackId)
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
       // ==================== END DASHBOARD ENDPOINTS ====================
 
       default:
