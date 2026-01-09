@@ -3,18 +3,19 @@
 Run AI analysis for operating companies using parallel processing.
 Uses gemini-3-pro-preview model with concurrent API calls for faster execution.
 
-VERSION 3.2: Filter by market cap and volume, exclude ETFs/Funds/Trusts/REITs.
+VERSION 3.3: Filter by market cap and volume, exclude ETFs/Funds/Trusts/REITs.
 - Default: $100M+ market cap, $1M+ daily volume
 - Excludes: ETFs, Funds, Trusts (by name pattern), REITs (by industry)
 - Resume capability: skips assets already processed for the date
 - Increased concurrency to 10 for faster processing
+- Auto-detects latest date with features data when no date specified
 - Based on Gemini recommendations for independent direction/quality scoring.
 
 Usage:
     python run_all_equities.py --date 2026-01-06
     python run_all_equities.py --date 2026-01-06 --min-market-cap 50000000
     python run_all_equities.py --min-daily-volume 2000000
-    python run_all_equities.py  # defaults to today with $100M MC, $1M volume
+    python run_all_equities.py  # auto-detects latest date with features data
 """
 
 import os
@@ -47,7 +48,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Configuration
-AI_REVIEW_VERSION = "v3.2"
+AI_REVIEW_VERSION = "v3.3"
 MAX_CONCURRENT_REQUESTS = 10  # Number of parallel API calls (increased for faster processing)
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 MODEL_NAME = "gemini-3-pro-preview"  # Gemini 3 Pro Preview model
@@ -110,6 +111,24 @@ def get_features(asset_id: str, as_of_date: str) -> dict:
                 for k, v in dict(row).items() 
                 if v is not None and k not in ['asset_id', 'date', 'created_at', 'updated_at']}
     return {}
+
+
+def get_latest_features_date() -> str:
+    """
+    Get the latest date that has features data in the database.
+    Used for auto-detecting the correct date when none is specified.
+    """
+    db = get_db()
+    query = """
+        SELECT MAX(date) as latest_date
+        FROM daily_features df
+        JOIN assets a ON df.asset_id = a.asset_id
+        WHERE a.asset_type = 'equity' AND a.is_active = true
+    """
+    row = db.fetch_one(query)
+    if row and row['latest_date']:
+        return row['latest_date'].isoformat() if hasattr(row['latest_date'], 'isoformat') else str(row['latest_date'])
+    return None
 
 
 def get_already_processed_assets(as_of_date: str) -> set:
@@ -521,7 +540,7 @@ async def process_asset(session: aiohttp.ClientSession, asset: dict, as_of_date:
 async def main_async(as_of_date: str, min_market_cap: float = 100_000_000, min_daily_volume: float = 1_000_000):
     """Main async function with resume capability."""
     logger.info("=" * 60)
-    logger.info("EQUITY AI ANALYSIS - VERSION 3.2")
+    logger.info("EQUITY AI ANALYSIS - VERSION 3.3")
     logger.info(f"Date: {as_of_date}")
     logger.info(f"Model: {MODEL_NAME}")
     logger.info(f"Min Market Cap: ${min_market_cap/1e6:.0f}M")
@@ -603,12 +622,12 @@ def main():
     global MODEL_NAME
     
     parser = argparse.ArgumentParser(
-        description='Run AI analysis for operating companies (v3.2) - with resume capability, increased concurrency'
+        description='Run AI analysis for operating companies (v3.3) - auto-detects latest features date'
     )
     parser.add_argument(
         '--date', 
         type=str, 
-        help='Target date (YYYY-MM-DD). Defaults to today.',
+        help='Target date (YYYY-MM-DD). Auto-detects latest features date if not specified.',
         default=None
     )
     parser.add_argument(
@@ -643,11 +662,18 @@ def main():
     if args.limit is not None:
         logger.warning("--limit is deprecated and ignored. Filtering now uses --min-market-cap and --min-daily-volume.")
     
-    # Determine target date
+    # Determine target date - auto-detect from database if not specified
     if args.date:
         as_of_date = args.date
+        logger.info(f"Using specified date: {as_of_date}")
     else:
-        as_of_date = date.today().isoformat()
+        # Auto-detect the latest date with features data
+        as_of_date = get_latest_features_date()
+        if as_of_date:
+            logger.info(f"Auto-detected latest features date: {as_of_date}")
+        else:
+            logger.error("No features data found in database. Cannot auto-detect date.")
+            sys.exit(1)
     
     # Update model if specified
     MODEL_NAME = args.model
