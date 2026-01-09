@@ -685,6 +685,16 @@ async function callGeminiWithTools(
     }
     
     // Add the assistant's response and function results to messages
+    // IMPORTANT: Preserve the full parts array including thoughtSignature for Gemini 3 models
+    console.log('Model response parts:', JSON.stringify(content.parts, null, 2))
+    
+    // Verify thoughtSignature is present in function call parts
+    for (const part of content.parts || []) {
+      if (part.functionCall && !part.thoughtSignature) {
+        console.warn('WARNING: functionCall part is missing thoughtSignature!')
+      }
+    }
+    
     messages.push({
       role: 'model',
       parts: content.parts
@@ -696,15 +706,19 @@ async function callGeminiWithTools(
     })
     
     // Call Gemini again with function results
+    const followUpBody = {
+      ...requestBody,
+      contents: messages
+    }
+    console.log('Sending follow-up request with messages count:', messages.length)
+    console.log('Last model message parts:', JSON.stringify(messages[messages.length - 2]?.parts, null, 2))
+    
     response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...requestBody,
-          contents: messages
-        })
+        body: JSON.stringify(followUpBody)
       }
     )
     
