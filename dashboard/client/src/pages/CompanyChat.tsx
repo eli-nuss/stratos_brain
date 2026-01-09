@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRoute, useLocation } from 'wouter';
-import { MessageSquare, ArrowLeft } from 'lucide-react';
+import { MessageSquare, ArrowLeft, Menu, X } from 'lucide-react';
 import { CompanyChatList } from '@/components/CompanyChatList';
 import { CompanyChatInterface } from '@/components/CompanyChatInterface';
 import { useCompanyChats, createOrGetChat, CompanyChat } from '@/hooks/useCompanyChats';
@@ -14,6 +14,7 @@ export default function CompanyChatPage() {
   const [showNewChatDialog, setShowNewChatDialog] = useState(false);
   const [isCreatingChat, setIsCreatingChat] = useState(false);
   const [autoCreateAttempted, setAutoCreateAttempted] = useState(false);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
 
   // Handle URL query parameters for auto-creating chats
   useEffect(() => {
@@ -52,6 +53,13 @@ export default function CompanyChatPage() {
     }
   }, [params?.chatId, chats]);
 
+  // Close mobile sidebar when a chat is selected
+  useEffect(() => {
+    if (selectedChat) {
+      setShowMobileSidebar(false);
+    }
+  }, [selectedChat]);
+
   const handleSelectChat = (chat: CompanyChat) => {
     setSelectedChat(chat);
     setLocation(`/chat/${chat.chat_id}`);
@@ -80,10 +88,35 @@ export default function CompanyChatPage() {
     }
   };
 
+  const handleBackToList = () => {
+    setSelectedChat(null);
+    setLocation('/chat');
+  };
+
   return (
     <div className="flex h-screen bg-zinc-950 overflow-hidden">
-      {/* Sidebar */}
-      <div className="w-72 flex-shrink-0">
+      {/* Mobile Sidebar Overlay */}
+      {showMobileSidebar && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden"
+          onClick={() => setShowMobileSidebar(false)}
+        />
+      )}
+
+      {/* Sidebar - Hidden on mobile unless toggled, always visible on desktop */}
+      <div className={`
+        fixed inset-y-0 left-0 z-50 w-80 transform transition-transform duration-300 ease-in-out
+        lg:relative lg:translate-x-0 lg:w-72 lg:flex-shrink-0
+        ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        {/* Mobile close button */}
+        <button
+          onClick={() => setShowMobileSidebar(false)}
+          className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-white lg:hidden z-10"
+        >
+          <X className="w-5 h-5" />
+        </button>
+        
         <CompanyChatList
           selectedChatId={selectedChat?.chat_id || null}
           onSelectChat={handleSelectChat}
@@ -94,37 +127,71 @@ export default function CompanyChatPage() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Bar */}
-        <div className="flex items-center gap-4 px-4 py-2 border-b border-zinc-800 bg-zinc-900">
+        <div className="flex items-center gap-3 px-3 sm:px-4 py-2 border-b border-zinc-800 bg-zinc-900">
+          {/* Mobile menu button - only show when no chat selected or always on mobile */}
+          <button
+            onClick={() => setShowMobileSidebar(true)}
+            className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors lg:hidden"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+
+          {/* Back button - show on mobile when chat is selected */}
+          {selectedChat && (
+            <button
+              onClick={handleBackToList}
+              className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors lg:hidden"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+          )}
+
+          {/* Desktop back to dashboard link */}
           <a
             href="/"
-            className="flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors"
+            className="hidden sm:flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Dashboard
           </a>
+
+          {/* Mobile: Show current chat name */}
+          {selectedChat && (
+            <span className="text-sm font-medium text-white truncate lg:hidden flex-1">
+              {selectedChat.display_name}
+            </span>
+          )}
         </div>
 
         {/* Chat Area */}
         {selectedChat ? (
           <CompanyChatInterface chat={selectedChat} onRefresh={refresh} />
         ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
+          <div className="flex-1 flex items-center justify-center p-4">
+            <div className="text-center max-w-sm">
               <div className="inline-flex p-4 bg-zinc-800/50 rounded-full mb-4">
                 <MessageSquare className="w-10 h-10 text-zinc-600" />
               </div>
               <h2 className="text-xl font-semibold text-zinc-300 mb-2">
                 Select a chat to continue
               </h2>
-              <p className="text-zinc-500 mb-6">
+              <p className="text-zinc-500 mb-6 text-sm">
                 Or start a new research chat for any company
               </p>
-              <button
-                onClick={handleNewChat}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors"
-              >
-                Start New Chat
-              </button>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <button
+                  onClick={() => setShowMobileSidebar(true)}
+                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition-colors lg:hidden"
+                >
+                  View Chats
+                </button>
+                <button
+                  onClick={handleNewChat}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors"
+                >
+                  Start New Chat
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -132,15 +199,15 @@ export default function CompanyChatPage() {
 
       {/* New Chat Dialog */}
       {showNewChatDialog && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl w-full max-w-md mx-4">
-            <div className="px-6 py-4 border-b border-zinc-800">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl w-full max-w-md">
+            <div className="px-4 sm:px-6 py-4 border-b border-zinc-800">
               <h3 className="text-lg font-semibold text-white">Start New Chat</h3>
               <p className="text-sm text-zinc-400 mt-1">
                 Search for a company to start researching
               </p>
             </div>
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <AssetSearchForChat
                 onSelect={(asset) => handleCreateChat(asset as { asset_id: number; symbol: string; name: string; asset_type: string })}
                 placeholder="Search for a company or crypto..."
@@ -152,7 +219,7 @@ export default function CompanyChatPage() {
                 </p>
               )}
             </div>
-            <div className="px-6 py-4 border-t border-zinc-800 flex justify-end">
+            <div className="px-4 sm:px-6 py-4 border-t border-zinc-800 flex justify-end">
               <button
                 onClick={() => setShowNewChatDialog(false)}
                 className="px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors"
