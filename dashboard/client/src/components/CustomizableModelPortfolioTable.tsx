@@ -149,10 +149,13 @@ export default function CustomizableModelPortfolioTable({ onAssetClick }: Custom
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [activeId, setActiveId] = useState<string | null>(null);
 
+  // Ensure assets is always an array for safety
+  const safeAssets = Array.isArray(assets) ? assets : [];
+
   // Compute existing asset IDs for the search dropdown
   const existingAssetIds = useMemo(() => {
-    return new Set<number>(assets.map((a: any) => a.asset_id as number));
-  }, [assets]);
+    return new Set<number>(safeAssets.map((a: any) => a.asset_id as number));
+  }, [safeAssets]);
 
   // Handle adding asset from search dropdown
   const handleAddAsset = async (assetId: number) => {
@@ -161,7 +164,7 @@ export default function CustomizableModelPortfolioTable({ onAssetClick }: Custom
   };
 
   // Sort assets
-  const sortedAssets = [...assets].sort((a: any, b: any) => {
+  const sortedAssets = [...safeAssets].sort((a: any, b: any) => {
     const aVal = a[sortBy] ?? (sortOrder === "asc" ? Infinity : -Infinity);
     const bVal = b[sortBy] ?? (sortOrder === "asc" ? Infinity : -Infinity);
     if (sortOrder === "asc") {
@@ -171,7 +174,7 @@ export default function CustomizableModelPortfolioTable({ onAssetClick }: Custom
   });
 
   const paginatedAssets = sortedAssets.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const total = assets.length;
+  const total = safeAssets.length;
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const visibleColumns = getVisibleColumns();
   const availableColumns = getAvailableColumns();

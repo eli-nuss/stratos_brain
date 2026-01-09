@@ -132,8 +132,11 @@ export function useCorePortfolioAssets() {
     fetcher
   );
 
+  // Ensure assets is always an array
+  const assets = Array.isArray(data) ? data : [];
+
   return {
-    assets: data || [],
+    assets,
     isLoading,
     error,
     mutate
