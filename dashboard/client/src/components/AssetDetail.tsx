@@ -1,6 +1,6 @@
 import useSWR from "swr";
 import { useState, useRef, useEffect } from "react";
-import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, Activity, Info, MessageCircle, ExternalLink, Tag, FileText, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera } from "lucide-react";
+import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, Activity, Info, ExternalLink, Tag, FileText, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera } from "lucide-react";
 import html2canvas from "html2canvas";
 import { Area, Line, ComposedChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis, Legend } from "recharts";
 import { format } from "date-fns";
@@ -11,7 +11,7 @@ import {
   formatSignalType, 
   getSignalTooltip 
 } from "@/lib/signalDefinitions";
-import { ChatSidebar } from "./ChatSidebar";
+
 import { NotesHistory } from "./NotesHistory";
 import { FilesSection } from "./FilesSection";
 import TradingViewWidget from "./TradingViewWidget";
@@ -76,7 +76,7 @@ function ConfidenceMeter({ confidence }: { confidence: number }) {
 
 export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
   const { data, isLoading } = useSWR(`/api/dashboard/asset?asset_id=${assetId}`, fetcher);
-  const [isChatOpen, setIsChatOpen] = useState(false);
+
   const [chartView, setChartView] = useState<'ai_score' | 'tradingview'>('tradingview');
   const [isChartFullscreen, setIsChartFullscreen] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
@@ -195,24 +195,6 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
             {/* Add to Portfolio button */}
             <AddToPortfolioButton assetId={parseInt(assetId)} />
             
-            {/* Quick Chat button */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button 
-                  onClick={() => setIsChatOpen(!isChatOpen)}
-                  className={`p-2 rounded-full transition-colors ${
-                    isChatOpen 
-                      ? 'bg-emerald-600 text-white' 
-                      : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <MessageCircle className="w-5 h-5" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {isChatOpen ? 'Close chat' : 'Quick chat about this analysis'}
-              </TooltipContent>
-            </Tooltip>
             {/* Research Chat button */}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -584,14 +566,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
         </div>
       </div>
 
-      {/* Chat Sidebar */}
-      <ChatSidebar
-        assetId={parseInt(assetId)}
-        assetSymbol={asset.symbol}
-        asOfDate={data.as_of_date}
-        isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
-      />
+
     </>
   );
 }
