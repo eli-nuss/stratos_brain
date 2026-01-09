@@ -177,8 +177,9 @@ export default function TableSummaryRows({ assets, visibleColumns, listName }: T
       case 'quality':
         return <span className="font-mono text-xs">{value != null ? Math.round(value) : "-"}</span>;
       case 'market_cap':
+        // For market cap: show mean for Raw Avg, total for MC Wtd, median for Median
         if (statType === 'mcWeighted') {
-          return <span className="font-mono text-xs">{formatMarketCap(totalMarketCap)}</span>;
+          return <span className="font-mono text-xs font-semibold">{formatMarketCap(totalMarketCap)}</span>;
         }
         return <span className="font-mono text-xs">{formatMarketCap(value)}</span>;
       case 'price':
@@ -190,9 +191,9 @@ export default function TableSummaryRows({ assets, visibleColumns, listName }: T
         return <span className="font-mono text-xs">{formatPercent(value)}</span>;
       case 'volume_7d':
       case 'volume_30d':
+        // For volume: show total for MC Wtd row, mean/median for others
         if (statType === 'mcWeighted') {
-          // For volume, show total instead of weighted avg
-          return <span className="font-mono text-xs">{formatMarketCap(stat.sum)}</span>;
+          return <span className="font-mono text-xs font-semibold">{formatMarketCap(stat.sum)}</span>;
         }
         return <span className="font-mono text-xs">{formatMarketCap(value)}</span>;
       case 'pe_ratio':
@@ -209,22 +210,28 @@ export default function TableSummaryRows({ assets, visibleColumns, listName }: T
     }
   };
 
-  // Row styling
+  // Sticky row base styling - these rows stick below the header
+  const stickyBase = "sticky z-20";
   const baseRowClass = "border-b border-border/50 text-xs";
-  const meanRowClass = `${baseRowClass} bg-muted/30`;
-  const mcWeightedRowClass = `${baseRowClass} bg-primary/10`;
-  const medianRowClass = `${baseRowClass} bg-muted/20`;
+  
+  // Toggle row - sticks at top: 28px (header height)
+  const toggleRowClass = `${baseRowClass} ${stickyBase} top-[28px] bg-muted/40 cursor-pointer hover:bg-muted/60 transition-colors`;
+  
+  // Summary rows - stack below toggle row
+  const meanRowClass = `${baseRowClass} ${stickyBase} top-[52px] bg-muted/30`;
+  const mcWeightedRowClass = `${baseRowClass} ${stickyBase} top-[76px] bg-primary/10`;
+  const medianRowClass = `${baseRowClass} ${stickyBase} top-[100px] bg-muted/20`;
 
   // Toggle row
   const toggleRow = (
     <tr 
-      className="bg-muted/40 border-b border-border cursor-pointer hover:bg-muted/60 transition-colors"
+      className={toggleRowClass}
       onClick={() => setIsExpanded(!isExpanded)}
     >
       <td colSpan={visibleColumns.length} className="px-2 py-1.5">
         <div className="flex items-center gap-2">
           <BarChart3 className="w-3.5 h-3.5 text-primary" />
-          <span className="text-xs font-medium text-foreground">Summary Statistics</span>
+          <span className="text-xs font-medium text-foreground">Summary</span>
           <span className="text-xs text-muted-foreground">({count} assets • {formatMarketCap(totalMarketCap)} total)</span>
           <div className="ml-auto">
             {isExpanded ? (
@@ -253,7 +260,7 @@ export default function TableSummaryRows({ assets, visibleColumns, listName }: T
             className={`px-2 py-1.5 ${
               column.align === "center" ? "text-center" : 
               column.align === "right" ? "text-right" : "text-left"
-            } ${column.sticky ? "sticky bg-muted/30 z-10" : ""}`}
+            } ${column.sticky ? "sticky bg-muted/30 z-30" : ""}`}
             style={column.sticky && column.stickyOffset ? { left: column.stickyOffset } : undefined}
           >
             {renderCell(column.id, 'mean')}
@@ -269,7 +276,7 @@ export default function TableSummaryRows({ assets, visibleColumns, listName }: T
             className={`px-2 py-1.5 font-medium ${
               column.align === "center" ? "text-center" : 
               column.align === "right" ? "text-right" : "text-left"
-            } ${column.sticky ? "sticky bg-primary/10 z-10" : ""}`}
+            } ${column.sticky ? "sticky bg-primary/10 z-30" : ""}`}
             style={column.sticky && column.stickyOffset ? { left: column.stickyOffset } : undefined}
           >
             {renderCell(column.id, 'mcWeighted')}
@@ -285,7 +292,7 @@ export default function TableSummaryRows({ assets, visibleColumns, listName }: T
             className={`px-2 py-1.5 ${
               column.align === "center" ? "text-center" : 
               column.align === "right" ? "text-right" : "text-left"
-            } ${column.sticky ? "sticky bg-muted/20 z-10" : ""}`}
+            } ${column.sticky ? "sticky bg-muted/20 z-30" : ""}`}
             style={column.sticky && column.stickyOffset ? { left: column.stickyOffset } : undefined}
           >
             {renderCell(column.id, 'median')}
