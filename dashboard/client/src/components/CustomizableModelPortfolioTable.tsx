@@ -351,6 +351,13 @@ export default function CustomizableModelPortfolioTable({ onAssetClick }: Custom
 
   return (
     <div className="flex flex-col h-full bg-background border border-border rounded-lg overflow-hidden">
+      {/* Summary Box - at the very top */}
+      {!isLoading && safeAssets.length > 0 && (
+        <div className="px-4 pt-3">
+          <ListSummaryBox assets={safeAssets} listName="Model Portfolio" />
+        </div>
+      )}
+
       {/* Header */}
       <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-muted/30">
         <h3 className="font-medium text-sm flex items-center gap-2">
@@ -374,13 +381,6 @@ export default function CustomizableModelPortfolioTable({ onAssetClick }: Custom
           />
         </div>
       </div>
-
-      {/* Summary Box */}
-      {!isLoading && safeAssets.length > 0 && (
-        <div className="px-4 pt-3">
-          <ListSummaryBox assets={safeAssets} listName="Model Portfolio" />
-        </div>
-      )}
 
       {/* Table */}
       <div className="flex-1 overflow-x-auto overflow-y-auto scrollbar-thin">

@@ -633,6 +633,13 @@ export default function CustomizableAssetTable({
 
   return (
     <div className="flex flex-col h-full bg-background border border-border rounded-lg overflow-hidden">
+      {/* Summary Box - at the very top */}
+      {!isLoading && filteredData.length > 0 && (
+        <div className="px-4 pt-3">
+          <ListSummaryBox assets={filteredData} listName={assetType === 'crypto' ? 'Crypto' : 'Equities'} />
+        </div>
+      )}
+
       {/* Header */}
       <div className="p-3 border-b border-border space-y-3">
         <div className="flex items-center justify-between">
@@ -884,13 +891,6 @@ export default function CustomizableAssetTable({
           </div>
         )}
       </div>
-
-      {/* Summary Box */}
-      {!isLoading && filteredData.length > 0 && (
-        <div className="px-4 pt-3">
-          <ListSummaryBox assets={filteredData} listName={assetType === 'crypto' ? 'Crypto' : 'Equities'} />
-        </div>
-      )}
 
       {/* Table with draggable headers */}
       <div className="flex-1 overflow-x-auto overflow-y-auto scrollbar-thin">
