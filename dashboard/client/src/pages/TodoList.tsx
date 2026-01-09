@@ -125,7 +125,7 @@ export default function TodoList() {
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout hideNavTabs>
       <div className="p-6 max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-6">

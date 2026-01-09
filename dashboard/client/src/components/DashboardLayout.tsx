@@ -1,4 +1,5 @@
 import { ReactNode, useState, useRef, useEffect } from "react";
+import { Link } from "wouter";
 import useSWR from "swr";
 import { Activity, BookOpen, Settings, Search, GripVertical, Pencil, Trash2, FileText, ChevronDown, ChevronUp } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
@@ -29,8 +30,9 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface DashboardLayoutProps {
   children: ReactNode;
-  activeTab: TabType;
-  onTabChange: (tab: TabType) => void;
+  activeTab?: TabType;
+  onTabChange?: (tab: TabType) => void;
+  hideNavTabs?: boolean;
   stockLists?: StockList[];
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
@@ -121,6 +123,7 @@ export default function DashboardLayout({
   children, 
   activeTab, 
   onTabChange, 
+  hideNavTabs = false,
   stockLists = [],
   searchQuery = "",
   onSearchChange,
@@ -376,10 +379,10 @@ export default function DashboardLayout({
         <div className="container py-2 flex items-start justify-between">
           {/* Left: Logo + Data Status stacked vertically */}
           <div className="flex flex-col">
-            <div className="flex items-center">
+            <Link href="/" className="flex items-center">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2 cursor-help">
+                  <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
                     <Activity className="w-8 h-8 text-primary" />
                     <span className="hidden sm:inline">STRATOS</span>
                     <span className="sm:hidden">S</span>
@@ -391,7 +394,7 @@ export default function DashboardLayout({
                   AI-powered technical analysis dashboard for crypto and equity markets.
                 </TooltipContent>
               </Tooltip>
-            </div>
+            </Link>
             
             {/* Data Status - directly under logo with more spacing */}
             <div className="hidden md:flex flex-col text-[10px] font-mono text-muted-foreground mt-2 pl-10 gap-0.5">
@@ -466,6 +469,7 @@ export default function DashboardLayout({
         </div>
         
         {/* Row 2: Navigation - centered below, scrollable on mobile */}
+        {!hideNavTabs && (
         <div className="container pb-2 flex flex-col items-center gap-1.5 overflow-x-auto scrollbar-hide">
           {/* Fixed views - highlighted with primary color */}
           <div className="flex items-center bg-primary/10 border border-primary/20 p-0.5 rounded-lg gap-0.5">
@@ -625,6 +629,7 @@ export default function DashboardLayout({
             </div>
           )}
         </div>
+        )}
       </header>
 
       {/* Main Content */}
