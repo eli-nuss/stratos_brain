@@ -547,7 +547,7 @@ export default function CorePortfolioHoldings({ onAssetClick }: { onAssetClick: 
           
           {/* Add Menu Dropdown */}
           {showAddMenu && (
-            <div className="absolute bottom-full left-0 right-0 bg-card border border-border rounded-t-lg shadow-lg z-50">
+            <div className="absolute top-full left-0 right-0 bg-card border border-border rounded-b-lg shadow-lg z-50">
               {!addMode && (
                 <div className="p-2 flex gap-2">
                   <button
