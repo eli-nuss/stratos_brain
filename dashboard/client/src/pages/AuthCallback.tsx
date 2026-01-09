@@ -11,7 +11,6 @@ export function AuthCallback() {
       console.log('[AuthCallback] Starting callback processing...');
       console.log('[AuthCallback] Full URL:', window.location.href);
       console.log('[AuthCallback] Hash:', window.location.hash);
-      console.log('[AuthCallback] Search:', window.location.search);
 
       try {
         // Check for error in URL params first
@@ -24,29 +23,48 @@ export function AuthCallback() {
         }
 
         // For implicit flow, tokens come in the URL hash (#access_token=...)
-        // Supabase's detectSessionInUrl should handle this automatically
-        // We just need to wait for it to process and check the session
+        // Chrome's bounce tracking mitigation blocks Supabase's automatic detection
+        // So we manually parse the hash and set the session directly
         
         const hash = window.location.hash;
         if (hash && hash.includes('access_token')) {
-          console.log('[AuthCallback] Found access_token in hash, letting Supabase process...');
+          console.log('[AuthCallback] Found tokens in hash, manually parsing...');
           
-          // Give Supabase a moment to process the hash
-          await new Promise(resolve => setTimeout(resolve, 500));
+          // Parse the hash fragment (remove leading #)
+          const hashParams = new URLSearchParams(hash.substring(1));
+          const accessToken = hashParams.get('access_token');
+          const refreshToken = hashParams.get('refresh_token');
+          const expiresIn = hashParams.get('expires_in');
+          const tokenType = hashParams.get('token_type');
           
-          // Now check if session was established
-          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-          
-          if (sessionError) {
-            console.error('[AuthCallback] Session error:', sessionError);
-            throw sessionError;
+          console.log('[AuthCallback] Parsed tokens:', {
+            hasAccessToken: !!accessToken,
+            hasRefreshToken: !!refreshToken,
+            expiresIn,
+            tokenType
+          });
+
+          if (!accessToken) {
+            throw new Error('No access token found in URL');
           }
-          
-          if (session) {
-            console.log('[AuthCallback] Session established for:', session.user.email);
+
+          // Manually set the session using the tokens from the URL
+          // This bypasses Chrome's blocking of Supabase's automatic detection
+          const { data, error: setSessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || '',
+          });
+
+          if (setSessionError) {
+            console.error('[AuthCallback] setSession error:', setSessionError);
+            throw setSessionError;
+          }
+
+          if (data.session) {
+            console.log('[AuthCallback] Session manually set for:', data.session.user.email);
             
             // Validate domain restriction
-            const email = session.user.email || '';
+            const email = data.session.user.email || '';
             if (!email.endsWith('@stratos.xyz')) {
               console.warn('[AuthCallback] Domain restriction: user email not @stratos.xyz');
               await supabase.auth.signOut();
@@ -55,21 +73,20 @@ export function AuthCallback() {
             
             setStatus('success');
             
-            // Clean up URL and redirect
+            // Clean up URL (remove hash) and redirect
             window.history.replaceState({}, document.title, '/auth/callback');
             
             setTimeout(() => {
               window.location.href = '/watchlist';
             }, 500);
             return;
+          } else {
+            throw new Error('Session was not created after setSession call');
           }
         }
 
-        // If no hash token, maybe we're still processing or there's an issue
-        // Try getting session one more time after a delay
+        // No hash token found - check if there's already a session
         console.log('[AuthCallback] No hash token found, checking for existing session...');
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
         const { data: { session: existingSession } } = await supabase.auth.getSession();
         
         if (existingSession) {
@@ -81,10 +98,10 @@ export function AuthCallback() {
           return;
         }
 
-        // No session found
-        const debug = `URL: ${window.location.href}\nHash: ${hash || 'none'}\nNo session established`;
+        // No session found at all
+        const debug = `URL: ${window.location.href}\nHash: ${hash || 'none'}\nNo tokens found in URL`;
         setDebugInfo(debug);
-        throw new Error('Authentication failed: No session established. Please try again.');
+        throw new Error('Authentication failed: No tokens received. Please try again.');
 
       } catch (err: any) {
         console.error('[AuthCallback] Error:', err);
@@ -93,7 +110,7 @@ export function AuthCallback() {
       }
     };
 
-    // Small delay to ensure Supabase client is ready
+    // Small delay to ensure page is fully loaded
     const timer = setTimeout(handleCallback, 100);
     return () => clearTimeout(timer);
   }, []);
