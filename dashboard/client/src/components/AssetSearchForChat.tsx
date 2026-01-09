@@ -63,7 +63,8 @@ export function AssetSearchForChat({
 
   // Combine and dedupe results, prioritizing exact matches
   const results: SearchResult[] = [];
-  const seenIds = new Set<number>();
+  // Use asset_type + asset_id as unique key since crypto and equity can have same asset_id
+  const seenKeys = new Set<string>();
 
   const allResults = [...(cryptoData?.data || []), ...(equityData?.data || [])];
   
@@ -86,8 +87,10 @@ export function AssetSearchForChat({
   });
 
   for (const item of allResults) {
-    if (!seenIds.has(item.asset_id)) {
-      seenIds.add(item.asset_id);
+    // Create unique key combining asset_type and asset_id to prevent collisions
+    const uniqueKey = `${item.asset_type}-${item.asset_id}`;
+    if (!seenKeys.has(uniqueKey)) {
+      seenKeys.add(uniqueKey);
       results.push(item);
     }
   }
