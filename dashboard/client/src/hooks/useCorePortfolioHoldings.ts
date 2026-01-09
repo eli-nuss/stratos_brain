@@ -1,6 +1,14 @@
 import useSWR from "swr";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = async (url: string) => {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`API error: ${res.status}`);
+  }
+  const data = await res.json();
+  // Ensure we always return an array
+  return Array.isArray(data) ? data : [];
+};
 
 export type PortfolioCategory = 'dats' | 'tokens' | 'equities' | 'options' | 'cash' | 'other';
 
@@ -89,8 +97,11 @@ export function useCorePortfolioHoldings() {
     fetcher
   );
 
+  // Ensure holdings is always an array
+  const holdings = Array.isArray(data) ? data : [];
+
   return {
-    holdings: data || [],
+    holdings,
     isLoading,
     isError: error,
     mutate,
@@ -101,10 +112,13 @@ export function useCorePortfolioHoldings() {
 export function useCorePortfolioSummary() {
   const { holdings } = useCorePortfolioHoldings();
   
+  // Ensure holdings is an array
+  const safeHoldings = Array.isArray(holdings) ? holdings : [];
+  
   const summary: PortfolioSummary = {
-    total_positions: holdings.length,
-    total_value: holdings.reduce((sum, h) => sum + (h.current_value || 0), 0),
-    total_cost: holdings.reduce((sum, h) => sum + (h.total_cost || 0), 0),
+    total_positions: safeHoldings.length,
+    total_value: safeHoldings.reduce((sum, h) => sum + (h.current_value || 0), 0),
+    total_cost: safeHoldings.reduce((sum, h) => sum + (h.total_cost || 0), 0),
     total_gain_loss_pct: 0,
     total_gain_loss_value: 0,
   };
@@ -121,7 +135,10 @@ export function useCorePortfolioSummary() {
 export function useCorePortfolioByCategory() {
   const { holdings, isLoading, mutate } = useCorePortfolioHoldings();
   
-  const totalValue = holdings.reduce((sum, h) => sum + (h.current_value || 0), 0);
+  // Ensure holdings is an array
+  const safeHoldings = Array.isArray(holdings) ? holdings : [];
+  
+  const totalValue = safeHoldings.reduce((sum, h) => sum + (h.current_value || 0), 0);
   
   const categories: Record<PortfolioCategory, CorePortfolioHolding[]> = {
     dats: [],
@@ -132,8 +149,12 @@ export function useCorePortfolioByCategory() {
     other: [],
   };
   
-  holdings.forEach((h) => {
-    categories[h.category].push(h);
+  safeHoldings.forEach((h) => {
+    if (h.category && categories[h.category]) {
+      categories[h.category].push(h);
+    } else {
+      categories.other.push(h);
+    }
   });
   
   const categorySummaries: CategorySummary[] = Object.entries(categories)

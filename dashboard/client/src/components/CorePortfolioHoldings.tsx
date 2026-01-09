@@ -38,10 +38,11 @@ export default function CorePortfolioHoldings({ onAssetClick }: { onAssetClick: 
     quantity: 0,
   });
 
-  // Calculate portfolio summary
+  // Calculate portfolio summary with defensive array check
   const summary = useMemo(() => {
-    const totalCost = holdings.reduce((sum, h) => sum + (h.total_cost || 0), 0);
-    const totalVal = holdings.reduce((sum, h) => sum + (h.current_value || 0), 0);
+    const safeHoldings = Array.isArray(holdings) ? holdings : [];
+    const totalCost = safeHoldings.reduce((sum, h) => sum + (h.total_cost || 0), 0);
+    const totalVal = safeHoldings.reduce((sum, h) => sum + (h.current_value || 0), 0);
     const gainLoss = totalVal - totalCost;
     const gainLossPct = totalCost > 0 ? (gainLoss / totalCost) * 100 : 0;
     return { totalCost, totalValue: totalVal, gainLoss, gainLossPct };
