@@ -4,13 +4,14 @@ const supabaseUrl = 'https://wfogbaipiqootjrsprde.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indmb2diYWlwaXFvb3RqcnNwcmRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzMxNjQ3NzEsImV4cCI6MjA0ODc0MDc3MX0.LQEvaVwrk-Vc8QJpfMnfpfYHvOCKg-lZpYwzQcL8xGM';
 
 // Create Supabase client with auth configuration
-// Using PKCE flow for better security in SPAs (recommended by Supabase)
+// Using implicit flow to avoid third-party cookie issues with PKCE
+// Chrome blocks Supabase storage as "potentially tracking", breaking PKCE code verifier
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
-    flowType: 'pkce', // PKCE is more secure for SPAs
+    flowType: 'implicit', // Implicit flow returns tokens in URL hash, no storage needed during OAuth
     storage: typeof window !== 'undefined' ? window.localStorage : undefined,
     storageKey: 'stratos-auth-token',
   },

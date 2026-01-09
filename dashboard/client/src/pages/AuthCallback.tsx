@@ -10,53 +10,82 @@ export function AuthCallback() {
     const handleCallback = async () => {
       console.log('[AuthCallback] Starting callback processing...');
       console.log('[AuthCallback] Full URL:', window.location.href);
-      console.log('[AuthCallback] Search params:', window.location.search);
+      console.log('[AuthCallback] Hash:', window.location.hash);
+      console.log('[AuthCallback] Search:', window.location.search);
 
       try {
+        // Check for error in URL params first
         const urlParams = new URLSearchParams(window.location.search);
-        const code = urlParams.get('code');
         const errorParam = urlParams.get('error');
         const errorDescription = urlParams.get('error_description');
 
-        // Check for error from Supabase/OAuth redirect
         if (errorParam) {
           throw new Error(`Authentication error: ${errorDescription || errorParam}`);
         }
 
-        // PKCE flow requires a code parameter
-        if (!code) {
-          console.warn('[AuthCallback] No "code" parameter found in URL.');
-          const debug = `URL: ${window.location.href}\nCode: missing\nThis might indicate an incomplete OAuth flow.`;
-          setDebugInfo(debug);
-          throw new Error('Authentication failed: Missing authorization code.');
+        // For implicit flow, tokens come in the URL hash (#access_token=...)
+        // Supabase's detectSessionInUrl should handle this automatically
+        // We just need to wait for it to process and check the session
+        
+        const hash = window.location.hash;
+        if (hash && hash.includes('access_token')) {
+          console.log('[AuthCallback] Found access_token in hash, letting Supabase process...');
+          
+          // Give Supabase a moment to process the hash
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Now check if session was established
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          
+          if (sessionError) {
+            console.error('[AuthCallback] Session error:', sessionError);
+            throw sessionError;
+          }
+          
+          if (session) {
+            console.log('[AuthCallback] Session established for:', session.user.email);
+            
+            // Validate domain restriction
+            const email = session.user.email || '';
+            if (!email.endsWith('@stratos.xyz')) {
+              console.warn('[AuthCallback] Domain restriction: user email not @stratos.xyz');
+              await supabase.auth.signOut();
+              throw new Error('Access restricted to @stratos.xyz email addresses only.');
+            }
+            
+            setStatus('success');
+            
+            // Clean up URL and redirect
+            window.history.replaceState({}, document.title, '/auth/callback');
+            
+            setTimeout(() => {
+              window.location.href = '/watchlist';
+            }, 500);
+            return;
+          }
         }
 
-        console.log('[AuthCallback] Processing PKCE code exchange...');
-        const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        // If no hash token, maybe we're still processing or there's an issue
+        // Try getting session one more time after a delay
+        console.log('[AuthCallback] No hash token found, checking for existing session...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
-        if (exchangeError) {
-          console.error('[AuthCallback] Code exchange error:', exchangeError);
-          throw exchangeError;
-        }
+        const { data: { session: existingSession } } = await supabase.auth.getSession();
         
-        const session = data.session;
-        if (session) {
-          console.log('[AuthCallback] PKCE exchange successful, session for:', session.user.email);
+        if (existingSession) {
+          console.log('[AuthCallback] Found existing session for:', existingSession.user.email);
           setStatus('success');
-          
-          // Clean up URL (remove query params) and redirect
-          window.history.replaceState({}, document.title, window.location.pathname);
-          
-          // Brief delay to show success message, then redirect
           setTimeout(() => {
             window.location.href = '/watchlist';
           }, 500);
-        } else {
-          // This should not happen if exchangeCodeForSession was successful
-          const debug = `URL: ${window.location.href}\nCode: present\nSession: null after exchange`;
-          setDebugInfo(debug);
-          throw new Error('No session returned after code exchange');
+          return;
         }
+
+        // No session found
+        const debug = `URL: ${window.location.href}\nHash: ${hash || 'none'}\nNo session established`;
+        setDebugInfo(debug);
+        throw new Error('Authentication failed: No session established. Please try again.');
+
       } catch (err: any) {
         console.error('[AuthCallback] Error:', err);
         setError(err.message || 'Authentication failed');
