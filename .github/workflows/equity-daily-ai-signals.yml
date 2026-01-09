@@ -1,7 +1,7 @@
 # Equity Daily AI Signals Generation
 # Runs after equity features calculation to generate AI trading signals
 # Uses v3.1 prompt with gemini-3-pro-preview model
-# Filters: $100M+ market cap, $1M+ daily volume, operating companies only (no ETFs/Funds/REITs )
+# Filters: $100M+ market cap, $1M+ daily volume, operating companies only (no ETFs/Funds/REITs)
 
 name: Equity Daily AI Signals
 
@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       target_date:
-        description: 'Target date (YYYY-MM-DD). Leave empty for today.'
+        description: 'Target date (YYYY-MM-DD). Leave empty to auto-detect from database.'
         required: false
         type: string
       model:
@@ -62,9 +62,10 @@ jobs:
         run: |
           if [ -n "${{ github.event.inputs.target_date }}" ]; then
             echo "date=${{ github.event.inputs.target_date }}" >> $GITHUB_OUTPUT
+            echo "use_date=true" >> $GITHUB_OUTPUT
           else
-            # Default to yesterday (UTC)
-            echo "date=$(date -u +%Y-%m-%d)" >> $GITHUB_OUTPUT
+            # Let Python script auto-detect from database
+            echo "use_date=false" >> $GITHUB_OUTPUT
           fi
       
       - name: Determine model
@@ -94,9 +95,13 @@ jobs:
             echo "min_daily_volume=1000000" >> $GITHUB_OUTPUT
           fi
       
-      - name: Run equity AI signals generation (v3.1)
+      - name: Run equity AI signals generation (v3.3)
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          python run_all_equities.py --date ${{ steps.date.outputs.date }} --model ${{ steps.model.outputs.model }} --min-market-cap ${{ steps.min_market_cap.outputs.min_market_cap }} --min-daily-volume ${{ steps.min_daily_volume.outputs.min_daily_volume }}
+          if [ "${{ steps.date.outputs.use_date }}" = "true" ]; then
+            python run_all_equities.py --date ${{ steps.date.outputs.date }} --model ${{ steps.model.outputs.model }} --min-market-cap ${{ steps.min_market_cap.outputs.min_market_cap }} --min-daily-volume ${{ steps.min_daily_volume.outputs.min_daily_volume }}
+          else
+            python run_all_equities.py --model ${{ steps.model.outputs.model }} --min-market-cap ${{ steps.min_market_cap.outputs.min_market_cap }} --min-daily-volume ${{ steps.min_daily_volume.outputs.min_daily_volume }}
+          fi
