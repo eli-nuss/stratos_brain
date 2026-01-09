@@ -18,24 +18,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Allowed email domains for Google sign-in
 const ALLOWED_DOMAINS = ['stratos.xyz'];
 
-// Parse hash fragment from OAuth redirect
-function parseHashParams(hash: string): Record<string, string> {
-  const params: Record<string, string> = {};
-  if (!hash || hash.length <= 1) return params;
-  
-  const hashContent = hash.substring(1); // Remove the leading #
-  const pairs = hashContent.split('&');
-  
-  for (const pair of pairs) {
-    const [key, value] = pair.split('=');
-    if (key && value) {
-      params[decodeURIComponent(key)] = decodeURIComponent(value);
-    }
-  }
-  
-  return params;
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -77,71 +59,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const initAuth = async () => {
-      console.log('[Auth] Initializing auth...');
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      console.log('[Auth] Initial session:', initialSession?.user?.email || 'None');
+      setSession(initialSession);
+      setUser(initialSession?.user ?? null);
       
-      // Check if we have an OAuth callback in the URL hash
-      const hash = window.location.hash;
-      if (hash && hash.includes('access_token')) {
-        console.log('[Auth] OAuth callback detected in URL hash');
-        
-        const params = parseHashParams(hash);
-        const accessToken = params['access_token'];
-        const refreshToken = params['refresh_token'];
-        
-        if (accessToken && refreshToken) {
-          console.log('[Auth] Setting session from hash tokens...');
-          
-          try {
-            // Manually set the session using the tokens from the hash
-            const { data, error } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-            });
-            
-            if (error) {
-              console.error('[Auth] Error setting session:', error);
-            } else if (data.session) {
-              console.log('[Auth] Session set successfully:', data.session.user?.email);
-              setSession(data.session);
-              setUser(data.session.user);
-              
-              // Fetch profile
-              if (data.session.user) {
-                const profileData = await fetchProfile(data.session.user.id);
-                setProfile(profileData);
-              }
-              
-              // Clean up the URL hash
-              window.history.replaceState(null, '', window.location.pathname + window.location.search);
-            }
-          } catch (err) {
-            console.error('[Auth] Exception setting session:', err);
-          }
-        }
-      } else {
-        // No OAuth callback, check for existing session
-        console.log('[Auth] Checking for existing session...');
-        const { data: { session: existingSession } } = await supabase.auth.getSession();
-        
-        if (existingSession) {
-          console.log('[Auth] Found existing session:', existingSession.user?.email);
-          setSession(existingSession);
-          setUser(existingSession.user);
-          
-          if (existingSession.user) {
-            const profileData = await fetchProfile(existingSession.user.id);
-            setProfile(profileData);
-          }
-        } else {
-          console.log('[Auth] No existing session found');
-        }
+      if (initialSession?.user) {
+        fetchProfile(initialSession.user.id).then(setProfile);
       }
-      
       setLoading(false);
-    };
-
-    initAuth();
+    });
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -159,6 +87,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setSession(null);
             setLoading(false);
             return;
+          }
+          
+          // Clean up URL hash after successful sign-in
+          if (window.location.hash.includes('access_token')) {
+            window.history.replaceState(null, '', window.location.pathname + window.location.search);
           }
         }
 
