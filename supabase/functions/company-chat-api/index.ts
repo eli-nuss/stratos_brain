@@ -631,7 +631,8 @@ async function callGeminiWithTools(
   if (!response.ok) {
     const errorText = await response.text()
     console.error('Gemini API error:', errorText)
-    throw new Error(`Gemini API error: ${response.status}`)
+    console.error('Request body was:', JSON.stringify(requestBody, null, 2).substring(0, 5000))
+    throw new Error(`Gemini API error: ${response.status} - ${errorText.substring(0, 500)}`)
   }
   
   let data = await response.json()
