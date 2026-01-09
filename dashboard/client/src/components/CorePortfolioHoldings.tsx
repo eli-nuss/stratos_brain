@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import React from "react";
 import { 
   Plus, X, Edit2, Save, ChevronDown, ChevronUp, 
   TrendingUp, TrendingDown, Activity, DollarSign, Search, Loader2
@@ -332,7 +333,7 @@ export default function CorePortfolioHoldings({ onAssetClick }: { onAssetClick: 
               const isExpanded = expandedCategories.has(category);
               
               return (
-                <tbody key={category}>
+                <React.Fragment key={category}>
                   {/* Category Header Row */}
                   <tr 
                     className="bg-muted/20 cursor-pointer hover:bg-muted/30"
@@ -528,7 +529,7 @@ export default function CorePortfolioHoldings({ onAssetClick }: { onAssetClick: 
                       </tr>
                     );
                   })}
-                </tbody>
+                </React.Fragment>
               );
             })}
           </tbody>
