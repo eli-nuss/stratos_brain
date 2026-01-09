@@ -1,11 +1,12 @@
 // Customizable Stock List Table with drag-and-drop column reordering and show/hide
 import { useState, useMemo } from "react";
-import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, X, GripVertical } from "lucide-react";
+import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, X, GripVertical, Activity } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { NoteCell } from "@/components/NoteCell";
 import TableSummaryRows from "@/components/TableSummaryRows";
 import { useStockListAssets, removeFromList, addToList, StockList } from "@/hooks/useStockLists";
 import AddToListButton from "@/components/AddToListButton";
+import AddToPortfolioButton from "@/components/AddToPortfolioButton";
 import AssetTagButton from "@/components/AssetTagButton";
 import AssetSearchDropdown from "@/components/AssetSearchDropdown";
 import ColumnCustomizer from "@/components/ColumnCustomizer";
@@ -270,7 +271,19 @@ export default function CustomizableStockListTable({ list, onAssetClick }: Custo
         return (
           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
             <AssetTagButton assetId={row.asset_id} onUpdate={() => mutateWatchlist()} />
+            <AddToPortfolioButton assetId={row.asset_id} />
             <AddToListButton assetId={row.asset_id} />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <a
+                  href={`/chat?asset_id=${row.asset_id}&symbol=${encodeURIComponent(row.symbol || '')}&name=${encodeURIComponent(row.name || '')}&asset_type=${row.asset_type || 'equity'}`}
+                  className="p-1 rounded hover:bg-primary/20 transition-colors text-muted-foreground hover:text-primary"
+                >
+                  <Activity className="w-3.5 h-3.5" />
+                </a>
+              </TooltipTrigger>
+              <TooltipContent>Research chat</TooltipContent>
+            </Tooltip>
             <button
               onClick={(e) => handleRemove(e, row.asset_id)}
               className="p-1 text-muted-foreground hover:text-signal-bearish transition-colors"

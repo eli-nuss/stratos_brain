@@ -1,6 +1,6 @@
 // Customizable Watchlist Table with drag-and-drop column reordering and show/hide
 import { useState, useMemo } from "react";
-import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, X, GripVertical } from "lucide-react";
+import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, X, GripVertical, Activity } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { NoteCell } from "@/components/NoteCell";
 import TableSummaryRows from "@/components/TableSummaryRows";
@@ -267,6 +267,17 @@ export default function CustomizableCorePortfolioTable({ onAssetClick }: Customi
             <AssetTagButton assetId={row.asset_id} onUpdate={() => mutatePortfolio()} />
             <AddToPortfolioButton assetId={row.asset_id} onUpdate={() => mutateAssets()} />
             <AddToListButton assetId={row.asset_id} />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <a
+                  href={`/chat?asset_id=${row.asset_id}&symbol=${encodeURIComponent(row.symbol || '')}&name=${encodeURIComponent(row.name || '')}&asset_type=${row.asset_type || 'equity'}`}
+                  className="p-1 rounded hover:bg-primary/20 transition-colors text-muted-foreground hover:text-primary"
+                >
+                  <Activity className="w-3.5 h-3.5" />
+                </a>
+              </TooltipTrigger>
+              <TooltipContent>Research chat</TooltipContent>
+            </Tooltip>
           </div>
         );
       case "asset":
