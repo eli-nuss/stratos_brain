@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { MessageSquarePlus, X, Bug, Lightbulb, Sparkles, Send, Loader2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 type FeedbackCategory = 'bug' | 'feature' | 'improvement';
 type FeedbackPriority = 'low' | 'medium' | 'high';
@@ -53,6 +54,7 @@ const priorityConfig = {
 
 export default function FeedbackButton() {
   const [location] = useLocation();
+  const { user, profile } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
@@ -71,12 +73,20 @@ export default function FeedbackButton() {
 
     setIsSubmitting(true);
     try {
+      // Get user display name
+      const submittedBy = user 
+        ? (profile?.display_name || user.email?.split('@')[0] || 'User')
+        : 'Anon';
+      const userEmail = user?.email || null;
+
       const response = await fetch('https://wfogbaipiqootjrsprde.supabase.co/functions/v1/feedback-api', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
           page_name: pageName,
+          submitted_by: submittedBy,
+          user_email: userEmail,
         }),
       });
 

@@ -21,6 +21,8 @@ interface FeedbackItem {
   page_name: string;
   created_at: string;
   updated_at: string;
+  submitted_by: string;
+  user_email: string | null;
 }
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
@@ -286,6 +288,10 @@ export default function TodoList() {
                                   <span>{new Date(item.created_at).toLocaleDateString()}</span>
                                   <span className={`px-1.5 py-0.5 rounded ${catConfig.bgColor} ${catConfig.color}`}>
                                     {catConfig.label}
+                                  </span>
+                                  <span className="text-muted-foreground/70">•</span>
+                                  <span title={item.user_email || undefined}>
+                                    by {item.submitted_by || 'Anon'}
                                   </span>
                                 </div>
                               </div>

@@ -46,7 +46,7 @@ serve(async (req: Request) => {
     // POST / - Create a new feedback item
     if (req.method === 'POST' && (path === '' || path === '/')) {
       const body = await req.json()
-      const { title, description, category, priority, page_name } = body
+      const { title, description, category, priority, page_name, submitted_by, user_email } = body
 
       if (!title || !page_name) {
         return new Response(JSON.stringify({ error: 'Title and page_name are required' }), {
@@ -63,7 +63,9 @@ serve(async (req: Request) => {
           category: category || 'bug',
           priority: priority || 'medium',
           page_name,
-          status: 'open'
+          status: 'open',
+          submitted_by: submitted_by || 'Anon',
+          user_email: user_email || null
         })
         .select()
         .single()

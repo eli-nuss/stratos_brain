@@ -40,7 +40,11 @@ CREATE TABLE IF NOT EXISTS feedback_items (
     
     -- Timestamps
     created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now()
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    
+    -- User tracking
+    submitted_by TEXT DEFAULT 'Anon',
+    user_email TEXT
 );
 
 -- Create indexes for common queries
