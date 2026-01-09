@@ -71,7 +71,7 @@ export default function FeedbackButton() {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/dashboard/feedback', {
+      const response = await fetch('https://wfogbaipiqootjrsprde.supabase.co/functions/v1/feedback-api', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

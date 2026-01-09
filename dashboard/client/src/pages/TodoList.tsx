@@ -45,7 +45,7 @@ const priorityConfig = {
 
 export default function TodoList() {
   const { data: items, error, isLoading, mutate } = useSWR<FeedbackItem[]>(
-    '/api/dashboard/feedback',
+    'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/feedback-api',
     fetcher
   );
 
@@ -93,7 +93,7 @@ export default function TodoList() {
 
   const updateStatus = async (id: number, status: FeedbackStatus) => {
     try {
-      await fetch(`/api/dashboard/feedback/${id}`, {
+      await fetch(`https://wfogbaipiqootjrsprde.supabase.co/functions/v1/feedback-api/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
@@ -107,7 +107,7 @@ export default function TodoList() {
   const deleteItem = async (id: number) => {
     if (!confirm('Are you sure you want to delete this item?')) return;
     try {
-      await fetch(`/api/dashboard/feedback/${id}`, {
+      await fetch(`https://wfogbaipiqootjrsprde.supabase.co/functions/v1/feedback-api/${id}`, {
         method: 'DELETE',
       });
       mutate();
