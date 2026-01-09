@@ -146,7 +146,7 @@ export function useCorePortfolioAssets() {
 // New hook for the redesigned core portfolio holdings
 export function useCorePortfolioHoldingsCheck() {
   const { data, error, isLoading, mutate } = useSWR(
-    `${API_BASE}/api/core-portfolio-holdings`,
+    `${API_BASE}/api/dashboard/core-portfolio-holdings`,
     fetcher
   );
 
@@ -163,7 +163,7 @@ export function useCorePortfolioHoldingsCheck() {
         category = 'equities';
       }
 
-      const response = await fetch(`${API_BASE}/api/core-portfolio-holdings`, {
+      const response = await fetch(`${API_BASE}/api/dashboard/core-portfolio-holdings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -191,7 +191,7 @@ export function useCorePortfolioHoldingsCheck() {
       const holding = safeData.find(h => h.asset_id === assetId);
       if (!holding) return false;
 
-      const response = await fetch(`${API_BASE}/api/core-portfolio-holdings/${holding.id}`, {
+      const response = await fetch(`${API_BASE}/api/dashboard/core-portfolio-holdings/${holding.id}`, {
         method: 'DELETE'
       });
       

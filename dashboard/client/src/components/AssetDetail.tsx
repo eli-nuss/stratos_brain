@@ -193,7 +193,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               </TooltipContent>
             </Tooltip>
             {/* Add to Portfolio button */}
-            <AddToPortfolioButton assetId={parseInt(assetId)} />
+            <AddToPortfolioButton assetId={parseInt(assetId)} assetType={asset?.asset_type} />
             
             {/* Research Chat button */}
             <Tooltip>

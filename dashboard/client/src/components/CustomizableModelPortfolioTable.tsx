@@ -265,7 +265,7 @@ export default function CustomizableModelPortfolioTable({ onAssetClick }: Custom
         return (
           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
             <AssetTagButton assetId={row.asset_id} onUpdate={() => mutatePortfolio()} />
-            <AddToPortfolioButton assetId={row.asset_id} onUpdate={() => mutateAssets()} />
+            <AddToPortfolioButton assetId={row.asset_id} assetType={row.asset_type} onUpdate={() => mutateAssets()} />
             <AddToListButton assetId={row.asset_id} />
             <Tooltip>
               <TooltipTrigger asChild>

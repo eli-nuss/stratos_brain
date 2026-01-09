@@ -271,7 +271,7 @@ export default function CustomizableStockListTable({ list, onAssetClick }: Custo
         return (
           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
             <AssetTagButton assetId={row.asset_id} onUpdate={() => mutateWatchlist()} />
-            <AddToPortfolioButton assetId={row.asset_id} />
+            <AddToPortfolioButton assetId={row.asset_id} assetType={row.asset_type} />
             <AddToListButton assetId={row.asset_id} />
             <Tooltip>
               <TooltipTrigger asChild>

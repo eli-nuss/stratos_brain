@@ -1,44 +1,38 @@
 import { useState, useRef, useEffect } from 'react';
 import { Briefcase, Check } from 'lucide-react';
-import { useModelPortfolio } from '@/hooks/useModelPortfolio';
-import { useCorePortfolio, useCorePortfolioHoldingsCheck } from '@/hooks/useCorePortfolio';
+import { useModelPortfolioHoldings, addModelHolding, removeModelHolding, PortfolioCategory } from '@/hooks/useModelPortfolioHoldings';
+import { useCorePortfolioHoldingsCheck } from '@/hooks/useCorePortfolio';
 import { createPortal } from 'react-dom';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface AddToPortfolioButtonProps {
   assetId: number;
+  assetType?: 'crypto' | 'equity';
   onUpdate?: () => void;
   variant?: 'icon' | 'button';
 }
 
-export default function AddToPortfolioButton({ assetId, onUpdate, variant = 'icon' }: AddToPortfolioButtonProps) {
+export default function AddToPortfolioButton({ assetId, assetType, onUpdate, variant = 'icon' }: AddToPortfolioButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState<'model' | 'core' | null>(null);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   
-  const { 
-    isInModelPortfolio, 
-    addToModelPortfolio, 
-    removeFromModelPortfolio 
-  } = useModelPortfolio();
+  // Use the new model portfolio holdings system
+  const { holdings: modelHoldings, mutate: mutateModelHoldings } = useModelPortfolioHoldings();
   
-  const { 
-    isInCorePortfolio, 
-    addToCorePortfolio, 
-    removeFromCorePortfolio 
-  } = useCorePortfolio();
-
-  // Also check the new holdings table
+  // Use the core portfolio holdings system
   const {
     isInCoreHoldings,
     addToCoreHoldings,
     removeFromCoreHoldings
   } = useCorePortfolioHoldingsCheck();
-  
-  const inModel = isInModelPortfolio(assetId);
-  const inCore = isInCorePortfolio(assetId) || isInCoreHoldings(assetId);
+
+  // Check if asset is in model portfolio (new holdings table)
+  const modelHolding = modelHoldings.find(h => h.asset_id === assetId);
+  const inModel = !!modelHolding;
+  const inCore = isInCoreHoldings(assetId);
   const inAnyPortfolio = inModel || inCore;
   
   // Close dropdown when clicking outside
@@ -77,17 +71,32 @@ export default function AddToPortfolioButton({ assetId, onUpdate, variant = 'ico
       return () => window.removeEventListener('scroll', handleScroll, true);
     }
   }, [isOpen]);
+
+  // Determine category based on asset type
+  const getCategory = (): PortfolioCategory => {
+    if (assetType === 'crypto') return 'tokens';
+    if (assetType === 'equity') return 'equities';
+    return 'other';
+  };
   
   const handleToggleModelPortfolio = async (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsUpdating('model');
     
     try {
-      if (inModel) {
-        await removeFromModelPortfolio(assetId);
+      if (inModel && modelHolding) {
+        // Remove from model portfolio
+        await removeModelHolding(modelHolding.id);
       } else {
-        await addToModelPortfolio(assetId);
+        // Add to model portfolio with default weight of 0
+        await addModelHolding({
+          asset_id: assetId,
+          category: getCategory(),
+          target_weight: 0,
+        });
       }
+      // Refresh the holdings data
+      mutateModelHoldings();
       onUpdate?.();
     } catch (error) {
       console.error('Error updating model portfolio:', error);
@@ -101,19 +110,11 @@ export default function AddToPortfolioButton({ assetId, onUpdate, variant = 'ico
     setIsUpdating('core');
     
     try {
-      // Use the new holdings system
       if (isInCoreHoldings(assetId)) {
         await removeFromCoreHoldings(assetId);
       } else {
-        // Try to add to new holdings system
-        await addToCoreHoldings(assetId);
+        await addToCoreHoldings(assetId, assetType);
       }
-      
-      // Also handle legacy system for backwards compatibility
-      if (isInCorePortfolio(assetId)) {
-        await removeFromCorePortfolio(assetId);
-      }
-      
       onUpdate?.();
     } catch (error) {
       console.error('Error updating core portfolio:', error);
