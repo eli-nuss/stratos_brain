@@ -59,46 +59,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Handle OAuth callback - check if there's a hash with access_token
-    const handleOAuthCallback = async () => {
-      const hash = window.location.hash;
-      if (hash && hash.includes('access_token')) {
-        console.log('OAuth callback detected, processing...');
-        // The hash contains OAuth tokens - Supabase should handle this automatically
-        // but we need to wait for it to process
-        try {
-          // Give Supabase a moment to process the hash
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
-          // Get the session after Supabase processes the hash
-          const { data: { session }, error } = await supabase.auth.getSession();
-          
-          if (error) {
-            console.error('Error getting session after OAuth:', error);
-          } else if (session) {
-            console.log('Session established after OAuth:', session.user?.email);
-            setSession(session);
-            setUser(session.user);
-            if (session.user) {
-              const profileData = await fetchProfile(session.user.id);
-              setProfile(profileData);
-            }
-            // Clean up the URL hash
-            window.history.replaceState(null, '', window.location.pathname);
-          }
-        } catch (err) {
-          console.error('Error processing OAuth callback:', err);
-        }
-      }
-    };
-
-    // Initialize auth
-    const initAuth = async () => {
-      // First check for OAuth callback
-      await handleOAuthCallback();
-      
-      // Then get current session
+    // 1. Get initial session - Supabase will automatically detect and process
+    // any OAuth tokens in the URL hash when this is called
+    const getInitialSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
+      console.log('Initial session check:', session?.user?.email || 'No session');
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -107,19 +72,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setLoading(false);
     };
+    
+    getInitialSession();
 
-    initAuth();
-
-    // Listen for auth changes
+    // 2. Listen for auth state changes
+    // This will fire when the session is first established (from hash)
+    // and on subsequent login/logout events
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email);
+        console.log('Auth state change:', event, session?.user?.email || 'No session');
         
         // Check domain restriction for new sign-ins
         if (event === 'SIGNED_IN' && session?.user) {
           const email = session.user.email;
           if (!isEmailDomainAllowed(email)) {
-            // Sign out user if domain is not allowed
             console.warn(`Domain not allowed for email: ${email}`);
             await supabase.auth.signOut();
             setUser(null);
@@ -144,13 +110,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
+    // Cleanup subscription on unmount
     return () => subscription.unsubscribe();
   }, []);
 
   // Sign in with magic link
   const signInWithEmail = async (email: string) => {
     try {
-      // Check domain restriction before sending magic link
       if (!isEmailDomainAllowed(email)) {
         return { error: new Error(`Only @${ALLOWED_DOMAINS.join(', @')} email addresses are allowed`) };
       }
@@ -179,7 +145,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         options: {
           redirectTo: `${window.location.origin}/`,
           queryParams: {
-            // Restrict to organization domain (Google Workspace)
             hd: 'stratos.xyz',
           },
         },
