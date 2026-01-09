@@ -17,6 +17,8 @@ function Router() {
     <Switch>
       <Route path={"/"} component={Home} />
       <Route path={"/watchlist"} component={Home} />
+      <Route path={"/model-portfolio"} component={Home} />
+      <Route path={"/core-portfolio"} component={Home} />
       <Route path={"/equities"} component={Home} />
       <Route path={"/crypto"} component={Home} />
       <Route path={"/list/:listId"} component={Home} />
