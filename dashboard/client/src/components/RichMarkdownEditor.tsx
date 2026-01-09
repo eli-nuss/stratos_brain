@@ -35,223 +35,6 @@ interface RichMarkdownEditorProps {
   placeholder?: string;
 }
 
-// Convert Markdown to HTML for TipTap
-function markdownToHtml(markdown: string): string {
-  if (!markdown) return '';
-  
-  let html = markdown;
-  
-  // First, handle tables before other transformations to avoid conflicts
-  // This regex matches markdown tables more robustly
-  html = html.replace(/^(\|[^\n]+\|)\n(\|[-:\s|]+\|)\n((?:\|[^\n]+\|\n?)+)/gm, (match, headerRow, separatorRow, bodyRows) => {
-    // Parse header cells
-    const headerCells = headerRow
-      .split('|')
-      .slice(1, -1) // Remove empty strings from start/end
-      .map((cell: string) => cell.trim());
-    
-    // Parse body rows
-    const bodyRowsArray = bodyRows.trim().split('\n').filter((row: string) => row.trim());
-    
-    // Build HTML table with TipTap-compatible structure
-    let tableHtml = '<table><thead><tr>';
-    headerCells.forEach((cell: string) => {
-      tableHtml += `<th>${cell}</th>`;
-    });
-    tableHtml += '</tr></thead><tbody>';
-    
-    bodyRowsArray.forEach((row: string) => {
-      const cells = row
-        .split('|')
-        .slice(1, -1) // Remove empty strings from start/end
-        .map((cell: string) => cell.trim());
-      
-      tableHtml += '<tr>';
-      cells.forEach((cell: string) => {
-        tableHtml += `<td>${cell}</td>`;
-      });
-      tableHtml += '</tr>';
-    });
-    
-    tableHtml += '</tbody></table>';
-    return tableHtml;
-  });
-  
-  // Headers
-  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-  html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-  
-  // Bold and Italic
-  html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  
-  // Strikethrough
-  html = html.replace(/~~(.+?)~~/g, '<s>$1</s>');
-  
-  // Code blocks
-  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
-  
-  // Inline code
-  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-  
-  // Blockquotes
-  html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
-  
-  // Horizontal rules
-  html = html.replace(/^---$/gm, '<hr>');
-  html = html.replace(/^\*\*\*$/gm, '<hr>');
-  
-  // Unordered lists
-  html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
-  html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
-  
-  // Ordered lists
-  html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
-  
-  // Paragraphs - wrap remaining text in p tags
-  html = html.split('\n\n').map(block => {
-    if (block.startsWith('<') || block.trim() === '') return block;
-    return `<p>${block}</p>`;
-  }).join('\n');
-  
-  return html;
-}
-
-// Convert TipTap HTML back to Markdown
-function htmlToMarkdown(html: string): string {
-  if (!html) return '';
-  
-  let md = html;
-  
-  // Headers
-  md = md.replace(/<h1>(.*?)<\/h1>/g, '# $1\n');
-  md = md.replace(/<h2>(.*?)<\/h2>/g, '## $1\n');
-  md = md.replace(/<h3>(.*?)<\/h3>/g, '### $1\n');
-  
-  // Bold and Italic
-  md = md.replace(/<strong><em>(.*?)<\/em><\/strong>/g, '***$1***');
-  md = md.replace(/<strong>(.*?)<\/strong>/g, '**$1**');
-  md = md.replace(/<em>(.*?)<\/em>/g, '*$1*');
-  
-  // Strikethrough
-  md = md.replace(/<s>(.*?)<\/s>/g, '~~$1~~');
-  
-  // Code blocks
-  md = md.replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/g, '```\n$1\n```');
-  
-  // Inline code
-  md = md.replace(/<code>(.*?)<\/code>/g, '`$1`');
-  
-  // Blockquotes
-  md = md.replace(/<blockquote>(.*?)<\/blockquote>/g, '> $1\n');
-  
-  // Horizontal rules
-  md = md.replace(/<hr\s*\/?>/g, '\n---\n');
-  
-  // Lists - handle lists with attributes/classes
-  md = md.replace(/<ul[^>]*>([\s\S]*?)<\/ul>/g, (match, content) => {
-    return content.replace(/<li[^>]*>(.*?)<\/li>/g, '- $1\n');
-  });
-  md = md.replace(/<ol[^>]*>([\s\S]*?)<\/ol>/g, (match, content) => {
-    let i = 1;
-    return content.replace(/<li[^>]*>(.*?)<\/li>/g, () => `${i++}. $1\n`);
-  });
-  
-  // Tables - handle TipTap's styled tables with classes and attributes
-  // This regex matches tables with any attributes (class, style, etc.)
-  md = md.replace(/<table[^>]*>([\s\S]*?)<\/table>/g, (match, content) => {
-    // First, strip colgroup elements entirely
-    let cleanContent = content.replace(/<colgroup>[\s\S]*?<\/colgroup>/g, '');
-    
-    const headerMatch = cleanContent.match(/<thead[^>]*>([\s\S]*?)<\/thead>/);
-    const bodyMatch = cleanContent.match(/<tbody[^>]*>([\s\S]*?)<\/tbody>/);
-    
-    let result = '';
-    
-    if (headerMatch) {
-      // Match th tags with any attributes and capture content (including nested tags)
-      const headerRowMatch = headerMatch[1].match(/<tr[^>]*>([\s\S]*?)<\/tr>/);
-      if (headerRowMatch) {
-        const headerCells: string[] = [];
-        const thRegex = /<th[^>]*>([\s\S]*?)<\/th>/g;
-        let thMatch;
-        while ((thMatch = thRegex.exec(headerRowMatch[1])) !== null) {
-          // Strip any remaining HTML tags and clean up whitespace
-          const cellContent = thMatch[1]
-            .replace(/<[^>]*>/g, '')
-            .replace(/\n+/g, ' ')
-            .trim();
-          headerCells.push(cellContent);
-        }
-        if (headerCells.length > 0) {
-          result += '| ' + headerCells.join(' | ') + ' |\n';
-          result += '| ' + headerCells.map(() => '---').join(' | ') + ' |\n';
-        }
-      }
-    }
-    
-    if (bodyMatch) {
-      const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/g;
-      let rowMatch;
-      while ((rowMatch = rowRegex.exec(bodyMatch[1])) !== null) {
-        const cellValues: string[] = [];
-        const tdRegex = /<td[^>]*>([\s\S]*?)<\/td>/g;
-        let tdMatch;
-        while ((tdMatch = tdRegex.exec(rowMatch[1])) !== null) {
-          // Strip any remaining HTML tags and clean up whitespace
-          const cellContent = tdMatch[1]
-            .replace(/<[^>]*>/g, '')
-            .replace(/\n+/g, ' ')
-            .trim();
-          cellValues.push(cellContent);
-        }
-        if (cellValues.length > 0) {
-          result += '| ' + cellValues.join(' | ') + ' |\n';
-        }
-      }
-    }
-    
-    // If we couldn't parse thead/tbody, try parsing rows directly (for tables without thead/tbody)
-    if (!result) {
-      const rows = cleanContent.match(/<tr[^>]*>([\s\S]*?)<\/tr>/g) || [];
-      let isFirstRow = true;
-      rows.forEach((row: string) => {
-        const cellValues: string[] = [];
-        // Try th first, then td
-        const cellRegex = /<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/g;
-        let cellMatch;
-        while ((cellMatch = cellRegex.exec(row)) !== null) {
-          const cellContent = cellMatch[1]
-            .replace(/<[^>]*>/g, '')
-            .replace(/\n+/g, ' ')
-            .trim();
-          cellValues.push(cellContent);
-        }
-        if (cellValues.length > 0) {
-          result += '| ' + cellValues.join(' | ') + ' |\n';
-          if (isFirstRow) {
-            result += '| ' + cellValues.map(() => '---').join(' | ') + ' |\n';
-            isFirstRow = false;
-          }
-        }
-      });
-    }
-    
-    return result + '\n';
-  });
-  
-  // Paragraphs
-  md = md.replace(/<p>(.*?)<\/p>/g, '$1\n\n');
-  
-  // Clean up extra whitespace
-  md = md.replace(/<br\s*\/?>/g, '\n');
-  md = md.replace(/\n{3,}/g, '\n\n');
-  
-  return md.trim();
-}
-
 const MenuButton = ({ 
   onClick, 
   isActive = false, 
@@ -310,23 +93,23 @@ export function RichMarkdownEditor({ content, onChange, placeholder = 'Start typ
       Highlight,
       Typography,
     ],
-    content: markdownToHtml(content),
+    content: content, // Content is now HTML directly
     editorProps: {
       attributes: {
         class: 'prose prose-invert max-w-none focus:outline-none min-h-[500px] p-4',
       },
     },
     onUpdate: ({ editor }) => {
+      // Store HTML directly - no conversion needed
       const html = editor.getHTML();
-      const markdown = htmlToMarkdown(html);
-      onChange(markdown);
+      onChange(html);
     },
   });
 
   // Update editor content when prop changes
   useEffect(() => {
-    if (editor && content !== htmlToMarkdown(editor.getHTML())) {
-      editor.commands.setContent(markdownToHtml(content));
+    if (editor && content !== editor.getHTML()) {
+      editor.commands.setContent(content);
     }
   }, [content, editor]);
 
@@ -424,7 +207,7 @@ export function RichMarkdownEditor({ content, onChange, placeholder = 'Start typ
         <MenuButton
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
           isActive={editor.isActive('blockquote')}
-          title="Blockquote"
+          title="Quote"
         >
           <Quote className="w-4 h-4" />
         </MenuButton>
@@ -448,22 +231,22 @@ export function RichMarkdownEditor({ content, onChange, placeholder = 'Start typ
         {editor.isActive('table') && (
           <>
             <MenuButton
-              onClick={() => editor.chain().focus().addColumnAfter().run()}
-              title="Add Column"
-            >
-              <ColumnsIcon className="w-4 h-4" />
-            </MenuButton>
-            <MenuButton
               onClick={() => editor.chain().focus().addRowAfter().run()}
               title="Add Row"
             >
               <RowsIcon className="w-4 h-4" />
             </MenuButton>
             <MenuButton
+              onClick={() => editor.chain().focus().addColumnAfter().run()}
+              title="Add Column"
+            >
+              <ColumnsIcon className="w-4 h-4" />
+            </MenuButton>
+            <MenuButton
               onClick={() => editor.chain().focus().deleteTable().run()}
               title="Delete Table"
             >
-              <Trash2 className="w-4 h-4 text-red-400" />
+              <Trash2 className="w-4 h-4" />
             </MenuButton>
           </>
         )}
@@ -474,120 +257,23 @@ export function RichMarkdownEditor({ content, onChange, placeholder = 'Start typ
         <MenuButton
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().undo()}
-          title="Undo (Ctrl+Z)"
+          title="Undo"
         >
           <Undo className="w-4 h-4" />
         </MenuButton>
         <MenuButton
           onClick={() => editor.chain().focus().redo().run()}
           disabled={!editor.can().redo()}
-          title="Redo (Ctrl+Y)"
+          title="Redo"
         >
           <Redo className="w-4 h-4" />
         </MenuButton>
       </div>
 
-      {/* Editor content */}
+      {/* Editor Content */}
       <div className="flex-1 overflow-auto">
         <EditorContent editor={editor} className="h-full" />
       </div>
-
-      {/* Editor styles */}
-      <style>{`
-        .ProseMirror {
-          min-height: 500px;
-          padding: 1rem;
-        }
-        .ProseMirror:focus {
-          outline: none;
-        }
-        .ProseMirror h1 {
-          font-size: 1.875rem;
-          font-weight: 700;
-          margin-top: 1.5rem;
-          margin-bottom: 0.75rem;
-          color: #f3f4f6;
-        }
-        .ProseMirror h2 {
-          font-size: 1.5rem;
-          font-weight: 600;
-          margin-top: 1.25rem;
-          margin-bottom: 0.5rem;
-          color: #e5e7eb;
-        }
-        .ProseMirror h3 {
-          font-size: 1.25rem;
-          font-weight: 600;
-          margin-top: 1rem;
-          margin-bottom: 0.5rem;
-          color: #d1d5db;
-        }
-        .ProseMirror p {
-          margin-bottom: 0.75rem;
-          color: #d1d5db;
-        }
-        .ProseMirror ul, .ProseMirror ol {
-          padding-left: 1.5rem;
-          margin-bottom: 0.75rem;
-        }
-        .ProseMirror li {
-          margin-bottom: 0.25rem;
-        }
-        .ProseMirror blockquote {
-          border-left: 3px solid #4b5563;
-          padding-left: 1rem;
-          margin-left: 0;
-          color: #9ca3af;
-          font-style: italic;
-        }
-        .ProseMirror code {
-          background: #374151;
-          padding: 0.125rem 0.375rem;
-          border-radius: 0.25rem;
-          font-family: monospace;
-          font-size: 0.875rem;
-        }
-        .ProseMirror pre {
-          background: #1f2937;
-          padding: 1rem;
-          border-radius: 0.5rem;
-          overflow-x: auto;
-          margin-bottom: 0.75rem;
-        }
-        .ProseMirror pre code {
-          background: none;
-          padding: 0;
-        }
-        .ProseMirror hr {
-          border: none;
-          border-top: 1px solid #4b5563;
-          margin: 1.5rem 0;
-        }
-        .ProseMirror table {
-          border-collapse: collapse;
-          margin: 1rem 0;
-          width: 100%;
-        }
-        .ProseMirror th, .ProseMirror td {
-          border: 1px solid #4b5563;
-          padding: 0.5rem 0.75rem;
-          text-align: left;
-        }
-        .ProseMirror th {
-          background: #374151;
-          font-weight: 600;
-        }
-        .ProseMirror .is-empty::before {
-          content: attr(data-placeholder);
-          color: #6b7280;
-          pointer-events: none;
-          float: left;
-          height: 0;
-        }
-        .ProseMirror-selectednode {
-          outline: 2px solid #3b82f6;
-        }
-      `}</style>
     </div>
   );
 }
