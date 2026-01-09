@@ -2,7 +2,15 @@ import useSWR from 'swr';
 
 const API_BASE = '';
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = async (url: string) => {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`API error: ${res.status}`);
+  }
+  const data = await res.json();
+  // Ensure we always return an array
+  return Array.isArray(data) ? data : [];
+};
 
 export interface ModelPortfolioItem {
   asset_id: number;
@@ -17,7 +25,9 @@ export function useModelPortfolio() {
     fetcher
   );
 
-  const portfolioIds = new Set(data?.map(item => item.asset_id) || []);
+  // Ensure data is always an array before mapping
+  const safeData = Array.isArray(data) ? data : [];
+  const portfolioIds = new Set(safeData.map(item => item.asset_id));
 
   const addToModelPortfolio = async (assetId: number, options?: { target_weight?: number; notes?: string }) => {
     try {
@@ -36,7 +46,7 @@ export function useModelPortfolio() {
       }
       
       // Optimistically update the cache
-      mutate([...(data || []), { 
+      mutate([...safeData, { 
         asset_id: assetId, 
         target_weight: options?.target_weight || null,
         notes: options?.notes || null,
@@ -61,7 +71,7 @@ export function useModelPortfolio() {
       }
       
       // Optimistically update the cache
-      mutate(data?.filter(item => item.asset_id !== assetId) || [], false);
+      mutate(safeData.filter(item => item.asset_id !== assetId), false);
       
       return true;
     } catch (error) {
@@ -103,7 +113,7 @@ export function useModelPortfolio() {
   const isInModelPortfolio = (assetId: number) => portfolioIds.has(assetId);
 
   return {
-    portfolio: data || [],
+    portfolio: safeData,
     portfolioIds,
     isLoading,
     error,
