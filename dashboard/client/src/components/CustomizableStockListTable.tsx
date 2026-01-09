@@ -3,7 +3,7 @@ import { useState, useMemo } from "react";
 import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, X, GripVertical } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { NoteCell } from "@/components/NoteCell";
-import ListSummaryBox from "@/components/ListSummaryBox";
+import TableSummaryRows from "@/components/TableSummaryRows";
 import { useStockListAssets, removeFromList, addToList, StockList } from "@/hooks/useStockLists";
 import AddToListButton from "@/components/AddToListButton";
 import AssetTagButton from "@/components/AssetTagButton";
@@ -362,13 +362,6 @@ export default function CustomizableStockListTable({ list, onAssetClick }: Custo
 
   return (
     <div className="flex flex-col h-full bg-background border border-border rounded-lg overflow-hidden">
-      {/* Summary Box - at the very top */}
-      {!isLoading && assets.length > 0 && (
-        <div className="px-4 pt-3">
-          <ListSummaryBox assets={assets} listName={list.name} />
-        </div>
-      )}
-
       {/* Header */}
       <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-muted/30">
         <h3 className="font-medium text-sm flex items-center gap-2">
@@ -424,7 +417,10 @@ export default function CustomizableStockListTable({ list, onAssetClick }: Custo
               </SortableContext>
             </thead>
             <tbody>
-
+              {/* Summary Rows */}
+              {!isLoading && assets.length > 0 && (
+                <TableSummaryRows assets={assets} visibleColumns={visibleColumns} listName={list.name} />
+              )}
               {isLoading ? (
                 <tr><td colSpan={colCount} className="px-2 py-4 text-center text-muted-foreground">Loading...</td></tr>
               ) : paginatedAssets.length === 0 ? (
