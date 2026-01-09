@@ -6,6 +6,7 @@ import CustomizableWatchlistTable from "@/components/CustomizableWatchlistTable"
 import CustomizableStockListTable from "@/components/CustomizableStockListTable";
 import CustomizableModelPortfolioTable from "@/components/CustomizableModelPortfolioTable";
 import CustomizableCorePortfolioTable from "@/components/CustomizableCorePortfolioTable";
+import CorePortfolioHoldings from "@/components/CorePortfolioHoldings";
 import AssetDetail from "@/components/AssetDetail";
 import useSWR from "swr";
 import { useStockLists, StockList } from "@/hooks/useStockLists";
@@ -131,7 +132,7 @@ export default function Home() {
             onAssetClick={handleAssetClick}
           />
         ) : activeTab === "core-portfolio" ? (
-          <CustomizableCorePortfolioTable
+          <CorePortfolioHoldings
             key="core-portfolio"
             onAssetClick={handleAssetClick}
           />

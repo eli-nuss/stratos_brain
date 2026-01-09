@@ -123,6 +123,11 @@ function isPublicDashboardEndpoint(req: Request): boolean {
     return true
   }
   
+  // Allow public access to core-portfolio-holdings endpoints (all methods)
+  if (path.startsWith('/dashboard/core-portfolio-holdings')) {
+    return true
+  }
+  
   // NOTE: memo-status endpoints removed - Gemini generation is synchronous
   
   return false
@@ -3121,6 +3126,172 @@ ${template}
           .from('core_portfolio_items')
           .delete()
           .eq('asset_id', assetId)
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // ==================== CORE PORTFOLIO HOLDINGS ENDPOINTS (NEW) ====================
+
+      // GET /dashboard/core-portfolio-holdings - Get all holdings from new table
+      case req.method === 'GET' && path === '/dashboard/core-portfolio-holdings': {
+        const { data: holdings, error } = await supabase
+          .from('v_core_portfolio_holdings')
+          .select('*')
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(holdings || []), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // POST /dashboard/core-portfolio-holdings - Add a new holding
+      case req.method === 'POST' && path === '/dashboard/core-portfolio-holdings': {
+        const body = await req.json()
+        const {
+          asset_id,
+          custom_symbol,
+          custom_name,
+          custom_asset_type,
+          category,
+          quantity,
+          cost_basis,
+          total_cost,
+          strike_price,
+          expiration_date,
+          option_type,
+          manual_price,
+          notes
+        } = body
+        
+        if (!category) {
+          return new Response(JSON.stringify({ error: 'category is required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Calculate total_cost if not provided but cost_basis is
+        const calculatedTotalCost = total_cost ?? (cost_basis && quantity ? cost_basis * quantity : null)
+        
+        const { data, error } = await supabase
+          .from('core_portfolio_holdings')
+          .insert({
+            asset_id,
+            custom_symbol,
+            custom_name,
+            custom_asset_type,
+            category,
+            quantity: quantity || 0,
+            cost_basis,
+            total_cost: calculatedTotalCost,
+            strike_price,
+            expiration_date,
+            option_type,
+            manual_price,
+            notes
+          })
+          .select()
+          .single()
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(data), {
+          status: 201,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // PATCH /dashboard/core-portfolio-holdings/:id - Update a holding
+      case req.method === 'PATCH' && /^\/dashboard\/core-portfolio-holdings\/\d+$/.test(path): {
+        const holdingId = parseInt(path.split('/').pop()!)
+        const body = await req.json()
+        
+        const allowedFields = [
+          'quantity', 'cost_basis', 'total_cost', 'strike_price',
+          'expiration_date', 'option_type', 'manual_price', 'notes',
+          'category', 'display_order', 'custom_symbol', 'custom_name'
+        ]
+        
+        const updates: Record<string, unknown> = {}
+        for (const field of allowedFields) {
+          if (body[field] !== undefined) {
+            updates[field] = body[field]
+          }
+        }
+        
+        // Recalculate total_cost if quantity or cost_basis changed
+        if (updates.quantity !== undefined || updates.cost_basis !== undefined) {
+          // Get current values
+          const { data: current } = await supabase
+            .from('core_portfolio_holdings')
+            .select('quantity, cost_basis')
+            .eq('id', holdingId)
+            .single()
+          
+          if (current) {
+            const newQty = updates.quantity ?? current.quantity
+            const newCostBasis = updates.cost_basis ?? current.cost_basis
+            if (newQty && newCostBasis) {
+              updates.total_cost = newQty * newCostBasis
+            }
+          }
+        }
+        
+        if (Object.keys(updates).length === 0) {
+          return new Response(JSON.stringify({ error: 'No fields to update' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const { data, error } = await supabase
+          .from('core_portfolio_holdings')
+          .update(updates)
+          .eq('id', holdingId)
+          .select()
+          .single()
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(data), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // DELETE /dashboard/core-portfolio-holdings/:id - Soft delete a holding
+      case req.method === 'DELETE' && /^\/dashboard\/core-portfolio-holdings\/\d+$/.test(path): {
+        const holdingId = parseInt(path.split('/').pop()!)
+        
+        // Soft delete by setting is_active = false
+        const { error } = await supabase
+          .from('core_portfolio_holdings')
+          .update({ is_active: false })
+          .eq('id', holdingId)
         
         if (error) {
           return new Response(JSON.stringify({ error: error.message }), {

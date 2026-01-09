@@ -142,3 +142,81 @@ export function useCorePortfolioAssets() {
     mutate
   };
 }
+
+// New hook for the redesigned core portfolio holdings
+export function useCorePortfolioHoldingsCheck() {
+  const { data, error, isLoading, mutate } = useSWR(
+    `${API_BASE}/api/core-portfolio-holdings`,
+    fetcher
+  );
+
+  const safeData = Array.isArray(data) ? data : [];
+  const holdingAssetIds = new Set(safeData.filter(h => h.asset_id).map(h => h.asset_id));
+
+  const addToCoreHoldings = async (assetId: number, assetType?: string) => {
+    try {
+      // Determine category based on asset type
+      let category = 'other';
+      if (assetType === 'crypto') {
+        category = 'tokens';
+      } else if (assetType === 'equity') {
+        category = 'equities';
+      }
+
+      const response = await fetch(`${API_BASE}/api/core-portfolio-holdings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          asset_id: assetId,
+          category,
+          quantity: 0
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to add to core holdings');
+      }
+      
+      mutate();
+      return true;
+    } catch (error) {
+      console.error('Error adding to core holdings:', error);
+      return false;
+    }
+  };
+
+  const removeFromCoreHoldings = async (assetId: number) => {
+    try {
+      // Find the holding by asset_id
+      const holding = safeData.find(h => h.asset_id === assetId);
+      if (!holding) return false;
+
+      const response = await fetch(`${API_BASE}/api/core-portfolio-holdings/${holding.id}`, {
+        method: 'DELETE'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to remove from core holdings');
+      }
+      
+      mutate();
+      return true;
+    } catch (error) {
+      console.error('Error removing from core holdings:', error);
+      return false;
+    }
+  };
+
+  const isInCoreHoldings = (assetId: number) => holdingAssetIds.has(assetId);
+
+  return {
+    holdings: safeData,
+    holdingAssetIds,
+    isLoading,
+    error,
+    addToCoreHoldings,
+    removeFromCoreHoldings,
+    isInCoreHoldings,
+    mutate
+  };
+}

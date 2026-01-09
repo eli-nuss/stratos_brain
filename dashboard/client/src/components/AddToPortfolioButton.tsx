@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Briefcase, Check } from 'lucide-react';
 import { useModelPortfolio } from '@/hooks/useModelPortfolio';
-import { useCorePortfolio } from '@/hooks/useCorePortfolio';
+import { useCorePortfolio, useCorePortfolioHoldingsCheck } from '@/hooks/useCorePortfolio';
 import { createPortal } from 'react-dom';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -29,9 +29,16 @@ export default function AddToPortfolioButton({ assetId, onUpdate, variant = 'ico
     addToCorePortfolio, 
     removeFromCorePortfolio 
   } = useCorePortfolio();
+
+  // Also check the new holdings table
+  const {
+    isInCoreHoldings,
+    addToCoreHoldings,
+    removeFromCoreHoldings
+  } = useCorePortfolioHoldingsCheck();
   
   const inModel = isInModelPortfolio(assetId);
-  const inCore = isInCorePortfolio(assetId);
+  const inCore = isInCorePortfolio(assetId) || isInCoreHoldings(assetId);
   const inAnyPortfolio = inModel || inCore;
   
   // Close dropdown when clicking outside
@@ -94,11 +101,19 @@ export default function AddToPortfolioButton({ assetId, onUpdate, variant = 'ico
     setIsUpdating('core');
     
     try {
-      if (inCore) {
-        await removeFromCorePortfolio(assetId);
+      // Use the new holdings system
+      if (isInCoreHoldings(assetId)) {
+        await removeFromCoreHoldings(assetId);
       } else {
-        await addToCorePortfolio(assetId);
+        // Try to add to new holdings system
+        await addToCoreHoldings(assetId);
       }
+      
+      // Also handle legacy system for backwards compatibility
+      if (isInCorePortfolio(assetId)) {
+        await removeFromCorePortfolio(assetId);
+      }
+      
       onUpdate?.();
     } catch (error) {
       console.error('Error updating core portfolio:', error);

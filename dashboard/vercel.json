@@ -5,6 +5,14 @@
   "framework": "vite",
   "rewrites": [
     {
+      "source": "/api/core-portfolio-holdings/:path*",
+      "destination": "https://wfogbaipiqootjrsprde.supabase.co/functions/v1/control-api/dashboard/core-portfolio-holdings/:path*"
+    },
+    {
+      "source": "/api/core-portfolio-holdings",
+      "destination": "https://wfogbaipiqootjrsprde.supabase.co/functions/v1/control-api/dashboard/core-portfolio-holdings"
+    },
+    {
       "source": "/api/dashboard/:path*",
       "destination": "https://wfogbaipiqootjrsprde.supabase.co/functions/v1/control-api/dashboard/:path*"
     },
