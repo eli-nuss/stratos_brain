@@ -1,5 +1,6 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import { Markdown } from '@tiptap/markdown';
 import { Table } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
 import { TableCell } from '@tiptap/extension-table-cell';
@@ -70,6 +71,13 @@ export function RichMarkdownEditor({ content, onChange, placeholder = 'Start typ
           levels: [1, 2, 3],
         },
       }),
+      Markdown.configure({
+        // GitHub Flavored Markdown with tables support
+        markedOptions: {
+          gfm: true,
+          breaks: false,
+        },
+      }),
       Table.configure({
         resizable: true,
         HTMLAttributes: {
@@ -93,23 +101,28 @@ export function RichMarkdownEditor({ content, onChange, placeholder = 'Start typ
       Highlight,
       Typography,
     ],
-    content: content, // Content is now HTML directly
+    content: content,
+    contentType: 'markdown', // Load content as Markdown
     editorProps: {
       attributes: {
         class: 'prose prose-invert max-w-none focus:outline-none min-h-[500px] p-4',
       },
     },
     onUpdate: ({ editor }) => {
-      // Store HTML directly - no conversion needed
-      const html = editor.getHTML();
-      onChange(html);
+      // Serialize to Markdown when content changes
+      const markdown = editor.storage.markdown?.getMarkdown?.() || editor.getText();
+      onChange(markdown);
     },
   });
 
   // Update editor content when prop changes
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content);
+    if (editor && content) {
+      // Get current markdown content
+      const currentMarkdown = editor.storage.markdown?.getMarkdown?.() || '';
+      if (content !== currentMarkdown) {
+        editor.commands.setContent(content, false, { preserveWhitespace: 'full' });
+      }
     }
   }, [content, editor]);
 

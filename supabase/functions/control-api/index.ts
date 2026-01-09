@@ -10,139 +10,6 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { MEMO_TEMPLATE, ONE_PAGER_TEMPLATE, SYSTEM_PROMPT, formatDatabaseContext, AssetData } from "./gemini-templates.ts"
 
-// Convert HTML (from TipTap rich text editor) to clean Markdown for Gemini
-function htmlToMarkdown(html: string): string {
-  if (!html) return '';
-  
-  let md = html;
-  
-  // Headers
-  md = md.replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n');
-  md = md.replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n');
-  md = md.replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n');
-  
-  // Bold and Italic
-  md = md.replace(/<strong><em>(.*?)<\/em><\/strong>/gi, '***$1***');
-  md = md.replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**');
-  md = md.replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*');
-  
-  // Strikethrough
-  md = md.replace(/<s[^>]*>(.*?)<\/s>/gi, '~~$1~~');
-  
-  // Code blocks
-  md = md.replace(/<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/gi, '```\n$1\n```');
-  
-  // Inline code
-  md = md.replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`');
-  
-  // Blockquotes
-  md = md.replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gi, '> $1\n');
-  
-  // Horizontal rules
-  md = md.replace(/<hr[^>]*\/?>/gi, '\n---\n');
-  
-  // Lists
-  md = md.replace(/<ul[^>]*>([\s\S]*?)<\/ul>/gi, (match, content) => {
-    return content.replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n');
-  });
-  md = md.replace(/<ol[^>]*>([\s\S]*?)<\/ol>/gi, (match, content) => {
-    let i = 1;
-    return content.replace(/<li[^>]*>(.*?)<\/li>/gi, () => `${i++}. \n`);
-  });
-  
-  // Tables - convert HTML tables to Markdown tables
-  md = md.replace(/<table[^>]*>([\s\S]*?)<\/table>/gi, (match, content) => {
-    // Strip colgroup
-    let cleanContent = content.replace(/<colgroup>[\s\S]*?<\/colgroup>/gi, '');
-    
-    const headerMatch = cleanContent.match(/<thead[^>]*>([\s\S]*?)<\/thead>/i);
-    const bodyMatch = cleanContent.match(/<tbody[^>]*>([\s\S]*?)<\/tbody>/i);
-    
-    let result = '';
-    
-    if (headerMatch) {
-      const headerRowMatch = headerMatch[1].match(/<tr[^>]*>([\s\S]*?)<\/tr>/i);
-      if (headerRowMatch) {
-        const headerCells: string[] = [];
-        const thRegex = /<th[^>]*>([\s\S]*?)<\/th>/gi;
-        let thMatch;
-        while ((thMatch = thRegex.exec(headerRowMatch[1])) !== null) {
-          const cellContent = thMatch[1]
-            .replace(/<[^>]*>/g, '')
-            .replace(/\n+/g, ' ')
-            .trim();
-          headerCells.push(cellContent);
-        }
-        if (headerCells.length > 0) {
-          result += '| ' + headerCells.join(' | ') + ' |\n';
-          result += '| ' + headerCells.map(() => '---').join(' | ') + ' |\n';
-        }
-      }
-    }
-    
-    if (bodyMatch) {
-      const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-      let rowMatch;
-      while ((rowMatch = rowRegex.exec(bodyMatch[1])) !== null) {
-        const cellValues: string[] = [];
-        const tdRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
-        let tdMatch;
-        while ((tdMatch = tdRegex.exec(rowMatch[1])) !== null) {
-          const cellContent = tdMatch[1]
-            .replace(/<[^>]*>/g, '')
-            .replace(/\n+/g, ' ')
-            .trim();
-          cellValues.push(cellContent);
-        }
-        if (cellValues.length > 0) {
-          result += '| ' + cellValues.join(' | ') + ' |\n';
-        }
-      }
-    }
-    
-    // Fallback for tables without thead/tbody
-    if (!result) {
-      const rows = cleanContent.match(/<tr[^>]*>([\s\S]*?)<\/tr>/gi) || [];
-      let isFirstRow = true;
-      rows.forEach((row: string) => {
-        const cellValues: string[] = [];
-        const cellRegex = /<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi;
-        let cellMatch;
-        while ((cellMatch = cellRegex.exec(row)) !== null) {
-          const cellContent = cellMatch[1]
-            .replace(/<[^>]*>/g, '')
-            .replace(/\n+/g, ' ')
-            .trim();
-          cellValues.push(cellContent);
-        }
-        if (cellValues.length > 0) {
-          result += '| ' + cellValues.join(' | ') + ' |\n';
-          if (isFirstRow) {
-            result += '| ' + cellValues.map(() => '---').join(' | ') + ' |\n';
-            isFirstRow = false;
-          }
-        }
-      });
-    }
-    
-    return '\n' + result + '\n';
-  });
-  
-  // Paragraphs
-  md = md.replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n');
-  
-  // Clean up
-  md = md.replace(/<br[^>]*\/?>/gi, '\n');
-  md = md.replace(/<[^>]+>/g, ''); // Remove any remaining HTML tags
-  md = md.replace(/&nbsp;/g, ' ');
-  md = md.replace(/&amp;/g, '&');
-  md = md.replace(/&lt;/g, '<');
-  md = md.replace(/&gt;/g, '>');
-  md = md.replace(/\n{3,}/g, '\n\n');
-  
-  return md.trim();
-}
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-stratos-key',
@@ -2201,15 +2068,8 @@ If asked about something not in the data, acknowledge the limitation.`
             .single()
           
           if (templateData?.template_content) {
-            // Convert HTML to Markdown if the template contains HTML (from rich text editor)
-            const rawTemplate = templateData.template_content
-            if (rawTemplate.includes('<') && rawTemplate.includes('>')) {
-              template = htmlToMarkdown(rawTemplate)
-              console.log(`Using ${templateKey} from database (converted from HTML to Markdown)`)
-            } else {
-              template = rawTemplate
-              console.log(`Using ${templateKey} from database (already Markdown)`)
-            }
+            template = templateData.template_content
+            console.log(`Using ${templateKey} from database`)
           }
         } catch (templateError) {
           console.log('Using hardcoded templates (database fetch failed):', templateError)
