@@ -345,12 +345,14 @@ export default function CorePortfolioHoldings({ onAssetClick }: { onAssetClick: 
                         <ChevronUp className="w-4 h-4 text-muted-foreground" />
                       )}
                     </td>
-                    <td className="px-3 py-2 font-semibold" colSpan={3}>
+                    <td className="px-3 py-2 font-semibold">
                       {CATEGORY_LABELS[category]}
                       <span className="text-muted-foreground font-normal ml-2">
                         ({categoryHoldings.length})
                       </span>
                     </td>
+                    <td className="text-right px-3 py-2"></td>
+                    <td className="text-right px-3 py-2"></td>
                     <td className="text-right px-3 py-2 font-mono">
                       {formatCurrency(catSummary?.category_cost || 0)}
                     </td>
@@ -364,7 +366,8 @@ export default function CorePortfolioHoldings({ onAssetClick }: { onAssetClick: 
                     <td className="text-right px-3 py-2 font-mono text-muted-foreground">
                       {formatPercent(catSummary?.weight_pct || 0)}
                     </td>
-                    <td colSpan={2}></td>
+                    <td className="px-3 py-2"></td>
+                    <td className="px-3 py-2"></td>
                   </tr>
                   
                   {/* Holdings Rows */}
