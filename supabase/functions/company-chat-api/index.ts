@@ -708,6 +708,34 @@ async function callGeminiWithTools(
           response: result
         }
       })
+      
+      // Enhanced audit logging for function results
+      console.log(`=== FUNCTION AUDIT: ${fc.name} ===`)
+      console.log(`Arguments: ${JSON.stringify(fc.args)}`)
+      console.log(`Result summary: ${JSON.stringify({
+        success: !result.error,
+        error: result.error || null,
+        resultKeys: Object.keys(result),
+        // For web search, show result count
+        ...(fc.name === 'web_search' && result.search_output ? {
+          searchQuery: result.search_output.query,
+          totalResults: result.search_output.total_results,
+          resultsReturned: result.search_output.results?.length || 0,
+          topResults: result.search_output.results?.slice(0, 3).map((r: {title: string; source: string}) => ({ title: r.title, source: r.source })) || []
+        } : {}),
+        // For price history, show date range
+        ...(fc.name === 'get_price_history' && result.bars ? {
+          barsCount: result.count,
+          dateRange: result.bars.length > 0 ? `${result.bars[result.bars.length-1]?.date} to ${result.bars[0]?.date}` : 'N/A'
+        } : {}),
+        // For technical indicators, show key values
+        ...(fc.name === 'get_technical_indicators' && result.indicators ? {
+          asOfDate: result.as_of_date,
+          rsi: result.indicators?.rsi_14,
+          macdLine: result.indicators?.macd_line
+        } : {})
+      }, null, 2)}`)
+      console.log(`=== END AUDIT: ${fc.name} ===`)
     }
     
     // Add the assistant's response and function results to messages
