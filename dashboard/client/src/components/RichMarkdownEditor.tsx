@@ -41,6 +41,42 @@ function markdownToHtml(markdown: string): string {
   
   let html = markdown;
   
+  // First, handle tables before other transformations to avoid conflicts
+  // This regex matches markdown tables more robustly
+  html = html.replace(/^(\|[^\n]+\|)\n(\|[-:\s|]+\|)\n((?:\|[^\n]+\|\n?)+)/gm, (match, headerRow, separatorRow, bodyRows) => {
+    // Parse header cells
+    const headerCells = headerRow
+      .split('|')
+      .slice(1, -1) // Remove empty strings from start/end
+      .map((cell: string) => cell.trim());
+    
+    // Parse body rows
+    const bodyRowsArray = bodyRows.trim().split('\n').filter((row: string) => row.trim());
+    
+    // Build HTML table with TipTap-compatible structure
+    let tableHtml = '<table><thead><tr>';
+    headerCells.forEach((cell: string) => {
+      tableHtml += `<th>${cell}</th>`;
+    });
+    tableHtml += '</tr></thead><tbody>';
+    
+    bodyRowsArray.forEach((row: string) => {
+      const cells = row
+        .split('|')
+        .slice(1, -1) // Remove empty strings from start/end
+        .map((cell: string) => cell.trim());
+      
+      tableHtml += '<tr>';
+      cells.forEach((cell: string) => {
+        tableHtml += `<td>${cell}</td>`;
+      });
+      tableHtml += '</tr>';
+    });
+    
+    tableHtml += '</tbody></table>';
+    return tableHtml;
+  });
+  
   // Headers
   html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
   html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
@@ -73,17 +109,6 @@ function markdownToHtml(markdown: string): string {
   
   // Ordered lists
   html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
-  
-  // Tables - convert markdown tables to HTML
-  const tableRegex = /\|(.+)\|\n\|[-:\| ]+\|\n((?:\|.+\|\n?)+)/g;
-  html = html.replace(tableRegex, (match, headerRow, bodyRows) => {
-    const headers = headerRow.split('|').filter((h: string) => h.trim()).map((h: string) => `<th>${h.trim()}</th>`).join('');
-    const rows = bodyRows.trim().split('\n').map((row: string) => {
-      const cells = row.split('|').filter((c: string) => c.trim()).map((c: string) => `<td>${c.trim()}</td>`).join('');
-      return `<tr>${cells}</tr>`;
-    }).join('');
-    return `<table><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>`;
-  });
   
   // Paragraphs - wrap remaining text in p tags
   html = html.split('\n\n').map(block => {
