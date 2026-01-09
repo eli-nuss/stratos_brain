@@ -4,13 +4,15 @@ import DashboardLayout from "@/components/DashboardLayout";
 import CustomizableAssetTable from "@/components/CustomizableAssetTable";
 import CustomizableWatchlistTable from "@/components/CustomizableWatchlistTable";
 import CustomizableStockListTable from "@/components/CustomizableStockListTable";
+import CustomizableModelPortfolioTable from "@/components/CustomizableModelPortfolioTable";
+import CustomizableCorePortfolioTable from "@/components/CustomizableCorePortfolioTable";
 import AssetDetail from "@/components/AssetDetail";
 import useSWR from "swr";
 import { useStockLists, StockList } from "@/hooks/useStockLists";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-export type TabType = "watchlist" | "crypto" | "equity" | `list-${number}`;
+export type TabType = "watchlist" | "model-portfolio" | "core-portfolio" | "crypto" | "equity" | `list-${number}`;
 
 export default function Home() {
   const [location, setLocation] = useLocation();
@@ -30,6 +32,8 @@ export default function Home() {
     if (location.startsWith("/asset/")) {
       if (previousView === "/equities") return "equity";
       if (previousView === "/crypto") return "crypto";
+      if (previousView === "/model-portfolio") return "model-portfolio";
+      if (previousView === "/core-portfolio") return "core-portfolio";
       if (previousView.startsWith("/list/")) {
         const listId = previousView.split("/list/")[1];
         return `list-${listId}` as TabType;
@@ -38,6 +42,8 @@ export default function Home() {
     }
     if (location === "/equities") return "equity";
     if (location === "/crypto") return "crypto";
+    if (location === "/model-portfolio") return "model-portfolio";
+    if (location === "/core-portfolio") return "core-portfolio";
     if (location === "/watchlist" || location === "/") return "watchlist";
     if (listParams?.listId) return `list-${listParams.listId}` as TabType;
     return "watchlist";
@@ -62,6 +68,10 @@ export default function Home() {
     setActiveTab(tab);
     if (tab === "watchlist") {
       setLocation("/watchlist");
+    } else if (tab === "model-portfolio") {
+      setLocation("/model-portfolio");
+    } else if (tab === "core-portfolio") {
+      setLocation("/core-portfolio");
     } else if (tab === "equity") {
       setLocation("/equities");
     } else if (tab === "crypto") {
@@ -113,6 +123,16 @@ export default function Home() {
         {activeTab === "watchlist" ? (
           <CustomizableWatchlistTable
             key="watchlist"
+            onAssetClick={handleAssetClick}
+          />
+        ) : activeTab === "model-portfolio" ? (
+          <CustomizableModelPortfolioTable
+            key="model-portfolio"
+            onAssetClick={handleAssetClick}
+          />
+        ) : activeTab === "core-portfolio" ? (
+          <CustomizableCorePortfolioTable
+            key="core-portfolio"
             onAssetClick={handleAssetClick}
           />
         ) : isStockListTab && currentList ? (

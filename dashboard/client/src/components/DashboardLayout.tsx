@@ -473,6 +473,44 @@ export default function DashboardLayout({
               <TooltipContent>Your personal watchlist</TooltipContent>
             </Tooltip>
             
+            <div className="h-4 w-px bg-primary/30" />
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => onTabChange("model-portfolio")}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded transition-all flex items-center gap-1.5 ${
+                    activeTab === "model-portfolio"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-primary/70 hover:text-primary hover:bg-primary/20"
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                  Model
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Model Portfolio - Target allocations</TooltipContent>
+            </Tooltip>
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => onTabChange("core-portfolio")}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded transition-all flex items-center gap-1.5 ${
+                    activeTab === "core-portfolio"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-primary/70 hover:text-primary hover:bg-primary/20"
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  Core
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Core Portfolio - Current holdings</TooltipContent>
+            </Tooltip>
+            
+            <div className="h-4 w-px bg-primary/30" />
+            
             <Tooltip>
               <TooltipTrigger asChild>
                 <button

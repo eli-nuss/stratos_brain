@@ -18,6 +18,7 @@ import TradingViewWidget from "./TradingViewWidget";
 import { FundamentalsSummary } from "./FundamentalsSummary";
 import { DocumentsSection } from "./DocumentsSection";
 import { InlineOnePager } from "./InlineOnePager";
+import AddToPortfolioButton from "./AddToPortfolioButton";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -191,6 +192,9 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                 Open chart on TradingView
               </TooltipContent>
             </Tooltip>
+            {/* Add to Portfolio button */}
+            <AddToPortfolioButton assetId={parseInt(assetId)} />
+            
             {/* Quick Chat button */}
             <Tooltip>
               <TooltipTrigger asChild>

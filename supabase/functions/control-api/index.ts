@@ -113,6 +113,16 @@ function isPublicDashboardEndpoint(req: Request): boolean {
     return true
   }
   
+  // Allow public access to model-portfolio endpoints (all methods)
+  if (path.startsWith('/dashboard/model-portfolio')) {
+    return true
+  }
+  
+  // Allow public access to core-portfolio endpoints (all methods)
+  if (path.startsWith('/dashboard/core-portfolio')) {
+    return true
+  }
+  
   // NOTE: memo-status endpoints removed - Gemini generation is synchronous
   
   return false
@@ -2770,6 +2780,356 @@ ${template}
         }
         
         return new Response(JSON.stringify(template), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // ==================== MODEL PORTFOLIO ENDPOINTS ====================
+
+      // GET /dashboard/model-portfolio - Get all model portfolio items
+      case req.method === 'GET' && path === '/dashboard/model-portfolio': {
+        const { data: items, error } = await supabase
+          .from('model_portfolio_items')
+          .select('asset_id, target_weight, notes, added_at')
+          .order('added_at', { ascending: false })
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(items || []), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /dashboard/model-portfolio/assets - Get model portfolio with full asset data
+      case req.method === 'GET' && path === '/dashboard/model-portfolio/assets': {
+        const { data: portfolioItems, error: portfolioError } = await supabase
+          .from('model_portfolio_items')
+          .select('asset_id, target_weight, notes, added_at')
+        
+        if (portfolioError) {
+          return new Response(JSON.stringify({ error: portfolioError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        if (!portfolioItems || portfolioItems.length === 0) {
+          return new Response(JSON.stringify([]), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const assetIds = portfolioItems.map(w => w.asset_id)
+        const portfolioMap = new Map(portfolioItems.map(p => [p.asset_id, p]))
+        
+        const { data: latestDates } = await supabase
+          .from('latest_dates')
+          .select('asset_type, latest_date')
+        
+        const dateMap: Record<string, string> = {}
+        latestDates?.forEach(d => { dateMap[d.asset_type] = d.latest_date })
+        
+        const cryptoDate = dateMap['crypto'] || new Date().toISOString().split('T')[0]
+        const equityDate = dateMap['equity'] || new Date().toISOString().split('T')[0]
+        
+        const [cryptoResult, equityResult] = await Promise.all([
+          supabase
+            .from('v_dashboard_all_assets')
+            .select('*')
+            .in('asset_id', assetIds)
+            .eq('as_of_date', cryptoDate)
+            .eq('universe_id', 'crypto_all'),
+          supabase
+            .from('v_dashboard_all_assets')
+            .select('*')
+            .in('asset_id', assetIds)
+            .eq('as_of_date', equityDate)
+            .eq('universe_id', 'equity_all')
+        ])
+        
+        const assets = [...(cryptoResult.data || []), ...(equityResult.data || [])]
+        
+        const enrichedAssets = assets.map(asset => ({
+          ...asset,
+          in_model_portfolio: true,
+          target_weight: portfolioMap.get(asset.asset_id)?.target_weight,
+          portfolio_notes: portfolioMap.get(asset.asset_id)?.notes
+        }))
+        
+        return new Response(JSON.stringify(enrichedAssets), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // POST /dashboard/model-portfolio - Add asset to model portfolio
+      case req.method === 'POST' && path === '/dashboard/model-portfolio': {
+        const body = await req.json()
+        const { asset_id, target_weight, notes } = body
+        
+        if (!asset_id) {
+          return new Response(JSON.stringify({ error: 'asset_id is required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const { data, error } = await supabase
+          .from('model_portfolio_items')
+          .insert({ asset_id, target_weight, notes })
+          .select()
+          .single()
+        
+        if (error) {
+          if (error.code === '23505') {
+            return new Response(JSON.stringify({ success: true, already_exists: true }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            })
+          }
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(data), {
+          status: 201,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // PATCH /dashboard/model-portfolio/:asset_id - Update model portfolio item
+      case req.method === 'PATCH' && /^\/dashboard\/model-portfolio\/\d+$/.test(path): {
+        const assetId = parseInt(path.split('/').pop()!)
+        const body = await req.json()
+        const { target_weight, notes } = body
+        
+        const updates: Record<string, unknown> = {}
+        if (target_weight !== undefined) updates.target_weight = target_weight
+        if (notes !== undefined) updates.notes = notes
+        
+        if (Object.keys(updates).length === 0) {
+          return new Response(JSON.stringify({ error: 'No fields to update' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const { data, error } = await supabase
+          .from('model_portfolio_items')
+          .update(updates)
+          .eq('asset_id', assetId)
+          .select()
+          .single()
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(data), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // DELETE /dashboard/model-portfolio/:asset_id - Remove from model portfolio
+      case req.method === 'DELETE' && /^\/dashboard\/model-portfolio\/\d+$/.test(path): {
+        const assetId = parseInt(path.split('/').pop()!)
+        
+        const { error } = await supabase
+          .from('model_portfolio_items')
+          .delete()
+          .eq('asset_id', assetId)
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // ==================== CORE PORTFOLIO ENDPOINTS ====================
+
+      // GET /dashboard/core-portfolio - Get all core portfolio items
+      case req.method === 'GET' && path === '/dashboard/core-portfolio': {
+        const { data: items, error } = await supabase
+          .from('core_portfolio_items')
+          .select('asset_id, target_weight, notes, added_at')
+          .order('added_at', { ascending: false })
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(items || []), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /dashboard/core-portfolio/assets - Get core portfolio with full asset data
+      case req.method === 'GET' && path === '/dashboard/core-portfolio/assets': {
+        const { data: portfolioItems, error: portfolioError } = await supabase
+          .from('core_portfolio_items')
+          .select('asset_id, target_weight, notes, added_at')
+        
+        if (portfolioError) {
+          return new Response(JSON.stringify({ error: portfolioError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        if (!portfolioItems || portfolioItems.length === 0) {
+          return new Response(JSON.stringify([]), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const assetIds = portfolioItems.map(w => w.asset_id)
+        const portfolioMap = new Map(portfolioItems.map(p => [p.asset_id, p]))
+        
+        const { data: latestDates } = await supabase
+          .from('latest_dates')
+          .select('asset_type, latest_date')
+        
+        const dateMap: Record<string, string> = {}
+        latestDates?.forEach(d => { dateMap[d.asset_type] = d.latest_date })
+        
+        const cryptoDate = dateMap['crypto'] || new Date().toISOString().split('T')[0]
+        const equityDate = dateMap['equity'] || new Date().toISOString().split('T')[0]
+        
+        const [cryptoResult, equityResult] = await Promise.all([
+          supabase
+            .from('v_dashboard_all_assets')
+            .select('*')
+            .in('asset_id', assetIds)
+            .eq('as_of_date', cryptoDate)
+            .eq('universe_id', 'crypto_all'),
+          supabase
+            .from('v_dashboard_all_assets')
+            .select('*')
+            .in('asset_id', assetIds)
+            .eq('as_of_date', equityDate)
+            .eq('universe_id', 'equity_all')
+        ])
+        
+        const assets = [...(cryptoResult.data || []), ...(equityResult.data || [])]
+        
+        const enrichedAssets = assets.map(asset => ({
+          ...asset,
+          in_core_portfolio: true,
+          target_weight: portfolioMap.get(asset.asset_id)?.target_weight,
+          portfolio_notes: portfolioMap.get(asset.asset_id)?.notes
+        }))
+        
+        return new Response(JSON.stringify(enrichedAssets), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // POST /dashboard/core-portfolio - Add asset to core portfolio
+      case req.method === 'POST' && path === '/dashboard/core-portfolio': {
+        const body = await req.json()
+        const { asset_id, target_weight, notes } = body
+        
+        if (!asset_id) {
+          return new Response(JSON.stringify({ error: 'asset_id is required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const { data, error } = await supabase
+          .from('core_portfolio_items')
+          .insert({ asset_id, target_weight, notes })
+          .select()
+          .single()
+        
+        if (error) {
+          if (error.code === '23505') {
+            return new Response(JSON.stringify({ success: true, already_exists: true }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            })
+          }
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(data), {
+          status: 201,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // PATCH /dashboard/core-portfolio/:asset_id - Update core portfolio item
+      case req.method === 'PATCH' && /^\/dashboard\/core-portfolio\/\d+$/.test(path): {
+        const assetId = parseInt(path.split('/').pop()!)
+        const body = await req.json()
+        const { target_weight, notes } = body
+        
+        const updates: Record<string, unknown> = {}
+        if (target_weight !== undefined) updates.target_weight = target_weight
+        if (notes !== undefined) updates.notes = notes
+        
+        if (Object.keys(updates).length === 0) {
+          return new Response(JSON.stringify({ error: 'No fields to update' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const { data, error } = await supabase
+          .from('core_portfolio_items')
+          .update(updates)
+          .eq('asset_id', assetId)
+          .select()
+          .single()
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(data), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // DELETE /dashboard/core-portfolio/:asset_id - Remove from core portfolio
+      case req.method === 'DELETE' && /^\/dashboard\/core-portfolio\/\d+$/.test(path): {
+        const assetId = parseInt(path.split('/').pop()!)
+        
+        const { error } = await supabase
+          .from('core_portfolio_items')
+          .delete()
+          .eq('asset_id', assetId)
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
