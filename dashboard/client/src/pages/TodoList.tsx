@@ -3,9 +3,11 @@ import useSWR from 'swr';
 import { 
   Bug, Lightbulb, Sparkles, Check, Clock, Play, 
   Trash2, ChevronDown, ChevronRight, Filter,
-  AlertCircle, Circle, ArrowUp, ArrowRight, ArrowDown
+  AlertCircle, Circle, ArrowUp, ArrowRight, ArrowDown,
+  Plus, X, Send, Loader2
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
+import { useAuth } from '@/contexts/AuthContext';
 
 type FeedbackCategory = 'bug' | 'feature' | 'improvement';
 type FeedbackStatus = 'open' | 'in_progress' | 'done';
@@ -28,9 +30,9 @@ interface FeedbackItem {
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
 const categoryConfig = {
-  bug: { icon: Bug, label: 'Bug', color: 'text-red-400', bgColor: 'bg-red-500/10' },
-  feature: { icon: Lightbulb, label: 'Feature', color: 'text-yellow-400', bgColor: 'bg-yellow-500/10' },
-  improvement: { icon: Sparkles, label: 'Improvement', color: 'text-blue-400', bgColor: 'bg-blue-500/10' },
+  bug: { icon: Bug, label: 'Bug', color: 'text-red-400', bgColor: 'bg-red-500/10', borderColor: 'border-red-500/30' },
+  feature: { icon: Lightbulb, label: 'Feature', color: 'text-yellow-400', bgColor: 'bg-yellow-500/10', borderColor: 'border-yellow-500/30' },
+  improvement: { icon: Sparkles, label: 'Improvement', color: 'text-blue-400', bgColor: 'bg-blue-500/10', borderColor: 'border-blue-500/30' },
 };
 
 const statusConfig = {
@@ -45,15 +47,46 @@ const priorityConfig = {
   low: { icon: ArrowDown, label: 'Low', color: 'text-muted-foreground' },
 };
 
+// Available pages for selection
+const availablePages = [
+  'Home',
+  'Asset Page',
+  'Watchlist',
+  'Model Portfolio',
+  'Core Portfolio',
+  'Equities',
+  'Crypto',
+  'Research Chat',
+  'Stock Lists',
+  'To-Do List',
+  'Settings',
+  'Memos',
+  'Docs',
+  'Templates',
+  'Other',
+];
+
 export default function TodoList() {
   const { data: items, error, isLoading, mutate } = useSWR<FeedbackItem[]>(
     'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/feedback-api',
     fetcher
   );
+  const { user, profile } = useAuth();
 
   const [expandedPages, setExpandedPages] = useState<Set<string>>(new Set());
   const [filterStatus, setFilterStatus] = useState<FeedbackStatus | 'all'>('all');
   const [filterCategory, setFilterCategory] = useState<FeedbackCategory | 'all'>('all');
+  
+  // Add Item Modal State
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [newItem, setNewItem] = useState({
+    title: '',
+    description: '',
+    category: 'bug' as FeedbackCategory,
+    priority: 'medium' as FeedbackPriority,
+    page_name: 'Home',
+  });
 
   const safeItems = Array.isArray(items) ? items : [];
 
@@ -118,6 +151,46 @@ export default function TodoList() {
     }
   };
 
+  const handleAddItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newItem.title.trim()) return;
+
+    setIsSubmitting(true);
+    try {
+      const submittedBy = user 
+        ? (profile?.display_name || user.email?.split('@')[0] || 'User')
+        : 'Anon';
+      const userEmail = user?.email || null;
+
+      const response = await fetch('https://wfogbaipiqootjrsprde.supabase.co/functions/v1/feedback-api', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...newItem,
+          submitted_by: submittedBy,
+          user_email: userEmail,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to add item');
+
+      // Reset form and close modal
+      setNewItem({
+        title: '',
+        description: '',
+        category: 'bug',
+        priority: 'medium',
+        page_name: 'Home',
+      });
+      setShowAddModal(false);
+      mutate();
+    } catch (error) {
+      console.error('Error adding item:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Stats
   const stats = {
     total: safeItems.length,
@@ -130,9 +203,18 @@ export default function TodoList() {
     <DashboardLayout hideNavTabs>
       <div className="p-6 max-w-6xl mx-auto">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground">To-Do List</h1>
-          <p className="text-muted-foreground mt-1">Track bugs, features, and improvements</p>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">To-Do List</h1>
+            <p className="text-muted-foreground mt-1">Track bugs, features, and improvements</p>
+          </div>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:bg-primary/90 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Item
+          </button>
         </div>
 
         {/* Stats Cards */}
@@ -206,7 +288,7 @@ export default function TodoList() {
             <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
             <p className="text-muted-foreground">No feedback items yet</p>
             <p className="text-sm text-muted-foreground mt-1">
-              Use the feedback button in the bottom-right corner to submit bugs or feature requests
+              Click "Add Item" above or use the feedback button to submit bugs or feature requests
             </p>
           </div>
         ) : (
@@ -255,7 +337,6 @@ export default function TodoList() {
                         const statConfig = statusConfig[item.status];
                         const priConfig = priorityConfig[item.priority];
                         const CatIcon = catConfig.icon;
-                        const StatIcon = statConfig.icon;
                         const PriIcon = priConfig.icon;
 
                         return (
@@ -330,6 +411,143 @@ export default function TodoList() {
           </div>
         )}
       </div>
+
+      {/* Add Item Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => !isSubmitting && setShowAddModal(false)}
+          />
+          
+          {/* Modal */}
+          <div className="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
+              <h3 className="font-semibold text-foreground">Add New Item</h3>
+              <button
+                onClick={() => !isSubmitting && setShowAddModal(false)}
+                className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddItem} className="p-4 space-y-4">
+              {/* Page Selection */}
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-1.5">Page</label>
+                <select
+                  value={newItem.page_name}
+                  onChange={(e) => setNewItem(prev => ({ ...prev, page_name: e.target.value }))}
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                >
+                  {availablePages.map(page => (
+                    <option key={page} value={page}>{page}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Category Selection */}
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">Type</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(Object.keys(categoryConfig) as FeedbackCategory[]).map((cat) => {
+                    const config = categoryConfig[cat];
+                    const Icon = config.icon;
+                    const isSelected = newItem.category === cat;
+                    return (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setNewItem(prev => ({ ...prev, category: cat }))}
+                        className={`p-2 rounded-lg border transition-all flex flex-col items-center gap-1 ${
+                          isSelected 
+                            ? `${config.bgColor} ${config.borderColor} border-current ${config.color}` 
+                            : 'border-border hover:border-muted-foreground/50 text-muted-foreground'
+                        }`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span className="text-xs">{config.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Title */}
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-1.5">Title</label>
+                <input
+                  type="text"
+                  value={newItem.title}
+                  onChange={(e) => setNewItem(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="Brief summary of the issue or idea"
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  required
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-1.5">Description (optional)</label>
+                <textarea
+                  value={newItem.description}
+                  onChange={(e) => setNewItem(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Add more details..."
+                  rows={3}
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+                />
+              </div>
+
+              {/* Priority */}
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">Priority</label>
+                <div className="flex gap-2">
+                  {(Object.keys(priorityConfig) as FeedbackPriority[]).map((pri) => {
+                    const config = priorityConfig[pri];
+                    const isSelected = newItem.priority === pri;
+                    return (
+                      <button
+                        key={pri}
+                        type="button"
+                        onClick={() => setNewItem(prev => ({ ...prev, priority: pri }))}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                          isSelected 
+                            ? `bg-primary/20 ${config.color} ring-1 ring-current` 
+                            : 'bg-muted/30 text-muted-foreground hover:bg-muted/50'
+                        }`}
+                      >
+                        {config.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={isSubmitting || !newItem.title.trim()}
+                className="w-full py-2.5 bg-primary text-primary-foreground rounded-lg font-medium text-sm flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4" />
+                    Add Item
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }
