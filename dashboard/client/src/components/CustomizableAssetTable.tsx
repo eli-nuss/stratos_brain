@@ -632,7 +632,7 @@ export default function CustomizableAssetTable({
   const colCount = visibleColumns.length;
 
   return (
-    <div className="flex flex-col h-full bg-background border border-border rounded-lg overflow-hidden">
+    <div className="flex flex-col bg-background border border-border rounded-lg">
       {/* Header */}
       <div className="p-3 border-b border-border space-y-3">
         <div className="flex items-center justify-between">
