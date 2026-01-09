@@ -350,7 +350,7 @@ export default function CustomizableCorePortfolioTable({ onAssetClick }: Customi
   const colCount = visibleColumns.length;
 
   return (
-    <div className="flex flex-col bg-background border border-border rounded-lg">
+    <div className="flex flex-col h-[calc(100vh-200px)] min-h-[600px] bg-background border border-border rounded-lg overflow-hidden">
       {/* Header */}
       <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-muted/30">
         <h3 className="font-medium text-sm flex items-center gap-2">
@@ -376,7 +376,7 @@ export default function CustomizableCorePortfolioTable({ onAssetClick }: Customi
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto scrollbar-thin">
+      <div className="flex-1 overflow-x-auto overflow-y-auto scrollbar-thin">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
