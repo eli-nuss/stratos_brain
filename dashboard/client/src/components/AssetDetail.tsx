@@ -242,16 +242,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                     >
                       TradingView
                     </button>
-                    <button
-                      onClick={() => setChartView('ai_score')}
-                      className={`px-2 py-1 text-xs rounded transition-colors ${
-                        chartView === 'ai_score'
-                          ? 'bg-primary text-primary-foreground'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      AI Score
-                    </button>
+
                     {asset.asset_type === 'equity' && (
                       <button
                         onClick={() => setChartView('financials')}
@@ -305,87 +296,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                 </div>
               </div>
               
-              {chartView === 'ai_score' ? (
-                <div ref={chartRef} className={`${isChartFullscreen ? 'h-[600px]' : 'h-[450px]'} w-full bg-muted/5 rounded-lg border border-border p-4 transition-all duration-300`}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={chartData}>
-                      <defs>
-                        <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <XAxis 
-                        dataKey="date" 
-                        tick={{ fill: 'var(--muted-foreground)', fontSize: 10 }}
-                        tickFormatter={(value) => format(new Date(value), 'MMM d')}
-                        axisLine={{ stroke: 'var(--border)' }}
-                        tickLine={{ stroke: 'var(--border)' }}
-                      />
-                      <YAxis 
-                        yAxisId="price"
-                        orientation="left"
-                        tick={{ fill: 'var(--muted-foreground)', fontSize: 10 }}
-                        tickFormatter={(value) => `$${value.toFixed(0)}`}
-                        axisLine={{ stroke: 'var(--border)' }}
-                        tickLine={{ stroke: 'var(--border)' }}
-                        domain={['auto', 'auto']}
-                      />
-                      <YAxis 
-                        yAxisId="score"
-                        orientation="right"
-                        domain={[-100, 100]}
-                        tick={{ fill: 'var(--muted-foreground)', fontSize: 10 }}
-                        axisLine={{ stroke: 'var(--border)' }}
-                        tickLine={{ stroke: 'var(--border)' }}
-                      />
-                      <RechartsTooltip
-                        contentStyle={{
-                          backgroundColor: 'var(--card)',
-                          border: '1px solid var(--border)',
-                          borderRadius: '8px',
-                          fontSize: '12px'
-                        }}
-                        formatter={(value: any, name: string) => {
-                          if (name === 'close') return [`$${Number(value).toFixed(2)}`, 'Price'];
-                          if (name === 'ai_direction_score') return [value, 'AI Direction'];
-                          return [value, name];
-                        }}
-                        labelFormatter={(label) => format(new Date(label), 'MMM d, yyyy')}
-                      />
-                      <Legend 
-                        verticalAlign="top" 
-                        height={36}
-                        formatter={(value) => {
-                          if (value === 'close') return 'Price';
-                          if (value === 'ai_direction_score') return 'AI Direction';
-                          return value;
-                        }}
-                      />
-                      <Area
-                        yAxisId="price"
-                        type="monotone"
-                        dataKey="close"
-                        stroke="var(--primary)"
-                        strokeWidth={2}
-                        fill="url(#colorPrice)"
-                        dot={false}
-                        name="close"
-                      />
-                      <Line
-                        yAxisId="score"
-                        type="monotone"
-                        dataKey="ai_direction_score"
-                        stroke="var(--chart-2)"
-                        strokeWidth={2}
-                        dot={false}
-                        name="ai_direction_score"
-                        connectNulls={false}
-                      />
-                    </ComposedChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : chartView === 'financials' ? (
+              {chartView === 'financials' ? (
                 <div className={`${isChartFullscreen ? 'min-h-[600px]' : 'min-h-[450px]'} w-full transition-all duration-300`}>
                   <HistoricalFinancials assetId={parseInt(assetId)} assetType={asset.asset_type} embedded={true} />
                 </div>
