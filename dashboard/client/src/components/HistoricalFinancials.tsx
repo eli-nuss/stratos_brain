@@ -857,10 +857,10 @@ export function HistoricalFinancials({ assetId, assetType, embedded = false }: H
           isEstimateColumn={hasForward}
         />
         <FinancialRow 
-          label="Owner Earnings" 
+          label="Free Cash Flow" 
           values={ownerEarnings} 
           labels={labels}
-          tooltip="True earnings power: CFO - ΔWorking Capital - D&A. Uses D&A as proxy for maintenance capex, excluding growth investments. Better reflects sustainable cash generation than traditional FCF."
+          tooltip="CFO - ΔWorking Capital - D&A. Uses D&A as proxy for maintenance capex, excluding growth investments that don't reflect true earnings power."
           isEstimateColumn={hasForward}
         />
 
