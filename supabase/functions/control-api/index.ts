@@ -586,7 +586,7 @@ serve(async (req) => {
             file_type,
             description,
             created_at,
-            assets!inner(symbol, name, asset_type)
+            assets!inner(symbol, name, asset_type, sector)
           `)
           .order('created_at', { ascending: false })
           .range(offset, offset + limit - 1)
@@ -609,9 +609,11 @@ serve(async (req) => {
         }
         
         // Flatten the nested asset info
-        const memos = (files || []).map(f => {
-          const asset = f.assets as { symbol?: string; name?: string; asset_type?: string } | null
-          return {
+        const memos = await Promise.all((files || []).map(async (f) => {
+          const asset = f.assets as { symbol?: string; name?: string; asset_type?: string; sector?: string } | null
+          
+          // Basic memo object
+          const memo: any = {
             file_id: f.file_id,
             asset_id: f.asset_id,
             file_name: f.file_name,
@@ -622,9 +624,79 @@ serve(async (req) => {
             created_at: f.created_at,
             symbol: asset?.symbol || `Asset ${f.asset_id}`,
             name: asset?.name || '',
-            asset_type: asset?.asset_type || ''
+            asset_type: asset?.asset_type || '',
+            sector: asset?.sector || ''
           }
-        })
+
+          // Try to extract metadata from markdown content
+          try {
+            const mdResponse = await fetch(f.file_path)
+            if (mdResponse.ok) {
+              const markdown = await mdResponse.text()
+              
+              // Extract Recommendation/Sentiment
+              const recMatch = markdown.match(/Recommendation:\s*\[?(Long|Short|Watch|Bullish|Bearish|Neutral)\]?/i)
+              if (recMatch) {
+                const rec = recMatch[1].toLowerCase()
+                if (rec === 'long' || rec === 'bullish') memo.sentiment = 'BULLISH'
+                else if (rec === 'short' || rec === 'bearish') memo.sentiment = 'BEARISH'
+                else memo.sentiment = 'NEUTRAL'
+              }
+
+              // Extract Conviction/Score
+              const convictionMatch = markdown.match(/Conviction:\s*\[?(High|Medium|Low)\]?/i)
+              if (convictionMatch) {
+                const conv = convictionMatch[1].toLowerCase()
+                if (conv === 'high') memo.score = 85
+                else if (conv === 'medium') memo.score = 65
+                else memo.score = 45
+              }
+
+              // Extract Thesis Hook
+              const thesisMatch = markdown.match(/The Thesis in 2 Sentences:\s*\[?([^\]\n]+)\]?/i) || 
+                                 markdown.match(/The Hook:\s*\[?([^\]\n]+)\]?/i)
+              if (thesisMatch) {
+                memo.thesis = thesisMatch[1].trim()
+              }
+            }
+          } catch (e) {
+            console.error(`Error parsing memo ${f.file_id}:`, e)
+          }
+
+          // Calculate Performance Since
+          try {
+            const memoDate = new Date(f.created_at).toISOString().split('T')[0]
+            
+            // Get price at creation
+            const { data: startPriceData } = await supabase
+              .from('daily_bars')
+              .select('close')
+              .eq('asset_id', f.asset_id)
+              .lte('date', memoDate)
+              .order('date', { ascending: false })
+              .limit(1)
+              .single()
+            
+            // Get current price
+            const { data: currentPriceData } = await supabase
+              .from('daily_bars')
+              .select('close')
+              .eq('asset_id', f.asset_id)
+              .order('date', { ascending: false })
+              .limit(1)
+              .single()
+            
+            if (startPriceData && currentPriceData) {
+              const startPrice = parseFloat(startPriceData.close)
+              const currentPrice = parseFloat(currentPriceData.close)
+              memo.performance_since = ((currentPrice - startPrice) / startPrice) * 100
+            }
+          } catch (e) {
+            console.error(`Error calculating performance for memo ${f.file_id}:`, e)
+          }
+
+          return memo
+        }))
         
         // Filter by search if provided
         let filteredMemos = memos
