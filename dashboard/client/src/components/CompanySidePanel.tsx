@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
-  Activity, TrendingUp, DollarSign, Target, Shield, AlertTriangle,
-  ArrowUpRight, ArrowDownRight, Zap, BarChart3, RefreshCw, AlertCircle,
-  Users, Building2, TrendingDown
+  Activity, TrendingUp, BarChart3, RefreshCw, AlertCircle,
+  ArrowUpRight, ArrowDownRight, Circle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -77,32 +76,32 @@ function ScoreCard({ direction, score, confidence }: { direction: string; score:
   const confidencePct = confidence * 100;
   
   return (
-    <div className="bg-gradient-to-br from-zinc-900 to-zinc-800 rounded-xl p-4 border border-zinc-700/50">
-      {/* Signal Badge */}
-      <div className="flex items-center justify-between mb-3">
+    <div className="pb-3 border-b border-border">
+      {/* Signal Badge - Minimal */}
+      <div className="flex items-center justify-between mb-2">
         <div className={cn(
-          "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold",
-          isBullish && "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40",
-          isBearish && "bg-red-500/20 text-red-400 border border-red-500/40",
-          !isBullish && !isBearish && "bg-zinc-500/20 text-zinc-400 border border-zinc-500/40"
+          "flex items-center gap-1.5 text-xs font-bold uppercase",
+          isBullish && "text-emerald-400",
+          isBearish && "text-red-400",
+          !isBullish && !isBearish && "text-zinc-400"
         )}>
-          {isBullish ? <ArrowUpRight className="w-4 h-4" /> : isBearish ? <ArrowDownRight className="w-4 h-4" /> : <Activity className="w-4 h-4" />}
-          <span className="uppercase">{direction}</span>
-          <span className="opacity-80">({score > 0 ? '+' : ''}{score})</span>
+          {isBullish ? <ArrowUpRight className="w-3.5 h-3.5" /> : isBearish ? <ArrowDownRight className="w-3.5 h-3.5" /> : <Activity className="w-3.5 h-3.5" />}
+          <span>{direction}</span>
+          <span className="text-zinc-500">({score > 0 ? '+' : ''}{score})</span>
         </div>
       </div>
       
-      {/* Confidence Bar */}
+      {/* Confidence Bar - Thin */}
       <div>
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-xs text-zinc-400 uppercase tracking-wide">Confidence</span>
-          <span className="text-sm font-bold text-white">{confidencePct.toFixed(0)}%</span>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[10px] text-zinc-500 uppercase tracking-wide">Confidence</span>
+          <span className="text-xs font-mono text-zinc-300">{confidencePct.toFixed(0)}%</span>
         </div>
-        <div className="h-2 bg-zinc-700 rounded-full overflow-hidden">
+        <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
           <div 
             className={cn(
               "h-full rounded-full transition-all",
-              confidencePct >= 75 ? "bg-emerald-500" : confidencePct >= 50 ? "bg-yellow-500" : "bg-red-500"
+              confidencePct >= 75 ? "bg-emerald-600" : confidencePct >= 50 ? "bg-yellow-600" : "bg-red-600"
             )}
             style={{ width: `${confidencePct}%` }}
           />
@@ -112,93 +111,161 @@ function ScoreCard({ direction, score, confidence }: { direction: string; score:
   );
 }
 
-function TradePlanLadder({ entry, targets, invalidation }: { entry: { low: number; high: number }; targets: number[]; invalidation: number }) {
+function PriceLadder({ entry, targets, invalidation, currentPrice }: { 
+  entry: { low: number; high: number }; 
+  targets: number[]; 
+  invalidation: number;
+  currentPrice?: number;
+}) {
+  // Calculate positions for visualization
+  const allPrices = [...targets, entry.high, entry.low, invalidation];
+  const maxPrice = Math.max(...allPrices);
+  const minPrice = Math.min(...allPrices);
+  const range = maxPrice - minPrice;
+  
+  const getPosition = (price: number) => {
+    return ((maxPrice - price) / range) * 100;
+  };
+  
+  const currentPos = currentPrice ? getPosition(currentPrice) : null;
+  
   return (
-    <div className="space-y-2">
-      <h3 className="text-xs text-zinc-400 uppercase tracking-wide mb-3">Trade Plan</h3>
+    <div className="py-3 border-b border-border">
+      <h3 className="text-[10px] text-zinc-500 uppercase tracking-wide mb-3">Trade Plan</h3>
       
-      {/* Targets */}
-      <div className="space-y-1.5">
-        {targets.map((target, idx) => (
-          <div key={idx} className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center flex-shrink-0">
-              <span className="text-[10px] font-bold text-blue-400">T{idx + 1}</span>
-            </div>
-            <div className="flex-1 h-8 bg-blue-500/10 border border-blue-500/30 rounded-lg flex items-center px-3">
-              <span className="text-sm font-mono font-bold text-blue-400">${target.toFixed(2)}</span>
-            </div>
+      <div className="flex gap-3">
+        {/* Price Ladder Visualization */}
+        <div className="relative w-1 bg-zinc-800 rounded-full flex-shrink-0" style={{ height: '200px' }}>
+          {/* Targets */}
+          {targets.map((target, idx) => {
+            const pos = getPosition(target);
+            return (
+              <div 
+                key={idx}
+                className="absolute left-0 w-full"
+                style={{ top: `${pos}%` }}
+              >
+                <div className="absolute left-0 w-2 h-2 -ml-0.5 bg-blue-500 rounded-full border-2 border-background" />
+              </div>
+            );
+          })}
+          
+          {/* Entry Zone */}
+          <div 
+            className="absolute left-0 w-full bg-purple-500/20"
+            style={{ 
+              top: `${getPosition(entry.high)}%`,
+              height: `${getPosition(entry.low) - getPosition(entry.high)}%`
+            }}
+          />
+          
+          {/* Stop */}
+          <div 
+            className="absolute left-0 w-full"
+            style={{ top: `${getPosition(invalidation)}%` }}
+          >
+            <div className="absolute left-0 w-2 h-2 -ml-0.5 bg-red-500 rounded-full border-2 border-background" />
           </div>
-        ))}
-      </div>
-      
-      {/* Entry Zone */}
-      <div className="flex items-center gap-2 mt-3">
-        <div className="w-6 h-6 rounded-full bg-purple-500/20 border border-purple-500/40 flex items-center justify-center flex-shrink-0">
-          <ArrowUpRight className="w-3 h-3 text-purple-400" />
+          
+          {/* Current Price Indicator */}
+          {currentPos !== null && (
+            <div 
+              className="absolute left-0 w-full"
+              style={{ top: `${currentPos}%` }}
+            >
+              <div className="absolute left-0 w-3 h-3 -ml-1 bg-white rounded-full border-2 border-background shadow-lg" />
+            </div>
+          )}
         </div>
-        <div className="flex-1 h-8 bg-purple-500/10 border border-purple-500/30 rounded-lg flex items-center justify-between px-3">
-          <span className="text-xs font-mono text-purple-400">${entry.low.toFixed(2)}</span>
-          <span className="text-[10px] text-zinc-500">ENTRY</span>
-          <span className="text-xs font-mono text-purple-400">${entry.high.toFixed(2)}</span>
-        </div>
-      </div>
-      
-      {/* Invalidation */}
-      <div className="flex items-center gap-2 mt-1.5">
-        <div className="w-6 h-6 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center flex-shrink-0">
-          <AlertTriangle className="w-3 h-3 text-red-400" />
-        </div>
-        <div className="flex-1 h-8 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center px-3">
-          <span className="text-sm font-mono font-bold text-red-400">${invalidation.toFixed(2)}</span>
-          <span className="text-[10px] text-zinc-500 ml-2">STOP</span>
+        
+        {/* Price Labels */}
+        <div className="flex-1 relative" style={{ height: '200px' }}>
+          {/* Targets */}
+          {targets.map((target, idx) => {
+            const pos = getPosition(target);
+            return (
+              <div 
+                key={idx}
+                className="absolute left-0 flex items-center gap-2"
+                style={{ top: `${pos}%`, transform: 'translateY(-50%)' }}
+              >
+                <span className="text-[10px] text-zinc-500 w-4">T{idx + 1}</span>
+                <span className="text-xs font-mono text-blue-400">${target.toFixed(2)}</span>
+              </div>
+            );
+          })}
+          
+          {/* Entry */}
+          <div 
+            className="absolute left-0 flex items-center gap-2"
+            style={{ top: `${(getPosition(entry.high) + getPosition(entry.low)) / 2}%`, transform: 'translateY(-50%)' }}
+          >
+            <span className="text-[10px] text-zinc-500 w-4">E</span>
+            <span className="text-xs font-mono text-purple-400">${entry.low.toFixed(2)}-${entry.high.toFixed(2)}</span>
+          </div>
+          
+          {/* Stop */}
+          <div 
+            className="absolute left-0 flex items-center gap-2"
+            style={{ top: `${getPosition(invalidation)}%`, transform: 'translateY(-50%)' }}
+          >
+            <span className="text-[10px] text-zinc-500 w-4">S</span>
+            <span className="text-xs font-mono text-red-400">${invalidation.toFixed(2)}</span>
+          </div>
+          
+          {/* Current Price */}
+          {currentPrice && currentPos !== null && (
+            <div 
+              className="absolute left-0 flex items-center gap-2"
+              style={{ top: `${currentPos}%`, transform: 'translateY(-50%)' }}
+            >
+              <Circle className="w-3 h-3 text-white fill-white" />
+              <span className="text-xs font-mono font-bold text-white">${currentPrice.toFixed(2)}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function MomentumIndicators() {
+function MomentumRow() {
   // Mock data - in production, fetch real momentum data
   const rvol = 1.5;
   const rsi = 63;
   const smaDistance = 4.2;
   
   return (
-    <div className="space-y-3">
-      <h3 className="text-xs text-zinc-400 uppercase tracking-wide">Momentum</h3>
+    <div className="py-3 border-b border-border">
+      <h3 className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Momentum</h3>
       
-      <div className="grid grid-cols-3 gap-2">
-        {/* RVOL */}
-        <div className="bg-zinc-800/50 rounded-lg p-2.5 border border-zinc-700/30">
-          <div className="text-[10px] text-zinc-500 mb-1">RVOL</div>
-          <div className={cn(
-            "text-lg font-bold",
+      <div className="text-xs font-mono space-y-1">
+        <div className="flex items-center justify-between">
+          <span className="text-zinc-500">RVOL</span>
+          <span className={cn(
+            "font-bold",
             rvol >= 1.5 ? "text-emerald-400" : rvol >= 1.0 ? "text-yellow-400" : "text-zinc-400"
           )}>
             {rvol.toFixed(1)}x
-          </div>
+          </span>
         </div>
-        
-        {/* RSI */}
-        <div className="bg-zinc-800/50 rounded-lg p-2.5 border border-zinc-700/30">
-          <div className="text-[10px] text-zinc-500 mb-1">RSI</div>
-          <div className={cn(
-            "text-lg font-bold",
+        <div className="flex items-center justify-between">
+          <span className="text-zinc-500">RSI</span>
+          <span className={cn(
+            "font-bold",
             rsi >= 70 ? "text-red-400" : rsi >= 30 ? "text-zinc-300" : "text-emerald-400"
           )}>
             {rsi}
-          </div>
+          </span>
         </div>
-        
-        {/* SMA Distance */}
-        <div className="bg-zinc-800/50 rounded-lg p-2.5 border border-zinc-700/30">
-          <div className="text-[10px] text-zinc-500 mb-1">SMA20</div>
-          <div className={cn(
-            "text-lg font-bold",
+        <div className="flex items-center justify-between">
+          <span className="text-zinc-500">SMA20</span>
+          <span className={cn(
+            "font-bold",
             smaDistance >= 0 ? "text-emerald-400" : "text-red-400"
           )}>
             {smaDistance >= 0 ? '+' : ''}{smaDistance.toFixed(1)}%
-          </div>
+          </span>
         </div>
       </div>
     </div>
@@ -207,181 +274,126 @@ function MomentumIndicators() {
 
 function KeyLevels({ support, resistance }: { support: number[]; resistance: number[] }) {
   return (
-    <div className="space-y-3">
-      <h3 className="text-xs text-zinc-400 uppercase tracking-wide">Key Levels</h3>
+    <div className="py-3">
+      <h3 className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Key Levels</h3>
       
-      {/* Resistance */}
-      <div>
-        <div className="text-[10px] text-zinc-500 mb-1.5 flex items-center gap-1">
-          <Shield className="w-3 h-3 text-red-400" />
-          RESISTANCE
+      <div className="space-y-2 text-xs font-mono">
+        {/* Resistance */}
+        <div>
+          <div className="text-[10px] text-zinc-500 mb-1">RESISTANCE</div>
+          <div className="space-y-0.5">
+            {resistance.map((level, idx) => (
+              <div key={idx} className="flex items-center justify-between">
+                <span className="text-zinc-600">R{idx + 1}</span>
+                <span className="text-red-400">${level.toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          {resistance.map((level, idx) => (
-            <button
-              key={idx}
-              className="px-2.5 py-1 bg-red-500/10 border border-red-500/30 rounded-md text-xs font-mono text-red-400 hover:bg-red-500/20 transition-colors"
-            >
-              ${level.toFixed(2)}
-            </button>
-          ))}
-        </div>
-      </div>
-      
-      {/* Support */}
-      <div>
-        <div className="text-[10px] text-zinc-500 mb-1.5 flex items-center gap-1">
-          <Target className="w-3 h-3 text-emerald-400" />
-          SUPPORT
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {support.map((level, idx) => (
-            <button
-              key={idx}
-              className="px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded-md text-xs font-mono text-emerald-400 hover:bg-emerald-500/20 transition-colors"
-            >
-              ${level.toFixed(2)}
-            </button>
-          ))}
+        
+        {/* Support */}
+        <div>
+          <div className="text-[10px] text-zinc-500 mb-1">SUPPORT</div>
+          <div className="space-y-0.5">
+            {support.map((level, idx) => (
+              <div key={idx} className="flex items-center justify-between">
+                <span className="text-zinc-600">S{idx + 1}</span>
+                <span className="text-emerald-400">${level.toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function ValuationSparkline({ peRatio }: { peRatio?: number }) {
-  // Mock sparkline data - in production, fetch historical P/E data
-  const historicalPE = [22, 24, 26, 28, 25, 23, 21, 24, 26, 25];
-  const avg = historicalPE.reduce((a, b) => a + b, 0) / historicalPE.length;
-  const stdDev = Math.sqrt(historicalPE.reduce((sq, n) => sq + Math.pow(n - avg, 2), 0) / historicalPE.length);
-  const upperBand = avg + stdDev;
-  const lowerBand = avg - stdDev;
-  
+function DataRow({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
   return (
-    <div className="bg-zinc-800/50 rounded-lg p-3 border border-zinc-700/30">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs text-zinc-400">P/E Ratio</span>
-        <span className="text-lg font-bold text-white">{peRatio?.toFixed(1) || '—'}</span>
-      </div>
-      
-      {/* Simplified sparkline visualization */}
-      <div className="h-12 flex items-end gap-0.5">
-        {historicalPE.map((val, idx) => {
-          const height = (val / Math.max(...historicalPE)) * 100;
-          const isAboveAvg = val > avg;
-          return (
-            <div
-              key={idx}
-              className={cn(
-                "flex-1 rounded-t transition-all",
-                isAboveAvg ? "bg-red-500/40" : "bg-emerald-500/40"
-              )}
-              style={{ height: `${height}%` }}
-            />
-          );
-        })}
-      </div>
-      
-      <div className="flex items-center justify-between mt-2 text-[10px] text-zinc-500">
-        <span>-1σ: {lowerBand.toFixed(1)}</span>
-        <span>Avg: {avg.toFixed(1)}</span>
-        <span>+1σ: {upperBand.toFixed(1)}</span>
-      </div>
+    <div className="flex items-center justify-between py-1 text-xs">
+      <span className="text-zinc-500">{label}</span>
+      <span className={cn("font-mono font-medium", valueColor || "text-zinc-300")}>{value}</span>
     </div>
   );
 }
 
-function SmartMoneyFlow() {
+function SmartMoneyBars() {
   // Mock data - in production, fetch real insider/institutional data
-  const insiderBuying = 65; // 65% buying
-  const institutionalAccumulation = 72; // 72% accumulation
+  const insiderBuying = 65;
+  const institutionalAccumulation = 72;
   
   return (
-    <div className="space-y-3">
-      <h3 className="text-xs text-zinc-400 uppercase tracking-wide">Smart Money</h3>
+    <div className="py-3 border-b border-border space-y-2">
+      <h3 className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Smart Money</h3>
       
       {/* Insider Activity */}
       <div>
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[10px] text-zinc-500 flex items-center gap-1">
-            <Users className="w-3 h-3" />
-            INSIDER ACTIVITY
-          </span>
-          <span className="text-xs font-bold text-emerald-400">{insiderBuying}% Buying</span>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[10px] text-zinc-500">Insider Activity</span>
+          <span className="text-[10px] font-mono text-emerald-500">{insiderBuying}% Buy</span>
         </div>
-        <div className="h-2 bg-zinc-700 rounded-full overflow-hidden flex">
-          <div className="bg-emerald-500" style={{ width: `${insiderBuying}%` }} />
-          <div className="bg-red-500" style={{ width: `${100 - insiderBuying}%` }} />
+        <div className="h-1 bg-zinc-800 rounded-full overflow-hidden flex">
+          <div className="bg-emerald-700" style={{ width: `${insiderBuying}%` }} />
+          <div className="bg-red-700" style={{ width: `${100 - insiderBuying}%` }} />
         </div>
       </div>
       
       {/* Institutional Flow */}
       <div>
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[10px] text-zinc-500 flex items-center gap-1">
-            <Building2 className="w-3 h-3" />
-            INSTITUTIONAL FLOW
-          </span>
-          <span className="text-xs font-bold text-emerald-400">{institutionalAccumulation}% Accumulation</span>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[10px] text-zinc-500">Institutional Flow</span>
+          <span className="text-[10px] font-mono text-emerald-500">{institutionalAccumulation}% Accum</span>
         </div>
-        <div className="h-2 bg-zinc-700 rounded-full overflow-hidden flex">
-          <div className="bg-emerald-500" style={{ width: `${institutionalAccumulation}%` }} />
-          <div className="bg-red-500" style={{ width: `${100 - institutionalAccumulation}%` }} />
+        <div className="h-1 bg-zinc-800 rounded-full overflow-hidden flex">
+          <div className="bg-emerald-700" style={{ width: `${institutionalAccumulation}%` }} />
+          <div className="bg-red-700" style={{ width: `${100 - institutionalAccumulation}%` }} />
         </div>
       </div>
     </div>
   );
 }
 
-function PeerRank() {
-  // Mock data - in production, fetch real peer comparison data
-  return (
-    <div className="space-y-2">
-      <h3 className="text-xs text-zinc-400 uppercase tracking-wide">Peer Rank</h3>
-      
-      <div className="bg-zinc-800/50 rounded-lg p-3 border border-zinc-700/30 space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-zinc-400">Rank in Sector</span>
-          <span className="text-sm font-bold text-white">#3 of 42</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-zinc-400">Rev Growth</span>
-          <span className="text-sm font-bold text-emerald-400">Top 10%</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-zinc-400">Margins</span>
-          <span className="text-sm font-bold text-red-400">Bottom 40%</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function KeyMetrics({ fundamentals }: { fundamentals: FundamentalsData | null }) {
+function ValuationTable({ fundamentals }: { fundamentals: FundamentalsData | null }) {
   if (!fundamentals) return null;
   
   return (
-    <div className="grid grid-cols-2 gap-2">
-      <div className="bg-zinc-800/50 rounded-lg p-2.5 border border-zinc-700/30">
-        <div className="text-[10px] text-zinc-500 mb-0.5">Revenue</div>
-        <div className="text-sm font-bold text-white">{formatNumber(fundamentals.revenue_ttm)}</div>
+    <div className="py-3 border-b border-border">
+      <h3 className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Valuation</h3>
+      <div className="space-y-1">
+        <DataRow label="P/E Ratio" value={fundamentals.pe_ratio?.toFixed(1) || '—'} />
+        <DataRow label="Market Cap" value={formatNumber(fundamentals.market_cap)} />
+        <DataRow label="Revenue" value={formatNumber(fundamentals.revenue_ttm)} />
       </div>
-      <div className="bg-zinc-800/50 rounded-lg p-2.5 border border-zinc-700/30">
-        <div className="text-[10px] text-zinc-500 mb-0.5">Growth</div>
-        <div className={cn(
-          "text-sm font-bold",
-          (fundamentals.quarterly_revenue_growth_yoy || 0) >= 0 ? "text-emerald-400" : "text-red-400"
-        )}>
-          {formatPercent(fundamentals.quarterly_revenue_growth_yoy)}
-        </div>
+    </div>
+  );
+}
+
+function PeerRankTable() {
+  return (
+    <div className="py-3 border-b border-border">
+      <h3 className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Peer Rank</h3>
+      <div className="space-y-1">
+        <DataRow label="Rank in Sector" value="#3 of 42" valueColor="text-zinc-300" />
+        <DataRow label="Revenue Growth" value="Top 10%" valueColor="text-emerald-400" />
+        <DataRow label="Margins" value="Bottom 40%" valueColor="text-red-400" />
       </div>
-      <div className="bg-zinc-800/50 rounded-lg p-2.5 border border-zinc-700/30">
-        <div className="text-[10px] text-zinc-500 mb-0.5">Margin</div>
-        <div className="text-sm font-bold text-white">{formatPercent(fundamentals.profit_margin)}</div>
-      </div>
-      <div className="bg-zinc-800/50 rounded-lg p-2.5 border border-zinc-700/30">
-        <div className="text-[10px] text-zinc-500 mb-0.5">EPS</div>
-        <div className="text-sm font-bold text-white">${fundamentals.eps?.toFixed(2) || '—'}</div>
+    </div>
+  );
+}
+
+function KeyMetricsTable({ fundamentals }: { fundamentals: FundamentalsData | null }) {
+  if (!fundamentals) return null;
+  
+  const growthColor = (fundamentals.quarterly_revenue_growth_yoy || 0) >= 0 ? "text-emerald-400" : "text-red-400";
+  
+  return (
+    <div className="py-3">
+      <h3 className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Key Metrics</h3>
+      <div className="space-y-1">
+        <DataRow label="Revenue" value={formatNumber(fundamentals.revenue_ttm)} />
+        <DataRow label="Growth YoY" value={formatPercent(fundamentals.quarterly_revenue_growth_yoy)} valueColor={growthColor} />
+        <DataRow label="Profit Margin" value={formatPercent(fundamentals.profit_margin)} />
+        <DataRow label="EPS" value={fundamentals.eps ? `$${fundamentals.eps.toFixed(2)}` : '—'} />
       </div>
     </div>
   );
@@ -400,23 +412,24 @@ function TechnicalsTab({ aiReview, currentPrice }: { aiReview: AIReviewData | nu
   }
   
   return (
-    <div className="space-y-4">
-      {/* Score Card - Sticky visual */}
+    <div>
+      {/* Score Card */}
       <ScoreCard 
         direction={aiReview.direction}
         score={aiReview.ai_direction_score}
         confidence={aiReview.ai_confidence}
       />
       
-      {/* Trade Plan - Visual ladder */}
-      <TradePlanLadder 
+      {/* Price Ladder */}
+      <PriceLadder 
         entry={aiReview.ai_entry}
         targets={aiReview.ai_targets}
         invalidation={aiReview.ai_key_levels.invalidation}
+        currentPrice={currentPrice}
       />
       
-      {/* Momentum Indicators */}
-      <MomentumIndicators />
+      {/* Momentum */}
+      <MomentumRow />
       
       {/* Key Levels */}
       <KeyLevels 
@@ -438,21 +451,18 @@ function FundamentalsTab({ fundamentals }: { fundamentals: FundamentalsData | nu
   }
   
   return (
-    <div className="space-y-4">
-      {/* Valuation Context */}
-      <ValuationSparkline peRatio={fundamentals.pe_ratio} />
+    <div>
+      {/* Valuation */}
+      <ValuationTable fundamentals={fundamentals} />
       
-      {/* Smart Money Flow */}
-      <SmartMoneyFlow />
+      {/* Smart Money */}
+      <SmartMoneyBars />
       
       {/* Peer Rank */}
-      <PeerRank />
+      <PeerRankTable />
       
       {/* Key Metrics */}
-      <div className="space-y-2">
-        <h3 className="text-xs text-zinc-400 uppercase tracking-wide">Key Metrics</h3>
-        <KeyMetrics fundamentals={fundamentals} />
-      </div>
+      <KeyMetricsTable fundamentals={fundamentals} />
     </div>
   );
 }
@@ -501,8 +511,8 @@ export function CompanySidePanel({ assetId, assetType, className }: CompanySideP
 
   if (isLoading) {
     return (
-      <div className={cn("bg-zinc-900 border border-zinc-700 rounded-xl p-4 flex items-center justify-center", className)}>
-        <div className="flex items-center gap-2 text-zinc-400">
+      <div className={cn("bg-card border border-border rounded-lg p-4 flex items-center justify-center", className)}>
+        <div className="flex items-center gap-2 text-muted-foreground">
           <RefreshCw className="w-4 h-4 animate-spin" />
           <span className="text-sm">Loading...</span>
         </div>
@@ -512,43 +522,43 @@ export function CompanySidePanel({ assetId, assetType, className }: CompanySideP
 
   return (
     <div className={cn(
-      "bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl flex flex-col h-full overflow-hidden",
+      "bg-card border border-border rounded-lg flex flex-col h-full overflow-hidden",
       className
     )}>
       {/* Tab Header */}
-      <div className="flex border-b border-zinc-700 bg-zinc-900/50 backdrop-blur-sm">
+      <div className="flex border-b border-border bg-card">
         <button
           onClick={() => setActiveTab('technicals')}
           className={cn(
-            "flex-1 px-4 py-3 text-xs font-bold uppercase tracking-wide transition-all",
+            "flex-1 px-3 py-2 text-[10px] font-bold uppercase tracking-wide transition-colors",
             activeTab === 'technicals' 
-              ? "text-white border-b-2 border-emerald-500 bg-emerald-500/10" 
-              : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50"
+              ? "text-foreground border-b-2 border-primary" 
+              : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <div className="flex items-center justify-center gap-2">
-            <Activity className="w-3.5 h-3.5" />
+          <div className="flex items-center justify-center gap-1.5">
+            <Activity className="w-3 h-3" />
             Technicals
           </div>
         </button>
         <button
           onClick={() => setActiveTab('fundamentals')}
           className={cn(
-            "flex-1 px-4 py-3 text-xs font-bold uppercase tracking-wide transition-all",
+            "flex-1 px-3 py-2 text-[10px] font-bold uppercase tracking-wide transition-colors",
             activeTab === 'fundamentals' 
-              ? "text-white border-b-2 border-blue-500 bg-blue-500/10" 
-              : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50"
+              ? "text-foreground border-b-2 border-primary" 
+              : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <div className="flex items-center justify-center gap-2">
-            <BarChart3 className="w-3.5 h-3.5" />
+          <div className="flex items-center justify-center gap-1.5">
+            <BarChart3 className="w-3 h-3" />
             Fundamentals
           </div>
         </button>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 scrollbar-minimal">
+      <div className="flex-1 overflow-y-auto px-3 scrollbar-minimal">
         {activeTab === 'technicals' ? (
           <TechnicalsTab aiReview={aiReview} currentPrice={fundamentals?.current_price} />
         ) : (
