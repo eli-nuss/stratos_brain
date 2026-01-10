@@ -4153,6 +4153,75 @@ ${template}
         })
       }
 
+      // GET /dashboard/momentum?asset_id=123
+      // Fetches latest momentum indicators (RSI, ATR, Volatility) from daily_features
+      case req.method === 'GET' && path === '/dashboard/momentum': {
+        const assetIdParam = url.searchParams.get('asset_id')
+        const asOfDate = url.searchParams.get('as_of_date')
+        
+        if (!assetIdParam) {
+          return new Response(JSON.stringify({ error: 'asset_id required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const assetId = parseInt(assetIdParam)
+        
+        // Build query for latest momentum data
+        let query = supabase
+          .from('daily_features')
+          .select('date, rsi_14, atr_pct, realized_vol_20')
+          .eq('asset_id', assetId)
+          .order('date', { ascending: false })
+          .limit(1)
+        
+        if (asOfDate) {
+          query = query.lte('date', asOfDate)
+        }
+        
+        const { data: momentumData, error: momentumError } = await query.single()
+        
+        if (momentumError) {
+          console.error('Momentum data error:', momentumError)
+          return new Response(JSON.stringify({ 
+            error: momentumError.message,
+            momentum: null 
+          }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Calculate RVOL (need volume data from daily_bars)
+        let rvol = null
+        const { data: volumeData, error: volumeError } = await supabase
+          .from('daily_bars')
+          .select('date, volume')
+          .eq('asset_id', assetId)
+          .order('date', { ascending: false })
+          .limit(21) // Get last 21 days for 20-day average
+        
+        if (!volumeError && volumeData && volumeData.length >= 2) {
+          const latestVolume = volumeData[0].volume
+          const avgVolume = volumeData.slice(1).reduce((sum, d) => sum + (d.volume || 0), 0) / (volumeData.length - 1)
+          if (avgVolume > 0) {
+            rvol = latestVolume / avgVolume
+          }
+        }
+        
+        return new Response(JSON.stringify({
+          asset_id: assetId,
+          date: momentumData.date,
+          rsi: momentumData.rsi_14,
+          atr_pct: momentumData.atr_pct,
+          realized_vol: momentumData.realized_vol_20,
+          rvol: rvol
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
       // ==================== END DASHBOARD ENDPOINTS ====================
 
       // GET /dashboard/price-history?asset_id=123&days=365

@@ -41,6 +41,15 @@ interface AIReviewData {
   ai_risks: string[];
 }
 
+interface MomentumData {
+  asset_id: number;
+  date: string;
+  rsi: number | null;
+  atr_pct: number | null;
+  realized_vol: number | null;
+  rvol: number | null;
+}
+
 interface CompanySidePanelProps {
   assetId: number | string;
   assetType: 'equity' | 'crypto';
@@ -174,15 +183,22 @@ function PriceLadderBracket({ entry, targets, invalidation, currentPrice }: {
   );
 }
 
-function MomentumBars() {
-  // Mock data - in production, fetch real momentum data
-  const rvol = 1.5;
-  const rsi = 63;
-  const adr = 4.2;
+function MomentumBars({ momentum }: { momentum: MomentumData | null }) {
+  if (!momentum) {
+    return (
+      <div className="py-3 border-b border-border">
+        <h3 className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Momentum <span className="text-[9px] text-zinc-600">(No Data)</span></h3>
+      </div>
+    );
+  }
+  
+  const rvol = momentum.rvol || 0;
+  const rsi = momentum.rsi || 0;
+  const adr = momentum.atr_pct ? momentum.atr_pct * 100 : 0; // Convert to percentage
   
   return (
     <div className="py-3 border-b border-border space-y-2">
-      <h3 className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Momentum <span className="text-[9px] text-zinc-600">(Placeholder)</span></h3>
+      <h3 className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Momentum</h3>
       
       {/* RVOL */}
       <div>
@@ -391,7 +407,7 @@ function KeyMetricsTable({ fundamentals }: { fundamentals: FundamentalsData | nu
 
 // ============ TAB COMPONENTS ============
 
-function TechnicalsTab({ aiReview, currentPrice }: { aiReview: AIReviewData | null; currentPrice?: number }) {
+function TechnicalsTab({ aiReview, currentPrice, momentum }: { aiReview: AIReviewData | null; currentPrice?: number; momentum: MomentumData | null }) {
   if (!aiReview) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-zinc-500">
@@ -419,7 +435,7 @@ function TechnicalsTab({ aiReview, currentPrice }: { aiReview: AIReviewData | nu
       />
       
       {/* Momentum Bars */}
-      <MomentumBars />
+      <MomentumBars momentum={momentum} />
       
       {/* Key Levels Grid */}
       <KeyLevelsGrid 
@@ -463,6 +479,7 @@ function FundamentalsTab({ fundamentals }: { fundamentals: FundamentalsData | nu
 export function CompanySidePanel({ assetId, assetType, className }: CompanySidePanelProps) {
   const [fundamentals, setFundamentals] = useState<FundamentalsData | null>(null);
   const [aiReview, setAIReview] = useState<AIReviewData | null>(null);
+  const [momentum, setMomentum] = useState<MomentumData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'technicals' | 'fundamentals'>('technicals');
@@ -488,6 +505,15 @@ export function CompanySidePanel({ assetId, assetType, className }: CompanySideP
       if (aiResponse.ok) {
         const aiData = await aiResponse.json();
         setAIReview(aiData);
+      }
+      
+      // Fetch momentum indicators
+      const momentumResponse = await fetch(
+        `/api/dashboard/momentum?asset_id=${assetId}`
+      );
+      if (momentumResponse.ok) {
+        const momentumData = await momentumResponse.json();
+        setMomentum(momentumData);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
@@ -551,7 +577,7 @@ export function CompanySidePanel({ assetId, assetType, className }: CompanySideP
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-3 scrollbar-minimal">
         {activeTab === 'technicals' ? (
-          <TechnicalsTab aiReview={aiReview} currentPrice={fundamentals?.current_price} />
+          <TechnicalsTab aiReview={aiReview} currentPrice={fundamentals?.current_price} momentum={momentum} />
         ) : (
           <FundamentalsTab fundamentals={fundamentals} />
         )}
