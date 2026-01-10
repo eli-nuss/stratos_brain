@@ -1103,6 +1103,14 @@ ${markdownToHtml(markdown)}
         const { data: reviews } = await reviewQuery.order('ai_review_version', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false }).limit(1)
         const rawReview = reviews?.[0] || null
         
+        // Get stock lists this asset belongs to
+        const { data: listItems } = await supabase
+          .from('stock_list_items')
+          .select('list_id, stock_lists(id, name, color, icon)')
+          .eq('asset_id', assetId)
+        
+        const stockLists = listItems?.map(item => item.stock_lists).filter(Boolean) || []
+        
         // Transform review to match frontend expected field names
         const review = rawReview ? {
           ...rawReview,
@@ -1133,7 +1141,8 @@ ${markdownToHtml(markdown)}
           scores,
           signals: signals || [],
           review,
-          review_status: review ? 'ready' : 'missing'
+          review_status: review ? 'ready' : 'missing',
+          stock_lists: stockLists
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })

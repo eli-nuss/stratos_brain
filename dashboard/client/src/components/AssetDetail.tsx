@@ -135,7 +135,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
 
   if (!data || !data.asset) return null;
 
-  const { asset, ohlcv, ai_score_history, review, review_status } = data;
+  const { asset, ohlcv, ai_score_history, review, review_status, stock_lists } = data;
 
   // Merge OHLCV data with AI score history for chart overlay
   const chartData = ohlcv?.map((bar: any) => {
@@ -530,6 +530,25 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                     <span className="text-xs font-medium px-2 py-0.5 rounded bg-primary/10 text-primary">
                       {asset.category}
                     </span>
+                  </div>
+                )}
+                
+                {/* Stock List Tags (Subsectors) */}
+                {stock_lists && stock_lists.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                    {stock_lists.map((list: { id: number; name: string; color: string; icon: string }) => (
+                      <span
+                        key={list.id}
+                        className="text-[10px] font-medium px-2 py-0.5 rounded-full border"
+                        style={{
+                          backgroundColor: `${list.color}15`,
+                          borderColor: `${list.color}40`,
+                          color: list.color
+                        }}
+                      >
+                        {list.name}
+                      </span>
+                    ))}
                   </div>
                 )}
                 
