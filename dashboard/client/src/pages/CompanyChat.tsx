@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { MessageSquare, ArrowLeft, Menu, X, Activity } from 'lucide-react';
-import { PageHeader } from '@/components/PageHeader';
+import DashboardLayout from '@/components/DashboardLayout';
 import { CompanyChatList } from '@/components/CompanyChatList';
 import { CompanyChatInterface } from '@/components/CompanyChatInterface';
 import { useCompanyChats, createOrGetChat, CompanyChat } from '@/hooks/useCompanyChats';
@@ -99,57 +99,7 @@ export default function CompanyChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background overflow-hidden">
-      {/* Consistent Header */}
-      <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-sm">
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between gap-4">
-            {/* Left side: Logo, divider, page title */}
-            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-              {/* Mobile menu button */}
-              <button
-                onClick={() => setShowMobileSidebar(true)}
-                className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors lg:hidden min-h-[44px] min-w-[44px] flex items-center justify-center"
-              >
-                <Menu className="w-5 h-5" />
-              </button>
-              
-              {/* Logo/Brand */}
-              <a 
-                href="/" 
-                className="flex items-center gap-2 text-base sm:text-lg font-bold tracking-tight shrink-0"
-              >
-                <Activity className="w-4 sm:w-5 h-4 sm:h-5 text-primary" />
-                <span className="hidden sm:inline">STRATOS</span>
-                <span className="sm:hidden">S</span>
-                <span className="text-muted-foreground font-normal hidden sm:inline">BRAIN</span>
-                <span className="text-muted-foreground font-normal sm:hidden">B</span>
-              </a>
-              
-              {/* Divider */}
-              <div className="h-5 w-px bg-border hidden sm:block" />
-              
-              {/* Page title with icon */}
-              <div className="flex items-center gap-2 min-w-0">
-                <MessageSquare className="w-4 h-4 text-primary shrink-0" />
-                <span className="text-sm sm:text-base font-semibold truncate">
-                  {selectedChat ? selectedChat.display_name : 'Research Chat'}
-                </span>
-              </div>
-            </div>
-            
-            {/* Right side: Back link */}
-            <a
-              href="/"
-              className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md bg-muted/50 hover:bg-muted transition-colors min-h-[44px] sm:min-h-0"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Back to Dashboard</span>
-              <span className="sm:hidden">Back</span>
-            </a>
-          </div>
-        </div>
-      </header>
+    <DashboardLayout hideNavTabs>
 
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden">
@@ -254,6 +204,6 @@ export default function CompanyChatPage() {
           </div>
         </div>
       )}
-    </div>
+    </DashboardLayout>
   );
 }

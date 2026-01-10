@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Save, RefreshCw, FileText, Settings, AlertCircle, CheckCircle, Code, Eye, MessageSquare, Sliders, Activity } from 'lucide-react';
-import { PageHeader } from '@/components/PageHeader';
+import DashboardLayout from '@/components/DashboardLayout';
 import RichMarkdownEditor from '@/components/RichMarkdownEditor';
 
 interface Template {
@@ -259,102 +259,7 @@ export function TemplateEditor() {
   const promptConfigs = chatConfigs.filter(c => c.category === 'prompts');
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <PageHeader
-        title="Templates"
-        subtitle="Configure document templates and chat AI settings"
-        icon={<Settings className="w-4 h-4 text-primary" />}
-        actions={
-          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-            {/* Tab Toggle */}
-            <div className="flex items-center bg-muted rounded-lg p-0.5">
-              <button
-                onClick={() => setActiveTab('documents')}
-                className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 min-h-[36px] sm:min-h-0 ${
-                  activeTab === 'documents' 
-                    ? 'bg-background text-foreground' 
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Documents</span>
-              </button>
-              <button
-                onClick={() => setActiveTab('chat')}
-                className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 min-h-[36px] sm:min-h-0 ${
-                  activeTab === 'chat' 
-                    ? 'bg-background text-foreground' 
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <MessageSquare className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Chat AI</span>
-              </button>
-            </div>
-            
-            {/* Editor Mode Toggle - only for textarea configs */}
-            {(activeTab === 'documents' || (selectedConfig?.config_type === 'textarea')) && (
-              <div className="flex items-center bg-muted rounded-lg p-0.5">
-                <button
-                  onClick={() => setEditorMode('rich')}
-                  className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 min-h-[36px] sm:min-h-0 ${
-                    editorMode === 'rich' 
-                      ? 'bg-background text-foreground' 
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Rich</span>
-                </button>
-                <button
-                  onClick={() => setEditorMode('raw')}
-                  className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 min-h-[36px] sm:min-h-0 ${
-                    editorMode === 'raw' 
-                      ? 'bg-background text-foreground' 
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <Code className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Raw</span>
-                </button>
-              </div>
-            )}
-            
-            {saveStatus === 'success' && (
-              <span className="text-green-400 flex items-center gap-1 text-sm">
-                <CheckCircle className="w-4 h-4" />
-                <span className="hidden sm:inline">Saved</span>
-              </span>
-            )}
-            {saveStatus === 'error' && (
-              <span className="text-red-400 flex items-center gap-1 text-sm">
-                <AlertCircle className="w-4 h-4" />
-                <span className="hidden sm:inline">Error</span>
-              </span>
-            )}
-            <button
-              onClick={handleRefresh}
-              disabled={loading}
-              className="p-2 sm:px-3 sm:py-1.5 text-sm bg-muted hover:bg-muted/80 rounded-lg transition-colors flex items-center gap-2 min-h-[44px] sm:min-h-0"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Refresh</span>
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving || !hasChanges}
-              className={`p-2 sm:px-4 sm:py-1.5 text-sm rounded-lg transition-colors flex items-center gap-2 min-h-[44px] sm:min-h-0 ${
-                hasChanges 
-                  ? 'bg-primary hover:bg-primary/90 text-primary-foreground' 
-                  : 'bg-muted text-muted-foreground cursor-not-allowed'
-              }`}
-            >
-              <Save className={`w-4 h-4 ${saving ? 'animate-pulse' : ''}`} />
-              <span className="hidden sm:inline">{saving ? 'Saving...' : 'Save'}</span>
-            </button>
-          </div>
-        }
-      />
+    <DashboardLayout hideNavTabs>
 
       <div className="max-w-7xl mx-auto px-4 py-4 sm:py-6">
         {error && (
@@ -685,7 +590,7 @@ export function TemplateEditor() {
           </div>
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }
 

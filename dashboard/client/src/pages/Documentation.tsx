@@ -18,7 +18,7 @@ import {
   BookOpen,
   Activity
 } from "lucide-react";
-import { PageHeader } from "@/components/PageHeader";
+import DashboardLayout from "@/components/DashboardLayout";
 
 interface CollapsibleSectionProps {
   title: string;
@@ -173,15 +173,9 @@ function FlowDiagram() {
 
 export default function Documentation() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <PageHeader
-        title="Documentation"
-        subtitle="Technical documentation for the AI analysis system"
-        icon={<BookOpen className="w-4 h-4 text-primary" />}
-      />
-
+    <DashboardLayout hideNavTabs>
       {/* Main Content */}
-      <main className="container px-4 py-4 sm:py-8 max-w-5xl">
+      <main className="container px-4 py-4 sm:py-8 max-w-5xl mx-auto">
         <div className="mb-4 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold mb-2">AI Analysis System</h1>
           <p className="text-sm sm:text-base text-muted-foreground">
@@ -552,6 +546,6 @@ Return ONLY a valid JSON object with this exact structure:
           </CollapsibleSection>
         </div>
       </main>
-    </div>
+    </DashboardLayout>
   );
 }

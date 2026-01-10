@@ -6,7 +6,7 @@ import {
   AlertCircle, Circle, ArrowUp, ArrowRight, ArrowDown,
   Plus, X, Send, Loader2, CheckCircle2, ListTodo, Activity
 } from 'lucide-react';
-import { PageHeader } from '@/components/PageHeader';
+// PageHeader removed - using DashboardLayout
 import DashboardLayout from '@/components/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -299,22 +299,7 @@ export default function TodoList() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <PageHeader
-        title="To-Do List"
-        subtitle="Track bugs, features, and improvements"
-        icon={<ListTodo className="w-4 h-4 text-primary" />}
-        actions={
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:bg-primary/90 transition-colors min-h-[44px] sm:min-h-0"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Add Item</span>
-            <span className="sm:hidden">Add</span>
-          </button>
-        }
-      />
+    <DashboardLayout hideNavTabs>
       <div className="p-4 sm:p-6 max-w-6xl mx-auto">
 
         {/* Stats Cards */}
@@ -619,6 +604,6 @@ export default function TodoList() {
           </div>
         </div>
       )}
-    </div>
+    </DashboardLayout>
   );
 }
