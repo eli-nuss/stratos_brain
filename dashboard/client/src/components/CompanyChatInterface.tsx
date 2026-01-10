@@ -198,8 +198,8 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
 
   return (
     <div className="flex h-full bg-background overflow-hidden">
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      {/* Main Chat Area - only this section scrolls */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-border bg-card">
           <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -366,7 +366,7 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
         </div>
       </div>
 
-      {/* Fundamentals Panel */}
+      {/* Fundamentals Panel - sticky sidebar that doesn't scroll with chat */}
       {showFundamentals && (
         <>
           {/* Mobile overlay */}
@@ -375,11 +375,11 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
             onClick={() => setShowFundamentals(false)}
           />
           
-          {/* Panel - fixed height, doesn't scroll with chat */}
+          {/* Panel - sticky, has its own scroll */}
           <div className={cn(
             "fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-card border-l border-border",
             "animate-in slide-in-from-right duration-300 ease-out",
-            "xl:relative xl:w-96 xl:max-w-none xl:flex-shrink-0 xl:z-auto xl:animate-none xl:h-full"
+            "xl:sticky xl:top-0 xl:w-96 xl:max-w-none xl:flex-shrink-0 xl:z-auto xl:animate-none xl:h-full xl:self-start"
           )}>
             {/* Mobile close button */}
             <button
