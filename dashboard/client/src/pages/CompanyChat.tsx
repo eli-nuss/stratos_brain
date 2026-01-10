@@ -115,12 +115,12 @@ export default function CompanyChatPage() {
         {/* 
           Left Sidebar - Company Chat List
           - On mobile: fixed position, slides in from left
-          - On desktop (lg+): relative position within flex container, doesn't scroll with chat
-          - The sidebar itself has h-full and contains its own scrollable area for the chat list
+          - On desktop (lg+): fixed to viewport height, stays in place while chat scrolls
+          - The sidebar itself has h-screen and contains its own scrollable area for the chat list
         */}
         <aside className={`
           fixed inset-y-0 left-0 z-50 w-80 bg-card transform transition-transform duration-300 ease-in-out
-          lg:relative lg:inset-auto lg:z-auto lg:w-72 lg:flex-shrink-0 lg:translate-x-0
+          lg:sticky lg:top-0 lg:h-screen lg:w-72 lg:flex-shrink-0 lg:translate-x-0
           ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full'}
         `}>
           {/* Mobile close button */}

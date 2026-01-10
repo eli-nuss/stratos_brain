@@ -374,7 +374,7 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
       {/* 
         Right Sidebar - Fundamentals Panel
         - On mobile: fixed overlay
-        - On desktop (xl+): relative within flex, doesn't scroll with chat
+        - On desktop (xl+): sticky to viewport, stays in place while chat scrolls
       */}
       {showFundamentals && (
         <>
@@ -388,7 +388,7 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
           <aside className={cn(
             "fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-card border-l border-border",
             "animate-in slide-in-from-right duration-300 ease-out",
-            "xl:relative xl:inset-auto xl:z-auto xl:w-96 xl:max-w-none xl:flex-shrink-0 xl:animate-none"
+            "xl:sticky xl:top-0 xl:h-screen xl:w-96 xl:max-w-none xl:flex-shrink-0 xl:z-auto xl:animate-none"
           )}>
             {/* Mobile close button */}
             <button
