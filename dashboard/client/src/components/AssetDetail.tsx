@@ -303,50 +303,63 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
 
             {/* AI Analysis - Different content based on view */}
             {chartView === 'financials' && asset.asset_type === 'equity' ? (
-              /* Bull/Bear Thesis for Fundamentals View */
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Bull Case */}
-                <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <TrendingUp className="w-4 h-4 text-emerald-400" />
-                    <span className="text-sm font-semibold text-emerald-400">Bull Case</span>
-                  </div>
-                  {review?.bull_case || review?.thesis?.bull_case ? (
-                    <ul className="space-y-2">
-                      {(Array.isArray(review.bull_case) ? review.bull_case : 
-                        Array.isArray(review.thesis?.bull_case) ? review.thesis.bull_case : 
-                        [review.bull_case || review.thesis?.bull_case]).filter(Boolean).slice(0, 3).map((point: string, idx: number) => (
-                        <li key={idx} className="text-xs text-foreground/80 flex items-start gap-2">
-                          <span className="mt-1.5 w-1 h-1 rounded-full bg-emerald-400 flex-shrink-0" />
-                          <span className="line-clamp-2">{point}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-xs text-muted-foreground/60 italic">Run AI analysis to generate bull case</p>
+              /* AI Thesis for Fundamentals View */
+              <div className="bg-muted/10 border border-border rounded-lg overflow-hidden">
+                <div className="bg-muted/30 px-4 py-2.5 border-b border-border flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-primary" />
+                  <h3 className="font-semibold text-sm">AI Thesis</h3>
+                  {review?.as_of_date && (
+                    <span className="text-[10px] text-muted-foreground/70 font-mono ml-auto">
+                      {review.model_id || "gemini-2.0-flash"} • {review.as_of_date}
+                    </span>
                   )}
                 </div>
-                
-                {/* Bear Case */}
-                <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <TrendingDown className="w-4 h-4 text-red-400" />
-                    <span className="text-sm font-semibold text-red-400">Bear Case</span>
+                <div className="p-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Bull Case */}
+                    <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <TrendingUp className="w-4 h-4 text-emerald-400" />
+                        <span className="text-sm font-semibold text-emerald-400">Bull Case</span>
+                      </div>
+                      {review?.bull_case || review?.thesis?.bull_case ? (
+                        <ul className="space-y-1.5">
+                          {(Array.isArray(review.bull_case) ? review.bull_case : 
+                            Array.isArray(review.thesis?.bull_case) ? review.thesis.bull_case : 
+                            [review.bull_case || review.thesis?.bull_case]).filter(Boolean).slice(0, 3).map((point: string, idx: number) => (
+                            <li key={idx} className="text-xs text-foreground/80 flex items-start gap-2">
+                              <span className="mt-1.5 w-1 h-1 rounded-full bg-emerald-400 flex-shrink-0" />
+                              <span className="line-clamp-2">{point}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-xs text-muted-foreground/60 italic">Run AI analysis to generate</p>
+                      )}
+                    </div>
+                    
+                    {/* Bear Case */}
+                    <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <TrendingDown className="w-4 h-4 text-red-400" />
+                        <span className="text-sm font-semibold text-red-400">Bear Case</span>
+                      </div>
+                      {review?.bear_case || review?.thesis?.bear_case ? (
+                        <ul className="space-y-1.5">
+                          {(Array.isArray(review.bear_case) ? review.bear_case : 
+                            Array.isArray(review.thesis?.bear_case) ? review.thesis.bear_case : 
+                            [review.bear_case || review.thesis?.bear_case]).filter(Boolean).slice(0, 3).map((point: string, idx: number) => (
+                            <li key={idx} className="text-xs text-foreground/80 flex items-start gap-2">
+                              <span className="mt-1.5 w-1 h-1 rounded-full bg-red-400 flex-shrink-0" />
+                              <span className="line-clamp-2">{point}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-xs text-muted-foreground/60 italic">Run AI analysis to generate</p>
+                      )}
+                    </div>
                   </div>
-                  {review?.bear_case || review?.thesis?.bear_case ? (
-                    <ul className="space-y-2">
-                      {(Array.isArray(review.bear_case) ? review.bear_case : 
-                        Array.isArray(review.thesis?.bear_case) ? review.thesis.bear_case : 
-                        [review.bear_case || review.thesis?.bear_case]).filter(Boolean).slice(0, 3).map((point: string, idx: number) => (
-                        <li key={idx} className="text-xs text-foreground/80 flex items-start gap-2">
-                          <span className="mt-1.5 w-1 h-1 rounded-full bg-red-400 flex-shrink-0" />
-                          <span className="line-clamp-2">{point}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-xs text-muted-foreground/60 italic">Run AI analysis to generate bear case</p>
-                  )}
                 </div>
               </div>
             ) : (
@@ -370,87 +383,89 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               )
             )}
 
-            {/* Trade Plan & Signals - 2 Column Layout (wider, shorter) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              {/* Trade Plan */}
-              <div className="bg-card border border-border rounded-lg overflow-hidden">
-                <div className="bg-muted/30 px-4 py-2 border-b border-border flex items-center gap-2">
-                  <Target className="w-4 h-4 text-primary" />
-                  <h3 className="font-semibold text-sm">Trade Plan</h3>
-                  <InfoTooltip content="AI-generated trade plan with specific price levels. Entry zone is where to consider initiating positions. Targets are profit-taking levels. Invalidation is where the thesis fails." />
-                </div>
-                {review ? (
-                  <div className="p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Entry</span>
-                      <span className="font-mono text-sm font-semibold text-primary">
-                        ${review.entry?.low?.toFixed(2) || "—"} - ${review.entry?.high?.toFixed(2) || "—"}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Targets</span>
-                      <div className="flex gap-2">
-                        {review.targets?.slice(0, 3).map((target: number, i: number) => (
-                          <span key={i} className="font-mono text-xs text-signal-bullish">
-                            ${target?.toFixed(2) || "—"}
-                          </span>
-                        ))}
+            {/* Trade Plan & Signals - Only show in Technicals view */}
+            {chartView !== 'financials' && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                {/* Trade Plan */}
+                <div className="bg-card border border-border rounded-lg overflow-hidden">
+                  <div className="bg-muted/30 px-4 py-2 border-b border-border flex items-center gap-2">
+                    <Target className="w-4 h-4 text-primary" />
+                    <h3 className="font-semibold text-sm">Trade Plan</h3>
+                    <InfoTooltip content="AI-generated trade plan with specific price levels. Entry zone is where to consider initiating positions. Targets are profit-taking levels. Invalidation is where the thesis fails." />
+                  </div>
+                  {review ? (
+                    <div className="p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Entry</span>
+                        <span className="font-mono text-sm font-semibold text-primary">
+                          ${review.entry?.low?.toFixed(2) || "—"} - ${review.entry?.high?.toFixed(2) || "—"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Targets</span>
+                        <div className="flex gap-2">
+                          {review.targets?.slice(0, 3).map((target: number, i: number) => (
+                            <span key={i} className="font-mono text-xs text-signal-bullish">
+                              ${target?.toFixed(2) || "—"}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Stop</span>
+                        <span className="font-mono text-sm font-semibold text-signal-bearish">
+                          ${review.invalidation?.toFixed(2) || "—"}
+                        </span>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Stop</span>
-                      <span className="font-mono text-sm font-semibold text-signal-bearish">
-                        ${review.invalidation?.toFixed(2) || "—"}
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-3 text-center">
-                    <p className="text-xs text-muted-foreground">No trade plan available</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Signals */}
-              <div className="bg-card border border-border rounded-lg overflow-hidden">
-                <div className="bg-muted/30 px-4 py-2 border-b border-border flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-muted-foreground" />
-                  <h3 className="font-semibold text-sm">Signals</h3>
-                  <InfoTooltip content="Quantitative signals that triggered this asset's score. Each signal has a strength from 0-100 based on technical criteria." />
-                </div>
-                <div className="p-3 max-h-[120px] overflow-y-auto">
-                  {review?.signal_facts && review.signal_facts.length > 0 ? (
-                    <div className="space-y-1.5">
-                      {review.signal_facts.map((signal: any, i: number) => (
-                        <Tooltip key={i}>
-                          <TooltipTrigger asChild>
-                            <div className="flex items-center justify-between p-1.5 bg-muted/20 rounded cursor-help hover:bg-muted/30 transition-colors">
-                              <span className="text-xs font-medium truncate">
-                                {formatSignalType(signal.signal_type)}
-                              </span>
-                              <span className={`text-xs font-mono ml-2 ${
-                                signal.strength >= 70 ? 'text-signal-bullish' : 
-                                signal.strength >= 40 ? 'text-yellow-500' : 
-                                'text-muted-foreground'
-                              }`}>
-                                {signal.strength}
-                              </span>
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-xs">
-                            {getSignalTooltip(signal.signal_type)}
-                          </TooltipContent>
-                        </Tooltip>
-                      ))}
-                    </div>
                   ) : (
-                    <p className="text-xs text-muted-foreground text-center py-2">
-                      No signal data available
-                    </p>
+                    <div className="p-3 text-center">
+                      <p className="text-xs text-muted-foreground">No trade plan available</p>
+                    </div>
                   )}
                 </div>
+
+                {/* Signals */}
+                <div className="bg-card border border-border rounded-lg overflow-hidden">
+                  <div className="bg-muted/30 px-4 py-2 border-b border-border flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-muted-foreground" />
+                    <h3 className="font-semibold text-sm">Signals</h3>
+                    <InfoTooltip content="Quantitative signals that triggered this asset's score. Each signal has a strength from 0-100 based on technical criteria." />
+                  </div>
+                  <div className="p-3 max-h-[120px] overflow-y-auto">
+                    {review?.signal_facts && review.signal_facts.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {review.signal_facts.map((signal: any, i: number) => (
+                          <Tooltip key={i}>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center justify-between p-1.5 bg-muted/20 rounded cursor-help hover:bg-muted/30 transition-colors">
+                                <span className="text-xs font-medium truncate">
+                                  {formatSignalType(signal.signal_type)}
+                                </span>
+                                <span className={`text-xs font-mono ml-2 ${
+                                  signal.strength >= 70 ? 'text-signal-bullish' : 
+                                  signal.strength >= 40 ? 'text-yellow-500' : 
+                                  'text-muted-foreground'
+                                }`}>
+                                  {signal.strength}
+                                </span>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              {getSignalTooltip(signal.signal_type)}
+                            </TooltipContent>
+                          </Tooltip>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground text-center py-2">
+                        No signal data available
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Historical Financials is now available in the chart tabs above */}
 
