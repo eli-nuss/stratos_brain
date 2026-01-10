@@ -94,8 +94,8 @@ export function CommandBar({ className = '' }: CommandBarProps) {
       e.preventDefault();
       const item = allItems[selectedIndex];
       if (item.type === 'asset') {
-        // Navigate using symbol for cleaner URLs
-        setLocation(`/asset/${item.data.symbol}`);
+        // Navigate using asset_id for proper routing
+        setLocation(`/asset/${item.data.asset_id}`);
       } else {
         setLocation(item.data.path);
       }
@@ -106,8 +106,8 @@ export function CommandBar({ className = '' }: CommandBarProps) {
 
   const handleSelect = (item: typeof allItems[0]) => {
     if (item.type === 'asset') {
-      // Navigate using symbol for cleaner URLs
-      setLocation(`/asset/${item.data.symbol}`);
+      // Navigate using asset_id for proper routing
+      setLocation(`/asset/${item.data.asset_id}`);
     } else {
       setLocation(item.data.path);
     }
