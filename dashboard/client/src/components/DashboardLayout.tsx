@@ -96,7 +96,7 @@ function SortableListTab({
           <button
             onClick={() => onTabChange(tabId)}
             onContextMenu={(e) => onContextMenu(e, list)}
-            className={`px-2 py-1 text-xs font-medium rounded transition-all flex items-center gap-1 group ${
+            className={`px-3 py-2.5 sm:px-2 sm:py-1 text-xs font-medium rounded transition-all flex items-center gap-1 group min-h-[44px] sm:min-h-0 ${
               activeTab === tabId
                 ? "bg-muted text-foreground"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -478,12 +478,12 @@ export default function DashboardLayout({
         {!hideNavTabs && (
         <div className="container pb-2 flex flex-col items-center gap-1.5 overflow-x-auto scrollbar-hide">
           {/* Fixed views - highlighted with primary color */}
-          <div className="flex items-center bg-primary/10 border border-primary/20 p-0.5 rounded-lg gap-0.5">
+          <div className="flex items-center bg-primary/10 border border-primary/20 p-1 sm:p-0.5 rounded-lg gap-1 sm:gap-0.5">
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   onClick={() => onTabChange("watchlist")}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded transition-all ${
+                  className={`px-4 py-2.5 sm:px-3 sm:py-1.5 text-xs font-semibold rounded transition-all min-h-[44px] sm:min-h-0 ${
                     activeTab === "watchlist"
                       ? "bg-primary text-primary-foreground shadow-sm"
                       : "text-primary/70 hover:text-primary hover:bg-primary/20"
@@ -501,7 +501,7 @@ export default function DashboardLayout({
               <TooltipTrigger asChild>
                 <button
                   onClick={() => onTabChange("model-portfolio")}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded transition-all flex items-center gap-1.5 ${
+                  className={`px-4 py-2.5 sm:px-3 sm:py-1.5 text-xs font-semibold rounded transition-all flex items-center gap-1.5 min-h-[44px] sm:min-h-0 ${
                     activeTab === "model-portfolio"
                       ? "bg-primary text-primary-foreground shadow-sm"
                       : "text-primary/70 hover:text-primary hover:bg-primary/20"
@@ -518,7 +518,7 @@ export default function DashboardLayout({
               <TooltipTrigger asChild>
                 <button
                   onClick={() => onTabChange("core-portfolio")}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded transition-all flex items-center gap-1.5 ${
+                  className={`px-4 py-2.5 sm:px-3 sm:py-1.5 text-xs font-semibold rounded transition-all flex items-center gap-1.5 min-h-[44px] sm:min-h-0 ${
                     activeTab === "core-portfolio"
                       ? "bg-primary text-primary-foreground shadow-sm"
                       : "text-primary/70 hover:text-primary hover:bg-primary/20"
@@ -537,7 +537,7 @@ export default function DashboardLayout({
               <TooltipTrigger asChild>
                 <button
                   onClick={() => onTabChange("equity")}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded transition-all ${
+                  className={`px-4 py-2.5 sm:px-3 sm:py-1.5 text-xs font-semibold rounded transition-all min-h-[44px] sm:min-h-0 ${
                     activeTab === "equity"
                       ? "bg-primary text-primary-foreground shadow-sm"
                       : "text-primary/70 hover:text-primary hover:bg-primary/20"
@@ -553,7 +553,7 @@ export default function DashboardLayout({
               <TooltipTrigger asChild>
                 <button
                   onClick={() => onTabChange("crypto")}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded transition-all ${
+                  className={`px-4 py-2.5 sm:px-3 sm:py-1.5 text-xs font-semibold rounded transition-all min-h-[44px] sm:min-h-0 ${
                     activeTab === "crypto"
                       ? "bg-primary text-primary-foreground shadow-sm"
                       : "text-primary/70 hover:text-primary hover:bg-primary/20"

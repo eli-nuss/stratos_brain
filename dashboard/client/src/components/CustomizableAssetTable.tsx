@@ -1,6 +1,6 @@
 // Customizable Asset Table with drag-and-drop column reordering and show/hide
-import { useState, useCallback } from "react";
-import { TrendingUp, TrendingDown, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, X, GripVertical, Activity } from "lucide-react";
+import { useState, useCallback, useEffect } from "react";
+import { TrendingUp, TrendingDown, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, X, GripVertical, Activity, LayoutGrid, Table2 } from "lucide-react";
 import { useAllAssets, AssetType, SortField, SortOrder } from "@/hooks/useAllAssets";
 import { useColumnConfig, ColumnDef, ALL_COLUMNS } from "@/hooks/useColumnConfig";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -10,6 +10,7 @@ import AddToListButton from "@/components/AddToListButton";
 import AddToPortfolioButton from "@/components/AddToPortfolioButton";
 import AssetTagButton from "@/components/AssetTagButton";
 import ColumnCustomizer from "@/components/ColumnCustomizer";
+import { MobileAssetList } from "@/components/MobileAssetCard";
 import { useWatchlist } from "@/hooks/useWatchlist";
 import {
   DndContext,
@@ -220,6 +221,22 @@ export default function CustomizableAssetTable({
   const [searchInput, setSearchInput] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [isMobileView, setIsMobileView] = useState(false);
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+
+  // Detect mobile screen and auto-switch to card view
+  useEffect(() => {
+    const checkMobile = () => {
+      const isMobile = window.innerWidth < 768;
+      setIsMobileView(isMobile);
+      if (isMobile && viewMode === 'table') {
+        setViewMode('cards');
+      }
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   
   const [filterThresholds, setFilterThresholds] = useState<FilterThresholds>({});
   const [filterMode, setFilterMode] = useState<'and' | 'or'>('and');
@@ -663,15 +680,39 @@ export default function CustomizableAssetTable({
             <span className="text-xs text-muted-foreground ml-2">({filteredData.length} / {total} total)</span>
           </h3>
           
-          {/* Column customizer */}
-          <ColumnCustomizer
-            availableColumns={availableColumns}
-            visibleColumnIds={config.visibleColumns}
-            columnOrder={config.columnOrder}
-            onToggleColumn={toggleColumn}
-            onReorderColumns={reorderColumns}
-            onReset={resetToDefaults}
-          />
+          {/* Column customizer - hidden on mobile */}
+          <div className="hidden md:block">
+            <ColumnCustomizer
+              availableColumns={availableColumns}
+              visibleColumnIds={config.visibleColumns}
+              columnOrder={config.columnOrder}
+              onToggleColumn={toggleColumn}
+              onReorderColumns={reorderColumns}
+              onReset={resetToDefaults}
+            />
+          </div>
+          
+          {/* View mode toggle */}
+          <div className="flex items-center border border-border rounded overflow-hidden">
+            <button
+              onClick={() => setViewMode('cards')}
+              className={`p-2 transition-colors min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:p-1.5 flex items-center justify-center ${
+                viewMode === 'cards' ? 'bg-primary text-primary-foreground' : 'bg-muted/20 text-muted-foreground hover:text-foreground'
+              }`}
+              aria-label="Card view"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('table')}
+              className={`p-2 transition-colors min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:p-1.5 flex items-center justify-center ${
+                viewMode === 'table' ? 'bg-primary text-primary-foreground' : 'bg-muted/20 text-muted-foreground hover:text-foreground'
+              }`}
+              aria-label="Table view"
+            >
+              <Table2 className="w-4 h-4" />
+            </button>
+          </div>
         </div>
         
         <div className="flex items-center gap-2">
@@ -907,68 +948,96 @@ export default function CustomizableAssetTable({
         )}
       </div>
 
-      {/* Table with draggable headers */}
-      <div className="flex-1 overflow-x-auto overflow-y-auto scrollbar-thin">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <table className="w-full text-sm text-left min-w-[1200px]">
-            <thead className="sticky top-0 z-40 bg-table-header border-b border-border text-xs text-muted-foreground">
-              <SortableContext
-                items={visibleColumns.map(c => c.id)}
-                strategy={horizontalListSortingStrategy}
-              >
-                <tr>
-                  {visibleColumns.map((column) => (
-                    <DraggableHeader
-                      key={column.id}
-                      column={column}
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      onSort={handleSort}
-                    />
-                  ))}
-                </tr>
-              </SortableContext>
-            </thead>
-            <tbody>
-              {/* Summary Rows */}
-              {!isLoading && filteredData.length > 0 && (
-                <TableSummaryRows assets={filteredData} visibleColumns={visibleColumns} listName={assetType === 'crypto' ? 'Crypto' : 'Equities'} />
-              )}
-              {isLoading ? (
-                <tr><td colSpan={colCount} className="px-2 py-4 text-center text-muted-foreground">Loading...</td></tr>
-              ) : filteredData.length === 0 ? (
-                <tr><td colSpan={colCount} className="px-2 py-4 text-center text-muted-foreground">No assets match your filters</td></tr>
-              ) : (
-                filteredData.map((row) => (
-                  <tr 
-                    key={row.asset_id} 
-                    className="border-b border-border hover:bg-muted/30 transition-colors cursor-pointer" 
-                    onClick={() => onAssetClick(row.asset_id)}
-                  >
+      {/* Card View for Mobile */}
+      {viewMode === 'cards' ? (
+        <div className="flex-1 overflow-y-auto">
+          <MobileAssetList
+            assets={filteredData.map(row => ({
+              asset_id: row.asset_id,
+              symbol: row.symbol,
+              name: row.name,
+              close_price: row.close,
+              return_1d: row.return_1d ? row.return_1d * 100 : undefined,
+              return_7d: row.return_7d ? row.return_7d * 100 : undefined,
+              market_cap: row.market_cap,
+              ai_direction_score: row.ai_direction_score,
+              ai_setup_quality_score: row.ai_setup_quality_score,
+              ai_direction: row.ai_direction_score > 0 ? 'Bullish' : row.ai_direction_score < 0 ? 'Bearish' : 'Neutral',
+              is_watchlisted: row.is_watchlisted,
+            }))}
+            onAssetClick={onAssetClick}
+            onWatchlistToggle={showWatchlistColumn ? (assetId) => {
+              // Toggle watchlist - this would need to be implemented
+              mutateWatchlist();
+            } : undefined}
+            showWatchlist={showWatchlistColumn}
+            isLoading={isLoading}
+          />
+        </div>
+      ) : (
+        /* Table View */
+        <div className="flex-1 overflow-x-auto overflow-y-auto scrollbar-thin">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <table className="w-full text-sm text-left min-w-[1200px]">
+              <thead className="sticky top-0 z-40 bg-table-header border-b border-border text-xs text-muted-foreground">
+                <SortableContext
+                  items={visibleColumns.map(c => c.id)}
+                  strategy={horizontalListSortingStrategy}
+                >
+                  <tr>
                     {visibleColumns.map((column) => (
-                      <td 
-                        key={column.id} 
-                        className={`px-2 py-2 ${
-                          column.align === "center" ? "text-center" : 
-                          column.align === "right" ? "text-right" : "text-left"
-                        } ${column.sticky ? "sticky bg-background z-10" : ""}`}
-                        style={column.sticky && column.stickyOffset ? { left: column.stickyOffset } : undefined}
-                      >
-                        {renderCell(row, column.id)}
-                      </td>
+                      <DraggableHeader
+                        key={column.id}
+                        column={column}
+                        sortBy={sortBy}
+                        sortOrder={sortOrder}
+                        onSort={handleSort}
+                      />
                     ))}
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </DndContext>
-      </div>
+                </SortableContext>
+              </thead>
+              <tbody>
+                {/* Summary Rows */}
+                {!isLoading && filteredData.length > 0 && (
+                  <TableSummaryRows assets={filteredData} visibleColumns={visibleColumns} listName={assetType === 'crypto' ? 'Crypto' : 'Equities'} />
+                )}
+                {isLoading ? (
+                  <tr><td colSpan={colCount} className="px-2 py-4 text-center text-muted-foreground">Loading...</td></tr>
+                ) : filteredData.length === 0 ? (
+                  <tr><td colSpan={colCount} className="px-2 py-4 text-center text-muted-foreground">No assets match your filters</td></tr>
+                ) : (
+                  filteredData.map((row) => (
+                    <tr 
+                      key={row.asset_id} 
+                      className="border-b border-border hover:bg-muted/30 transition-colors cursor-pointer" 
+                      onClick={() => onAssetClick(row.asset_id)}
+                    >
+                      {visibleColumns.map((column) => (
+                        <td 
+                          key={column.id} 
+                          className={`px-2 py-2 ${
+                            column.align === "center" ? "text-center" : 
+                            column.align === "right" ? "text-right" : "text-left"
+                          } ${column.sticky ? "sticky bg-background z-10" : ""}`}
+                          style={column.sticky && column.stickyOffset ? { left: column.stickyOffset } : undefined}
+                        >
+                          {renderCell(row, column.id)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </DndContext>
+        </div>
+      )}
 
       {/* Pagination */}
       <div className="border-t border-border px-3 py-2 flex items-center justify-between bg-muted/20">

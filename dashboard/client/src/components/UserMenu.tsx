@@ -75,9 +75,10 @@ export default function UserMenu() {
           <TooltipTrigger asChild>
             <button
               onClick={handleLogout}
-              className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
+              className="p-2 sm:p-1 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
+              aria-label="Sign out"
             >
-              <LogOut className="w-3.5 h-3.5" />
+              <LogOut className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
             </button>
           </TooltipTrigger>
           <TooltipContent>Sign out</TooltipContent>
@@ -93,9 +94,10 @@ export default function UserMenu() {
         <TooltipTrigger asChild>
           <button
             onClick={() => setShowLoginModal(true)}
-            className="px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all flex items-center gap-1"
+            className="px-3 py-2 sm:px-2 sm:py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all flex items-center gap-1.5 min-h-[44px] sm:min-h-0"
+            aria-label="Sign in"
           >
-            <User className="w-3 h-3" />
+            <User className="w-4 h-4 sm:w-3 sm:h-3" />
             <span className="hidden sm:inline">Sign in</span>
           </button>
         </TooltipTrigger>

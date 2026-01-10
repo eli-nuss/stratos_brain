@@ -73,10 +73,11 @@ export function CompanyChatList({ selectedChatId, onSelectChat, onNewChat }: Com
         <h2 className="text-sm font-semibold text-zinc-200">Company Chats</h2>
         <button
           onClick={onNewChat}
-          className="p-1.5 rounded-md hover:bg-zinc-800 transition-colors text-zinc-400 hover:text-zinc-200"
+          className="p-2.5 sm:p-1.5 rounded-md hover:bg-zinc-800 transition-colors text-zinc-400 hover:text-zinc-200 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
           title="New Chat"
+          aria-label="New Chat"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-5 h-5 sm:w-4 sm:h-4" />
         </button>
       </div>
 
@@ -94,9 +95,10 @@ export function CompanyChatList({ selectedChatId, onSelectChat, onNewChat }: Com
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-zinc-700 text-zinc-500 hover:text-zinc-300"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 sm:p-0.5 rounded hover:bg-zinc-700 text-zinc-500 hover:text-zinc-300"
+              aria-label="Clear search"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
             </button>
           )}
         </div>
@@ -138,7 +140,7 @@ export function CompanyChatList({ selectedChatId, onSelectChat, onNewChat }: Com
                 key={chat.chat_id}
                 onClick={() => onSelectChat(chat)}
                 className={cn(
-                  'group flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors',
+                  'group flex items-center gap-3 px-3 py-3 sm:py-2.5 cursor-pointer transition-colors min-h-[56px] sm:min-h-0 active:bg-zinc-800/60',
                   selectedChatId === chat.chat_id
                     ? 'bg-zinc-800/80 border-l-2 border-primary'
                     : 'hover:bg-zinc-800/40 border-l-2 border-transparent'
@@ -191,9 +193,10 @@ export function CompanyChatList({ selectedChatId, onSelectChat, onNewChat }: Com
                   <DropdownMenuTrigger asChild>
                     <button
                       onClick={(e) => e.stopPropagation()}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-zinc-700 transition-all"
+                      className="sm:opacity-0 sm:group-hover:opacity-100 p-2 sm:p-1 rounded hover:bg-zinc-700 transition-all min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
+                      aria-label="Chat options"
                     >
-                      <MoreVertical className="w-4 h-4 text-zinc-400" />
+                      <MoreVertical className="w-5 h-5 sm:w-4 sm:h-4 text-zinc-400" />
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-40">
