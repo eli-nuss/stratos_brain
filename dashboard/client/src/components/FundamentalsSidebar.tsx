@@ -449,11 +449,24 @@ export function FundamentalsSidebar({ assetId, asset, review }: FundamentalsSide
   const historicalPE = valuationHistory?.history?.filter((h: any) => h.pe_ratio).map((h: any) => ({ date: h.fiscal_date || h.date, value: h.pe_ratio })) || [];
   const historicalEVSales = valuationHistory?.history?.filter((h: any) => h.ev_to_sales).map((h: any) => ({ date: h.fiscal_date || h.date, value: h.ev_to_sales })) || [];
   const historicalEVEBITDA = valuationHistory?.history?.filter((h: any) => h.ev_to_ebitda).map((h: any) => ({ date: h.fiscal_date || h.date, value: h.ev_to_ebitda })) || [];
+  const historicalEVGrossProfit = valuationHistory?.history?.filter((h: any) => h.ev_to_gross_profit).map((h: any) => ({ date: h.fiscal_date || h.date, value: h.ev_to_gross_profit })) || [];
+  const historicalPriceToBook = valuationHistory?.history?.filter((h: any) => h.price_to_book).map((h: any) => ({ date: h.fiscal_date || h.date, value: h.price_to_book })) || [];
+  const historicalFCFYield = valuationHistory?.history?.filter((h: any) => h.fcf_yield).map((h: any) => ({ date: h.fiscal_date || h.date, value: h.fcf_yield })) || [];
 
   // Current values
   const currentPE = asset.pe_ratio ? parseFloat(asset.pe_ratio) : valuationHistory?.current?.pe_ratio;
   const currentEVSales = asset.ev_to_revenue ? parseFloat(asset.ev_to_revenue) : valuationHistory?.current?.ev_to_sales;
   const currentEVEBITDA = asset.ev_to_ebitda ? parseFloat(asset.ev_to_ebitda) : valuationHistory?.current?.ev_to_ebitda;
+  const currentEVGrossProfit = valuationHistory?.current?.ev_to_gross_profit;
+  const currentPriceToBook = asset.price_to_book ? parseFloat(asset.price_to_book) : valuationHistory?.current?.price_to_book;
+  const currentFCFYield = valuationHistory?.current?.fcf_yield;
+
+  // Determine valuation mode based on profitability
+  // Logic: Is Net Income positive? Is P/E reasonable (< 150)?
+  const netIncome = valuationHistory?.current?.net_income;
+  const isProfitable = netIncome && netIncome > 0;
+  const isHyperGrowth = currentPE && currentPE > 150;
+  const valuationMode = (isProfitable && !isHyperGrowth) ? 'EARNINGS_BASED' : 'REVENUE_BASED';
 
   // Mock smart money data (to be populated later)
   const insiderActivity = null; // -100 to +100
@@ -471,6 +484,13 @@ export function FundamentalsSidebar({ assetId, asset, review }: FundamentalsSide
           <BarChart2 className="w-4 h-4 text-muted-foreground" />
           <h3 className="font-semibold text-sm">Valuation Context</h3>
           <span className="text-[9px] text-muted-foreground bg-muted/50 px-1 py-0.5 rounded">5Y</span>
+          <span className={`text-[8px] px-1.5 py-0.5 rounded ml-auto ${
+            valuationMode === 'EARNINGS_BASED' 
+              ? 'bg-emerald-500/20 text-emerald-400' 
+              : 'bg-amber-500/20 text-amber-400'
+          }`}>
+            {valuationMode === 'EARNINGS_BASED' ? 'Profitable' : 'Growth'}
+          </span>
         </div>
         
         {loading ? (
@@ -478,27 +498,52 @@ export function FundamentalsSidebar({ assetId, asset, review }: FundamentalsSide
             <div className="h-16 bg-muted/30 rounded" />
             <div className="h-16 bg-muted/30 rounded" />
           </div>
-        ) : (
+        ) : valuationMode === 'EARNINGS_BASED' ? (
+          /* Profitable Company View - Earnings Based */
           <>
             <ValuationChart 
               label="P/E Ratio"
               currentValue={currentPE}
               historicalData={historicalPE}
-              tooltip="Price-to-Earnings ratio with ±1σ bands. Values above +1σ indicate expensive relative to history."
-            />
-            
-            <ValuationChart 
-              label="EV/Sales"
-              currentValue={currentEVSales}
-              historicalData={historicalEVSales}
-              tooltip="Enterprise Value to Sales. Critical for high-growth companies. Compare to historical range."
+              tooltip="Price-to-Earnings ratio. The gold standard for profitable companies. Lower is cheaper."
             />
             
             <ValuationChart 
               label="EV/EBITDA"
               currentValue={currentEVEBITDA}
               historicalData={historicalEVEBITDA}
-              tooltip="Enterprise Value to EBITDA. Accounts for debt. Lower is generally better."
+              tooltip="Enterprise Value to EBITDA. Neutralizes debt and tax structure. Lower is better."
+            />
+            
+            <ValuationChart 
+              label="EV/Sales"
+              currentValue={currentEVSales}
+              historicalData={historicalEVSales}
+              tooltip="Enterprise Value to Sales. Context metric to check margin efficiency."
+            />
+          </>
+        ) : (
+          /* Unprofitable / Hyper-Growth View - Revenue Based */
+          <>
+            <ValuationChart 
+              label="EV/Sales"
+              currentValue={currentEVSales}
+              historicalData={historicalEVSales}
+              tooltip="Enterprise Value to Sales. The standard metric for growth companies without profits."
+            />
+            
+            <ValuationChart 
+              label="EV/Gross Profit"
+              currentValue={currentEVGrossProfit}
+              historicalData={historicalEVGrossProfit}
+              tooltip="EV to Gross Profit. Rewards high-margin businesses (software) over low-margin (hardware)."
+            />
+            
+            <ValuationChart 
+              label="Price/Book"
+              currentValue={currentPriceToBook}
+              historicalData={historicalPriceToBook}
+              tooltip="Price to Book Value. Safety check - if everything fails, what are the assets worth?"
             />
           </>
         )}

@@ -3903,11 +3903,14 @@ ${template}
             fiscal_date_ending,
             eps_diluted,
             total_revenue,
+            gross_profit,
             ebitda,
             net_income,
             total_shareholder_equity,
             long_term_debt,
-            cash_and_equivalents
+            cash_and_equivalents,
+            book_value,
+            operating_cashflow
           `)
           .eq('asset_id', assetId)
           .order('fiscal_date_ending', { ascending: false })
@@ -3947,11 +3950,27 @@ ${template}
             const evToSales = (ev && revenue && revenue > 0) ? ev / revenue : null
             const evToEbitda = (ev && ebitda && ebitda > 0) ? ev / ebitda : null
             
+            // Additional metrics for growth companies
+            const grossProfit = year.gross_profit
+            const evToGrossProfit = (ev && grossProfit && grossProfit > 0) ? ev / grossProfit : null
+            const bookValue = year.book_value || year.total_shareholder_equity
+            const priceToBook = (marketCap && bookValue && bookValue > 0) ? marketCap / bookValue : null
+            
+            // FCF Yield for profitable companies
+            const operatingCashflow = year.operating_cashflow
+            const fcf = operatingCashflow ? operatingCashflow * 0.85 : null // Rough FCF estimate
+            const fcfYield = (fcf && marketCap && marketCap > 0) ? (fcf / marketCap) * 100 : null
+            
             history.push({
+              fiscal_date: fiscalDate,
               fiscal_year: fiscalDate.substring(0, 4),
               pe_ratio: peRatio,
               ev_to_sales: evToSales,
-              ev_to_ebitda: evToEbitda
+              ev_to_ebitda: evToEbitda,
+              ev_to_gross_profit: evToGrossProfit,
+              price_to_book: priceToBook,
+              fcf_yield: fcfYield,
+              net_income: year.net_income
             })
           }
         }
@@ -3968,13 +3987,25 @@ ${template}
           .eq('asset_id', assetId)
           .single()
         
+        // Get latest net income for profitability check
+        const latestNetIncome = annualData && annualData.length > 0 ? annualData[0].net_income : null
+        
+        // Get price_to_book from equity_metadata
+        const { data: priceToBookData } = await supabase
+          .from('equity_metadata')
+          .select('price_to_book')
+          .eq('asset_id', assetId)
+          .single()
+        
         return new Response(JSON.stringify({
           history: history.reverse(), // Oldest first for charting
           current: {
             pe_ratio: currentMetadata?.pe_ratio ? parseFloat(currentMetadata.pe_ratio) : null,
             forward_pe: currentMetadata?.forward_pe ? parseFloat(currentMetadata.forward_pe) : null,
             ev_to_sales: currentMetadata?.ev_to_revenue ? parseFloat(currentMetadata.ev_to_revenue) : null,
-            ev_to_ebitda: currentMetadata?.ev_to_ebitda ? parseFloat(currentMetadata.ev_to_ebitda) : null
+            ev_to_ebitda: currentMetadata?.ev_to_ebitda ? parseFloat(currentMetadata.ev_to_ebitda) : null,
+            price_to_book: priceToBookData?.price_to_book ? parseFloat(priceToBookData.price_to_book) : null,
+            net_income: latestNetIncome
           }
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
