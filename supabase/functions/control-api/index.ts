@@ -3880,14 +3880,19 @@ ${template}
         
         // Get asset_id if symbol was provided (ensure it's a number)
         let assetId: number | null = assetIdParam ? parseInt(assetIdParam) : null
+        console.log('[valuation-history] assetIdParam:', assetIdParam, 'symbolParam:', symbolParam, 'initial assetId:', assetId)
+        
         if (!assetId && symbolParam) {
-          const { data: assetData } = await supabase
+          const { data: assetData, error: assetError } = await supabase
             .from('assets')
             .select('asset_id')
             .eq('symbol', symbolParam.toUpperCase())
             .single()
+          console.log('[valuation-history] asset lookup result:', assetData, 'error:', assetError)
           if (assetData) assetId = assetData.asset_id
         }
+        
+        console.log('[valuation-history] final assetId:', assetId, 'type:', typeof assetId)
         
         if (!assetId) {
           return new Response(JSON.stringify({ error: 'Asset not found' }), {
@@ -3897,7 +3902,7 @@ ${template}
         }
         
         // Fetch annual fundamentals with EPS for P/E calculation
-        const { data: annualData } = await supabase
+        const { data: annualData, error: annualError } = await supabase
           .from('equity_annual_fundamentals')
           .select(`
             fiscal_date_ending,
@@ -3915,6 +3920,11 @@ ${template}
           .eq('asset_id', assetId)
           .order('fiscal_date_ending', { ascending: false })
           .limit(6)
+        
+        console.log('[valuation-history] annualData rows:', annualData?.length || 0, 'error:', annualError)
+        if (annualData && annualData.length > 0) {
+          console.log('[valuation-history] first row:', JSON.stringify(annualData[0]))
+        }
         
         // Fetch price at each fiscal year end from daily_bars
         const history: any[] = []
