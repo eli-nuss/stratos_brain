@@ -3699,6 +3699,116 @@ ${template}
         })
       }
 
+      // ==================== HISTORICAL FINANCIALS ENDPOINT ====================
+
+      // GET /dashboard/financials - Get historical financial data for an asset
+      case req.method === 'GET' && path === '/dashboard/financials': {
+        const assetIdParam = url.searchParams.get('asset_id')
+        const symbolParam = url.searchParams.get('symbol')
+        const yearsParam = url.searchParams.get('years') || '5'
+        
+        if (!assetIdParam && !symbolParam) {
+          return new Response(JSON.stringify({ error: 'asset_id or symbol required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Resolve asset_id from symbol if needed
+        let assetId = assetIdParam
+        if (!assetId && symbolParam) {
+          const { data: assetData } = await supabase
+            .from('assets')
+            .select('asset_id')
+            .ilike('symbol', symbolParam)
+            .eq('asset_type', 'equity')
+            .limit(1)
+            .single()
+          
+          if (!assetData) {
+            return new Response(JSON.stringify({ error: 'Asset not found' }), {
+              status: 404,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            })
+          }
+          assetId = assetData.asset_id.toString()
+        }
+        
+        const years = parseInt(yearsParam)
+        
+        // Fetch annual fundamentals (last N years)
+        const { data: annualData, error: annualError } = await supabase
+          .from('equity_annual_fundamentals')
+          .select(`
+            fiscal_date_ending,
+            total_revenue,
+            gross_profit,
+            operating_income,
+            net_income,
+            ebitda,
+            operating_cashflow,
+            investing_cashflow,
+            financing_cashflow,
+            free_cash_flow,
+            capital_expenditures
+          `)
+          .eq('asset_id', assetId)
+          .order('fiscal_date_ending', { ascending: false })
+          .limit(years + 1) // Get one extra for YoY calculations
+        
+        if (annualError) {
+          return new Response(JSON.stringify({ error: annualError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Fetch quarterly fundamentals (last 8 quarters for TTM calculation)
+        const { data: quarterlyData, error: quarterlyError } = await supabase
+          .from('equity_quarterly_fundamentals')
+          .select(`
+            fiscal_date_ending,
+            total_revenue,
+            gross_profit,
+            operating_income,
+            net_income,
+            ebitda,
+            operating_cashflow,
+            investing_cashflow,
+            financing_cashflow,
+            free_cash_flow
+          `)
+          .eq('asset_id', assetId)
+          .order('fiscal_date_ending', { ascending: false })
+          .limit(8)
+        
+        // Calculate TTM (Trailing Twelve Months) from last 4 quarters
+        let ttm = null
+        if (quarterlyData && quarterlyData.length >= 4) {
+          const last4Quarters = quarterlyData.slice(0, 4)
+          ttm = {
+            fiscal_date_ending: 'TTM',
+            total_revenue: last4Quarters.reduce((sum, q) => sum + (q.total_revenue || 0), 0),
+            gross_profit: last4Quarters.reduce((sum, q) => sum + (q.gross_profit || 0), 0),
+            operating_income: last4Quarters.reduce((sum, q) => sum + (q.operating_income || 0), 0),
+            net_income: last4Quarters.reduce((sum, q) => sum + (q.net_income || 0), 0),
+            ebitda: last4Quarters.reduce((sum, q) => sum + (q.ebitda || 0), 0),
+            operating_cashflow: last4Quarters.reduce((sum, q) => sum + (q.operating_cashflow || 0), 0),
+            investing_cashflow: last4Quarters.reduce((sum, q) => sum + (q.investing_cashflow || 0), 0),
+            financing_cashflow: last4Quarters.reduce((sum, q) => sum + (q.financing_cashflow || 0), 0),
+            free_cash_flow: last4Quarters.reduce((sum, q) => sum + (q.free_cash_flow || 0), 0)
+          }
+        }
+        
+        return new Response(JSON.stringify({
+          annual: annualData || [],
+          quarterly: quarterlyData || [],
+          ttm
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
       // ==================== END DASHBOARD ENDPOINTS ====================
 
       default:

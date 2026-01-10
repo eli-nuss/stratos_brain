@@ -16,6 +16,7 @@ import { NotesHistory } from "./NotesHistory";
 import { FilesSection } from "./FilesSection";
 import TradingViewWidget from "./TradingViewWidget";
 import { FundamentalsSummary } from "./FundamentalsSummary";
+import { HistoricalFinancials } from "./HistoricalFinancials";
 import { DocumentsSection } from "./DocumentsSection";
 import { InlineOnePager } from "./InlineOnePager";
 import AddToPortfolioButton from "./AddToPortfolioButton";
@@ -502,6 +503,9 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                 </div>
               </div>
             </div>
+
+            {/* Historical Financials - Full width in left column (for equities) */}
+            <HistoricalFinancials assetId={parseInt(assetId)} assetType={asset.asset_type} />
 
             {/* Inline One Pager - Full width in left column */}
             <InlineOnePager assetId={parseInt(assetId)} symbol={asset.symbol} />
