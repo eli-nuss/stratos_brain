@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Sparkles, RefreshCw, ChevronRight, Bot, User, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { Send, Loader2, Sparkles, RefreshCw, ChevronRight, Bot, User, PanelRightClose, PanelRightOpen, Trash2 } from 'lucide-react';
 import {
   useChatMessages,
   sendChatMessage,
   refreshChatContext,
+  clearChatMessages,
   ChatMessage,
   CompanyChat,
 } from '@/hooks/useCompanyChats';
@@ -109,6 +110,7 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isRefreshingContext, setIsRefreshingContext] = useState(false);
+  const [isClearingChat, setIsClearingChat] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showFundamentals, setShowFundamentals] = useState(false); // Default to hidden on mobile
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -164,6 +166,24 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
     }
   };
 
+  const handleClearChat = async () => {
+    if (!confirm('Are you sure you want to clear all messages? This cannot be undone.')) {
+      return;
+    }
+    
+    setIsClearingChat(true);
+    try {
+      await clearChatMessages(chat.chat_id);
+      await refreshMessages();
+      onRefresh?.();
+    } catch (err) {
+      console.error('Failed to clear chat:', err);
+      setError(err instanceof Error ? err.message : 'Failed to clear chat');
+    } finally {
+      setIsClearingChat(false);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -196,6 +216,15 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
             </div>
           </div>
           <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+            <button
+              onClick={handleClearChat}
+              disabled={isClearingChat || messages.length === 0}
+              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 text-xs text-zinc-400 hover:text-red-400 hover:bg-zinc-800 rounded-md transition-colors disabled:opacity-50 disabled:hover:text-zinc-400"
+              title="Clear all messages"
+            >
+              <Trash2 className={cn('w-3.5 h-3.5', isClearingChat && 'animate-pulse')} />
+              <span className="hidden sm:inline">Clear</span>
+            </button>
             <button
               onClick={handleRefreshContext}
               disabled={isRefreshingContext}

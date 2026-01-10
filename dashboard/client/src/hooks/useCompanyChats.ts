@@ -195,3 +195,15 @@ export async function refreshChatContext(chatId: string): Promise<void> {
     throw new Error(error.error || 'Failed to refresh context');
   }
 }
+
+// Function to clear all messages from a chat
+export async function clearChatMessages(chatId: string): Promise<void> {
+  const response = await fetch(`/api/company-chat-api/chats/${chatId}/messages`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to clear chat');
+  }
+}

@@ -1208,6 +1208,32 @@ serve(async (req: Request) => {
         })
       }
 
+      // DELETE /chats/:chatId/messages - Clear all messages from a chat
+      case req.method === 'DELETE' && /^\/chats\/[a-f0-9-]+\/messages$/.test(path): {
+        const chatId = path.split('/')[2]
+        
+        // Delete all messages for this chat
+        const { error } = await supabase
+          .from('chat_messages')
+          .delete()
+          .eq('chat_id', chatId)
+        
+        if (error) throw error
+        
+        // Update the chat's last_message_at to null and reset message_count
+        await supabase
+          .from('company_chats')
+          .update({ 
+            last_message_at: null,
+            message_count: 0
+          })
+          .eq('chat_id', chatId)
+        
+        return new Response(JSON.stringify({ success: true, message: 'Chat cleared' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
       // DELETE /chats/:chatId - Archive a chat
       case req.method === 'DELETE' && /^\/chats\/[a-f0-9-]+$/.test(path): {
         const chatId = path.split('/').pop()
