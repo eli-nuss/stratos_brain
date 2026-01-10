@@ -242,7 +242,7 @@ export function EarningsChart({ symbol, assetId }: EarningsChartProps) {
         <div className="mt-4 pt-3 border-t border-border">
           <h4 className="text-xs font-medium text-muted-foreground mb-2">Recent Earnings</h4>
           <div className="grid grid-cols-4 gap-2">
-            {earningsData.earnings.slice(0, 4).map((e, i) => (
+            {earningsData.earnings.slice(0, 4).reverse().map((e, i) => (
               <div 
                 key={i} 
                 className="bg-muted/30 rounded p-2 cursor-help relative group"
