@@ -345,7 +345,7 @@ export function CompanySidePanel({ assetId, assetType, className }: CompanySideP
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-3">
+      <div className="flex-1 overflow-y-auto p-3 scrollbar-minimal">
         {activeTab === 'analysis' ? (
           <AIAnalysisTab aiReview={aiReview} currentPrice={fundamentals?.current_price} />
         ) : (

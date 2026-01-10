@@ -258,7 +258,7 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 py-6 space-y-6">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 py-6 space-y-6 scrollbar-minimal">
           {messagesLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />

@@ -639,7 +639,7 @@ export default function DashboardLayout({
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 container py-4">
+      <main className={hideNavTabs ? "flex-1 flex flex-col overflow-hidden" : "flex-1 container py-4"}>
         {children}
       </main>
 

@@ -192,4 +192,23 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+  
+  /* Minimal scrollbar for chat panels */
+  .scrollbar-minimal {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  }
+  .scrollbar-minimal::-webkit-scrollbar {
+    width: 4px;
+  }
+  .scrollbar-minimal::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-minimal::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+  }
+  .scrollbar-minimal::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
 }
