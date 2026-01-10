@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Save, RefreshCw, FileText, Settings, AlertCircle, CheckCircle, Code, Eye, MessageSquare, Sliders } from 'lucide-react';
+import { PageHeader } from '@/components/PageHeader';
 import RichMarkdownEditor from '@/components/RichMarkdownEditor';
 
 interface Template {
@@ -258,118 +259,102 @@ export function TemplateEditor() {
   const promptConfigs = chatConfigs.filter(c => c.category === 'prompts');
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      {/* Header */}
-      <div className="border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 py-2 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <a href="/" className="text-gray-400 hover:text-white transition-colors text-sm">
-              ← <span className="hidden sm:inline">Back to Dashboard</span><span className="sm:hidden">Back</span>
-            </a>
-            <span className="text-gray-600 hidden sm:inline">|</span>
-            <h1 className="text-base sm:text-xl font-semibold flex items-center gap-2">
-              <Settings className="w-4 sm:w-5 h-4 sm:h-5 text-blue-400" />
-              <span className="hidden sm:inline">Configuration Editor</span>
-              <span className="sm:hidden">Config</span>
-            </h1>
-          </div>
-          
+    <div className="min-h-screen bg-background text-foreground">
+      <PageHeader
+        title="Templates"
+        subtitle="Configure document templates and chat AI settings"
+        icon={<Settings className="w-4 h-4 text-primary" />}
+        actions={
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             {/* Tab Toggle */}
-            <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
+            <div className="flex items-center bg-muted rounded-lg p-0.5">
               <button
                 onClick={() => setActiveTab('documents')}
-                className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 min-h-[36px] sm:min-h-0 ${
                   activeTab === 'documents' 
-                    ? 'bg-gray-700 text-white' 
-                    : 'text-gray-400 hover:text-white'
+                    ? 'bg-background text-foreground' 
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <FileText className="w-3.5 h-3.5" />
-                Documents
+                <span className="hidden sm:inline">Documents</span>
               </button>
               <button
                 onClick={() => setActiveTab('chat')}
-                className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 min-h-[36px] sm:min-h-0 ${
                   activeTab === 'chat' 
-                    ? 'bg-gray-700 text-white' 
-                    : 'text-gray-400 hover:text-white'
+                    ? 'bg-background text-foreground' 
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <MessageSquare className="w-3.5 h-3.5" />
-                Chat AI
+                <span className="hidden sm:inline">Chat AI</span>
               </button>
             </div>
             
-            <div className="h-4 w-px bg-gray-700" />
-            
             {/* Editor Mode Toggle - only for textarea configs */}
             {(activeTab === 'documents' || (selectedConfig?.config_type === 'textarea')) && (
-              <>
-                <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
-                  <button
-                    onClick={() => setEditorMode('rich')}
-                    className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
-                      editorMode === 'rich' 
-                        ? 'bg-gray-700 text-white' 
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                    Rich
-                  </button>
-                  <button
-                    onClick={() => setEditorMode('raw')}
-                    className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
-                      editorMode === 'raw' 
-                        ? 'bg-gray-700 text-white' 
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    <Code className="w-3.5 h-3.5" />
-                    Raw
-                  </button>
-                </div>
-                
-                <div className="h-4 w-px bg-gray-700" />
-              </>
+              <div className="flex items-center bg-muted rounded-lg p-0.5">
+                <button
+                  onClick={() => setEditorMode('rich')}
+                  className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 min-h-[36px] sm:min-h-0 ${
+                    editorMode === 'rich' 
+                      ? 'bg-background text-foreground' 
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Rich</span>
+                </button>
+                <button
+                  onClick={() => setEditorMode('raw')}
+                  className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 min-h-[36px] sm:min-h-0 ${
+                    editorMode === 'raw' 
+                      ? 'bg-background text-foreground' 
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Code className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Raw</span>
+                </button>
+              </div>
             )}
             
             {saveStatus === 'success' && (
               <span className="text-green-400 flex items-center gap-1 text-sm">
                 <CheckCircle className="w-4 h-4" />
-                Saved
+                <span className="hidden sm:inline">Saved</span>
               </span>
             )}
             {saveStatus === 'error' && (
               <span className="text-red-400 flex items-center gap-1 text-sm">
                 <AlertCircle className="w-4 h-4" />
-                Error
+                <span className="hidden sm:inline">Error</span>
               </span>
             )}
             <button
               onClick={handleRefresh}
               disabled={loading}
-              className="px-3 py-1.5 text-sm bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
+              className="p-2 sm:px-3 sm:py-1.5 text-sm bg-muted hover:bg-muted/80 rounded-lg transition-colors flex items-center gap-2 min-h-[44px] sm:min-h-0"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
+              <span className="hidden sm:inline">Refresh</span>
             </button>
             <button
               onClick={handleSave}
               disabled={saving || !hasChanges}
-              className={`px-4 py-1.5 text-sm rounded-lg transition-colors flex items-center gap-2 ${
+              className={`p-2 sm:px-4 sm:py-1.5 text-sm rounded-lg transition-colors flex items-center gap-2 min-h-[44px] sm:min-h-0 ${
                 hasChanges 
-                  ? 'bg-blue-600 hover:bg-blue-500 text-white' 
-                  : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                  ? 'bg-primary hover:bg-primary/90 text-primary-foreground' 
+                  : 'bg-muted text-muted-foreground cursor-not-allowed'
               }`}
             >
               <Save className={`w-4 h-4 ${saving ? 'animate-pulse' : ''}`} />
-              {saving ? 'Saving...' : 'Save Changes'}
+              <span className="hidden sm:inline">{saving ? 'Saving...' : 'Save'}</span>
             </button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       <div className="max-w-7xl mx-auto px-4 py-4 sm:py-6">
         {error && (

@@ -1,5 +1,6 @@
 import useSWR from "swr";
 import { Search, FileText, Calendar, FileDown, File, Loader2 } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
@@ -269,60 +270,43 @@ export default function MemoLibrary() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-background border-b border-border">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-3 gap-3">
-          {/* Top row on mobile */}
-          <div className="flex items-center justify-between sm:justify-start sm:gap-4">
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={() => window.history.back()}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                ← Back
-              </button>
-              <div className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-primary" />
-                <h1 className="text-lg font-semibold">Memo Library</h1>
-              </div>
-            </div>
-            <span className="text-sm text-muted-foreground">
-              {filteredMemos.length} docs
-            </span>
-          </div>
-          
-          {/* Bottom row on mobile */}
+      <PageHeader
+        title="Memo Library"
+        subtitle={`${filteredMemos.length} documents`}
+        icon={<FileText className="w-4 h-4 text-primary" />}
+        actions={
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Document Type Filter */}
             <div className="flex items-center gap-1 bg-muted/30 rounded-lg p-1">
               <button
                 onClick={() => setDocTypeFilter('memo')}
-                className={`px-2 sm:px-3 py-1 text-xs rounded ${docTypeFilter === 'memo' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`px-2 sm:px-3 py-1.5 text-xs rounded min-h-[36px] sm:min-h-0 ${docTypeFilter === 'memo' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 Memos
               </button>
               <button
                 onClick={() => setDocTypeFilter('one_pager')}
-                className={`px-2 sm:px-3 py-1 text-xs rounded ${docTypeFilter === 'one_pager' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`px-2 sm:px-3 py-1.5 text-xs rounded min-h-[36px] sm:min-h-0 ${docTypeFilter === 'one_pager' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 One Pagers
               </button>
             </div>
             
             {/* Search */}
-            <div className="relative flex-1 sm:flex-none">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 type="text"
                 placeholder="Search..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full sm:w-48 lg:w-64 pl-9 pr-4 py-2 text-sm bg-muted/30 border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-32 sm:w-48 lg:w-64 pl-9 pr-4 py-2 text-sm bg-muted/30 border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary min-h-[44px] sm:min-h-0"
               />
             </div>
           </div>
-        </div>
-      </div>
+        }
+        showBackLink={true}
+      />
 
       {/* Content */}
       <div className="p-4">

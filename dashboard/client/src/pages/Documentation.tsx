@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { 
-  Activity, 
   Database, 
   Brain, 
   Cpu, 
@@ -15,8 +14,10 @@ import {
   Zap,
   FileJson,
   Server,
-  Globe
+  Globe,
+  BookOpen
 } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 
 interface CollapsibleSectionProps {
   title: string;
@@ -172,28 +173,11 @@ function FlowDiagram() {
 export default function Documentation() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container px-4 h-12 sm:h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-6">
-            <a href="/" className="text-base sm:text-lg font-bold tracking-tight flex items-center gap-2">
-              <Activity className="w-4 sm:w-5 h-4 sm:h-5 text-primary" />
-              <span className="hidden sm:inline">STRATOS</span>
-              <span className="sm:hidden">S</span>
-              <span className="text-muted-foreground font-normal hidden sm:inline">BRAIN</span>
-              <span className="text-muted-foreground font-normal sm:hidden">B</span>
-            </a>
-            <div className="h-4 w-px bg-border hidden sm:block" />
-            <span className="text-xs sm:text-sm text-muted-foreground">Docs</span>
-          </div>
-          <a 
-            href="/"
-            className="px-2 sm:px-4 py-1 sm:py-1.5 text-xs sm:text-sm font-medium rounded-md bg-muted/50 hover:bg-muted transition-colors"
-          >
-            ← <span className="hidden sm:inline">Back to Dashboard</span><span className="sm:hidden">Back</span>
-          </a>
-        </div>
-      </header>
+      <PageHeader
+        title="Documentation"
+        subtitle="Technical documentation for the AI analysis system"
+        icon={<BookOpen className="w-4 h-4 text-primary" />}
+      />
 
       {/* Main Content */}
       <main className="container px-4 py-4 sm:py-8 max-w-5xl">

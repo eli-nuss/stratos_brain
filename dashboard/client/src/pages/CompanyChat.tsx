@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRoute, useLocation } from 'wouter';
-import { MessageSquare, ArrowLeft, Menu, X } from 'lucide-react';
+import { MessageSquare, ArrowLeft, Menu, X, Activity } from 'lucide-react';
+import { PageHeader } from '@/components/PageHeader';
 import { CompanyChatList } from '@/components/CompanyChatList';
 import { CompanyChatInterface } from '@/components/CompanyChatInterface';
 import { useCompanyChats, createOrGetChat, CompanyChat } from '@/hooks/useCompanyChats';
@@ -98,74 +99,91 @@ export default function CompanyChatPage() {
   };
 
   return (
-    <div className="flex h-screen bg-zinc-950 overflow-hidden">
-      {/* Mobile Sidebar Overlay */}
-      {showMobileSidebar && (
-        <div 
-          className="fixed inset-0 bg-black/60 z-40 lg:hidden"
-          onClick={() => setShowMobileSidebar(false)}
-        />
-      )}
-
-      {/* Sidebar - Hidden on mobile unless toggled, always visible on desktop */}
-      <div className={`
-        fixed inset-y-0 left-0 z-50 w-80 transform transition-transform duration-300 ease-in-out
-        lg:relative lg:translate-x-0 lg:w-72 lg:flex-shrink-0
-        ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full'}
-      `}>
-        {/* Mobile close button */}
-        <button
-          onClick={() => setShowMobileSidebar(false)}
-          className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-white lg:hidden z-10"
-        >
-          <X className="w-5 h-5" />
-        </button>
-        
-        <CompanyChatList
-          selectedChatId={selectedChat?.chat_id || null}
-          onSelectChat={handleSelectChat}
-          onNewChat={handleNewChat}
-        />
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Top Bar */}
-        <div className="flex items-center gap-3 px-3 sm:px-4 py-2 border-b border-zinc-800 bg-zinc-900">
-          {/* Mobile menu button - only show when no chat selected or always on mobile */}
-          <button
-            onClick={() => setShowMobileSidebar(true)}
-            className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors lg:hidden"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-
-          {/* Back button - show on mobile when chat is selected */}
-          {selectedChat && (
-            <button
-              onClick={handleBackToList}
-              className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors lg:hidden"
+    <div className="flex flex-col h-screen bg-background overflow-hidden">
+      {/* Consistent Header */}
+      <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-sm">
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between gap-4">
+            {/* Left side: Logo, divider, page title */}
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+              {/* Mobile menu button */}
+              <button
+                onClick={() => setShowMobileSidebar(true)}
+                className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors lg:hidden min-h-[44px] min-w-[44px] flex items-center justify-center"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+              
+              {/* Logo/Brand */}
+              <a 
+                href="/" 
+                className="flex items-center gap-2 text-base sm:text-lg font-bold tracking-tight shrink-0"
+              >
+                <Activity className="w-4 sm:w-5 h-4 sm:h-5 text-primary" />
+                <span className="hidden sm:inline">STRATOS</span>
+                <span className="sm:hidden">S</span>
+                <span className="text-muted-foreground font-normal hidden sm:inline">BRAIN</span>
+                <span className="text-muted-foreground font-normal sm:hidden">B</span>
+              </a>
+              
+              {/* Divider */}
+              <div className="h-5 w-px bg-border hidden sm:block" />
+              
+              {/* Page title with icon */}
+              <div className="flex items-center gap-2 min-w-0">
+                <MessageSquare className="w-4 h-4 text-primary shrink-0" />
+                <span className="text-sm sm:text-base font-semibold truncate">
+                  {selectedChat ? selectedChat.display_name : 'Research Chat'}
+                </span>
+              </div>
+            </div>
+            
+            {/* Right side: Back link */}
+            <a
+              href="/"
+              className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md bg-muted/50 hover:bg-muted transition-colors min-h-[44px] sm:min-h-0"
             >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-          )}
-
-          {/* Desktop back to dashboard link */}
-          <a
-            href="/"
-            className="hidden sm:flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
-          </a>
-
-          {/* Mobile: Show current chat name */}
-          {selectedChat && (
-            <span className="text-sm font-medium text-white truncate lg:hidden flex-1">
-              {selectedChat.display_name}
-            </span>
-          )}
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Back to Dashboard</span>
+              <span className="sm:hidden">Back</span>
+            </a>
+          </div>
         </div>
+      </header>
+
+      {/* Main Content Area */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Mobile Sidebar Overlay */}
+        {showMobileSidebar && (
+          <div 
+            className="fixed inset-0 bg-black/60 z-40 lg:hidden"
+            onClick={() => setShowMobileSidebar(false)}
+          />
+        )}
+
+        {/* Sidebar - Hidden on mobile unless toggled, always visible on desktop */}
+        <div className={`
+          fixed inset-y-0 left-0 z-50 w-80 transform transition-transform duration-300 ease-in-out
+          lg:relative lg:translate-x-0 lg:w-72 lg:flex-shrink-0
+          ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full'}
+        `}>
+          {/* Mobile close button */}
+          <button
+            onClick={() => setShowMobileSidebar(false)}
+            className="absolute top-4 right-4 p-2 text-muted-foreground hover:text-foreground lg:hidden z-10 min-h-[44px] min-w-[44px] flex items-center justify-center"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          
+          <CompanyChatList
+            selectedChatId={selectedChat?.chat_id || null}
+            onSelectChat={handleSelectChat}
+            onNewChat={handleNewChat}
+          />
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
         {/* Chat Area */}
         {selectedChat ? (
@@ -199,6 +217,7 @@ export default function CompanyChatPage() {
             </div>
           </div>
         )}
+        </div>
       </div>
 
       {/* New Chat Dialog */}
