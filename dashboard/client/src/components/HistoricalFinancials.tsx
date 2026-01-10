@@ -22,11 +22,14 @@ interface FinancialData {
   financing_cashflow: number | null;
   free_cash_flow: number | null;
   ebitda: number | null;
+  ebit: number | null;
   eps_diluted: string | null;
   total_shareholder_equity?: number | null;
   long_term_debt?: number | null;
   cash_and_equivalents?: number | null;
   income_tax_expense?: number | null;
+  total_current_assets?: number | null;
+  total_current_liabilities?: number | null;
   is_estimate?: boolean;
 }
 
@@ -641,8 +644,35 @@ export function HistoricalFinancials({ assetId, assetType, embedded = false }: H
   const cfo = displayData.map(d => d.operating_cashflow);
   const cfi = displayData.map(d => d.investing_cashflow);
   const cff = displayData.map(d => d.financing_cashflow);
-  const fcf = displayData.map(d => d.free_cash_flow);
   const eps = displayData.map(d => d.eps_diluted);
+
+  // Calculate Owner Earnings (true earnings power)
+  // Formula: CFO - Change in Working Capital - D&A (as proxy for maintenance capex)
+  // This excludes growth capex which is an investment decision, not an indication of earnings power
+  const ownerEarnings = displayData.map((d, idx) => {
+    if (!d.operating_cashflow) return null;
+    
+    // D&A = EBITDA - EBIT (depreciation & amortization as proxy for maintenance capex)
+    const dna = (d.ebitda && d.ebit) ? d.ebitda - d.ebit : null;
+    
+    // Working Capital = Current Assets - Current Liabilities
+    const currentWC = (d.total_current_assets && d.total_current_liabilities) 
+      ? d.total_current_assets - d.total_current_liabilities 
+      : null;
+    
+    // Get previous period's working capital for change calculation
+    const prevData = displayData[idx + 1]; // Data is in descending order
+    const prevWC = (prevData?.total_current_assets && prevData?.total_current_liabilities)
+      ? prevData.total_current_assets - prevData.total_current_liabilities
+      : null;
+    
+    // Change in Working Capital (increase in WC uses cash, so we subtract it)
+    const wcChange = (currentWC !== null && prevWC !== null) ? currentWC - prevWC : 0;
+    
+    // Owner Earnings = CFO - Change in WC - D&A
+    if (dna === null) return null;
+    return d.operating_cashflow - wcChange - dna;
+  });
 
   // Calculate margins for each period
   const grossMargins = displayData.map(d => 
@@ -827,10 +857,10 @@ export function HistoricalFinancials({ assetId, assetType, embedded = false }: H
           isEstimateColumn={hasForward}
         />
         <FinancialRow 
-          label="Free Cash Flow" 
-          values={fcf} 
+          label="Owner Earnings" 
+          values={ownerEarnings} 
           labels={labels}
-          tooltip="Cash available after capital expenditures (CFO - CapEx). The real cash a company generates for shareholders."
+          tooltip="True earnings power: CFO - ΔWorking Capital - D&A. Uses D&A as proxy for maintenance capex, excluding growth investments. Better reflects sustainable cash generation than traditional FCF."
           isEstimateColumn={hasForward}
         />
 

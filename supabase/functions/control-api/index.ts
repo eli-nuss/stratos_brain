@@ -3747,6 +3747,7 @@ ${template}
             operating_income,
             net_income,
             ebitda,
+            ebit,
             operating_cashflow,
             investing_cashflow,
             financing_cashflow,
@@ -3756,7 +3757,9 @@ ${template}
             total_shareholder_equity,
             long_term_debt,
             cash_and_equivalents,
-            income_tax_expense
+            income_tax_expense,
+            total_current_assets,
+            total_current_liabilities
           `)
           .eq('asset_id', assetId)
           .order('fiscal_date_ending', { ascending: false })
