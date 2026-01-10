@@ -109,10 +109,10 @@ export default function CompanyChatPage() {
           />
         )}
 
-        {/* Sidebar - sticky on desktop, fixed on mobile */}
+        {/* Sidebar - fixed position so it never scrolls with chat content */}
         <div className={`
-          fixed inset-y-0 left-0 z-50 w-80 transform transition-transform duration-300 ease-in-out
-          lg:sticky lg:top-0 lg:translate-x-0 lg:w-72 lg:flex-shrink-0 lg:h-full lg:self-start
+          fixed inset-y-0 left-0 z-50 w-80 transform transition-transform duration-300 ease-in-out bg-card
+          lg:relative lg:translate-x-0 lg:w-72 lg:flex-shrink-0
           ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full'}
         `}>
           {/* Mobile close button */}
