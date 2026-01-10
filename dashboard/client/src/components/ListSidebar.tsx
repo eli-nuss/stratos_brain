@@ -335,7 +335,7 @@ export function ListSidebar({
         <SegmentedControl
           segments={[
             { id: 'core', label: 'Portfolio' },
-            { id: 'model', label: 'Model' },
+            { id: 'model', label: 'Model Portfolio' },
           ]}
           value={getMainView() === 'core' ? 'core' : getMainView() === 'model' ? 'model' : ''}
           onChange={handleMainViewChange}
