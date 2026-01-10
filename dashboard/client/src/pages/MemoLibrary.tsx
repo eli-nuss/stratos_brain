@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import { Search, FileText, Calendar, FileDown, File, Loader2, MessageSquare, TrendingUp, Download, ExternalLink } from "lucide-react";
+import { Search, FileText, Calendar, FileDown, File, Loader2, MessageSquare, TrendingUp, Download, ExternalLink, Activity } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
