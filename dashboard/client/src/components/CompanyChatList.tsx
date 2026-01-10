@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { MessageSquare, Plus, Trash2, MoreVertical, Loader2 } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { MessageSquare, Plus, Trash2, MoreVertical, Loader2, Search, X } from 'lucide-react';
 import { useCompanyChats, archiveChat, CompanyChat } from '@/hooks/useCompanyChats';
 import {
   DropdownMenu,
@@ -18,6 +18,17 @@ interface CompanyChatListProps {
 export function CompanyChatList({ selectedChatId, onSelectChat, onNewChat }: CompanyChatListProps) {
   const { chats, isLoading, refresh } = useCompanyChats();
   const [archiving, setArchiving] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Filter chats based on search query (matches display_name which contains company name and ticker)
+  const filteredChats = useMemo(() => {
+    if (!searchQuery.trim()) return chats;
+    
+    const query = searchQuery.toLowerCase().trim();
+    return chats.filter((chat) => 
+      chat.display_name.toLowerCase().includes(query)
+    );
+  }, [chats, searchQuery]);
 
   const handleArchive = async (chatId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -66,6 +77,28 @@ export function CompanyChatList({ selectedChatId, onSelectChat, onNewChat }: Com
         </button>
       </div>
 
+      {/* Search Bar */}
+      <div className="px-3 py-2 border-b border-zinc-800">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by ticker or name..."
+            className="w-full pl-8 pr-8 py-1.5 text-sm bg-zinc-800 border border-zinc-700 rounded-md text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-zinc-700 text-zinc-500 hover:text-zinc-300"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Chat List */}
       <div className="flex-1 overflow-y-auto">
         {isLoading ? (
@@ -80,9 +113,17 @@ export function CompanyChatList({ selectedChatId, onSelectChat, onNewChat }: Com
               Start a chat from any asset's detail page
             </p>
           </div>
+        ) : filteredChats.length === 0 ? (
+          <div className="px-4 py-8 text-center">
+            <Search className="w-8 h-8 mx-auto mb-2 text-zinc-600" />
+            <p className="text-sm text-zinc-500">No chats found</p>
+            <p className="text-xs text-zinc-600 mt-1">
+              Try a different search term
+            </p>
+          </div>
         ) : (
           <div className="py-2">
-            {chats.map((chat) => (
+            {filteredChats.map((chat) => (
               <div
                 key={chat.chat_id}
                 onClick={() => onSelectChat(chat)}
