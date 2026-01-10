@@ -468,12 +468,9 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
             )}
 
             {/* Historical Financials is now available in the chart tabs above */}
-
-            {/* Inline One Pager - Full width in left column */}
-            <InlineOnePager assetId={parseInt(assetId)} symbol={asset.symbol} />
           </div>
 
-          {/* Right Column: About, Fundamentals, Documents, Notes, Files (30% = 3 cols) */}
+          {/* Right Column: About, Dynamic Sidebar (30% = 3 cols) */}
           <div className="lg:col-span-3 space-y-3">
             {/* About Section - TOP */}
             <div className="bg-card border border-border rounded-lg overflow-hidden">
@@ -546,6 +543,18 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               />
             )}
 
+          </div>
+        </div>
+
+        {/* Fixed Bottom Row - One Pager (left) and AI Documents/Notes/Files (right) */}
+        <div className="px-2 sm:px-4 pb-4 grid grid-cols-1 lg:grid-cols-10 gap-3 sm:gap-4">
+          {/* Left Column: One Pager/Memo (70% = 7 cols) */}
+          <div className="lg:col-span-7">
+            <InlineOnePager assetId={parseInt(assetId)} symbol={asset.symbol} />
+          </div>
+
+          {/* Right Column: AI Documents, Notes, Files (30% = 3 cols) */}
+          <div className="lg:col-span-3 space-y-3">
             {/* AI Documents Section */}
             <DocumentsSection 
               assetId={parseInt(assetId)} 
