@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { MessageSquare, Plus, Trash2, MoreVertical, Loader2, Search, X, TrendingUp, Bitcoin } from 'lucide-react';
+import { MessageSquare, Plus, Trash2, MoreVertical, Loader2, Search, X, TrendingUp, Bitcoin, Settings, Keyboard, HelpCircle, LayoutGrid } from 'lucide-react';
 import { useCompanyChats, archiveChat, CompanyChat } from '@/hooks/useCompanyChats';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -68,8 +68,8 @@ export function CompanyChatList({ selectedChatId, onSelectChat, onNewChat }: Com
 
   return (
     <div className="flex flex-col h-full bg-card border-r border-border">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-4 border-b border-border">
+      {/* Header - Fixed at top */}
+      <div className="flex-shrink-0 flex items-center justify-between px-4 py-4 border-b border-border">
         <h2 className="text-sm font-semibold text-foreground">Company Chats</h2>
         <button
           onClick={onNewChat}
@@ -81,8 +81,8 @@ export function CompanyChatList({ selectedChatId, onSelectChat, onNewChat }: Com
         </button>
       </div>
 
-      {/* Search Bar */}
-      <div className="px-3 py-3">
+      {/* Search Bar - Fixed below header */}
+      <div className="flex-shrink-0 px-3 py-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
@@ -104,8 +104,8 @@ export function CompanyChatList({ selectedChatId, onSelectChat, onNewChat }: Com
         </div>
       </div>
 
-      {/* Chat List */}
-      <div className="flex-1 overflow-y-auto scrollbar-minimal">
+      {/* Chat List - Scrollable middle section */}
+      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-minimal">
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -209,6 +209,43 @@ export function CompanyChatList({ selectedChatId, onSelectChat, onNewChat }: Com
             ))}
           </div>
         )}
+      </div>
+
+      {/* Bottom Toolbar - Fixed at bottom */}
+      <div className="flex-shrink-0 border-t border-border px-2 py-2">
+        <div className="flex items-center justify-around">
+          <button
+            onClick={onNewChat}
+            className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-muted/50 transition-colors group"
+            title="New Chat"
+          >
+            <Plus className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+          </button>
+          <a
+            href="/"
+            className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-muted/50 transition-colors group"
+            title="Dashboard"
+          >
+            <LayoutGrid className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+          </a>
+          <button
+            className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-muted/50 transition-colors group"
+            title="Keyboard Shortcuts"
+            onClick={() => {
+              // Could show a keyboard shortcuts modal
+              alert('Keyboard Shortcuts:\n\n⌘/Ctrl + K: Search\n⌘/Ctrl + N: New Chat\nEnter: Send Message\nShift + Enter: New Line');
+            }}
+          >
+            <Keyboard className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+          </button>
+          <a
+            href="mailto:support@stratos.xyz"
+            className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-muted/50 transition-colors group"
+            title="Help & Feedback"
+          >
+            <HelpCircle className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+          </a>
+        </div>
       </div>
     </div>
   );
