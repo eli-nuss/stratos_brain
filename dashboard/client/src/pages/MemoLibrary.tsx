@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import { Search, FileText, Calendar, FileDown, File, Loader2, MessageSquare, TrendingUp, Download, ExternalLink, Activity } from "lucide-react";
+import { Search, FileText, Calendar, FileDown, File, Loader2, MessageSquare, TrendingUp, Download, ExternalLink, Activity, List, LayoutGrid } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
@@ -25,6 +25,7 @@ interface MemoFile {
   score?: number;
   thesis?: string;
   performance_since?: number;
+  stock_lists?: { id: number; name: string }[];
 }
 
 interface MemoDetailModalProps {
@@ -384,6 +385,7 @@ export default function MemoLibrary() {
   const [search, setSearch] = useState("");
   const [docTypeFilter, setDocTypeFilter] = useState<'memo' | 'one_pager' | 'all'>('all');
   const [selectedMemo, setSelectedMemo] = useState<MemoFile | null>(null);
+  const [groupBy, setGroupBy] = useState<'date' | 'list'>('date');
 
   const { data: memos, error, isLoading } = useSWR<MemoFile[]>(
     `/api/dashboard/memos?type=${docTypeFilter}`,
@@ -405,7 +407,7 @@ export default function MemoLibrary() {
   });
 
   // Group memos by date
-  const groupedMemos = filteredMemos.reduce((acc, memo) => {
+  const groupedByDate = filteredMemos.reduce((acc, memo) => {
     const date = new Date(memo.created_at).toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
@@ -416,6 +418,33 @@ export default function MemoLibrary() {
     acc[date].push(memo);
     return acc;
   }, {} as Record<string, MemoFile[]>);
+
+  // Group memos by stock list
+  const groupedByList = filteredMemos.reduce((acc, memo) => {
+    if (memo.stock_lists && memo.stock_lists.length > 0) {
+      memo.stock_lists.forEach(list => {
+        if (!acc[list.name]) acc[list.name] = [];
+        // Avoid duplicates
+        if (!acc[list.name].find(m => m.file_id === memo.file_id)) {
+          acc[list.name].push(memo);
+        }
+      });
+    } else {
+      if (!acc['Uncategorized']) acc['Uncategorized'] = [];
+      acc['Uncategorized'].push(memo);
+    }
+    return acc;
+  }, {} as Record<string, MemoFile[]>);
+
+  // Sort lists alphabetically, but put Uncategorized at the end
+  const sortedListKeys = Object.keys(groupedByList).sort((a, b) => {
+    if (a === 'Uncategorized') return 1;
+    if (b === 'Uncategorized') return -1;
+    return a.localeCompare(b);
+  });
+
+  const groupedMemos = groupBy === 'date' ? groupedByDate : groupedByList;
+  const groupKeys = groupBy === 'date' ? Object.keys(groupedByDate) : sortedListKeys;
 
   const hasError = error || (memos && !Array.isArray(memos));
   const errorMessage = error?.message || (memos as any)?.error || 'Unknown error';
@@ -465,6 +494,34 @@ export default function MemoLibrary() {
                 One Pagers
               </button>
             </div>
+
+            {/* Group By Toggle */}
+            <div className="flex bg-zinc-900 p-1 rounded-lg border border-zinc-800">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setGroupBy('date')}
+                      className={`p-1.5 rounded-md transition-all ${groupBy === 'date' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                    >
+                      <Calendar className="w-4 h-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Group by Date</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setGroupBy('list')}
+                      className={`p-1.5 rounded-md transition-all ${groupBy === 'list' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                    >
+                      <List className="w-4 h-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Group by Stock List</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </div>
         </div>
 
@@ -487,31 +544,43 @@ export default function MemoLibrary() {
           </div>
         ) : (
           <div className="space-y-10">
-            {Object.entries(groupedMemos).map(([date, dateMemos]) => (
-              <div key={date}>
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="h-px flex-1 bg-zinc-800/50"></div>
-                  <div className="flex items-center gap-2 px-3 py-1 bg-zinc-900 border border-zinc-800 rounded-full">
-                    <Calendar className="w-3.5 h-3.5 text-zinc-500" />
-                    <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">{date}</h2>
-                    <span className="w-5 h-5 flex items-center justify-center text-[10px] font-bold text-blue-400 bg-blue-500/10 rounded-full border border-blue-500/20">
-                      {dateMemos.length}
-                    </span>
+            {groupKeys.map((groupKey) => {
+              const groupMemos = groupedMemos[groupKey];
+              const isListView = groupBy === 'list';
+              const Icon = isListView ? List : Calendar;
+              const iconColor = isListView 
+                ? (groupKey === 'Uncategorized' ? 'text-zinc-600' : 'text-blue-500')
+                : 'text-zinc-500';
+              const badgeColor = isListView
+                ? (groupKey === 'Uncategorized' ? 'text-zinc-500 bg-zinc-800/50 border-zinc-700' : 'text-blue-400 bg-blue-500/10 border-blue-500/20')
+                : 'text-blue-400 bg-blue-500/10 border-blue-500/20';
+              
+              return (
+                <div key={groupKey}>
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="h-px flex-1 bg-zinc-800/50"></div>
+                    <div className="flex items-center gap-2 px-3 py-1 bg-zinc-900 border border-zinc-800 rounded-full">
+                      <Icon className={`w-3.5 h-3.5 ${iconColor}`} />
+                      <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">{groupKey}</h2>
+                      <span className={`w-5 h-5 flex items-center justify-center text-[10px] font-bold rounded-full border ${badgeColor}`}>
+                        {groupMemos.length}
+                      </span>
+                    </div>
+                    <div className="h-px flex-1 bg-zinc-800/50"></div>
                   </div>
-                  <div className="h-px flex-1 bg-zinc-800/50"></div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {groupMemos.map((memo) => (
+                      <MemoCard 
+                        key={`${groupKey}-${memo.file_id}`} 
+                        memo={memo} 
+                        onClick={() => setSelectedMemo(memo)} 
+                      />
+                    ))}
+                  </div>
                 </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {dateMemos.map((memo) => (
-                    <MemoCard 
-                      key={memo.file_id} 
-                      memo={memo} 
-                      onClick={() => setSelectedMemo(memo)} 
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

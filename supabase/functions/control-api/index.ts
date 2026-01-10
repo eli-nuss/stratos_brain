@@ -695,6 +695,26 @@ serve(async (req) => {
             console.error(`Error calculating performance for memo ${f.file_id}:`, e)
           }
 
+          // Get stock lists this asset belongs to
+          try {
+            const { data: listData } = await supabase
+              .from('stock_list_items')
+              .select('stock_lists(id, name)')
+              .eq('asset_id', f.asset_id)
+            
+            if (listData && listData.length > 0) {
+              memo.stock_lists = listData
+                .map((item: any) => item.stock_lists)
+                .filter((list: any) => list !== null)
+                .map((list: any) => ({ id: list.id, name: list.name }))
+            } else {
+              memo.stock_lists = []
+            }
+          } catch (e) {
+            console.error(`Error fetching stock lists for memo ${f.file_id}:`, e)
+            memo.stock_lists = []
+          }
+
           return memo
         }))
         
