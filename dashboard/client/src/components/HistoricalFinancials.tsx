@@ -285,7 +285,7 @@ function FinancialRow({
               }`}>
                 {formatFn(value)}
               </span>
-              {idx > 0 && growthRates[idx] !== null && (
+              {idx > 0 && growthRates[idx] !== null && !isNaN(growthRates[idx]!) && isFinite(growthRates[idx]!) && (
                 <span className={`text-[10px] ${isEstimate ? 'text-amber-400/60' : getGrowthColor(growthRates[idx])}`}>
                   {growthRates[idx]! > 0 ? '+' : ''}{growthRates[idx]!.toFixed(0)}%
                 </span>
@@ -409,7 +409,7 @@ function EPSRow({
               <span className={`font-mono text-xs ${isEstimate ? 'text-amber-400/80 italic' : 'text-foreground'}`}>
                 {formatEPS(value)}
               </span>
-              {idx > 0 && growthRates[idx] !== null && (
+              {idx > 0 && growthRates[idx] !== null && !isNaN(growthRates[idx]!) && isFinite(growthRates[idx]!) && (
                 <span className={`text-[10px] ${isEstimate ? 'text-amber-400/60' : getGrowthColor(growthRates[idx])}`}>
                   {growthRates[idx]! > 0 ? '+' : ''}{growthRates[idx]!.toFixed(0)}%
                 </span>
@@ -468,7 +468,7 @@ function ROICRow({
             }`}>
               {value !== null ? `${value.toFixed(1)}%` : '—'}
             </span>
-            {idx > 0 && growthRates[idx] !== null && (
+            {idx > 0 && growthRates[idx] !== null && !isNaN(growthRates[idx]!) && isFinite(growthRates[idx]!) && (
               <span className={`text-[10px] ${
                 growthRates[idx]! > 1 ? 'text-emerald-400' : 
                 growthRates[idx]! > 0 ? 'text-emerald-400/70' : 
@@ -486,6 +486,82 @@ function ROICRow({
     </tr>
   );
 }
+
+// Net Debt / EBITDA row component (leverage metric)
+function LeverageRow({ 
+  label, 
+  values, 
+  labels,
+  tooltip
+}: { 
+  label: string; 
+  values: (number | null)[];
+  labels: string[];
+  tooltip: string;
+}) {
+  const changes = values.map((val, idx) => 
+    idx > 0 && val !== null && values[idx - 1] !== null 
+      ? val - (values[idx - 1] as number) 
+      : null
+  );
+
+  return (
+    <tr className="border-b border-border/30 hover:bg-muted/10 transition-colors">
+      <td className="py-2 pr-4">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="text-xs text-muted-foreground cursor-help flex items-center gap-1">
+              {label}
+              <Info className="w-3 h-3 text-muted-foreground/50" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="max-w-xs">
+            <p className="text-xs">{tooltip}</p>
+          </TooltipContent>
+        </Tooltip>
+      </td>
+      {values.map((value, idx) => (
+        <td key={idx} className="py-2 px-2 text-right">
+          <div className="flex flex-col items-end">
+            <span className={`font-mono text-xs ${
+              value === null ? 'text-muted-foreground' :
+              value < 0 ? 'text-emerald-400' : // Net cash position
+              value < 1 ? 'text-emerald-400' : 
+              value < 2 ? 'text-foreground' : 
+              value < 3 ? 'text-amber-400' : 
+              'text-red-400' // High leverage warning
+            }`}>
+              {value !== null ? (value < 0 ? 'Net Cash' : `${value.toFixed(1)}x`) : '—'}
+            </span>
+            {idx > 0 && changes[idx] !== null && !isNaN(changes[idx]!) && isFinite(changes[idx]!) && (
+              <span className={`text-[10px] ${
+                changes[idx]! < -0.5 ? 'text-emerald-400' : // Deleveraging is good
+                changes[idx]! < 0 ? 'text-emerald-400/70' : 
+                changes[idx]! > 0.5 ? 'text-red-400' : // Increasing leverage is concerning
+                'text-red-400/70'
+              }`}>
+                {changes[idx]! > 0 ? '+' : ''}{changes[idx]!.toFixed(1)}x
+              </span>
+            )}
+          </div>
+        </td>
+      ))}
+      <td className="py-2 pl-2">
+        <Sparkline data={values} labels={labels} positive={false} formatFn={(v) => v !== null ? (v < 0 ? 'Net Cash' : `${v.toFixed(1)}x`) : '—'} />
+      </td>
+    </tr>
+  );
+}
+
+// Calculate Net Debt / EBITDA
+const calculateNetDebtToEBITDA = (data: FinancialData): number | null => {
+  if (!data.ebitda || data.ebitda <= 0) return null;
+  
+  const netDebt = (data.long_term_debt || 0) - (data.cash_and_equivalents || 0);
+  
+  // If net debt is negative (more cash than debt), return negative to indicate net cash position
+  return netDebt / data.ebitda;
+};
 
 export function HistoricalFinancials({ assetId, assetType, embedded = false }: HistoricalFinancialsProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -580,6 +656,11 @@ export function HistoricalFinancials({ assetId, assetType, embedded = false }: H
   // Calculate ROIC for each period (only for annual data with balance sheet info)
   const roicValues = isAnnual 
     ? baseData.map(d => calculateROIC(d))
+    : [];
+
+  // Calculate Net Debt / EBITDA for each period (leverage metric)
+  const netDebtToEBITDAValues = isAnnual 
+    ? baseData.map(d => calculateNetDebtToEBITDA(d))
     : [];
 
   // Latest margins for header display
@@ -766,6 +847,14 @@ export function HistoricalFinancials({ assetId, assetType, embedded = false }: H
               labels={hasForward ? labels.slice(0, -1) : labels}
               tooltip="Return on Invested Capital. NOPAT / (Equity + Debt - Cash). The gold standard for capital efficiency. >15% is excellent, >10% is good."
             />
+            {netDebtToEBITDAValues.some(v => v !== null) && (
+              <LeverageRow 
+                label="Net Debt/EBITDA" 
+                values={hasForward ? [...netDebtToEBITDAValues, null] : netDebtToEBITDAValues}
+                labels={hasForward ? labels.slice(0, -1) : labels}
+                tooltip="Net Debt / EBITDA. Measures leverage and ability to pay off debt. <1x is excellent, 1-2x is healthy, 2-3x is moderate, >3x is high leverage (risk). Negative means net cash position (more cash than debt)."
+              />
+            )}
           </>
         )}
       </tbody>
