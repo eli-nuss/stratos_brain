@@ -414,23 +414,32 @@ export function FundamentalsSidebar({ assetId, asset, review }: FundamentalsSide
           <h3 className="font-semibold text-sm">Smart Money</h3>
         </div>
         
-        <SentimentMeter 
-          label="Insider Activity"
-          value={insiderActivity}
-          tooltip="Net insider buying vs selling over the last 6 months. Positive = insiders buying."
-          icon={Users}
-        />
-        
-        <SentimentMeter 
-          label="Institutional Flow"
-          value={institutionalChange}
-          tooltip="Net change in institutional ownership. Positive = funds adding positions."
-          icon={Building2}
-        />
-        
-        <div className="text-[10px] text-muted-foreground/70 text-center mt-1">
-          Smart money data coming soon
-        </div>
+        {(insiderActivity !== null || institutionalChange !== null) ? (
+          <>
+            {insiderActivity !== null && (
+              <SentimentMeter 
+                label="Insider Activity"
+                value={insiderActivity}
+                tooltip="Net insider buying vs selling over the last 6 months. Positive = insiders buying."
+                icon={Users}
+              />
+            )}
+            
+            {institutionalChange !== null && (
+              <SentimentMeter 
+                label="Institutional Flow"
+                value={institutionalChange}
+                tooltip="Net change in institutional ownership. Positive = funds adding positions."
+                icon={Building2}
+              />
+            )}
+          </>
+        ) : (
+          <div className="text-center py-3">
+            <Users className="w-6 h-6 text-muted-foreground/30 mx-auto mb-1.5" />
+            <p className="text-xs text-muted-foreground/60">Smart money data coming soon</p>
+          </div>
+        )}
       </div>
 
       {/* Module C: AI Thesis */}
