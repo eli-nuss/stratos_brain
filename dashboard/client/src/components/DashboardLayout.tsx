@@ -1,5 +1,6 @@
 import { ReactNode, useState, useRef, useEffect } from "react";
 import { Link } from "wouter";
+import { cn } from "@/lib/utils";
 import useSWR from "swr";
 import { Activity, BookOpen, Settings, Search, GripVertical, Pencil, Trash2, FileText, ChevronDown, ChevronUp } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
