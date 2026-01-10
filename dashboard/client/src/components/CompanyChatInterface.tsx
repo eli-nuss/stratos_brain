@@ -297,19 +297,22 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
             ))
           )}
 
-          {/* Sending indicator */}
+          {/* AI Thinking Indicator */}
           {isSending && (
-            <div className="flex gap-2 sm:gap-3">
+            <div className="flex gap-2 sm:gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
               <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-zinc-700 flex items-center justify-center">
                 <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
               </div>
-              <div className="bg-zinc-800/80 rounded-2xl rounded-bl-md px-3 py-2 sm:px-4 sm:py-3 flex items-center gap-2 sm:gap-3 border border-zinc-700/30">
-                <div className="flex gap-1">
-                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              <div className="bg-zinc-800/80 rounded-2xl rounded-bl-md px-3 py-2 sm:px-4 sm:py-3 border border-zinc-700/30">
+                <div className="flex items-center gap-3">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                  <span className="text-sm text-zinc-400">AI is thinking...</span>
                 </div>
-                <span className="text-xs sm:text-sm text-zinc-400">Analyzing...</span>
+                <p className="text-[10px] text-zinc-600 mt-1">Analyzing data and formulating response</p>
               </div>
             </div>
           )}
@@ -364,14 +367,15 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
         <>
           {/* Mobile overlay */}
           <div 
-            className="fixed inset-0 bg-black/60 z-40 xl:hidden"
+            className="fixed inset-0 bg-black/60 z-40 xl:hidden animate-in fade-in duration-200"
             onClick={() => setShowFundamentals(false)}
           />
           
-          {/* Panel */}
+          {/* Panel with slide animation */}
           <div className={cn(
             "fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-zinc-900 border-l border-zinc-800 overflow-hidden",
-            "xl:relative xl:w-96 xl:max-w-none xl:flex-shrink-0 xl:z-auto"
+            "animate-in slide-in-from-right duration-300 ease-out",
+            "xl:relative xl:w-96 xl:max-w-none xl:flex-shrink-0 xl:z-auto xl:animate-none"
           )}>
             {/* Mobile close button */}
             <button

@@ -213,12 +213,12 @@ export default function TableSummaryRows({ assets, visibleColumns, listName }: T
   const baseRowClass = "border-b border-border text-xs";
   
   // Toggle row - sticks below table header (~28px)
-  const toggleRowClass = `${baseRowClass} ${stickyBase} top-[28px] bg-[#1e1e24] cursor-pointer hover:bg-[#2a2a32] transition-colors`;
+  const toggleRowClass = `${baseRowClass} ${stickyBase} top-[28px] bg-table-row-highlight cursor-pointer hover:bg-muted transition-colors`;
   
   // Summary rows - stack below toggle row - fully opaque backgrounds
-  const meanRowClass = `${baseRowClass} ${stickyBase} top-[52px] bg-[#18181c]`;
-  const mcWeightedRowClass = `${baseRowClass} ${stickyBase} top-[76px] bg-[#0c1929]`;
-  const medianRowClass = `${baseRowClass} ${stickyBase} top-[100px] bg-[#18181c]`;
+  const meanRowClass = `${baseRowClass} ${stickyBase} top-[52px] bg-table-summary`;
+  const mcWeightedRowClass = `${baseRowClass} ${stickyBase} top-[76px] bg-table-summary-weighted`;
+  const medianRowClass = `${baseRowClass} ${stickyBase} top-[100px] bg-table-summary`;
 
   // Toggle row
   const toggleRow = (
@@ -255,7 +255,7 @@ export default function TableSummaryRows({ assets, visibleColumns, listName }: T
         {visibleColumns.map((column) => (
           <td 
             key={column.id} 
-            className={`px-2 py-1.5 bg-[#18181c] ${
+            className={`px-2 py-1.5 bg-table-summary ${
               column.align === "center" ? "text-center" : 
               column.align === "right" ? "text-right" : "text-left"
             } ${column.sticky ? "sticky z-30" : ""}`}
@@ -271,7 +271,7 @@ export default function TableSummaryRows({ assets, visibleColumns, listName }: T
         {visibleColumns.map((column) => (
           <td 
             key={column.id} 
-            className={`px-2 py-1.5 font-medium bg-[#0c1929] ${
+            className={`px-2 py-1.5 font-medium bg-table-summary-weighted ${
               column.align === "center" ? "text-center" : 
               column.align === "right" ? "text-right" : "text-left"
             } ${column.sticky ? "sticky z-30" : ""}`}
@@ -287,7 +287,7 @@ export default function TableSummaryRows({ assets, visibleColumns, listName }: T
         {visibleColumns.map((column) => (
           <td 
             key={column.id} 
-            className={`px-2 py-1.5 bg-[#18181c] ${
+            className={`px-2 py-1.5 bg-table-summary ${
               column.align === "center" ? "text-center" : 
               column.align === "right" ? "text-right" : "text-left"
             } ${column.sticky ? "sticky z-30" : ""}`}

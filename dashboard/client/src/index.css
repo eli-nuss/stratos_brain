@@ -41,6 +41,13 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   
+  /* Table Background Layers */
+  --color-table-header: var(--table-header);
+  --color-table-row-alt: var(--table-row-alt);
+  --color-table-row-highlight: var(--table-row-highlight);
+  --color-table-summary: var(--table-summary);
+  --color-table-summary-weighted: var(--table-summary-weighted);
+  
   /* Custom Signal Colors */
   --color-signal-bullish: var(--signal-bullish);
   --color-signal-bearish: var(--signal-bearish);
@@ -97,6 +104,13 @@
   --attention-urgent: oklch(0.65 0.25 25); /* Red */
   --attention-focus: oklch(0.85 0.15 85); /* Amber/Orange */
   --attention-watch: oklch(0.7 0.15 250); /* Blue */
+  
+  /* Table Background Layers */
+  --table-header: oklch(0.08 0.01 260); /* #0a0a0c equivalent */
+  --table-row-alt: oklch(0.13 0.01 260); /* #18181c equivalent */
+  --table-row-highlight: oklch(0.16 0.01 260); /* #1e1e24 equivalent */
+  --table-summary: oklch(0.13 0.01 260); /* #18181c equivalent */
+  --table-summary-weighted: oklch(0.10 0.02 220); /* #0c1929 equivalent - blue tint */
 }
 
 .dark {

@@ -916,7 +916,7 @@ export default function CustomizableAssetTable({
           onDragEnd={handleDragEnd}
         >
           <table className="w-full text-sm text-left min-w-[1200px]">
-            <thead className="sticky top-0 z-40 bg-[#0a0a0c] border-b border-border text-xs text-muted-foreground">
+            <thead className="sticky top-0 z-40 bg-table-header border-b border-border text-xs text-muted-foreground">
               <SortableContext
                 items={visibleColumns.map(c => c.id)}
                 strategy={horizontalListSortingStrategy}

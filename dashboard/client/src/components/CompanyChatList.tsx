@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { MessageSquare, Plus, Trash2, MoreVertical, Loader2, Search, X } from 'lucide-react';
+import { MessageSquare, Plus, Trash2, MoreVertical, Loader2, Search, X, TrendingUp, Bitcoin } from 'lucide-react';
 import { useCompanyChats, archiveChat, CompanyChat } from '@/hooks/useCompanyChats';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -89,7 +89,7 @@ export function CompanyChatList({ selectedChatId, onSelectChat, onNewChat }: Com
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by ticker or name..."
-            className="w-full pl-8 pr-8 py-1.5 text-sm bg-zinc-800 border border-zinc-700 rounded-md text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+            className="w-full pl-8 pr-8 py-1.5 text-sm bg-zinc-800 border border-zinc-700 rounded-md text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
           />
           {searchQuery && (
             <button
@@ -110,11 +110,18 @@ export function CompanyChatList({ selectedChatId, onSelectChat, onNewChat }: Com
           </div>
         ) : chats.length === 0 ? (
           <div className="px-4 py-8 text-center">
-            <MessageSquare className="w-8 h-8 mx-auto mb-2 text-zinc-600" />
-            <p className="text-sm text-zinc-500">No chats yet</p>
-            <p className="text-xs text-zinc-600 mt-1">
-              Start a chat from any asset's detail page
+            <MessageSquare className="w-10 h-10 mx-auto mb-3 text-zinc-700" />
+            <p className="text-sm font-medium text-zinc-400">No chats yet</p>
+            <p className="text-xs text-zinc-600 mt-1 mb-4">
+              Start researching any company with AI
             </p>
+            <button
+              onClick={onNewChat}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+            >
+              <Plus className="w-4 h-4" />
+              Start New Chat
+            </button>
           </div>
         ) : filteredChats.length === 0 ? (
           <div className="px-4 py-8 text-center">
@@ -125,28 +132,32 @@ export function CompanyChatList({ selectedChatId, onSelectChat, onNewChat }: Com
             </p>
           </div>
         ) : (
-          <div className="py-2">
+          <div className="py-1">
             {filteredChats.map((chat) => (
               <div
                 key={chat.chat_id}
                 onClick={() => onSelectChat(chat)}
                 className={cn(
-                  'group flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors',
+                  'group flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors',
                   selectedChatId === chat.chat_id
-                    ? 'bg-zinc-800 border-l-2 border-emerald-500'
-                    : 'hover:bg-zinc-800/50 border-l-2 border-transparent'
+                    ? 'bg-zinc-800/80 border-l-2 border-primary'
+                    : 'hover:bg-zinc-800/40 border-l-2 border-transparent'
                 )}
               >
-                {/* Asset Type Icon */}
+                {/* Asset Type Icon - More subtle */}
                 <div
                   className={cn(
-                    'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold',
+                    'flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center',
                     chat.asset_type === 'crypto'
-                      ? 'bg-orange-500/20 text-orange-400'
-                      : 'bg-blue-500/20 text-blue-400'
+                      ? 'bg-zinc-800 text-amber-500/70'
+                      : 'bg-zinc-800 text-blue-400/70'
                   )}
                 >
-                  {chat.display_name.slice(0, 2).toUpperCase()}
+                  {chat.asset_type === 'crypto' ? (
+                    <Bitcoin className="w-4 h-4" />
+                  ) : (
+                    <TrendingUp className="w-4 h-4" />
+                  )}
                 </div>
 
                 {/* Chat Info */}
@@ -155,7 +166,7 @@ export function CompanyChatList({ selectedChatId, onSelectChat, onNewChat }: Com
                     <span className="text-sm font-medium text-zinc-200 truncate">
                       {chat.display_name}
                     </span>
-                    <span className="text-xs text-zinc-500 ml-2 flex-shrink-0">
+                    <span className="text-[11px] text-zinc-500 ml-2 flex-shrink-0">
                       {formatDate(chat.last_message_at)}
                     </span>
                   </div>
@@ -163,16 +174,15 @@ export function CompanyChatList({ selectedChatId, onSelectChat, onNewChat }: Com
                     <span className="text-xs text-zinc-500">
                       {chat.message_count} messages
                     </span>
+                    {/* Subtle dot indicator instead of badge */}
                     <span
                       className={cn(
-                        'text-[10px] px-1.5 py-0.5 rounded',
+                        'w-1.5 h-1.5 rounded-full',
                         chat.asset_type === 'crypto'
-                          ? 'bg-orange-500/10 text-orange-400'
-                          : 'bg-blue-500/10 text-blue-400'
+                          ? 'bg-amber-500/50'
+                          : 'bg-blue-400/50'
                       )}
-                    >
-                      {chat.asset_type}
-                    </span>
+                    />
                   </div>
                 </div>
 
