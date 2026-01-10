@@ -15,7 +15,8 @@ import {
   FileJson,
   Server,
   Globe,
-  BookOpen
+  BookOpen,
+  Activity
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 

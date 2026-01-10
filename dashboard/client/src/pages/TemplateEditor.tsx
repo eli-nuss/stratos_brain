@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, RefreshCw, FileText, Settings, AlertCircle, CheckCircle, Code, Eye, MessageSquare, Sliders } from 'lucide-react';
+import { Save, RefreshCw, FileText, Settings, AlertCircle, CheckCircle, Code, Eye, MessageSquare, Sliders, Activity } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
 import RichMarkdownEditor from '@/components/RichMarkdownEditor';
 

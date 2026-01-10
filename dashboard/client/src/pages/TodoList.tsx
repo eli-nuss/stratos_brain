@@ -4,7 +4,7 @@ import {
   Bug, Lightbulb, Sparkles, Check, Clock, Play, 
   Trash2, ChevronDown, ChevronRight, Filter,
   AlertCircle, Circle, ArrowUp, ArrowRight, ArrowDown,
-  Plus, X, Send, Loader2, CheckCircle2, ListTodo
+  Plus, X, Send, Loader2, CheckCircle2, ListTodo, Activity
 } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
 import DashboardLayout from '@/components/DashboardLayout';

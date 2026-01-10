@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import { Search, FileText, Calendar, FileDown, File, Loader2 } from "lucide-react";
+import { Search, FileText, Calendar, FileDown, File, Loader2, Activity } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
