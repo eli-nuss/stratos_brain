@@ -3864,6 +3864,246 @@ ${template}
         })
       }
 
+      // ==================== VALUATION HISTORY ENDPOINT ====================
+
+      // GET /dashboard/valuation-history - Get historical valuation metrics for an asset
+      case req.method === 'GET' && path === '/dashboard/valuation-history': {
+        const assetIdParam = url.searchParams.get('asset_id')
+        const symbolParam = url.searchParams.get('symbol')
+        
+        if (!assetIdParam && !symbolParam) {
+          return new Response(JSON.stringify({ error: 'asset_id or symbol required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Get asset_id if symbol was provided
+        let assetId = assetIdParam
+        if (!assetId && symbolParam) {
+          const { data: assetData } = await supabase
+            .from('assets')
+            .select('asset_id')
+            .eq('symbol', symbolParam.toUpperCase())
+            .single()
+          if (assetData) assetId = assetData.asset_id
+        }
+        
+        if (!assetId) {
+          return new Response(JSON.stringify({ error: 'Asset not found' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Fetch annual fundamentals with EPS for P/E calculation
+        const { data: annualData } = await supabase
+          .from('equity_annual_fundamentals')
+          .select(`
+            fiscal_date_ending,
+            eps_diluted,
+            total_revenue,
+            ebitda,
+            net_income,
+            total_shareholder_equity,
+            long_term_debt,
+            cash_and_equivalents
+          `)
+          .eq('asset_id', assetId)
+          .order('fiscal_date_ending', { ascending: false })
+          .limit(6)
+        
+        // Fetch price at each fiscal year end from daily_bars
+        const history: any[] = []
+        if (annualData) {
+          for (const year of annualData) {
+            const fiscalDate = year.fiscal_date_ending
+            
+            // Get price near fiscal year end
+            const { data: priceData } = await supabase
+              .from('daily_bars')
+              .select('close')
+              .eq('asset_id', assetId)
+              .lte('date', fiscalDate)
+              .order('date', { ascending: false })
+              .limit(1)
+              .single()
+            
+            const price = priceData?.close ? parseFloat(priceData.close) : null
+            const eps = year.eps_diluted ? parseFloat(year.eps_diluted) : null
+            const revenue = year.total_revenue
+            const ebitda = year.ebitda
+            
+            // Calculate P/E
+            const peRatio = (price && eps && eps > 0) ? price / eps : null
+            
+            // Calculate EV/Sales and EV/EBITDA (simplified - would need shares outstanding for accurate EV)
+            // For now, use market cap proxy from price * shares (estimated from net income / eps)
+            const sharesEstimate = (year.net_income && eps && eps !== 0) ? year.net_income / eps : null
+            const marketCap = (price && sharesEstimate) ? price * sharesEstimate : null
+            const netDebt = (year.long_term_debt || 0) - (year.cash_and_equivalents || 0)
+            const ev = marketCap ? marketCap + netDebt : null
+            
+            const evToSales = (ev && revenue && revenue > 0) ? ev / revenue : null
+            const evToEbitda = (ev && ebitda && ebitda > 0) ? ev / ebitda : null
+            
+            history.push({
+              fiscal_year: fiscalDate.substring(0, 4),
+              pe_ratio: peRatio,
+              ev_to_sales: evToSales,
+              ev_to_ebitda: evToEbitda
+            })
+          }
+        }
+        
+        // Get current valuation from equity_metadata
+        const { data: currentMetadata } = await supabase
+          .from('equity_metadata')
+          .select(`
+            pe_ratio,
+            forward_pe,
+            ev_to_revenue,
+            ev_to_ebitda
+          `)
+          .eq('asset_id', assetId)
+          .single()
+        
+        return new Response(JSON.stringify({
+          history: history.reverse(), // Oldest first for charting
+          current: {
+            pe_ratio: currentMetadata?.pe_ratio ? parseFloat(currentMetadata.pe_ratio) : null,
+            forward_pe: currentMetadata?.forward_pe ? parseFloat(currentMetadata.forward_pe) : null,
+            ev_to_sales: currentMetadata?.ev_to_revenue ? parseFloat(currentMetadata.ev_to_revenue) : null,
+            ev_to_ebitda: currentMetadata?.ev_to_ebitda ? parseFloat(currentMetadata.ev_to_ebitda) : null
+          }
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // ==================== PEERS ENDPOINT ====================
+
+      // GET /dashboard/peers - Get peer companies from the same stock lists
+      case req.method === 'GET' && path === '/dashboard/peers': {
+        const assetIdParam = url.searchParams.get('asset_id')
+        const symbolParam = url.searchParams.get('symbol')
+        const limitParam = parseInt(url.searchParams.get('limit') || '5')
+        
+        if (!assetIdParam && !symbolParam) {
+          return new Response(JSON.stringify({ error: 'asset_id or symbol required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Get asset_id if symbol was provided
+        let assetId = assetIdParam
+        if (!assetId && symbolParam) {
+          const { data: assetData } = await supabase
+            .from('assets')
+            .select('asset_id')
+            .eq('symbol', symbolParam.toUpperCase())
+            .single()
+          if (assetData) assetId = assetData.asset_id
+        }
+        
+        if (!assetId) {
+          return new Response(JSON.stringify({ error: 'Asset not found' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Find which stock lists this asset belongs to
+        const { data: listMemberships } = await supabase
+          .from('stock_list_items')
+          .select(`
+            list_id,
+            stock_lists!inner (
+              id,
+              name
+            )
+          `)
+          .eq('asset_id', assetId)
+        
+        if (!listMemberships || listMemberships.length === 0) {
+          return new Response(JSON.stringify({ 
+            peers: [],
+            lists: [],
+            message: 'Asset not in any stock lists'
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const listIds = listMemberships.map(m => m.list_id)
+        const listNames = listMemberships.map(m => (m.stock_lists as any)?.name).filter(Boolean)
+        
+        // Find peer assets in the same lists (excluding the current asset)
+        const { data: peerItems } = await supabase
+          .from('stock_list_items')
+          .select(`
+            asset_id,
+            list_id
+          `)
+          .in('list_id', listIds)
+          .neq('asset_id', assetId)
+        
+        if (!peerItems || peerItems.length === 0) {
+          return new Response(JSON.stringify({ 
+            peers: [],
+            lists: listNames,
+            message: 'No peers found in stock lists'
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Count how many lists each peer shares with the target
+        const peerCounts: Record<string, number> = {}
+        for (const item of peerItems) {
+          peerCounts[item.asset_id] = (peerCounts[item.asset_id] || 0) + 1
+        }
+        
+        // Sort by number of shared lists and take top N
+        const topPeerIds = Object.entries(peerCounts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, limitParam)
+          .map(([id]) => id)
+        
+        // Fetch peer details from v_dashboard_all_assets
+        const { data: peerDetails } = await supabase
+          .from('v_dashboard_all_assets')
+          .select(`
+            asset_id,
+            symbol,
+            name,
+            market_cap,
+            pe_ratio,
+            profit_margin,
+            revenue_growth,
+            return_1d,
+            return_5d,
+            return_21d,
+            ai_attention_level,
+            ai_score
+          `)
+          .in('asset_id', topPeerIds)
+        
+        // Add shared list count to each peer
+        const peersWithContext = (peerDetails || []).map(peer => ({
+          ...peer,
+          shared_lists: peerCounts[peer.asset_id] || 0
+        })).sort((a, b) => b.shared_lists - a.shared_lists)
+        
+        return new Response(JSON.stringify({
+          peers: peersWithContext,
+          lists: listNames
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
       // ==================== END DASHBOARD ENDPOINTS ====================
 
       default:

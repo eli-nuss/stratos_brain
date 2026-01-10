@@ -233,6 +233,7 @@ function FinancialRow({
   tooltip,
   sparklinePositive = true,
   isNeutralColor = false,
+  neutralGrowthColor = false,
   formatFn = formatLargeNumber,
   isEstimateColumn = false
 }: { 
@@ -242,6 +243,7 @@ function FinancialRow({
   tooltip: string;
   sparklinePositive?: boolean;
   isNeutralColor?: boolean;
+  neutralGrowthColor?: boolean;
   formatFn?: (value: number | null | undefined) => string;
   isEstimateColumn?: boolean;
 }) {
@@ -286,7 +288,7 @@ function FinancialRow({
                 {formatFn(value)}
               </span>
               {idx > 0 && growthRates[idx] !== null && !isNaN(growthRates[idx]!) && isFinite(growthRates[idx]!) && (
-                <span className={`text-[10px] ${isEstimate ? 'text-amber-400/60' : getGrowthColor(growthRates[idx])}`}>
+                <span className={`text-[10px] ${isEstimate ? 'text-amber-400/60' : neutralGrowthColor ? 'text-muted-foreground' : getGrowthColor(growthRates[idx])}`}>
                   {growthRates[idx]! > 0 ? '+' : ''}{growthRates[idx]!.toFixed(0)}%
                 </span>
               )}
@@ -811,6 +813,7 @@ export function HistoricalFinancials({ assetId, assetType, embedded = false }: H
           labels={labels}
           tooltip="Cash Flow from Investing - cash used for investments, acquisitions, and capex. Typically negative for growth companies (spending on future growth)."
           isNeutralColor={true}
+          neutralGrowthColor={true}
           sparklinePositive={false}
           isEstimateColumn={hasForward}
         />
@@ -820,6 +823,7 @@ export function HistoricalFinancials({ assetId, assetType, embedded = false }: H
           labels={labels}
           tooltip="Cash Flow from Financing - cash from/used for debt, equity, and dividends. Context matters: buybacks (negative) can be good, dilution (positive) can be bad."
           isNeutralColor={true}
+          neutralGrowthColor={true}
           isEstimateColumn={hasForward}
         />
         <FinancialRow 

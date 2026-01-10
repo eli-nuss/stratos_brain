@@ -17,6 +17,8 @@ import { FilesSection } from "./FilesSection";
 import TradingViewWidget from "./TradingViewWidget";
 import { FundamentalsSummary } from "./FundamentalsSummary";
 import { HistoricalFinancials } from "./HistoricalFinancials";
+import { ValuationHistory } from "./ValuationHistory";
+import { PeerComparison } from "./PeerComparison";
 import { DocumentsSection } from "./DocumentsSection";
 import { InlineOnePager } from "./InlineOnePager";
 import AddToPortfolioButton from "./AddToPortfolioButton";
@@ -78,7 +80,7 @@ function ConfidenceMeter({ confidence }: { confidence: number }) {
 export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
   const { data, isLoading } = useSWR(`/api/dashboard/asset?asset_id=${assetId}`, fetcher);
 
-  const [chartView, setChartView] = useState<'ai_score' | 'tradingview' | 'financials'>('tradingview');
+  const [chartView, setChartView] = useState<'ai_score' | 'tradingview' | 'financials' | 'peers'>('tradingview');
   const [isChartFullscreen, setIsChartFullscreen] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
@@ -262,6 +264,18 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                         Financials
                       </button>
                     )}
+                    {asset.asset_type === 'equity' && (
+                      <button
+                        onClick={() => setChartView('peers')}
+                        className={`px-2 py-1 text-xs rounded transition-colors ${
+                          chartView === 'peers'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        Peers
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -374,6 +388,17 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               ) : chartView === 'financials' ? (
                 <div className={`${isChartFullscreen ? 'min-h-[600px]' : 'min-h-[450px]'} w-full transition-all duration-300`}>
                   <HistoricalFinancials assetId={parseInt(assetId)} assetType={asset.asset_type} embedded={true} />
+                </div>
+              ) : chartView === 'peers' ? (
+                <div className={`${isChartFullscreen ? 'min-h-[600px]' : 'min-h-[450px]'} w-full transition-all duration-300`}>
+                  <PeerComparison 
+                    assetId={assetId} 
+                    currentSymbol={asset.symbol}
+                    onPeerClick={(peerId) => {
+                      // Navigate to peer asset - could use router or update assetId
+                      window.location.href = `/asset/${peerId}?asset_type=equity`;
+                    }}
+                  />
                 </div>
               ) : (
                 <div className={`${isChartFullscreen ? 'h-[600px]' : 'h-[450px]'} w-full rounded-lg border border-border overflow-hidden transition-all duration-300`}>
@@ -585,8 +610,18 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               )}
             </div>
 
-            {/* Fundamentals Summary */}
-            <FundamentalsSummary asset={{...asset, close: ohlcv?.length ? ohlcv[ohlcv.length - 1]?.close : asset.close}} />
+            {/* Fundamentals Summary or Valuation History based on active tab */}
+            {chartView === 'financials' && asset.asset_type === 'equity' ? (
+              <ValuationHistory 
+                assetId={assetId}
+                currentPE={asset.pe_ratio ? parseFloat(asset.pe_ratio) : null}
+                currentEVSales={asset.ev_to_revenue ? parseFloat(asset.ev_to_revenue) : null}
+                currentEVEBITDA={asset.ev_to_ebitda ? parseFloat(asset.ev_to_ebitda) : null}
+                forwardPE={asset.forward_pe ? parseFloat(asset.forward_pe) : null}
+              />
+            ) : (
+              <FundamentalsSummary asset={{...asset, close: ohlcv?.length ? ohlcv[ohlcv.length - 1]?.close : asset.close}} />
+            )}
 
             {/* AI Documents Section */}
             <DocumentsSection 
