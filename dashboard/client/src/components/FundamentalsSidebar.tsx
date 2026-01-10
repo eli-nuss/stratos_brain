@@ -595,29 +595,6 @@ export function FundamentalsSidebar({ assetId, asset, review }: FundamentalsSide
         )}
       </div>
 
-      {/* Module C: AI Thesis */}
-      <div className="bg-muted/5 rounded-lg border border-border p-3">
-        <div className="flex items-center gap-2 mb-3">
-          <AlertTriangle className="w-4 h-4 text-muted-foreground" />
-          <h3 className="font-semibold text-sm">AI Thesis</h3>
-        </div>
-        
-        <div className="space-y-2">
-          <ThesisAccordion 
-            title="Bull Case"
-            points={Array.isArray(bullCase) ? bullCase : [bullCase].filter(Boolean)}
-            type="bull"
-            defaultExpanded={true}
-          />
-          
-          <ThesisAccordion 
-            title="Bear Case"
-            points={Array.isArray(bearCase) ? bearCase : [bearCase].filter(Boolean)}
-            type="bear"
-            defaultExpanded={false}
-          />
-        </div>
-      </div>
     </div>
   );
 }
