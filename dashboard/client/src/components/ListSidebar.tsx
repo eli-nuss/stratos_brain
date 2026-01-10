@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Search, GripVertical, Pencil, Trash2, ChevronDown, ChevronUp, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SegmentedControl } from './SegmentedControl';
-import { SectorChips } from './SectorChips';
+
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { StockList } from '@/hooks/useStockLists';
 import { TabType } from '@/pages/Home';
@@ -26,20 +26,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { createPortal } from 'react-dom';
 
-// Sectors for filtering
-const SECTORS = [
-  { id: 'crypto-equities', label: 'Crypto Equities' },
-  { id: 'btc-miners', label: 'BTC Miners' },
-  { id: 'gold-miners', label: 'Gold Miners' },
-  { id: 'ai', label: 'AI' },
-  { id: 'robotics', label: 'Robotics' },
-  { id: 'space', label: 'Space' },
-  { id: 'semiconductors', label: 'Semiconductors' },
-  { id: 'cloud', label: 'Cloud Computing' },
-  { id: 'cybersecurity', label: 'Cybersecurity' },
-  { id: 'biotech', label: 'Biotech' },
-  { id: 'fintech', label: 'Fintech' },
-];
+
 
 interface ListSidebarProps {
   activeTab: TabType;
@@ -122,7 +109,7 @@ export function ListSidebar({
   onListRenamed,
   className = '',
 }: ListSidebarProps) {
-  const [sectorFilter, setSectorFilter] = useState<string | null>(null);
+
   const [showAllLists, setShowAllLists] = useState(false);
   const [contextMenu, setContextMenu] = useState<{
     isOpen: boolean;
@@ -382,19 +369,6 @@ export function ListSidebar({
             Crypto
           </button>
         </div>
-      </div>
-
-      {/* Sector Filter */}
-      <div className="p-3 border-b border-border">
-        <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">
-          Sector Filter
-        </div>
-        <SectorChips
-          sectors={SECTORS}
-          value={sectorFilter}
-          onChange={setSectorFilter}
-          maxVisible={4}
-        />
       </div>
 
       {/* Custom Lists */}
