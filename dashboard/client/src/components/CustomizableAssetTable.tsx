@@ -620,6 +620,15 @@ export default function CustomizableAssetTable({
         return <span className="font-mono text-xs text-muted-foreground">{row.forward_ps ? row.forward_ps.toFixed(2) : "-"}</span>;
       case "psg":
         return <span className="font-mono text-xs text-muted-foreground">{row.psg ? row.psg.toFixed(2) : "-"}</span>;
+      case "revenue_growth_yoy":
+        return (
+          <span className={`font-mono text-xs ${
+            row.revenue_growth_yoy > 0 ? "text-signal-bullish" : 
+            row.revenue_growth_yoy < 0 ? "text-signal-bearish" : "text-muted-foreground"
+          }`}>
+            {row.revenue_growth_yoy != null ? formatPercent(row.revenue_growth_yoy) : "-"}
+          </span>
+        );
       case "category":
         return <span className="text-xs text-muted-foreground truncate max-w-[80px]">{row.category || row.industry || row.sector || "-"}</span>;
       case "description":
