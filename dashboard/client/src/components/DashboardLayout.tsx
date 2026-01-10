@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import useSWR from "swr";
 import { Activity, BookOpen, Settings, Search, GripVertical, Pencil, Trash2, FileText, ChevronDown, ChevronUp } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
+import { MobileNav } from "@/components/MobileNav";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { StockList } from "@/hooks/useStockLists";
 import { TabType } from "@/pages/Home";
@@ -409,9 +410,9 @@ export default function DashboardLayout({
             </div>
           </div>
           
-          {/* Right: Search + Page Links */}
+          {/* Right: Search + Page Links (Desktop) + Mobile Nav */}
           <div className="flex items-center gap-2">
-            {/* Global Search - hidden on small mobile */}
+            {/* Global Search - hidden on mobile, shown on sm+ */}
             {onSearchChange && (
               <div className="relative hidden sm:block">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
@@ -427,44 +428,49 @@ export default function DashboardLayout({
             
             <div className="h-3 w-px bg-border/50 hidden sm:block" />
             
+            {/* Desktop Navigation Links - hidden on mobile */}
             <a
               href="/chat"
-              className="px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
+              className="hidden sm:block px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
             >
               Research
             </a>
             
             <a
               href="/memos"
-              className="px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
+              className="hidden sm:block px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
             >
               Memos
             </a>
             
             <a
               href="/docs"
-              className="px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
+              className="hidden sm:block px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
             >
               Docs
             </a>
             
             <a
               href="/todo"
-              className="px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
+              className="hidden sm:block px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
             >
               To-Do
             </a>
             
             <a
               href="/admin/templates"
-              className="px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all hidden sm:block"
+              className="hidden md:block px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-all"
             >
               Templates
             </a>
             
-            <div className="h-3 w-px bg-border/50" />
+            <div className="h-3 w-px bg-border/50 hidden sm:block" />
             
+            {/* User Menu - always visible */}
             <UserMenu />
+            
+            {/* Mobile Navigation - hamburger menu */}
+            <MobileNav searchQuery={searchQuery} onSearchChange={onSearchChange} />
           </div>
         </div>
         
