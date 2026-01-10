@@ -3987,8 +3987,13 @@ ${template}
           .eq('asset_id', assetId)
           .single()
         
-        // Get latest net income for profitability check
+        // Get latest net income and gross margin for profitability/quality check
         const latestNetIncome = annualData && annualData.length > 0 ? annualData[0].net_income : null
+        const latestRevenue = annualData && annualData.length > 0 ? annualData[0].total_revenue : null
+        const latestGrossProfit = annualData && annualData.length > 0 ? annualData[0].gross_profit : null
+        const latestGrossMargin = (latestRevenue && latestGrossProfit && latestRevenue > 0) 
+          ? (latestGrossProfit / latestRevenue) * 100 
+          : null
         
         // Get price_to_book from equity_metadata
         const { data: priceToBookData } = await supabase
@@ -4005,7 +4010,8 @@ ${template}
             ev_to_sales: currentMetadata?.ev_to_revenue ? parseFloat(currentMetadata.ev_to_revenue) : null,
             ev_to_ebitda: currentMetadata?.ev_to_ebitda ? parseFloat(currentMetadata.ev_to_ebitda) : null,
             price_to_book: priceToBookData?.price_to_book ? parseFloat(priceToBookData.price_to_book) : null,
-            net_income: latestNetIncome
+            net_income: latestNetIncome,
+            gross_margin: latestGrossMargin
           }
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }

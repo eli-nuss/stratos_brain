@@ -461,12 +461,23 @@ export function FundamentalsSidebar({ assetId, asset, review }: FundamentalsSide
   const currentPriceToBook = asset.price_to_book ? parseFloat(asset.price_to_book) : valuationHistory?.current?.price_to_book;
   const currentFCFYield = valuationHistory?.current?.fcf_yield;
 
-  // Determine valuation mode based on profitability
-  // Logic: Is Net Income positive? Is P/E reasonable (< 150)?
+  // Determine valuation mode based on profitability AND margin quality
+  // Logic:
+  // - Show Revenue-Based (Growth) view ONLY if:
+  //   1. Unprofitable (Net Income < 0), OR
+  //   2. High P/E (>100) AND High Margin (>40%)
+  // - Otherwise, show Earnings-Based (Value) view
   const netIncome = valuationHistory?.current?.net_income;
-  const isProfitable = netIncome && netIncome > 0;
-  const isHyperGrowth = currentPE && currentPE > 150;
-  const valuationMode = (isProfitable && !isHyperGrowth) ? 'EARNINGS_BASED' : 'REVENUE_BASED';
+  const latestGrossMargin = valuationHistory?.current?.gross_margin;
+  
+  const isUnprofitable = !netIncome || netIncome <= 0;
+  const isHighMultiple = currentPE && currentPE > 100;
+  const isHighMargin = latestGrossMargin && latestGrossMargin > 40;
+  
+  // Only use Revenue-Based for unprofitable OR (high P/E AND high margin)
+  // Low-margin profitable companies (like CHRW) should ALWAYS use Earnings-Based
+  const showRevenueValuation = isUnprofitable || (isHighMultiple && isHighMargin);
+  const valuationMode = showRevenueValuation ? 'REVENUE_BASED' : 'EARNINGS_BASED';
 
   // Mock smart money data (to be populated later)
   const insiderActivity = null; // -100 to +100
