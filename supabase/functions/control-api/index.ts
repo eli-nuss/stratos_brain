@@ -1029,9 +1029,21 @@ ${markdownToHtml(markdown)}
           .order('date', { ascending: false })
           .limit(365)
         
-        // Add latest close price to asset for the 52-week range gauge
+        // Add latest close price and calculate accurate 52-week high/low from OHLCV data
         if (ohlcv && ohlcv.length > 0) {
           asset.close = ohlcv[0].close
+          
+          // Calculate 52-week high/low from actual OHLCV data (more accurate than fundamentals)
+          // Use up to 252 trading days (approximately 52 weeks)
+          const tradingDays52Weeks = Math.min(ohlcv.length, 252)
+          const last52WeeksData = ohlcv.slice(0, tradingDays52Weeks)
+          
+          const calculatedHigh = Math.max(...last52WeeksData.map(bar => bar.high))
+          const calculatedLow = Math.min(...last52WeeksData.map(bar => bar.low))
+          
+          // Override fundamentals data with calculated values (more accurate and up-to-date)
+          asset.week_52_high = calculatedHigh
+          asset.week_52_low = calculatedLow
         }
         
         // Get features snapshot
