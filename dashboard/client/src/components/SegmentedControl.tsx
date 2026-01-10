@@ -30,14 +30,16 @@ export function SegmentedControl({
         className
       )}
     >
-      {/* Sliding background indicator */}
-      <div 
-        className="absolute top-0.5 bottom-0.5 bg-primary rounded-md transition-all duration-200 ease-out"
-        style={{
-          width: `calc(${100 / segments.length}% - 2px)`,
-          left: `calc(${(activeIndex * 100) / segments.length}% + 1px)`,
-        }}
-      />
+      {/* Sliding background indicator - only show when a segment is selected */}
+      {activeIndex >= 0 && (
+        <div 
+          className="absolute top-0.5 bottom-0.5 bg-primary rounded-md transition-all duration-200 ease-out"
+          style={{
+            width: `calc(${100 / segments.length}% - 2px)`,
+            left: `calc(${(activeIndex * 100) / segments.length}% + 1px)`,
+          }}
+        />
+      )}
       
       {/* Segment buttons */}
       {segments.map((segment) => (
