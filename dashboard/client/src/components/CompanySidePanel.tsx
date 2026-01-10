@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
-  Activity, TrendingUp, BarChart3, RefreshCw, AlertCircle,
-  ArrowUpRight, ArrowDownRight, Circle
+  Activity, BarChart3, RefreshCw, AlertCircle,
+  ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -111,198 +111,188 @@ function ScoreCard({ direction, score, confidence }: { direction: string; score:
   );
 }
 
-function PriceLadder({ entry, targets, invalidation, currentPrice }: { 
+function PriceLadderBracket({ entry, targets, invalidation, currentPrice }: { 
   entry: { low: number; high: number }; 
   targets: number[]; 
   invalidation: number;
   currentPrice?: number;
 }) {
-  // Calculate positions for visualization
-  const allPrices = [...targets, entry.high, entry.low, invalidation];
-  const maxPrice = Math.max(...allPrices);
-  const minPrice = Math.min(...allPrices);
-  const range = maxPrice - minPrice;
-  
-  const getPosition = (price: number) => {
-    return ((maxPrice - price) / range) * 100;
+  // Calculate distances from current price
+  const getDistance = (price: number) => {
+    if (!currentPrice) return null;
+    const pct = ((price - currentPrice) / currentPrice) * 100;
+    return (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
   };
-  
-  const currentPos = currentPrice ? getPosition(currentPrice) : null;
   
   return (
     <div className="py-3 border-b border-border">
       <h3 className="text-[10px] text-zinc-500 uppercase tracking-wide mb-3">Trade Plan</h3>
       
-      <div className="flex gap-3">
-        {/* Price Ladder Visualization */}
-        <div className="relative w-1 bg-zinc-800 rounded-full flex-shrink-0" style={{ height: '200px' }}>
-          {/* Targets */}
-          {targets.map((target, idx) => {
-            const pos = getPosition(target);
-            return (
-              <div 
-                key={idx}
-                className="absolute left-0 w-full"
-                style={{ top: `${pos}%` }}
-              >
-                <div className="absolute left-0 w-2 h-2 -ml-0.5 bg-blue-500 rounded-full border-2 border-background" />
+      <div className="space-y-2 pl-3 border-l-2 border-zinc-700">
+        {/* Targets */}
+        {targets.map((target, idx) => (
+          <div key={idx} className="relative -ml-3">
+            <div className="absolute left-0 top-1/2 w-3 h-px bg-emerald-600" />
+            <div className="pl-4 flex items-center justify-between">
+              <span className="text-[10px] text-zinc-500">Target {idx + 1}</span>
+              <div className="text-right">
+                <span className="text-xs font-mono text-emerald-400">${target.toFixed(2)}</span>
+                {getDistance(target) && (
+                  <span className="text-[10px] text-zinc-600 ml-1">{getDistance(target)}</span>
+                )}
               </div>
-            );
-          })}
-          
-          {/* Entry Zone */}
-          <div 
-            className="absolute left-0 w-full bg-purple-500/20"
-            style={{ 
-              top: `${getPosition(entry.high)}%`,
-              height: `${getPosition(entry.low) - getPosition(entry.high)}%`
-            }}
-          />
-          
-          {/* Stop */}
-          <div 
-            className="absolute left-0 w-full"
-            style={{ top: `${getPosition(invalidation)}%` }}
-          >
-            <div className="absolute left-0 w-2 h-2 -ml-0.5 bg-red-500 rounded-full border-2 border-background" />
-          </div>
-          
-          {/* Current Price Indicator */}
-          {currentPos !== null && (
-            <div 
-              className="absolute left-0 w-full"
-              style={{ top: `${currentPos}%` }}
-            >
-              <div className="absolute left-0 w-3 h-3 -ml-1 bg-white rounded-full border-2 border-background shadow-lg" />
             </div>
-          )}
+          </div>
+        ))}
+        
+        {/* Entry */}
+        <div className="relative -ml-3">
+          <div className="absolute left-0 top-1/2 w-3 h-px bg-zinc-500" />
+          <div className="pl-4 flex items-center justify-between">
+            <span className="text-[10px] text-zinc-500">Entry</span>
+            <div className="text-right">
+              <span className="text-xs font-mono text-zinc-300">${entry.low.toFixed(2)}-${entry.high.toFixed(2)}</span>
+            </div>
+          </div>
         </div>
         
-        {/* Price Labels */}
-        <div className="flex-1 relative" style={{ height: '200px' }}>
-          {/* Targets */}
-          {targets.map((target, idx) => {
-            const pos = getPosition(target);
-            return (
-              <div 
-                key={idx}
-                className="absolute left-0 flex items-center gap-2"
-                style={{ top: `${pos}%`, transform: 'translateY(-50%)' }}
-              >
-                <span className="text-[10px] text-zinc-500 w-4">T{idx + 1}</span>
-                <span className="text-xs font-mono text-blue-400">${target.toFixed(2)}</span>
-              </div>
-            );
-          })}
-          
-          {/* Entry */}
-          <div 
-            className="absolute left-0 flex items-center gap-2"
-            style={{ top: `${(getPosition(entry.high) + getPosition(entry.low)) / 2}%`, transform: 'translateY(-50%)' }}
-          >
-            <span className="text-[10px] text-zinc-500 w-4">E</span>
-            <span className="text-xs font-mono text-purple-400">${entry.low.toFixed(2)}-${entry.high.toFixed(2)}</span>
-          </div>
-          
-          {/* Stop */}
-          <div 
-            className="absolute left-0 flex items-center gap-2"
-            style={{ top: `${getPosition(invalidation)}%`, transform: 'translateY(-50%)' }}
-          >
-            <span className="text-[10px] text-zinc-500 w-4">S</span>
-            <span className="text-xs font-mono text-red-400">${invalidation.toFixed(2)}</span>
-          </div>
-          
-          {/* Current Price */}
-          {currentPrice && currentPos !== null && (
-            <div 
-              className="absolute left-0 flex items-center gap-2"
-              style={{ top: `${currentPos}%`, transform: 'translateY(-50%)' }}
-            >
-              <Circle className="w-3 h-3 text-white fill-white" />
-              <span className="text-xs font-mono font-bold text-white">${currentPrice.toFixed(2)}</span>
+        {/* Stop */}
+        <div className="relative -ml-3">
+          <div className="absolute left-0 top-1/2 w-3 h-px bg-red-600" />
+          <div className="pl-4 flex items-center justify-between">
+            <span className="text-[10px] text-zinc-500">Stop</span>
+            <div className="text-right">
+              <span className="text-xs font-mono text-red-400">${invalidation.toFixed(2)}</span>
+              {getDistance(invalidation) && (
+                <span className="text-[10px] text-zinc-600 ml-1">{getDistance(invalidation)}</span>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function MomentumRow() {
+function MomentumBars() {
   // Mock data - in production, fetch real momentum data
   const rvol = 1.5;
   const rsi = 63;
-  const smaDistance = 4.2;
+  const adr = 4.2;
   
   return (
-    <div className="py-3 border-b border-border">
+    <div className="py-3 border-b border-border space-y-2">
       <h3 className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Momentum</h3>
       
-      <div className="text-xs font-mono space-y-1">
-        <div className="flex items-center justify-between">
-          <span className="text-zinc-500">RVOL</span>
+      {/* RVOL */}
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[10px] text-zinc-500">RVOL</span>
           <span className={cn(
-            "font-bold",
-            rvol >= 1.5 ? "text-emerald-400" : rvol >= 1.0 ? "text-yellow-400" : "text-zinc-400"
+            "text-[10px] font-mono",
+            rvol >= 1.5 ? "text-emerald-500" : rvol >= 1.0 ? "text-yellow-500" : "text-zinc-400"
           )}>
             {rvol.toFixed(1)}x
           </span>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-zinc-500">RSI</span>
+        <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
+          <div 
+            className={cn(
+              "h-full rounded-full",
+              rvol >= 1.5 ? "bg-emerald-700" : rvol >= 1.0 ? "bg-yellow-700" : "bg-zinc-600"
+            )}
+            style={{ width: `${Math.min(100, (rvol / 2) * 100)}%` }}
+          />
+        </div>
+      </div>
+      
+      {/* RSI */}
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[10px] text-zinc-500">RSI</span>
           <span className={cn(
-            "font-bold",
-            rsi >= 70 ? "text-red-400" : rsi >= 30 ? "text-zinc-300" : "text-emerald-400"
+            "text-[10px] font-mono",
+            rsi >= 70 ? "text-red-500" : rsi >= 30 ? "text-zinc-300" : "text-emerald-500"
           )}>
             {rsi}
           </span>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-zinc-500">SMA20</span>
+        <div className="h-1 bg-zinc-800 rounded-full overflow-hidden relative">
+          {/* 30/70 zone markers */}
+          <div className="absolute left-[30%] top-0 w-px h-full bg-zinc-600" />
+          <div className="absolute left-[70%] top-0 w-px h-full bg-zinc-600" />
+          <div 
+            className={cn(
+              "h-full rounded-full",
+              rsi >= 70 ? "bg-red-700" : rsi >= 30 ? "bg-zinc-600" : "bg-emerald-700"
+            )}
+            style={{ width: `${rsi}%` }}
+          />
+        </div>
+      </div>
+      
+      {/* ADR / Volatility */}
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[10px] text-zinc-500">ADR</span>
           <span className={cn(
-            "font-bold",
-            smaDistance >= 0 ? "text-emerald-400" : "text-red-400"
+            "text-[10px] font-mono",
+            adr >= 5 ? "text-emerald-500" : "text-zinc-400"
           )}>
-            {smaDistance >= 0 ? '+' : ''}{smaDistance.toFixed(1)}%
+            {adr.toFixed(1)}%
           </span>
+        </div>
+        <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
+          <div 
+            className={cn(
+              "h-full rounded-full",
+              adr >= 5 ? "bg-emerald-700" : "bg-zinc-600"
+            )}
+            style={{ width: `${Math.min(100, (adr / 10) * 100)}%` }}
+          />
         </div>
       </div>
     </div>
   );
 }
 
-function KeyLevels({ support, resistance }: { support: number[]; resistance: number[] }) {
+function KeyLevelsGrid({ support, resistance, currentPrice }: { support: number[]; resistance: number[]; currentPrice?: number }) {
+  const getDistance = (price: number) => {
+    if (!currentPrice) return '';
+    const pct = ((price - currentPrice) / currentPrice) * 100;
+    return (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
+  };
+  
   return (
     <div className="py-3">
       <h3 className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Key Levels</h3>
       
-      <div className="space-y-2 text-xs font-mono">
+      <div className="space-y-1 text-xs">
         {/* Resistance */}
-        <div>
-          <div className="text-[10px] text-zinc-500 mb-1">RESISTANCE</div>
-          <div className="space-y-0.5">
-            {resistance.map((level, idx) => (
-              <div key={idx} className="flex items-center justify-between">
-                <span className="text-zinc-600">R{idx + 1}</span>
-                <span className="text-red-400">${level.toFixed(2)}</span>
-              </div>
-            ))}
+        {resistance.map((level, idx) => (
+          <div key={`r${idx}`} className="flex items-center justify-between">
+            <span className="text-zinc-500">Resistance {idx + 1}</span>
+            <div className="font-mono">
+              <span className="text-red-400">${level.toFixed(2)}</span>
+              {currentPrice && (
+                <span className="text-zinc-600 ml-1 text-[10px]">{getDistance(level)}</span>
+              )}
+            </div>
           </div>
-        </div>
+        ))}
         
         {/* Support */}
-        <div>
-          <div className="text-[10px] text-zinc-500 mb-1">SUPPORT</div>
-          <div className="space-y-0.5">
-            {support.map((level, idx) => (
-              <div key={idx} className="flex items-center justify-between">
-                <span className="text-zinc-600">S{idx + 1}</span>
-                <span className="text-emerald-400">${level.toFixed(2)}</span>
-              </div>
-            ))}
+        {support.map((level, idx) => (
+          <div key={`s${idx}`} className="flex items-center justify-between">
+            <span className="text-zinc-500">Support {idx + 1}</span>
+            <div className="font-mono">
+              <span className="text-emerald-400">${level.toFixed(2)}</span>
+              {currentPrice && (
+                <span className="text-zinc-600 ml-1 text-[10px]">{getDistance(level)}</span>
+              )}
+            </div>
           </div>
-        </div>
+        ))}
       </div>
     </div>
   );
@@ -420,21 +410,22 @@ function TechnicalsTab({ aiReview, currentPrice }: { aiReview: AIReviewData | nu
         confidence={aiReview.ai_confidence}
       />
       
-      {/* Price Ladder */}
-      <PriceLadder 
+      {/* Price Ladder Bracket */}
+      <PriceLadderBracket 
         entry={aiReview.ai_entry}
         targets={aiReview.ai_targets}
         invalidation={aiReview.ai_key_levels.invalidation}
         currentPrice={currentPrice}
       />
       
-      {/* Momentum */}
-      <MomentumRow />
+      {/* Momentum Bars */}
+      <MomentumBars />
       
-      {/* Key Levels */}
-      <KeyLevels 
+      {/* Key Levels Grid */}
+      <KeyLevelsGrid 
         support={aiReview.ai_key_levels.support}
         resistance={aiReview.ai_key_levels.resistance}
+        currentPrice={currentPrice}
       />
     </div>
   );
