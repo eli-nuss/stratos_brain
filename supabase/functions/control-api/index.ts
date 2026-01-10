@@ -4155,6 +4155,72 @@ ${template}
 
       // ==================== END DASHBOARD ENDPOINTS ====================
 
+      // GET /dashboard/earnings-calendar?symbol=AAPL
+      // Fetches historical earnings dates from Alpha Vantage
+      case pathMatch(path, '/dashboard/earnings-calendar'): {
+        const symbol = url.searchParams.get('symbol')
+        
+        if (!symbol) {
+          return new Response(JSON.stringify({ error: 'Symbol required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Get Alpha Vantage API key from environment
+        const alphaVantageKey = Deno.env.get('ALPHAVANTAGE_API_KEY')
+        if (!alphaVantageKey) {
+          return new Response(JSON.stringify({ error: 'Alpha Vantage API key not configured' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        try {
+          // Fetch earnings history from Alpha Vantage
+          const avUrl = `https://www.alphavantage.co/query?function=EARNINGS&symbol=${symbol}&apikey=${alphaVantageKey}`
+          const avResponse = await fetch(avUrl)
+          const avData = await avResponse.json()
+          
+          if (avData.Information || avData.Note) {
+            // API limit or error
+            return new Response(JSON.stringify({ 
+              error: avData.Information || avData.Note,
+              earnings: []
+            }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            })
+          }
+          
+          // Extract quarterly earnings with reported dates
+          const quarterlyEarnings = avData.quarterlyEarnings || []
+          const earnings = quarterlyEarnings.map((e: any) => ({
+            fiscalDateEnding: e.fiscalDateEnding,
+            reportedDate: e.reportedDate,
+            reportedEPS: parseFloat(e.reportedEPS) || null,
+            estimatedEPS: parseFloat(e.estimatedEPS) || null,
+            surprise: parseFloat(e.surprise) || null,
+            surprisePercentage: parseFloat(e.surprisePercentage) || null
+          })).filter((e: any) => e.reportedDate) // Only include entries with actual report dates
+          
+          return new Response(JSON.stringify({ 
+            symbol: symbol.toUpperCase(),
+            earnings 
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        } catch (error) {
+          console.error('Alpha Vantage API error:', error)
+          return new Response(JSON.stringify({ 
+            error: 'Failed to fetch earnings data',
+            earnings: []
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+      }
+
       default:
         return new Response(JSON.stringify({ error: 'Not found' }), {
           status: 404,
