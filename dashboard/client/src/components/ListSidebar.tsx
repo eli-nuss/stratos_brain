@@ -330,22 +330,32 @@ export function ListSidebar({
         </div>
       </div>
 
-      {/* Main View Selector */}
+      {/* Portfolio Selector - Portfolio (Core) on left, Model on right */}
       <div className="p-3 border-b border-border">
         <SegmentedControl
           segments={[
-            { id: 'watchlist', label: 'Watchlist' },
+            { id: 'core', label: 'Portfolio' },
             { id: 'model', label: 'Model' },
-            { id: 'core', label: 'Core' },
           ]}
-          value={getMainView()}
+          value={getMainView() === 'core' ? 'core' : getMainView() === 'model' ? 'model' : ''}
           onChange={handleMainViewChange}
         />
       </div>
 
-      {/* Asset Type Tabs */}
+      {/* Asset Type Tabs - Watchlist, Equities, Crypto */}
       <div className="px-3 py-2 border-b border-border">
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => onTabChange('watchlist')}
+            className={cn(
+              'px-2.5 py-1 text-[11px] font-medium rounded transition-colors',
+              activeTab === 'watchlist'
+                ? 'bg-muted text-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+            )}
+          >
+            Watchlist
+          </button>
           <button
             onClick={() => onTabChange('equity')}
             className={cn(
