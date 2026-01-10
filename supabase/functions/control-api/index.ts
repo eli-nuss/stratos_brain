@@ -3914,8 +3914,8 @@ ${template}
             total_shareholder_equity,
             long_term_debt,
             cash_and_equivalents,
-            book_value,
-            operating_cashflow
+            operating_cashflow,
+            free_cash_flow
           `)
           .eq('asset_id', assetId)
           .order('fiscal_date_ending', { ascending: false })
@@ -3963,12 +3963,11 @@ ${template}
             // Additional metrics for growth companies
             const grossProfit = year.gross_profit
             const evToGrossProfit = (ev && grossProfit && grossProfit > 0) ? ev / grossProfit : null
-            const bookValue = year.book_value || year.total_shareholder_equity
+            const bookValue = year.total_shareholder_equity
             const priceToBook = (marketCap && bookValue && bookValue > 0) ? marketCap / bookValue : null
             
-            // FCF Yield for profitable companies
-            const operatingCashflow = year.operating_cashflow
-            const fcf = operatingCashflow ? operatingCashflow * 0.85 : null // Rough FCF estimate
+            // FCF Yield for profitable companies - use actual FCF from database
+            const fcf = year.free_cash_flow || (year.operating_cashflow ? year.operating_cashflow * 0.85 : null)
             const fcfYield = (fcf && marketCap && marketCap > 0) ? (fcf / marketCap) * 100 : null
             
             history.push({
