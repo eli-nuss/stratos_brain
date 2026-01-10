@@ -9,9 +9,7 @@ import {
   CompanyChat,
 } from '@/hooks/useCompanyChats';
 import { useAuth } from '@/contexts/AuthContext';
-import { CodeExecutionBlock } from './CodeExecutionBlock';
-import { SearchCitationBlock } from './SearchCitationBlock';
-import { ToolCallBlock } from './ToolCallBlock';
+import { ThinkingSection } from './ThinkingSection';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { CompanySidePanel } from './CompanySidePanel';
 import { cn } from '@/lib/utils';
@@ -27,6 +25,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
   const hasCodeExecution = message.executable_code || message.code_execution_result;
   const hasToolCalls = message.tool_calls && message.tool_calls.length > 0;
   const hasGrounding = message.grounding_metadata;
+  const hasThinkingContent = hasToolCalls || hasCodeExecution || hasGrounding;
 
   return (
     <div className={cn('flex gap-3', isUser ? 'flex-row-reverse' : 'flex-row')}>
@@ -46,6 +45,20 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 
       {/* Content */}
       <div className={cn('flex-1 max-w-[85%] min-w-0 overflow-hidden', isUser ? 'text-right' : 'text-left')}>
+        {/* Thinking Section - Collapsible, shown before the message */}
+        {hasThinkingContent && !isUser && (
+          <ThinkingSection
+            toolCalls={message.tool_calls}
+            codeExecution={hasCodeExecution ? {
+              code: message.executable_code || undefined,
+              output: message.code_execution_result || undefined,
+              language: 'python',
+            } : undefined}
+            groundingMetadata={message.grounding_metadata}
+          />
+        )}
+
+        {/* Message Content */}
         <div
           className={cn(
             'inline-block rounded-2xl px-4 py-3 text-left max-w-full overflow-hidden',
@@ -60,24 +73,6 @@ function MessageBubble({ message }: { message: ChatMessage }) {
             ) : (
               <MarkdownRenderer content={message.content} className="text-sm" />
             )
-          )}
-
-          {/* Tool Calls */}
-          {hasToolCalls && !isUser && (
-            <ToolCallBlock toolCalls={message.tool_calls!} />
-          )}
-
-          {/* Code Execution */}
-          {hasCodeExecution && !isUser && (
-            <CodeExecutionBlock
-              code={message.executable_code || undefined}
-              output={message.code_execution_result || undefined}
-            />
-          )}
-
-          {/* Grounding/Search Citations */}
-          {hasGrounding && !isUser && (
-            <SearchCitationBlock metadata={message.grounding_metadata!} />
           )}
         </div>
 
