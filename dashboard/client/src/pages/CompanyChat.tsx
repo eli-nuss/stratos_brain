@@ -100,7 +100,7 @@ export default function CompanyChatPage() {
   return (
     <DashboardLayout hideNavTabs>
       {/* Main Content Area */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Mobile Sidebar Overlay */}
         {showMobileSidebar && (
           <div 
@@ -112,7 +112,7 @@ export default function CompanyChatPage() {
         {/* Sidebar */}
         <div className={`
           fixed inset-y-0 left-0 z-50 w-80 transform transition-transform duration-300 ease-in-out
-          lg:relative lg:translate-x-0 lg:w-72 lg:flex-shrink-0
+          lg:relative lg:translate-x-0 lg:w-72 lg:flex-shrink-0 lg:h-full
           ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full'}
         `}>
           {/* Mobile close button */}
@@ -131,7 +131,7 @@ export default function CompanyChatPage() {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
           {selectedChat ? (
             <CompanyChatInterface chat={selectedChat} onRefresh={refresh} />
           ) : (

@@ -380,11 +380,11 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
             onClick={() => setShowFundamentals(false)}
           />
           
-          {/* Panel - sticky on desktop */}
+          {/* Panel - fixed height, doesn't scroll with chat */}
           <div className={cn(
-            "fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-card border-l border-border overflow-hidden",
+            "fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-card border-l border-border",
             "animate-in slide-in-from-right duration-300 ease-out",
-            "xl:sticky xl:top-0 xl:h-screen xl:w-96 xl:max-w-none xl:flex-shrink-0 xl:z-auto xl:animate-none"
+            "xl:relative xl:w-96 xl:max-w-none xl:flex-shrink-0 xl:z-auto xl:animate-none xl:h-full"
           )}>
             {/* Mobile close button */}
             <button
@@ -397,7 +397,7 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
             <CompanySidePanel
               assetId={chat.asset_id}
               assetType={chat.asset_type}
-              className="h-full"
+              className="h-full overflow-y-auto scrollbar-minimal"
             />
           </div>
         </>

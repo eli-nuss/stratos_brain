@@ -373,7 +373,10 @@ export default function DashboardLayout({
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className={cn(
+      "bg-background text-foreground flex flex-col",
+      hideNavTabs ? "h-screen overflow-hidden" : "min-h-screen"
+    )}>
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         {/* Row 1: Logo, Data Status, Search, Page Links */}
@@ -639,7 +642,7 @@ export default function DashboardLayout({
       </header>
 
       {/* Main Content */}
-      <main className={hideNavTabs ? "flex-1 flex flex-col overflow-hidden" : "flex-1 container py-4"}>
+      <main className={hideNavTabs ? "flex-1 flex flex-col min-h-0 overflow-hidden" : "flex-1 container py-4"}>
         {children}
       </main>
 
