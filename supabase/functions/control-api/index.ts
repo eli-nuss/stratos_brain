@@ -3878,8 +3878,8 @@ ${template}
           })
         }
         
-        // Get asset_id if symbol was provided
-        let assetId = assetIdParam
+        // Get asset_id if symbol was provided (ensure it's a number)
+        let assetId: number | null = assetIdParam ? parseInt(assetIdParam) : null
         if (!assetId && symbolParam) {
           const { data: assetData } = await supabase
             .from('assets')
