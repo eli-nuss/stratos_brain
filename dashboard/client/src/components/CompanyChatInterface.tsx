@@ -197,11 +197,16 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
   ];
 
   return (
-    <div className="flex h-full bg-background overflow-hidden">
-      {/* Main Chat Area - only this section scrolls */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-border bg-card">
+    <div className="flex h-full overflow-hidden">
+      {/* 
+        Main Chat Column
+        - flex-1 to take remaining space
+        - flex flex-col to stack header, messages, input vertically
+        - overflow-hidden on the container, overflow-y-auto on messages only
+      */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Header - fixed at top of chat column */}
+        <div className="flex-shrink-0 flex items-center justify-between px-4 sm:px-6 py-3 border-b border-border bg-card">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <div className="p-2 bg-primary/10 rounded-lg flex-shrink-0">
               <Sparkles className="w-4 h-4 text-primary" />
@@ -252,7 +257,7 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
           </div>
         </div>
 
-        {/* Messages */}
+        {/* Messages - this is the ONLY scrollable area in the chat column */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 py-6 space-y-6 scrollbar-minimal">
           {messagesLoading ? (
             <div className="flex items-center justify-center py-12">
@@ -331,8 +336,8 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input */}
-        <div className="p-4 border-t border-border bg-card">
+        {/* Input - fixed at bottom of chat column */}
+        <div className="flex-shrink-0 p-4 border-t border-border bg-card">
           <div className="flex gap-3 items-end max-w-4xl mx-auto">
             <div className="flex-1 relative">
               <textarea
@@ -366,7 +371,11 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
         </div>
       </div>
 
-      {/* Fundamentals Panel - fixed sidebar that doesn't scroll with chat */}
+      {/* 
+        Right Sidebar - Fundamentals Panel
+        - On mobile: fixed overlay
+        - On desktop (xl+): relative within flex, doesn't scroll with chat
+      */}
       {showFundamentals && (
         <>
           {/* Mobile overlay */}
@@ -375,11 +384,11 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
             onClick={() => setShowFundamentals(false)}
           />
           
-          {/* Panel - relative on desktop, has its own internal scroll */}
-          <div className={cn(
+          {/* Panel */}
+          <aside className={cn(
             "fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-card border-l border-border",
             "animate-in slide-in-from-right duration-300 ease-out",
-            "xl:relative xl:w-96 xl:max-w-none xl:flex-shrink-0 xl:z-auto xl:animate-none"
+            "xl:relative xl:inset-auto xl:z-auto xl:w-96 xl:max-w-none xl:flex-shrink-0 xl:animate-none"
           )}>
             {/* Mobile close button */}
             <button
@@ -389,12 +398,13 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
               <PanelRightClose className="w-4 h-4" />
             </button>
             
+            {/* CompanySidePanel has its own internal scrolling */}
             <CompanySidePanel
               assetId={chat.asset_id}
               assetType={chat.asset_type}
               className="h-full overflow-y-auto scrollbar-minimal"
             />
-          </div>
+          </aside>
         </>
       )}
     </div>

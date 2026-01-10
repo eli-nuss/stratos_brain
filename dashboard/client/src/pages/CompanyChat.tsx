@@ -99,8 +99,11 @@ export default function CompanyChatPage() {
 
   return (
     <DashboardLayout hideNavTabs>
-      {/* Main Content Area - full height container */}
-      <div className="flex flex-1 min-h-0 h-full">
+      {/* 
+        Main layout container - uses flex with h-full to fill the available space.
+        The key is that this container doesn't scroll - only the children do.
+      */}
+      <div className="flex h-full overflow-hidden">
         {/* Mobile Sidebar Overlay */}
         {showMobileSidebar && (
           <div 
@@ -109,10 +112,15 @@ export default function CompanyChatPage() {
           />
         )}
 
-        {/* Sidebar - fixed position so it never scrolls with chat content */}
-        <div className={`
-          fixed inset-y-0 left-0 z-50 w-80 transform transition-transform duration-300 ease-in-out bg-card
-          lg:relative lg:translate-x-0 lg:w-72 lg:flex-shrink-0
+        {/* 
+          Left Sidebar - Company Chat List
+          - On mobile: fixed position, slides in from left
+          - On desktop (lg+): relative position within flex container, doesn't scroll with chat
+          - The sidebar itself has h-full and contains its own scrollable area for the chat list
+        */}
+        <aside className={`
+          fixed inset-y-0 left-0 z-50 w-80 bg-card transform transition-transform duration-300 ease-in-out
+          lg:relative lg:inset-auto lg:z-auto lg:w-72 lg:flex-shrink-0 lg:translate-x-0
           ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full'}
         `}>
           {/* Mobile close button */}
@@ -123,15 +131,20 @@ export default function CompanyChatPage() {
             <X className="w-5 h-5" />
           </button>
           
+          {/* CompanyChatList already has h-full and internal scrolling for the chat list */}
           <CompanyChatList
             selectedChatId={selectedChat?.chat_id || null}
             onSelectChat={handleSelectChat}
             onNewChat={handleNewChat}
           />
-        </div>
+        </aside>
 
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
+        {/* 
+          Main Content Area
+          - Takes remaining space with flex-1
+          - Has overflow-hidden so only the chat messages inside scroll
+        */}
+        <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
           {selectedChat ? (
             <CompanyChatInterface chat={selectedChat} onRefresh={refresh} />
           ) : (
@@ -163,7 +176,7 @@ export default function CompanyChatPage() {
               </div>
             </div>
           )}
-        </div>
+        </main>
       </div>
 
       {/* New Chat Dialog */}
