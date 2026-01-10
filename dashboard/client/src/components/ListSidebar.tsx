@@ -334,7 +334,7 @@ export function ListSidebar({
       <div className="p-3 border-b border-border">
         <SegmentedControl
           segments={[
-            { id: 'core', label: 'Portfolio' },
+            { id: 'core', label: 'Active Portfolio' },
             { id: 'model', label: 'Model Portfolio' },
           ]}
           value={getMainView() === 'core' ? 'core' : getMainView() === 'model' ? 'model' : ''}
