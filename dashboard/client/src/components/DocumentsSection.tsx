@@ -15,6 +15,7 @@ interface DocumentsSectionProps {
   assetId: number;
   symbol: string;
   companyName?: string;
+  assetType?: 'equity' | 'crypto';
 }
 
 interface GenerationStatus {
@@ -25,7 +26,7 @@ interface GenerationStatus {
 
 const API_BASE = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1';
 
-export function DocumentsSection({ assetId, symbol, companyName }: DocumentsSectionProps) {
+export function DocumentsSection({ assetId, symbol, companyName, assetType }: DocumentsSectionProps) {
   const [onePagers, setOnePagers] = useState<AssetFile[]>([]);
   const [memos, setMemos] = useState<AssetFile[]>([]);
   const [showOnePagerHistory, setShowOnePagerHistory] = useState(false);
@@ -73,6 +74,7 @@ export function DocumentsSection({ assetId, symbol, companyName }: DocumentsSect
         body: JSON.stringify({
           symbol,
           asset_id: assetId,
+          asset_type: assetType,
           document_type: docType
         })
       });

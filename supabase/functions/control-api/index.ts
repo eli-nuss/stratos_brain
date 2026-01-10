@@ -928,6 +928,7 @@ ${markdownToHtml(markdown)}
       case req.method === 'GET' && path === '/dashboard/asset': {
         const assetIdParam = url.searchParams.get('asset_id')
         const symbolParam = url.searchParams.get('symbol')
+        const assetTypeParam = url.searchParams.get('asset_type')
         const asOfDate = url.searchParams.get('as_of_date')
         const configId = url.searchParams.get('config_id')
         
@@ -939,10 +940,15 @@ ${markdownToHtml(markdown)}
         }
         
         // Get asset info - lookup by symbol if provided, otherwise by asset_id
+        // When looking up by symbol, asset_type can be used to disambiguate (e.g., COMP is both Compass equity and Compound crypto)
         let assetQuery = supabase.from('assets').select('*')
         
         if (symbolParam) {
           assetQuery = assetQuery.ilike('symbol', symbolParam)
+          // If asset_type is provided, use it to disambiguate duplicate symbols
+          if (assetTypeParam) {
+            assetQuery = assetQuery.eq('asset_type', assetTypeParam)
+          }
         } else {
           assetQuery = assetQuery.eq('asset_id', assetIdParam)
         }
@@ -2015,7 +2021,7 @@ If asked about something not in the data, acknowledge the limitation.`
       // POST /dashboard/create-document - Create one pager or memo via Gemini AI with Google Search
       case req.method === 'POST' && path === '/dashboard/create-document': {
         const body = await req.json()
-        const { symbol, asset_id, document_type } = body
+        const { symbol, asset_id, asset_type, document_type } = body
         
         if (!symbol) {
           return new Response(JSON.stringify({ error: 'Symbol is required' }), {
@@ -2028,15 +2034,19 @@ If asked about something not in the data, acknowledge the limitation.`
         const validTypes = ['one_pager', 'memo']
         const docType = validTypes.includes(document_type) ? document_type : 'one_pager'
         
-        console.log(`Generating ${docType} for ${symbol} using Gemini...`)
+        console.log(`Generating ${docType} for ${symbol} (asset_type: ${asset_type || 'not specified'}) using Gemini...`)
         const startTime = Date.now()
         
         // Gemini API configuration
         const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || 'AIzaSyAHg70im-BbB9HYZm7TOzr3cKRQp7RWY1Q'
         
         // Step 1: Fetch asset data from the same API
+        // Include asset_type if provided to disambiguate symbols like COMP (Compass equity vs Compound crypto)
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-        const assetDataUrl = `${supabaseUrl}/functions/v1/control-api/dashboard/asset?symbol=${symbol}`
+        let assetDataUrl = `${supabaseUrl}/functions/v1/control-api/dashboard/asset?symbol=${symbol}`
+        if (asset_type) {
+          assetDataUrl += `&asset_type=${asset_type}`
+        }
         console.log(`Fetching asset data from: ${assetDataUrl}`)
         
         const assetResponse = await fetch(assetDataUrl)

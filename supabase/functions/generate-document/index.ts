@@ -459,7 +459,7 @@ serve(async (req) => {
     // POST / - Generate a document
     if (req.method === 'POST' && (path === '' || path === '/')) {
       const body = await req.json()
-      const { symbol, asset_id, document_type } = body
+      const { symbol, asset_id, asset_type, document_type } = body
       
       if (!symbol) {
         return new Response(JSON.stringify({ error: 'Symbol is required' }), {
@@ -472,10 +472,14 @@ serve(async (req) => {
       const validTypes = ['one_pager', 'memo']
       const docType = validTypes.includes(document_type) ? document_type : 'one_pager'
       
-      console.log(`Generating ${docType} for ${symbol}...`)
+      console.log(`Generating ${docType} for ${symbol} (asset_type: ${asset_type || 'not specified'})...`)
       
       // Step 1: Fetch asset data from control-api
-      const assetDataUrl = `${supabaseUrl}/functions/v1/control-api/dashboard/asset?symbol=${symbol}`
+      // Include asset_type if provided to disambiguate symbols like COMP (Compass equity vs Compound crypto)
+      let assetDataUrl = `${supabaseUrl}/functions/v1/control-api/dashboard/asset?symbol=${symbol}`
+      if (asset_type) {
+        assetDataUrl += `&asset_type=${asset_type}`
+      }
       console.log(`Fetching asset data from: ${assetDataUrl}`)
       
       const assetResponse = await fetch(assetDataUrl)

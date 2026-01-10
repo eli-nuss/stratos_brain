@@ -555,6 +555,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               assetId={parseInt(assetId)} 
               symbol={asset.symbol} 
               companyName={asset.name}
+              assetType={asset.asset_type}
             />
 
             {/* Notes History */}
