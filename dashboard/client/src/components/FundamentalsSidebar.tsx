@@ -42,24 +42,31 @@ function InfoTooltip({ content }: { content: string }) {
 function ValuationChart({ 
   label,
   currentValue,
-  historicalValues,
+  historicalData,
   tooltip,
   formatFn = (v: number) => v.toFixed(1) + 'x'
 }: { 
   label: string;
   currentValue: number | null;
-  historicalValues: number[];
+  historicalData: { date: string; value: number }[];
   tooltip: string;
   formatFn?: (v: number) => string;
 }) {
-  const validData = historicalValues.filter(v => v !== null && !isNaN(v) && isFinite(v));
+  const [hoveredPoint, setHoveredPoint] = useState<{ date: string; value: number; x: number; y: number } | null>(null);
   
-  if (validData.length < 2 && !currentValue) {
+  // Sort by date ascending (oldest first, newest last = left to right)
+  const sortedData = [...historicalData]
+    .filter(d => d.value !== null && !isNaN(d.value) && isFinite(d.value))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  
+  const validValues = sortedData.map(d => d.value);
+  
+  if (validValues.length < 2 && !currentValue) {
     return null;
   }
 
   // Calculate statistics
-  const allValues = [...validData];
+  const allValues = [...validValues];
   if (currentValue && !isNaN(currentValue) && isFinite(currentValue)) {
     allValues.push(currentValue);
   }
@@ -94,11 +101,11 @@ function ValuationChart({
   const plus2SigmaY = getY(mean + 2 * stdDev);
   const minus2SigmaY = getY(mean - 2 * stdDev);
 
-  // Historical line points
-  const points = validData.map((val, idx) => {
-    const x = padding + (idx / Math.max(validData.length - 1, 1)) * (width - 3 * padding);
-    const y = getY(val);
-    return { x, y, value: val };
+  // Historical line points (sorted oldest to newest = left to right)
+  const points = sortedData.map((d, idx) => {
+    const x = padding + (idx / Math.max(sortedData.length - 1, 1)) * (width - 3 * padding);
+    const y = getY(d.value);
+    return { x, y, value: d.value, date: d.date };
   });
 
   // Current value position
@@ -177,6 +184,33 @@ function ValuationChart({
           />
         )}
         
+        {/* Interactive hit areas for each point */}
+        {points.map((p, idx) => (
+          <circle
+            key={idx}
+            cx={p.x}
+            cy={p.y}
+            r={8}
+            fill="transparent"
+            className="cursor-pointer"
+            onMouseEnter={() => setHoveredPoint({ date: p.date, value: p.value, x: p.x, y: p.y })}
+            onMouseLeave={() => setHoveredPoint(null)}
+          />
+        ))}
+        
+        {/* Visible dots on hover */}
+        {points.map((p, idx) => (
+          <circle
+            key={`dot-${idx}`}
+            cx={p.x}
+            cy={p.y}
+            r={hoveredPoint?.date === p.date ? 4 : 2}
+            fill="var(--primary)"
+            fillOpacity={hoveredPoint?.date === p.date ? 1 : 0.4}
+            className="transition-all duration-150 pointer-events-none"
+          />
+        ))}
+        
         {/* Current value dot */}
         {currentY !== null && (
           <circle
@@ -185,6 +219,41 @@ function ValuationChart({
             r={4}
             fill={isExpensive ? '#f87171' : isCheap ? '#34d399' : 'var(--primary)'}
           />
+        )}
+        
+        {/* Hover tooltip */}
+        {hoveredPoint && (
+          <g>
+            <rect
+              x={Math.min(hoveredPoint.x - 30, width - 65)}
+              y={hoveredPoint.y - 28}
+              width={60}
+              height={22}
+              rx={4}
+              fill="#1a1a1a"
+              stroke="#333"
+              strokeWidth={1}
+            />
+            <text
+              x={Math.min(hoveredPoint.x, width - 35)}
+              y={hoveredPoint.y - 17}
+              fontSize="8"
+              fill="#888"
+              textAnchor="middle"
+            >
+              {new Date(hoveredPoint.date).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })}
+            </text>
+            <text
+              x={Math.min(hoveredPoint.x, width - 35)}
+              y={hoveredPoint.y - 8}
+              fontSize="9"
+              fill="white"
+              fontWeight="bold"
+              textAnchor="middle"
+            >
+              {formatFn(hoveredPoint.value)}
+            </text>
+          </g>
         )}
         
         {/* Labels */}
@@ -348,10 +417,10 @@ export function FundamentalsSidebar({ assetId, asset, review }: FundamentalsSide
     }
   }, [assetId]);
 
-  // Extract historical values
-  const historicalPE = valuationHistory?.history?.map((h: any) => h.pe_ratio).filter(Boolean) || [];
-  const historicalEVSales = valuationHistory?.history?.map((h: any) => h.ev_to_sales).filter(Boolean) || [];
-  const historicalEVEBITDA = valuationHistory?.history?.map((h: any) => h.ev_to_ebitda).filter(Boolean) || [];
+  // Extract historical values with dates
+  const historicalPE = valuationHistory?.history?.filter((h: any) => h.pe_ratio).map((h: any) => ({ date: h.fiscal_date || h.date, value: h.pe_ratio })) || [];
+  const historicalEVSales = valuationHistory?.history?.filter((h: any) => h.ev_to_sales).map((h: any) => ({ date: h.fiscal_date || h.date, value: h.ev_to_sales })) || [];
+  const historicalEVEBITDA = valuationHistory?.history?.filter((h: any) => h.ev_to_ebitda).map((h: any) => ({ date: h.fiscal_date || h.date, value: h.ev_to_ebitda })) || [];
 
   // Current values
   const currentPE = asset.pe_ratio ? parseFloat(asset.pe_ratio) : valuationHistory?.current?.pe_ratio;
@@ -386,21 +455,21 @@ export function FundamentalsSidebar({ assetId, asset, review }: FundamentalsSide
             <ValuationChart 
               label="P/E Ratio"
               currentValue={currentPE}
-              historicalValues={historicalPE}
+              historicalData={historicalPE}
               tooltip="Price-to-Earnings ratio with ±1σ bands. Values above +1σ indicate expensive relative to history."
             />
             
             <ValuationChart 
               label="EV/Sales"
               currentValue={currentEVSales}
-              historicalValues={historicalEVSales}
+              historicalData={historicalEVSales}
               tooltip="Enterprise Value to Sales. Critical for high-growth companies. Compare to historical range."
             />
             
             <ValuationChart 
               label="EV/EBITDA"
               currentValue={currentEVEBITDA}
-              historicalValues={historicalEVEBITDA}
+              historicalData={historicalEVEBITDA}
               tooltip="Enterprise Value to EBITDA. Accounts for debt. Lower is generally better."
             />
           </>
