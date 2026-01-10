@@ -78,7 +78,7 @@ function ConfidenceMeter({ confidence }: { confidence: number }) {
 export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
   const { data, isLoading } = useSWR(`/api/dashboard/asset?asset_id=${assetId}`, fetcher);
 
-  const [chartView, setChartView] = useState<'ai_score' | 'tradingview'>('tradingview');
+  const [chartView, setChartView] = useState<'ai_score' | 'tradingview' | 'financials'>('tradingview');
   const [isChartFullscreen, setIsChartFullscreen] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
@@ -231,16 +231,6 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                   {/* Chart View Toggle */}
                   <div className="flex items-center bg-muted/30 rounded-md p-0.5">
                     <button
-                      onClick={() => setChartView('ai_score')}
-                      className={`px-2 py-1 text-xs rounded transition-colors ${
-                        chartView === 'ai_score'
-                          ? 'bg-primary text-primary-foreground'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      AI Score
-                    </button>
-                    <button
                       onClick={() => setChartView('tradingview')}
                       className={`px-2 py-1 text-xs rounded transition-colors ${
                         chartView === 'tradingview'
@@ -250,6 +240,28 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                     >
                       TradingView
                     </button>
+                    <button
+                      onClick={() => setChartView('ai_score')}
+                      className={`px-2 py-1 text-xs rounded transition-colors ${
+                        chartView === 'ai_score'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      AI Score
+                    </button>
+                    {asset.asset_type === 'equity' && (
+                      <button
+                        onClick={() => setChartView('financials')}
+                        className={`px-2 py-1 text-xs rounded transition-colors ${
+                          chartView === 'financials'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        Financials
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -358,6 +370,10 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                       />
                     </ComposedChart>
                   </ResponsiveContainer>
+                </div>
+              ) : chartView === 'financials' ? (
+                <div className={`${isChartFullscreen ? 'min-h-[600px]' : 'min-h-[450px]'} w-full transition-all duration-300`}>
+                  <HistoricalFinancials assetId={parseInt(assetId)} assetType={asset.asset_type} embedded={true} />
                 </div>
               ) : (
                 <div className={`${isChartFullscreen ? 'h-[600px]' : 'h-[450px]'} w-full rounded-lg border border-border overflow-hidden transition-all duration-300`}>
@@ -504,8 +520,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               </div>
             </div>
 
-            {/* Historical Financials - Full width in left column (for equities) */}
-            <HistoricalFinancials assetId={parseInt(assetId)} assetType={asset.asset_type} />
+            {/* Historical Financials is now available in the chart tabs above */}
 
             {/* Inline One Pager - Full width in left column */}
             <InlineOnePager assetId={parseInt(assetId)} symbol={asset.symbol} />
