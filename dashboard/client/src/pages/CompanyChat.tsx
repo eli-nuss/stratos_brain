@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRoute, useLocation } from 'wouter';
-import { MessageSquare, ArrowLeft, Menu, X, Activity } from 'lucide-react';
+import { MessageSquare, X } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { CompanyChatList } from '@/components/CompanyChatList';
 import { CompanyChatInterface } from '@/components/CompanyChatInterface';
@@ -38,7 +38,6 @@ export default function CompanyChatPage() {
         .then((chat) => {
           refresh();
           setSelectedChat(chat);
-          // Clean up URL
           window.history.replaceState({}, '', `/chat/${chat.chat_id}`);
         })
         .catch((err) => {
@@ -100,18 +99,17 @@ export default function CompanyChatPage() {
 
   return (
     <DashboardLayout hideNavTabs>
-
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden">
         {/* Mobile Sidebar Overlay */}
         {showMobileSidebar && (
           <div 
-            className="fixed inset-0 bg-black/60 z-40 lg:hidden"
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden"
             onClick={() => setShowMobileSidebar(false)}
           />
         )}
 
-        {/* Sidebar - Hidden on mobile unless toggled, always visible on desktop */}
+        {/* Sidebar */}
         <div className={`
           fixed inset-y-0 left-0 z-50 w-80 transform transition-transform duration-300 ease-in-out
           lg:relative lg:translate-x-0 lg:w-72 lg:flex-shrink-0
@@ -134,68 +132,66 @@ export default function CompanyChatPage() {
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-
-        {/* Chat Area */}
-        {selectedChat ? (
-          <CompanyChatInterface chat={selectedChat} onRefresh={refresh} />
-        ) : (
-          <div className="flex-1 flex items-center justify-center p-4">
-            <div className="text-center max-w-sm">
-              <div className="inline-flex p-4 bg-zinc-800/50 rounded-full mb-4">
-                <MessageSquare className="w-10 h-10 text-zinc-600" />
-              </div>
-              <h2 className="text-xl font-semibold text-zinc-300 mb-2">
-                Select a chat to continue
-              </h2>
-              <p className="text-zinc-500 mb-6 text-sm">
-                Or start a new research chat for any company
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <button
-                  onClick={() => setShowMobileSidebar(true)}
-                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition-colors lg:hidden"
-                >
-                  View Chats
-                </button>
-                <button
-                  onClick={handleNewChat}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors"
-                >
-                  Start New Chat
-                </button>
+          {selectedChat ? (
+            <CompanyChatInterface chat={selectedChat} onRefresh={refresh} />
+          ) : (
+            <div className="flex-1 flex items-center justify-center p-4 bg-background">
+              <div className="text-center max-w-sm">
+                <div className="inline-flex p-4 bg-muted rounded-full mb-4">
+                  <MessageSquare className="w-10 h-10 text-muted-foreground" />
+                </div>
+                <h2 className="text-xl font-semibold text-foreground mb-2">
+                  Select a chat to continue
+                </h2>
+                <p className="text-muted-foreground mb-6 text-sm">
+                  Or start a new research chat for any company
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <button
+                    onClick={() => setShowMobileSidebar(true)}
+                    className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-lg transition-colors lg:hidden"
+                  >
+                    View Chats
+                  </button>
+                  <button
+                    onClick={handleNewChat}
+                    className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
+                  >
+                    Start New Chat
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
         </div>
       </div>
 
       {/* New Chat Dialog */}
       {showNewChatDialog && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl w-full max-w-md">
-            <div className="px-4 sm:px-6 py-4 border-b border-zinc-800">
-              <h3 className="text-lg font-semibold text-white">Start New Chat</h3>
-              <p className="text-sm text-zinc-400 mt-1">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-border">
+              <h3 className="text-lg font-semibold text-foreground">Start New Chat</h3>
+              <p className="text-sm text-muted-foreground mt-1">
                 Search for a company to start researching
               </p>
             </div>
-            <div className="p-4 sm:p-6">
+            <div className="p-6">
               <AssetSearchForChat
                 onSelect={(asset) => handleCreateChat(asset as { asset_id: number; symbol: string; name: string; asset_type: string })}
                 placeholder="Search for a company or crypto..."
                 disabled={isCreatingChat}
               />
               {isCreatingChat && (
-                <p className="text-sm text-zinc-500 mt-4 text-center">
+                <p className="text-sm text-muted-foreground mt-4 text-center">
                   Creating chat...
                 </p>
               )}
             </div>
-            <div className="px-4 sm:px-6 py-4 border-t border-zinc-800 flex justify-end">
+            <div className="px-6 py-4 border-t border-border flex justify-end">
               <button
                 onClick={() => setShowNewChatDialog(false)}
-                className="px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors"
+                className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
                 disabled={isCreatingChat}
               >
                 Cancel

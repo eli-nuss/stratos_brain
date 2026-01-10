@@ -298,8 +298,8 @@ export function CompanySidePanel({ assetId, assetType, className }: CompanySideP
 
   if (isLoading) {
     return (
-      <div className={cn("bg-zinc-900/95 border border-zinc-700/50 rounded-xl p-4", className)}>
-        <div className="flex items-center gap-2 text-zinc-400">
+      <div className={cn("bg-card border border-border rounded-xl p-4", className)}>
+        <div className="flex items-center gap-2 text-muted-foreground">
           <RefreshCw className="w-4 h-4 animate-spin" />
           <span className="text-sm">Loading data...</span>
         </div>
@@ -309,18 +309,18 @@ export function CompanySidePanel({ assetId, assetType, className }: CompanySideP
 
   return (
     <div className={cn(
-      "bg-zinc-900/95 backdrop-blur-sm border border-zinc-700/50 rounded-xl shadow-xl flex flex-col h-full",
+      "bg-card backdrop-blur-sm border border-border rounded-xl shadow-xl flex flex-col h-full",
       className
     )}>
       {/* Tab Header */}
-      <div className="flex border-b border-zinc-700/50">
+      <div className="flex border-b border-border">
         <button
           onClick={() => setActiveTab('analysis')}
           className={cn(
             "flex-1 px-4 py-2.5 text-xs font-semibold transition-colors",
             activeTab === 'analysis' 
-              ? "text-emerald-400 border-b-2 border-emerald-400 bg-zinc-800/30" 
-              : "text-zinc-400 hover:text-zinc-200"
+              ? "text-primary border-b-2 border-primary bg-primary/5" 
+              : "text-muted-foreground hover:text-foreground"
           )}
         >
           <div className="flex items-center justify-center gap-1.5">
@@ -333,8 +333,8 @@ export function CompanySidePanel({ assetId, assetType, className }: CompanySideP
           className={cn(
             "flex-1 px-4 py-2.5 text-xs font-semibold transition-colors",
             activeTab === 'fundamentals' 
-              ? "text-emerald-400 border-b-2 border-emerald-400 bg-zinc-800/30" 
-              : "text-zinc-400 hover:text-zinc-200"
+              ? "text-primary border-b-2 border-primary bg-primary/5" 
+              : "text-muted-foreground hover:text-foreground"
           )}
         >
           <div className="flex items-center justify-center gap-1.5">
