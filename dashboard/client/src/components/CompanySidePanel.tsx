@@ -182,7 +182,7 @@ function MomentumBars() {
   
   return (
     <div className="py-3 border-b border-border space-y-2">
-      <h3 className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Momentum</h3>
+      <h3 className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Momentum <span className="text-[9px] text-zinc-600">(Placeholder)</span></h3>
       
       {/* RVOL */}
       <div>
@@ -314,7 +314,7 @@ function SmartMoneyBars() {
   
   return (
     <div className="py-3 border-b border-border space-y-2">
-      <h3 className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Smart Money</h3>
+      <h3 className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Smart Money <span className="text-[9px] text-zinc-600">(Placeholder)</span></h3>
       
       {/* Insider Activity */}
       <div>
@@ -361,7 +361,7 @@ function ValuationTable({ fundamentals }: { fundamentals: FundamentalsData | nul
 function PeerRankTable() {
   return (
     <div className="py-3 border-b border-border">
-      <h3 className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Peer Rank</h3>
+      <h3 className="text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Peer Rank <span className="text-[9px] text-zinc-600">(Placeholder)</span></h3>
       <div className="space-y-1">
         <DataRow label="Rank in Sector" value="#3 of 42" valueColor="text-zinc-300" />
         <DataRow label="Revenue Growth" value="Top 10%" valueColor="text-emerald-400" />
