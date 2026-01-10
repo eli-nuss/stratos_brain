@@ -1,6 +1,33 @@
 import useSWR from 'swr';
+import { useAuth } from '@/contexts/AuthContext';
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+// Helper to get user ID for API calls
+export function getUserId(): string | null {
+  // This is a simple approach - we'll also create a hook version
+  // For now, we read from localStorage where Supabase stores session
+  try {
+    const storageKey = Object.keys(localStorage).find(key => 
+      key.startsWith('sb-') && key.endsWith('-auth-token')
+    );
+    if (storageKey) {
+      const data = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      return data?.user?.id || null;
+    }
+  } catch {
+    // Ignore errors
+  }
+  return null;
+}
+
+// Create a fetcher that includes user_id header
+const createFetcher = (userId: string | null) => async (url: string) => {
+  const headers: HeadersInit = {};
+  if (userId) {
+    headers['x-user-id'] = userId;
+  }
+  const res = await fetch(url, { headers });
+  return res.json();
+};
 
 export interface CompanyChat {
   chat_id: string;
@@ -11,6 +38,7 @@ export interface CompanyChat {
   last_message_at: string | null;
   created_at: string;
   message_count: number;
+  user_id?: string | null;
 }
 
 export interface ChatMessage {
@@ -68,11 +96,14 @@ export interface SendMessageResponse {
   grounding_metadata: GroundingMetadata | null;
 }
 
-// Hook to list all company chats
+// Hook to list all company chats for the current user
 export function useCompanyChats() {
+  const { user } = useAuth();
+  const userId = user?.id || null;
+  
   const { data, error, isLoading, mutate } = useSWR<{ chats: CompanyChat[] }>(
     '/api/company-chat-api/chats',
-    fetcher,
+    createFetcher(userId),
     {
       refreshInterval: 30000, // Refresh every 30 seconds
     }
@@ -88,9 +119,12 @@ export function useCompanyChats() {
 
 // Hook to get a single chat's details
 export function useCompanyChat(chatId: string | null) {
+  const { user } = useAuth();
+  const userId = user?.id || null;
+  
   const { data, error, isLoading, mutate } = useSWR<CompanyChat>(
     chatId ? `/api/company-chat-api/chats/${chatId}` : null,
-    fetcher
+    createFetcher(userId)
   );
 
   return {
@@ -103,13 +137,16 @@ export function useCompanyChat(chatId: string | null) {
 
 // Hook to get messages for a chat
 export function useChatMessages(chatId: string | null, limit = 50) {
+  const { user } = useAuth();
+  const userId = user?.id || null;
+  
   const { data, error, isLoading, mutate } = useSWR<{
     messages: ChatMessage[];
     total: number;
     has_more: boolean;
   }>(
     chatId ? `/api/company-chat-api/chats/${chatId}/messages?limit=${limit}` : null,
-    fetcher,
+    createFetcher(userId),
     {
       refreshInterval: 0, // Don't auto-refresh, we'll manually update
     }
@@ -125,17 +162,26 @@ export function useChatMessages(chatId: string | null, limit = 50) {
   };
 }
 
-// Function to create or get a chat for an asset
+// Function to create or get a chat for an asset (user-specific)
 export async function createOrGetChat(
   assetId: number | string,
   assetType?: 'equity' | 'crypto',
-  displayName?: string
+  displayName?: string,
+  userId?: string | null
 ): Promise<CompanyChat> {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  
+  // Get userId from parameter or from localStorage
+  const effectiveUserId = userId || getUserId();
+  if (effectiveUserId) {
+    headers['x-user-id'] = effectiveUserId;
+  }
+  
   const response = await fetch('/api/company-chat-api/chats', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify({
       asset_id: String(assetId),
       asset_type: assetType,
@@ -154,13 +200,21 @@ export async function createOrGetChat(
 // Function to send a message and get AI response
 export async function sendChatMessage(
   chatId: string,
-  content: string
+  content: string,
+  userId?: string | null
 ): Promise<SendMessageResponse> {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  
+  const effectiveUserId = userId || getUserId();
+  if (effectiveUserId) {
+    headers['x-user-id'] = effectiveUserId;
+  }
+  
   const response = await fetch(`/api/company-chat-api/chats/${chatId}/messages`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify({ content }),
   });
 
@@ -173,9 +227,17 @@ export async function sendChatMessage(
 }
 
 // Function to archive a chat
-export async function archiveChat(chatId: string): Promise<void> {
+export async function archiveChat(chatId: string, userId?: string | null): Promise<void> {
+  const headers: HeadersInit = {};
+  
+  const effectiveUserId = userId || getUserId();
+  if (effectiveUserId) {
+    headers['x-user-id'] = effectiveUserId;
+  }
+  
   const response = await fetch(`/api/company-chat-api/chats/${chatId}`, {
     method: 'DELETE',
+    headers,
   });
 
   if (!response.ok) {
@@ -185,9 +247,17 @@ export async function archiveChat(chatId: string): Promise<void> {
 }
 
 // Function to refresh context snapshot
-export async function refreshChatContext(chatId: string): Promise<void> {
+export async function refreshChatContext(chatId: string, userId?: string | null): Promise<void> {
+  const headers: HeadersInit = {};
+  
+  const effectiveUserId = userId || getUserId();
+  if (effectiveUserId) {
+    headers['x-user-id'] = effectiveUserId;
+  }
+  
   const response = await fetch(`/api/company-chat-api/chats/${chatId}/context`, {
     method: 'POST',
+    headers,
   });
 
   if (!response.ok) {
@@ -197,9 +267,17 @@ export async function refreshChatContext(chatId: string): Promise<void> {
 }
 
 // Function to clear all messages from a chat
-export async function clearChatMessages(chatId: string): Promise<void> {
+export async function clearChatMessages(chatId: string, userId?: string | null): Promise<void> {
+  const headers: HeadersInit = {};
+  
+  const effectiveUserId = userId || getUserId();
+  if (effectiveUserId) {
+    headers['x-user-id'] = effectiveUserId;
+  }
+  
   const response = await fetch(`/api/company-chat-api/chats/${chatId}/messages`, {
     method: 'DELETE',
+    headers,
   });
 
   if (!response.ok) {

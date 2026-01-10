@@ -8,6 +8,7 @@ import {
   ChatMessage,
   CompanyChat,
 } from '@/hooks/useCompanyChats';
+import { useAuth } from '@/contexts/AuthContext';
 import { CodeExecutionBlock } from './CodeExecutionBlock';
 import { SearchCitationBlock } from './SearchCitationBlock';
 import { ToolCallBlock } from './ToolCallBlock';
@@ -106,6 +107,8 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 }
 
 export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfaceProps) {
+  const { user } = useAuth();
+  const userId = user?.id || null;
   const { messages, isLoading: messagesLoading, refresh: refreshMessages } = useChatMessages(chat.chat_id);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -145,7 +148,7 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
     setIsSending(true);
 
     try {
-      await sendChatMessage(chat.chat_id, userMessage);
+      await sendChatMessage(chat.chat_id, userMessage, userId);
       await refreshMessages();
       onRefresh?.();
     } catch (err) {
@@ -158,7 +161,7 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
   const handleRefreshContext = async () => {
     setIsRefreshingContext(true);
     try {
-      await refreshChatContext(chat.chat_id);
+      await refreshChatContext(chat.chat_id, userId);
     } catch (err) {
       console.error('Failed to refresh context:', err);
     } finally {
@@ -173,7 +176,7 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
     
     setIsClearingChat(true);
     try {
-      await clearChatMessages(chat.chat_id);
+      await clearChatMessages(chat.chat_id, userId);
       await refreshMessages();
       onRefresh?.();
     } catch (err) {

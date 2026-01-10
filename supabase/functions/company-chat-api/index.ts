@@ -7,7 +7,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-stratos-key',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-stratos-key, x-user-id',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 }
 
@@ -883,12 +883,16 @@ serve(async (req: Request) => {
 
     const url = new URL(req.url)
     const path = url.pathname.replace('/company-chat-api', '')
+    
+    // Extract user_id from request header for user-specific chat isolation
+    const userId = req.headers.get('x-user-id') || null
 
     // Route handling
     switch (true) {
-      // GET /chats - List all company chats
+      // GET /chats - List all company chats for the current user
       case req.method === 'GET' && path === '/chats': {
-        const { data, error } = await supabase
+        // Build query with user_id filter if provided
+        let query = supabase
           .from('company_chats')
           .select(`
             chat_id,
@@ -897,10 +901,19 @@ serve(async (req: Request) => {
             display_name,
             status,
             last_message_at,
-            created_at
+            created_at,
+            user_id
           `)
           .eq('status', 'active')
-          .order('last_message_at', { ascending: false, nullsFirst: false })
+        
+        // Filter by user_id if provided, otherwise show legacy chats (null user_id)
+        if (userId) {
+          query = query.eq('user_id', userId)
+        } else {
+          query = query.is('user_id', null)
+        }
+        
+        const { data, error } = await query.order('last_message_at', { ascending: false, nullsFirst: false })
         
         if (error) throw error
         
@@ -926,7 +939,7 @@ serve(async (req: Request) => {
         })
       }
 
-      // POST /chats - Create or get a chat for a company
+      // POST /chats - Create or get a chat for a company (user-specific)
       case req.method === 'POST' && path === '/chats': {
         const body = await req.json()
         const { asset_id, asset_type, display_name } = body
@@ -938,12 +951,20 @@ serve(async (req: Request) => {
           })
         }
         
-        // Check if chat already exists
-        const { data: existingChat } = await supabase
+        // Check if chat already exists for this user + asset combination
+        let existingChatQuery = supabase
           .from('company_chats')
           .select('*')
           .eq('asset_id', asset_id)
-          .single()
+        
+        // Filter by user_id if provided
+        if (userId) {
+          existingChatQuery = existingChatQuery.eq('user_id', userId)
+        } else {
+          existingChatQuery = existingChatQuery.is('user_id', null)
+        }
+        
+        const { data: existingChat } = await existingChatQuery.single()
         
         if (existingChat) {
           return new Response(JSON.stringify(existingChat), {
@@ -968,13 +989,14 @@ serve(async (req: Request) => {
           }
         }
         
-        // Create new chat
+        // Create new chat with user_id for user-specific isolation
         const { data: newChat, error } = await supabase
           .from('company_chats')
           .insert({
             asset_id: String(asset_id),
             asset_type: assetInfo.asset_type || 'equity',
-            display_name: assetInfo.display_name || `Asset ${asset_id}`
+            display_name: assetInfo.display_name || `Asset ${asset_id}`,
+            user_id: userId  // Associate chat with the current user
           })
           .select()
           .single()

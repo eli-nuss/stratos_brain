@@ -5,10 +5,13 @@ import { CompanyChatList } from '@/components/CompanyChatList';
 import { CompanyChatInterface } from '@/components/CompanyChatInterface';
 import { useCompanyChats, createOrGetChat, CompanyChat } from '@/hooks/useCompanyChats';
 import { AssetSearchForChat } from '@/components/AssetSearchForChat';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function CompanyChatPage() {
   const [, params] = useRoute('/chat/:chatId');
   const [location, setLocation] = useLocation();
+  const { user } = useAuth();
+  const userId = user?.id || null;
   const { chats, refresh } = useCompanyChats();
   const [selectedChat, setSelectedChat] = useState<CompanyChat | null>(null);
   const [showNewChatDialog, setShowNewChatDialog] = useState(false);
@@ -30,7 +33,7 @@ export default function CompanyChatPage() {
       setAutoCreateAttempted(true);
       const displayName = name && symbol ? `${name} (${symbol})` : symbol || `Asset ${assetId}`;
       
-      createOrGetChat(assetId, assetType || 'equity', displayName)
+      createOrGetChat(assetId, assetType || 'equity', displayName, userId)
         .then((chat) => {
           refresh();
           setSelectedChat(chat);
@@ -75,7 +78,8 @@ export default function CompanyChatPage() {
       const chat = await createOrGetChat(
         asset.asset_id,
         asset.asset_type as 'equity' | 'crypto',
-        `${asset.name} (${asset.symbol})`
+        `${asset.name} (${asset.symbol})`,
+        userId
       );
       await refresh();
       setSelectedChat(chat);

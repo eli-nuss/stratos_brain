@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { MessageSquare, Plus, Trash2, MoreVertical, Loader2, Search, X } from 'lucide-react';
 import { useCompanyChats, archiveChat, CompanyChat } from '@/hooks/useCompanyChats';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +17,8 @@ interface CompanyChatListProps {
 }
 
 export function CompanyChatList({ selectedChatId, onSelectChat, onNewChat }: CompanyChatListProps) {
+  const { user } = useAuth();
+  const userId = user?.id || null;
   const { chats, isLoading, refresh } = useCompanyChats();
   const [archiving, setArchiving] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -36,7 +39,7 @@ export function CompanyChatList({ selectedChatId, onSelectChat, onNewChat }: Com
     
     setArchiving(chatId);
     try {
-      await archiveChat(chatId);
+      await archiveChat(chatId, userId);
       refresh();
     } catch (error) {
       console.error('Failed to archive chat:', error);
