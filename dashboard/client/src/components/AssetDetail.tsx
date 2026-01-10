@@ -301,53 +301,21 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               )}
             </div>
 
-            {/* AI Analysis */}
-            {review ? (
-              <div className="bg-muted/10 border border-border rounded-lg p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Activity className="w-5 h-5 text-primary" />
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className={`font-semibold cursor-help ${signalColor}`}>
-                          {isBullish ? "BULLISH" : "BEARISH"} {review.setup_type?.toUpperCase()}
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <strong>Setup Type:</strong> {review.setup_type}
-                        <br />
-                        {review.setup_type === 'breakout' && "Price is breaking above key resistance with momentum."}
-                        {review.setup_type === 'breakdown' && "Price is breaking below key support with momentum."}
-                        {review.setup_type === 'reversal' && "Price is showing signs of trend reversal."}
-                        {review.setup_type === 'pullback' && "Price is pulling back within an existing trend."}
-                        {review.setup_type === 'mean_reversion' && "Price is extended and likely to revert to average."}
-                      </TooltipContent>
-                    </Tooltip>
+            {/* AI Analysis Summary */}
+            {review?.summary_text && (
+              <div className="bg-muted/10 border border-border rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-xs font-medium text-muted-foreground">AI Summary</span>
                   </div>
-                  <span className="text-xs text-muted-foreground font-mono">
+                  <span className="text-[10px] text-muted-foreground/70 font-mono">
                     {review.model_id || "gemini-2.0-flash"}
-                    {review.as_of_date && (
-                      <span className="ml-2 text-muted-foreground/70">• {review.as_of_date}</span>
-                    )}
+                    {review.as_of_date && ` • ${review.as_of_date}`}
                   </span>
                 </div>
-                
-                {/* Confidence Meter */}
-                <div className="space-y-1">
-                  <span className="text-xs text-muted-foreground">Confidence</span>
-                  <ConfidenceMeter confidence={review.confidence || 0} />
-                </div>
-                
-                {/* Summary */}
                 <p className="text-sm text-foreground/90 leading-relaxed">
                   {review.summary_text}
-                </p>
-              </div>
-            ) : (
-              <div className="bg-muted/10 border border-border rounded-lg p-6 text-center">
-                <Activity className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-muted-foreground">
-                  AI analysis not available for this asset/date.
                 </p>
               </div>
             )}
