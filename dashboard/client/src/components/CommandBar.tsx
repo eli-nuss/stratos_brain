@@ -6,10 +6,15 @@ import useSWR from 'swr';
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface Asset {
-  id: number;
+  asset_id: number;
   symbol: string;
   name: string;
   asset_type: string;
+}
+
+interface SearchResponse {
+  data: Asset[];
+  total: number;
 }
 
 interface CommandBarProps {
@@ -23,14 +28,19 @@ export function CommandBar({ className = '' }: CommandBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [, setLocation] = useLocation();
 
-  // Fetch assets for search
-  const { data: assets } = useSWR<Asset[]>(
-    query.length >= 1 ? `/api/dashboard/assets/search?q=${encodeURIComponent(query)}` : null,
+  // Fetch assets for search using the all-assets endpoint with search parameter
+  const { data: searchResponse } = useSWR<SearchResponse>(
+    query.length >= 1 ? `/api/dashboard/all-assets?search=${encodeURIComponent(query)}&limit=8` : null,
     fetcher
   );
 
+  // Extract assets from response - handle both array and object with data property
+  const assets = Array.isArray(searchResponse) 
+    ? searchResponse 
+    : (searchResponse?.data || []);
+  
   // Filter results
-  const results = assets?.slice(0, 8) || [];
+  const results = assets.slice(0, 8);
 
   // Quick actions
   const quickActions = [
@@ -84,7 +94,8 @@ export function CommandBar({ className = '' }: CommandBarProps) {
       e.preventDefault();
       const item = allItems[selectedIndex];
       if (item.type === 'asset') {
-        setLocation(`/asset/${item.data.id}`);
+        // Navigate using symbol for cleaner URLs
+        setLocation(`/asset/${item.data.symbol}`);
       } else {
         setLocation(item.data.path);
       }
@@ -95,7 +106,8 @@ export function CommandBar({ className = '' }: CommandBarProps) {
 
   const handleSelect = (item: typeof allItems[0]) => {
     if (item.type === 'asset') {
-      setLocation(`/asset/${item.data.id}`);
+      // Navigate using symbol for cleaner URLs
+      setLocation(`/asset/${item.data.symbol}`);
     } else {
       setLocation(item.data.path);
     }
@@ -162,14 +174,14 @@ export function CommandBar({ className = '' }: CommandBarProps) {
                     </div>
                     {results.map((asset, index) => (
                       <button
-                        key={asset.id}
+                        key={asset.asset_id}
                         onClick={() => handleSelect({ type: 'asset', data: asset })}
                         className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
                           index === selectedIndex ? 'bg-muted/50' : 'hover:bg-muted/30'
                         }`}
                       >
                         <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
-                          {asset.symbol.slice(0, 2)}
+                          {asset.symbol?.slice(0, 2) || '??'}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-sm">{asset.symbol}</div>
