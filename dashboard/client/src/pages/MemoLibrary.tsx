@@ -1,10 +1,11 @@
 import useSWR from "swr";
-import { Search, FileText, Calendar, FileDown, File, Loader2, Activity } from "lucide-react";
+import { Search, FileText, Calendar, FileDown, File, Loader2, MessageSquare, TrendingUp, Download, ExternalLink } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useNavigate } from "react-router-dom";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -18,8 +19,12 @@ interface MemoFile {
   file_size: number;
   file_type: 'memo' | 'one_pager';
   description: string;
-  universe_id: string;
   created_at: string;
+  sector?: string;
+  sentiment?: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+  score?: number;
+  thesis?: string;
+  performance_since?: number;
 }
 
 interface MemoDetailModalProps {
@@ -33,12 +38,10 @@ function MemoDetailModal({ memo, onClose }: MemoDetailModalProps) {
   const [error, setError] = useState<string | null>(null);
 
   const handleOpenAsPdf = () => {
-    // Open the formatted viewer page in a new tab (user can print to PDF from there)
     const viewerUrl = `/memo/${memo.file_id}`;
     window.open(viewerUrl, '_blank');
   };
 
-  // Fetch the markdown content
   useEffect(() => {
     if (memo.file_path) {
       fetch(memo.file_path)
@@ -230,9 +233,156 @@ function MemoDetailModal({ memo, onClose }: MemoDetailModalProps) {
   );
 }
 
+function MemoCard({ memo, onClick }: { memo: MemoFile; onClick: () => void }) {
+  const navigate = useNavigate();
+  const [isHovered, setIsHovered] = useState(false);
+
+  const handleOpenChat = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/asset/${memo.asset_id}?tab=chat`);
+  };
+
+  const handleViewChart = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/asset/${memo.asset_id}?tab=chart`);
+  };
+
+  const handleDownload = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const viewerUrl = `/memo/${memo.file_id}`;
+    window.open(viewerUrl, '_blank');
+  };
+
+  const getSentimentColor = (sentiment?: string) => {
+    if (sentiment === 'BULLISH') return 'bg-green-500/20 text-green-400 border-green-500/30';
+    if (sentiment === 'BEARISH') return 'bg-red-500/20 text-red-400 border-red-500/30';
+    return 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30';
+  };
+
+  const getPerformanceColor = (perf?: number) => {
+    if (!perf) return 'text-zinc-400';
+    return perf >= 0 ? 'text-green-400' : 'text-red-400';
+  };
+
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="relative group p-5 rounded-xl border border-zinc-800 bg-zinc-900/50 cursor-pointer transition-all hover:border-zinc-600 hover:bg-zinc-900 hover:shadow-xl overflow-hidden"
+    >
+      {/* Performance Badge */}
+      {memo.performance_since !== undefined && (
+        <div className="absolute top-4 right-4 flex flex-col items-end">
+          <span className={`text-xs font-bold ${getPerformanceColor(memo.performance_since)}`}>
+            {memo.performance_since >= 0 ? '+' : ''}{memo.performance_since.toFixed(1)}%
+          </span>
+          <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Since Memo</span>
+        </div>
+      )}
+
+      {/* Header: Logo + Symbol */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center overflow-hidden border border-zinc-700">
+          <img 
+            src={`https://logo.clearbit.com/${memo.symbol.toLowerCase()}.com`} 
+            alt={memo.symbol}
+            className="w-7 h-7 object-contain"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${memo.symbol}&background=27272a&color=fff&bold=true`;
+            }}
+          />
+        </div>
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="font-bold text-white text-lg leading-none">{memo.symbol}</h3>
+            <span className="text-xs text-zinc-500 font-medium truncate max-w-[120px]">({memo.name})</span>
+          </div>
+          <div className="flex items-center gap-2 mt-1.5">
+            {memo.sentiment && (
+              <span className={`px-1.5 py-0.5 text-[10px] font-bold rounded border ${getSentimentColor(memo.sentiment)}`}>
+                {memo.sentiment}
+              </span>
+            )}
+            {memo.score && (
+              <span className="px-1.5 py-0.5 text-[10px] font-bold rounded border border-blue-500/30 bg-blue-500/10 text-blue-400">
+                SCORE: {memo.score}
+              </span>
+            )}
+            {memo.sector && (
+              <span className="px-1.5 py-0.5 text-[10px] font-bold rounded border border-zinc-700 bg-zinc-800 text-zinc-400">
+                {memo.sector}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Thesis Hook */}
+      <div className="mb-4 h-12">
+        <p className="text-sm text-zinc-300 line-clamp-2 italic leading-relaxed">
+          "{memo.thesis || memo.description || 'No executive thesis available for this memo.'}"
+        </p>
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between pt-4 border-t border-zinc-800/50 text-[11px] text-zinc-500">
+        <div className="flex items-center gap-2">
+          <Calendar className="w-3 h-3" />
+          <span>{new Date(memo.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+          <span>•</span>
+          <span>{new Date(memo.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+        </div>
+        <span className="font-medium">By Eli Nuss</span>
+      </div>
+
+      {/* Quick Actions Overlay */}
+      <div className={`absolute inset-x-0 bottom-0 bg-zinc-900/95 border-t border-zinc-700 p-3 flex items-center justify-around transition-all duration-200 ${isHovered ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button onClick={handleOpenChat} className="p-2 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors">
+                <MessageSquare className="w-5 h-5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Open Research Chat</TooltipContent>
+          </Tooltip>
+          
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button onClick={handleViewChart} className="p-2 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors">
+                <Activity className="w-5 h-5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>View Price Chart</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button onClick={handleDownload} className="p-2 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors">
+                <Download className="w-5 h-5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Download PDF</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button onClick={onClick} className="p-2 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors">
+                <ExternalLink className="w-5 h-5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>View Full Memo</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+    </div>
+  );
+}
+
 export default function MemoLibrary() {
   const [search, setSearch] = useState("");
-  const [docTypeFilter, setDocTypeFilter] = useState<'memo' | 'one_pager'>('memo');
+  const [docTypeFilter, setDocTypeFilter] = useState<'memo' | 'one_pager' | 'all'>('all');
   const [selectedMemo, setSelectedMemo] = useState<MemoFile | null>(null);
 
   const { data: memos, error, isLoading } = useSWR<MemoFile[]>(
@@ -248,7 +398,9 @@ export default function MemoLibrary() {
     return (
       memo.symbol?.toLowerCase().includes(searchLower) ||
       memo.name?.toLowerCase().includes(searchLower) ||
-      memo.file_name?.toLowerCase().includes(searchLower)
+      memo.file_name?.toLowerCase().includes(searchLower) ||
+      memo.thesis?.toLowerCase().includes(searchLower) ||
+      memo.sector?.toLowerCase().includes(searchLower)
     );
   });
 
@@ -270,65 +422,92 @@ export default function MemoLibrary() {
 
   return (
     <DashboardLayout hideNavTabs>
+      <div className="p-6 max-w-[1600px] mx-auto">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+              <FileText className="w-6 h-6 text-blue-500" />
+              Research Library
+            </h1>
+            <p className="text-zinc-500 text-sm mt-1">Track conviction, performance, and institutional-grade research.</p>
+          </div>
 
-      {/* Content */}
-      <div className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+              <input
+                type="text"
+                placeholder="Search ticker, sector, or thesis..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10 pr-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500/50 w-full md:w-64 transition-all"
+              />
+            </div>
+            
+            <div className="flex bg-zinc-900 p-1 rounded-lg border border-zinc-800">
+              <button
+                onClick={() => setDocTypeFilter('all')}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${docTypeFilter === 'all' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setDocTypeFilter('memo')}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${docTypeFilter === 'memo' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                Memos
+              </button>
+              <button
+                onClick={() => setDocTypeFilter('one_pager')}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${docTypeFilter === 'one_pager' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                One Pagers
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Content */}
         {isLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+          <div className="flex flex-col items-center justify-center h-96 gap-4">
+            <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
+            <p className="text-zinc-500 animate-pulse">Analyzing research library...</p>
           </div>
         ) : hasError ? (
-          <div className="text-red-400 text-center py-8">
-            Failed to load memos: {errorMessage}
+          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-8 text-center">
+            <p className="text-red-400 font-medium">Failed to load research library</p>
+            <p className="text-red-400/60 text-sm mt-1">{errorMessage}</p>
           </div>
         ) : filteredMemos.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>No memos found</p>
-            <p className="text-sm mt-2">Generate memos from asset detail views to see them here</p>
+          <div className="bg-zinc-900/30 border border-zinc-800 border-dashed rounded-2xl p-16 text-center">
+            <FileText className="w-16 h-16 mx-auto mb-4 text-zinc-700" />
+            <h3 className="text-lg font-medium text-zinc-300">No research found</h3>
+            <p className="text-zinc-500 text-sm mt-2 max-w-xs mx-auto">Generate memos from asset detail views to populate your institutional library.</p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-10">
             {Object.entries(groupedMemos).map(([date, dateMemos]) => (
               <div key={date}>
-                <div className="flex items-center gap-2 mb-3">
-                  <Calendar className="w-4 h-4 text-muted-foreground" />
-                  <h2 className="text-sm font-medium text-muted-foreground">{date}</h2>
-                  <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-0.5 rounded">
-                    {dateMemos.length}
-                  </span>
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="h-px flex-1 bg-zinc-800/50"></div>
+                  <div className="flex items-center gap-2 px-3 py-1 bg-zinc-900 border border-zinc-800 rounded-full">
+                    <Calendar className="w-3.5 h-3.5 text-zinc-500" />
+                    <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">{date}</h2>
+                    <span className="w-5 h-5 flex items-center justify-center text-[10px] font-bold text-blue-400 bg-blue-500/10 rounded-full border border-blue-500/20">
+                      {dateMemos.length}
+                    </span>
+                  </div>
+                  <div className="h-px flex-1 bg-zinc-800/50"></div>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {dateMemos.map((memo) => (
-                    <div
-                      key={memo.file_id}
-                      onClick={() => setSelectedMemo(memo)}
-                      className={`p-4 rounded-lg border cursor-pointer transition-all hover:border-primary/50 hover:shadow-md ${
-                        memo.file_type === 'memo' ? 'border-purple-500/30 bg-purple-500/5' : 'border-blue-500/30 bg-blue-500/5'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <File className={`w-4 h-4 ${memo.file_type === 'memo' ? 'text-purple-400' : 'text-blue-400'}`} />
-                          <span className="font-bold">{memo.symbol}</span>
-                        </div>
-                        <span className={`px-2 py-0.5 text-xs font-medium rounded ${
-                          memo.file_type === 'memo' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'
-                        }`}>
-                          {memo.file_type === 'memo' ? 'Memo' : 'One Pager'}
-                        </span>
-                      </div>
-                      
-                      <p className="text-sm text-muted-foreground mb-2 line-clamp-1">
-                        {memo.name}
-                      </p>
-                      
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{new Date(memo.created_at).toLocaleTimeString()}</span>
-                        <span>{(memo.file_size / 1024).toFixed(1)} KB</span>
-                      </div>
-                    </div>
+                    <MemoCard 
+                      key={memo.file_id} 
+                      memo={memo} 
+                      onClick={() => setSelectedMemo(memo)} 
+                    />
                   ))}
                 </div>
               </div>
@@ -337,7 +516,6 @@ export default function MemoLibrary() {
         )}
       </div>
 
-      {/* Modal */}
       {/* Modal */}
       {selectedMemo && (
         <MemoDetailModal memo={selectedMemo} onClose={() => setSelectedMemo(null)} />
