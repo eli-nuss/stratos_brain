@@ -113,7 +113,7 @@ const ReactionLabel = ({ viewBox, reaction }: { viewBox?: any; reaction: number 
 };
 
 export function EarningsChart({ symbol, assetId }: EarningsChartProps) {
-  const [useLogScale, setUseLogScale] = useState(false);
+  const [useLogScale, setUseLogScale] = useState(true);
   
   // Fetch earnings calendar
   const { data: earningsData, error: earningsError } = useSWR<{ symbol: string; earnings: EarningsData[] }>(
