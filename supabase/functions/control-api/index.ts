@@ -1213,6 +1213,7 @@ ${markdownToHtml(markdown)}
             case 'price_to_sales_ttm': return q.order('price_to_sales_ttm', { ascending, nullsFirst: false })
             case 'forward_ps': return q.order('forward_ps', { ascending, nullsFirst: false })
             case 'psg': return q.order('psg', { ascending, nullsFirst: false })
+            case 'revenue_growth_yoy': return q.order('revenue_growth_yoy', { ascending, nullsFirst: false })
             case 'vol_mc_ratio': return q.order('dollar_volume_7d', { ascending, nullsFirst: false })
             default: return q.order('ai_setup_quality_score', { ascending: false, nullsFirst: false })
           }

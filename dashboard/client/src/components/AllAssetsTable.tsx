@@ -76,6 +76,7 @@ interface FilterThresholds {
   priceToSalesTtm?: { min?: number; max?: number };
   forwardPs?: { min?: number; max?: number };
   psg?: { min?: number; max?: number };
+  revenueGrowthYoy?: { min?: number; max?: number };
 }
 
 export default function AllAssetsTable({ assetType, date, onAssetClick, showWatchlistColumn = true }: AllAssetsTableProps) {
@@ -110,6 +111,8 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
     forwardPsMax: "",  // For equity
     psgMin: "",  // For equity - PSG (approx)
     psgMax: "",  // For equity
+    revenueGrowthYoyMin: "",  // For equity - Y/Y Revenue Growth
+    revenueGrowthYoyMax: "",  // For equity
     category: "",  // For crypto
     industry: "",  // For equity
   });
@@ -201,6 +204,13 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
         if (psgVal === null || psgVal === undefined) return false;
         if ((threshold as any).min !== undefined && psgVal < (threshold as any).min) return false;
         if ((threshold as any).max !== undefined && psgVal > (threshold as any).max) return false;
+        return true;
+      }
+      case 'revenueGrowthYoy': {
+        const revGrowth = row.revenue_growth_yoy;
+        if (revGrowth === null || revGrowth === undefined) return false;
+        if ((threshold as any).min !== undefined && revGrowth < (threshold as any).min) return false;
+        if ((threshold as any).max !== undefined && revGrowth > (threshold as any).max) return false;
         return true;
       }
       default:
@@ -306,6 +316,12 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
         max: filterInputs.psgMax ? parseFloat(filterInputs.psgMax) : undefined,
       };
     }
+    if (filterInputs.revenueGrowthYoyMin || filterInputs.revenueGrowthYoyMax) {
+      newThresholds.revenueGrowthYoy = {
+        min: filterInputs.revenueGrowthYoyMin ? parseFloat(filterInputs.revenueGrowthYoyMin) / 100 : undefined,
+        max: filterInputs.revenueGrowthYoyMax ? parseFloat(filterInputs.revenueGrowthYoyMax) / 100 : undefined,
+      };
+    }
     setFilterThresholds(newThresholds);
     setPage(0);
   };
@@ -333,6 +349,8 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
       forwardPsMax: "",
       psgMin: "",
       psgMax: "",
+      revenueGrowthYoyMin: "",
+      revenueGrowthYoyMax: "",
       category: "",
       industry: "",
     });
@@ -607,6 +625,17 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                         className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
                     </div>
                   </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-muted-foreground uppercase">Rev Growth %</label>
+                    <div className="flex gap-1">
+                      <input type="number" placeholder="Min %" value={filterInputs.revenueGrowthYoyMin}
+                        onChange={(e) => setFilterInputs({...filterInputs, revenueGrowthYoyMin: e.target.value})}
+                        className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
+                      <input type="number" placeholder="Max %" value={filterInputs.revenueGrowthYoyMax}
+                        onChange={(e) => setFilterInputs({...filterInputs, revenueGrowthYoyMax: e.target.value})}
+                        className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
+                    </div>
+                  </div>
                 </>
               )}
             </div>
@@ -719,6 +748,9 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                   <th className="px-2 py-2 font-medium text-center">
                     <SortHeader field="psg" tooltip="Price-to-Sales-Growth (approx): Forward P/S / Dampened Growth %. Uses log dampening for extreme growth rates. Lower = cheaper relative to growth.">PSG*</SortHeader>
                   </th>
+                  <th className="px-2 py-2 font-medium text-center">
+                    <SortHeader field="revenue_growth_yoy" tooltip="Year-over-year revenue growth rate">Rev Gr%</SortHeader>
+                  </th>
                 </>
               )}
               <th className="px-2 py-2 font-medium text-center">
@@ -736,9 +768,9 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={assetType === "equity" ? (showWatchlistColumn ? 21 : 20) : (showWatchlistColumn ? 16 : 15)} className="px-2 py-4 text-center text-muted-foreground">Loading...</td></tr>
+              <tr><td colSpan={assetType === "equity" ? (showWatchlistColumn ? 22 : 21) : (showWatchlistColumn ? 16 : 15)} className="px-2 py-4 text-center text-muted-foreground">Loading...</td></tr>
             ) : filteredData.length === 0 ? (
-              <tr><td colSpan={assetType === "equity" ? (showWatchlistColumn ? 21 : 20) : (showWatchlistColumn ? 16 : 15)} className="px-2 py-4 text-center text-muted-foreground">No assets match your filters</td></tr>
+              <tr><td colSpan={assetType === "equity" ? (showWatchlistColumn ? 22 : 21) : (showWatchlistColumn ? 16 : 15)} className="px-2 py-4 text-center text-muted-foreground">No assets match your filters</td></tr>
             ) : (
               filteredData.map((row) => (
                 <tr key={row.asset_id} className="border-b border-border hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => onAssetClick(row.asset_id)}>
@@ -818,6 +850,12 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                       </td>
                       <td className="px-2 py-2 text-center font-mono text-xs text-muted-foreground">
                         {row.psg ? row.psg.toFixed(2) : "-"}
+                      </td>
+                      <td className={`px-2 py-2 text-center font-mono text-xs ${
+                        row.revenue_growth_yoy > 0 ? "text-signal-bullish" : 
+                        row.revenue_growth_yoy < 0 ? "text-signal-bearish" : "text-muted-foreground"
+                      }`}>
+                        {row.revenue_growth_yoy != null ? formatPercent(row.revenue_growth_yoy) : "-"}
                       </td>
                     </>
                   )}

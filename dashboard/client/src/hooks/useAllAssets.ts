@@ -3,7 +3,7 @@ import useSWR from "swr";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export type AssetType = "crypto" | "equity";
-export type SortField = "weighted_score" | "symbol" | "score_delta" | "inflection_score" | "ai_confidence" | "ai_setup_quality_score" | "ai_direction_score" | "market_cap" | "return_1d" | "return_7d" | "return_30d" | "return_365d" | "close" | "dollar_volume_7d" | "dollar_volume_30d" | "industry" | "pe_ratio" | "forward_pe" | "peg_ratio" | "price_to_sales_ttm" | "forward_ps" | "psg";
+export type SortField = "weighted_score" | "symbol" | "score_delta" | "inflection_score" | "ai_confidence" | "ai_setup_quality_score" | "ai_direction_score" | "market_cap" | "return_1d" | "return_7d" | "return_30d" | "return_365d" | "close" | "dollar_volume_7d" | "dollar_volume_30d" | "industry" | "pe_ratio" | "forward_pe" | "peg_ratio" | "price_to_sales_ttm" | "forward_ps" | "psg" | "revenue_growth_yoy";
 export type SortOrder = "asc" | "desc";
 
 interface UseAllAssetsParams {

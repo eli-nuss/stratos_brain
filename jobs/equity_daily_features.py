@@ -156,11 +156,14 @@ def compute_features(bars: pd.DataFrame) -> pd.DataFrame:
     df['roc_z_5'] = (df['roc_5'] - df['roc_5'].rolling(63).mean()) / df['roc_5'].rolling(63).std()
     df['roc_z_20'] = (df['roc_20'] - df['roc_20'].rolling(63).mean()) / df['roc_20'].rolling(63).std()
     
-    # RSI
+    # RSI (using Wilder's EMA smoothing to match TradingView)
     delta = df['close'].diff()
-    gain = delta.where(delta > 0, 0).rolling(14).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
-    rs = gain / loss
+    gain = delta.where(delta > 0, 0)
+    loss = (-delta.where(delta < 0, 0))
+    # Wilder's smoothing (EMA with alpha = 1/period)
+    avg_gain = gain.ewm(alpha=1/14, min_periods=14, adjust=False).mean()
+    avg_loss = loss.ewm(alpha=1/14, min_periods=14, adjust=False).mean()
+    rs = avg_gain / avg_loss
     df['rsi_14'] = 100 - (100 / (1 + rs))
     
     # Bollinger Bands
