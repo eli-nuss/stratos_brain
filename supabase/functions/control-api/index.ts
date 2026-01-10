@@ -4157,7 +4157,7 @@ ${template}
 
       // GET /dashboard/earnings-calendar?symbol=AAPL
       // Fetches historical earnings dates from Alpha Vantage
-      case pathMatch(path, '/dashboard/earnings-calendar'): {
+      case req.method === 'GET' && path === '/dashboard/earnings-calendar': {
         const symbol = url.searchParams.get('symbol')
         
         if (!symbol) {
