@@ -1,5 +1,6 @@
 // Supabase Edge Function: Signal Engine Control API
 // Provides REST endpoints for managing the signal engine from the dashboard
+// v12: Added /dashboard/financials endpoint for historical financial data
 // 
 // Authentication Options:
 // 1. JWT (Supabase Auth): Authorization: Bearer <user_jwt>
