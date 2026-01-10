@@ -3737,7 +3737,7 @@ ${template}
         
         const years = parseInt(yearsParam)
         
-        // Fetch annual fundamentals (last N years)
+        // Fetch annual fundamentals (last N years) with balance sheet data for ROIC
         const { data: annualData, error: annualError } = await supabase
           .from('equity_annual_fundamentals')
           .select(`
@@ -3752,7 +3752,11 @@ ${template}
             financing_cashflow,
             free_cash_flow,
             capital_expenditures,
-            eps_diluted
+            eps_diluted,
+            total_shareholder_equity,
+            long_term_debt,
+            cash_and_equivalents,
+            income_tax_expense
           `)
           .eq('asset_id', assetId)
           .order('fiscal_date_ending', { ascending: false })
@@ -3804,10 +3808,57 @@ ${template}
           }
         }
         
+        // Fetch forward estimates from equity_metadata
+        const { data: metadataData } = await supabase
+          .from('equity_metadata')
+          .select(`
+            forward_pe,
+            trailing_pe,
+            peg_ratio,
+            analyst_target_price,
+            quarterly_earnings_growth_yoy,
+            quarterly_revenue_growth_yoy
+          `)
+          .eq('asset_id', assetId)
+          .single()
+        
+        // Calculate forward estimates based on growth rates
+        let forwardEstimates = null
+        if (metadataData && annualData && annualData.length > 0) {
+          const latestYear = annualData[0]
+          const earningsGrowth = metadataData.quarterly_earnings_growth_yoy 
+            ? parseFloat(metadataData.quarterly_earnings_growth_yoy) 
+            : 0.10 // Default 10% if not available
+          const revenueGrowth = metadataData.quarterly_revenue_growth_yoy 
+            ? parseFloat(metadataData.quarterly_revenue_growth_yoy) 
+            : earningsGrowth
+          
+          // Project next year based on growth rates
+          const nextYear = parseInt(latestYear.fiscal_date_ending.substring(0, 4)) + 1
+          forwardEstimates = {
+            fiscal_date_ending: `${nextYear}-Est`,
+            total_revenue: latestYear.total_revenue ? latestYear.total_revenue * (1 + revenueGrowth) : null,
+            gross_profit: latestYear.gross_profit ? latestYear.gross_profit * (1 + revenueGrowth) : null,
+            operating_income: latestYear.operating_income ? latestYear.operating_income * (1 + earningsGrowth) : null,
+            net_income: latestYear.net_income ? latestYear.net_income * (1 + earningsGrowth) : null,
+            eps_diluted: latestYear.eps_diluted ? (parseFloat(latestYear.eps_diluted) * (1 + earningsGrowth)).toFixed(2) : null,
+            is_estimate: true,
+            growth_assumptions: {
+              revenue_growth: revenueGrowth,
+              earnings_growth: earningsGrowth,
+              forward_pe: metadataData.forward_pe ? parseFloat(metadataData.forward_pe) : null,
+              peg_ratio: metadataData.peg_ratio ? parseFloat(metadataData.peg_ratio) : null,
+              analyst_target: metadataData.analyst_target_price ? parseFloat(metadataData.analyst_target_price) : null
+            }
+          }
+        }
+        
         return new Response(JSON.stringify({
           annual: annualData || [],
           quarterly: quarterlyData || [],
-          ttm
+          ttm,
+          forward_estimates: forwardEstimates,
+          metadata: metadataData || null
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
