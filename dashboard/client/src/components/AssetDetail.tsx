@@ -301,23 +301,73 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               )}
             </div>
 
-            {/* AI Analysis Summary */}
-            {review?.summary_text && (
-              <div className="bg-muted/10 border border-border rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-xs font-medium text-muted-foreground">AI Summary</span>
+            {/* AI Analysis - Different content based on view */}
+            {chartView === 'financials' && asset.asset_type === 'equity' ? (
+              /* Bull/Bear Thesis for Fundamentals View */
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Bull Case */}
+                <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <TrendingUp className="w-4 h-4 text-emerald-400" />
+                    <span className="text-sm font-semibold text-emerald-400">Bull Case</span>
                   </div>
-                  <span className="text-[10px] text-muted-foreground/70 font-mono">
-                    {review.model_id || "gemini-2.0-flash"}
-                    {review.as_of_date && ` • ${review.as_of_date}`}
-                  </span>
+                  {review?.bull_case || review?.thesis?.bull_case ? (
+                    <ul className="space-y-2">
+                      {(Array.isArray(review.bull_case) ? review.bull_case : 
+                        Array.isArray(review.thesis?.bull_case) ? review.thesis.bull_case : 
+                        [review.bull_case || review.thesis?.bull_case]).filter(Boolean).slice(0, 3).map((point: string, idx: number) => (
+                        <li key={idx} className="text-xs text-foreground/80 flex items-start gap-2">
+                          <span className="mt-1.5 w-1 h-1 rounded-full bg-emerald-400 flex-shrink-0" />
+                          <span className="line-clamp-2">{point}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs text-muted-foreground/60 italic">Run AI analysis to generate bull case</p>
+                  )}
                 </div>
-                <p className="text-sm text-foreground/90 leading-relaxed">
-                  {review.summary_text}
-                </p>
+                
+                {/* Bear Case */}
+                <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <TrendingDown className="w-4 h-4 text-red-400" />
+                    <span className="text-sm font-semibold text-red-400">Bear Case</span>
+                  </div>
+                  {review?.bear_case || review?.thesis?.bear_case ? (
+                    <ul className="space-y-2">
+                      {(Array.isArray(review.bear_case) ? review.bear_case : 
+                        Array.isArray(review.thesis?.bear_case) ? review.thesis.bear_case : 
+                        [review.bear_case || review.thesis?.bear_case]).filter(Boolean).slice(0, 3).map((point: string, idx: number) => (
+                        <li key={idx} className="text-xs text-foreground/80 flex items-start gap-2">
+                          <span className="mt-1.5 w-1 h-1 rounded-full bg-red-400 flex-shrink-0" />
+                          <span className="line-clamp-2">{point}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs text-muted-foreground/60 italic">Run AI analysis to generate bear case</p>
+                  )}
+                </div>
               </div>
+            ) : (
+              /* AI Summary for Technicals View */
+              review?.summary_text && (
+                <div className="bg-muted/10 border border-border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-xs font-medium text-muted-foreground">AI Summary</span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground/70 font-mono">
+                      {review.model_id || "gemini-2.0-flash"}
+                      {review.as_of_date && ` • ${review.as_of_date}`}
+                    </span>
+                  </div>
+                  <p className="text-sm text-foreground/90 leading-relaxed">
+                    {review.summary_text}
+                  </p>
+                </div>
+              )
             )}
 
             {/* Trade Plan & Signals - 2 Column Layout (wider, shorter) */}
