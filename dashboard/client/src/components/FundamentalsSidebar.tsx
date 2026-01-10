@@ -211,14 +211,42 @@ function ValuationChart({
           />
         ))}
         
-        {/* Current value dot */}
+        {/* Current value dot - larger and more distinct */}
         {currentY !== null && (
-          <circle
-            cx={currentX}
-            cy={currentY}
-            r={4}
-            fill={isExpensive ? '#f87171' : isCheap ? '#34d399' : 'var(--primary)'}
-          />
+          <>
+            {/* Outer glow ring */}
+            <circle
+              cx={currentX}
+              cy={currentY}
+              r={8}
+              fill={currentValue && currentValue > mean ? '#f8717130' : '#34d39930'}
+            />
+            {/* Middle ring */}
+            <circle
+              cx={currentX}
+              cy={currentY}
+              r={6}
+              fill="none"
+              stroke={currentValue && currentValue > mean ? '#f87171' : '#34d399'}
+              strokeWidth={1.5}
+              strokeOpacity={0.5}
+            />
+            {/* Inner solid dot */}
+            <circle
+              cx={currentX}
+              cy={currentY}
+              r={4}
+              fill={currentValue && currentValue > mean ? '#f87171' : '#34d399'}
+            />
+            {/* Center highlight */}
+            <circle
+              cx={currentX - 1}
+              cy={currentY - 1}
+              r={1.5}
+              fill="white"
+              fillOpacity={0.4}
+            />
+          </>
         )}
         
         {/* Hover tooltip */}
