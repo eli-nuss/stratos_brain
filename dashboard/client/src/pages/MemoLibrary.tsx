@@ -5,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { useNavigate } from "react-router-dom";
+import { useLocation } from "wouter";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -234,17 +234,17 @@ function MemoDetailModal({ memo, onClose }: MemoDetailModalProps) {
 }
 
 function MemoCard({ memo, onClick }: { memo: MemoFile; onClick: () => void }) {
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
   const [isHovered, setIsHovered] = useState(false);
 
   const handleOpenChat = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/asset/${memo.asset_id}?tab=chat`);
+    setLocation(`/asset/${memo.asset_id}?tab=chat`);
   };
 
   const handleViewChart = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/asset/${memo.asset_id}?tab=chart`);
+    setLocation(`/asset/${memo.asset_id}?tab=chart`);
   };
 
   const handleDownload = (e: React.MouseEvent) => {
