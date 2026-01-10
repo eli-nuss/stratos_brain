@@ -1,6 +1,6 @@
 import { useState } from "react";
 import useSWR from "swr";
-import { TrendingUp, TrendingDown, Minus, BarChart3, DollarSign, ArrowRightLeft, ChevronDown, ChevronUp, Info } from "lucide-react";
+import { BarChart3, DollarSign, ArrowRightLeft, ChevronDown, ChevronUp, Info, Percent } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -8,10 +8,10 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 interface HistoricalFinancialsProps {
   assetId: number;
   assetType: string;
-  embedded?: boolean; // When true, removes outer card styling for embedding in tabs
+  embedded?: boolean;
 }
 
-interface AnnualData {
+interface FinancialData {
   fiscal_date_ending: string;
   total_revenue: number | null;
   gross_profit: number | null;
@@ -22,6 +22,7 @@ interface AnnualData {
   financing_cashflow: number | null;
   free_cash_flow: number | null;
   ebitda: number | null;
+  eps_diluted: string | null;
 }
 
 // Format large numbers (in billions/millions)
@@ -34,6 +35,20 @@ const formatLargeNumber = (value: number | null | undefined): string => {
   if (absValue >= 1e6) return `${sign}$${(absValue / 1e6).toFixed(0)}M`;
   if (absValue >= 1e3) return `${sign}$${(absValue / 1e3).toFixed(0)}K`;
   return `${sign}$${absValue.toFixed(0)}`;
+};
+
+// Format percentage values
+const formatPercent = (value: number | null | undefined): string => {
+  if (value === null || value === undefined) return "—";
+  return `${value.toFixed(1)}%`;
+};
+
+// Format EPS values
+const formatEPS = (value: string | number | null | undefined): string => {
+  if (value === null || value === undefined) return "—";
+  const numValue = typeof value === 'string' ? parseFloat(value) : value;
+  if (isNaN(numValue)) return "—";
+  return `$${numValue.toFixed(2)}`;
 };
 
 // Calculate YoY growth rate
@@ -52,15 +67,15 @@ const getGrowthColor = (value: number | null): string => {
   return "text-muted-foreground";
 };
 
-// Get color for cash flow values (positive is good for CFO, negative is typical for CFI/CFF)
-const getCashFlowColor = (value: number | null, type: 'cfo' | 'cfi' | 'cff'): string => {
-  if (value === null) return "text-muted-foreground";
-  if (type === 'cfo') {
-    // Operating cash flow: positive is good
-    return value > 0 ? "text-emerald-400" : "text-red-400";
-  }
-  // Investing/Financing: just show the value, context matters
-  return "text-foreground";
+// Get color for margin change (expansion = good, compression = bad)
+const getMarginChangeColor = (current: number | null, previous: number | null): string => {
+  if (current === null || previous === null) return "text-muted-foreground";
+  const change = current - previous;
+  if (change > 1) return "text-emerald-400"; // Margin expansion > 1pp
+  if (change > 0) return "text-emerald-400/70";
+  if (change < -1) return "text-red-400"; // Margin compression > 1pp
+  if (change < 0) return "text-red-400/70";
+  return "text-muted-foreground";
 };
 
 // Mini sparkline component
@@ -82,7 +97,6 @@ function Sparkline({ data, positive = true }: { data: (number | null)[]; positiv
     return `${x},${y}`;
   }).join(' ');
 
-  // Determine trend direction
   const firstVal = validData[0];
   const lastVal = validData[validData.length - 1];
   const isUp = lastVal > firstVal;
@@ -102,19 +116,20 @@ function Sparkline({ data, positive = true }: { data: (number | null)[]; positiv
   );
 }
 
-// Trend indicator component
-function TrendIndicator({ current, previous }: { current: number | null; previous: number | null }) {
-  const growth = calculateGrowth(current, previous);
-  if (growth === null) return <Minus className="w-3 h-3 text-muted-foreground" />;
-  
-  if (growth > 5) return <TrendingUp className="w-3 h-3 text-emerald-400" />;
-  if (growth < -5) return <TrendingDown className="w-3 h-3 text-red-400" />;
-  return <Minus className="w-3 h-3 text-muted-foreground" />;
-}
-
-// Extract fiscal year from date string
+// Extract fiscal year/quarter from date string
 const getFiscalYear = (dateStr: string): string => {
   return dateStr.substring(0, 4);
+};
+
+const getQuarterLabel = (dateStr: string): string => {
+  const date = new Date(dateStr);
+  const month = date.getMonth();
+  const year = date.getFullYear().toString().slice(2);
+  // Q1: Jan-Mar, Q2: Apr-Jun, Q3: Jul-Sep, Q4: Oct-Dec
+  if (month <= 2) return `Q1'${year}`;
+  if (month <= 5) return `Q2'${year}`;
+  if (month <= 8) return `Q3'${year}`;
+  return `Q4'${year}`;
 };
 
 // Row component for financial data
@@ -123,17 +138,16 @@ function FinancialRow({
   values, 
   tooltip,
   sparklinePositive = true,
-  isCashFlow = false,
-  cashFlowType
+  isNeutralColor = false,
+  formatFn = formatLargeNumber
 }: { 
   label: string; 
   values: (number | null)[];
   tooltip: string;
   sparklinePositive?: boolean;
-  isCashFlow?: boolean;
-  cashFlowType?: 'cfo' | 'cfi' | 'cff';
+  isNeutralColor?: boolean;
+  formatFn?: (value: number | null | undefined) => string;
 }) {
-  // Calculate growth rates
   const growthRates = values.map((val, idx) => 
     idx > 0 ? calculateGrowth(val, values[idx - 1]) : null
   );
@@ -157,11 +171,11 @@ function FinancialRow({
         <td key={idx} className="py-2 px-2 text-right">
           <div className="flex flex-col items-end">
             <span className={`font-mono text-xs ${
-              isCashFlow && cashFlowType 
-                ? getCashFlowColor(value, cashFlowType)
+              isNeutralColor 
+                ? 'text-blue-400' 
                 : value !== null && value < 0 ? 'text-red-400' : 'text-foreground'
             }`}>
-              {formatLargeNumber(value)}
+              {formatFn(value)}
             </span>
             {idx > 0 && growthRates[idx] !== null && (
               <span className={`text-[10px] ${getGrowthColor(growthRates[idx])}`}>
@@ -178,22 +192,128 @@ function FinancialRow({
   );
 }
 
+// Margin row component (shows percentage and pp change)
+function MarginRow({ 
+  label, 
+  values, 
+  tooltip
+}: { 
+  label: string; 
+  values: (number | null)[];
+  tooltip: string;
+}) {
+  return (
+    <tr className="border-b border-border/30 hover:bg-muted/10 transition-colors bg-muted/5">
+      <td className="py-1.5 pr-4 pl-4">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="text-[11px] text-muted-foreground/80 cursor-help flex items-center gap-1 italic">
+              {label}
+              <Info className="w-2.5 h-2.5 text-muted-foreground/40" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="max-w-xs">
+            <p className="text-xs">{tooltip}</p>
+          </TooltipContent>
+        </Tooltip>
+      </td>
+      {values.map((value, idx) => {
+        const prevValue = idx > 0 ? values[idx - 1] : null;
+        const change = value !== null && prevValue !== null ? value - prevValue : null;
+        return (
+          <td key={idx} className="py-1.5 px-2 text-right">
+            <div className="flex flex-col items-end">
+              <span className="font-mono text-[11px] text-muted-foreground">
+                {formatPercent(value)}
+              </span>
+              {idx > 0 && change !== null && (
+                <span className={`text-[9px] ${getMarginChangeColor(value, prevValue)}`}>
+                  {change > 0 ? '+' : ''}{change.toFixed(1)}pp
+                </span>
+              )}
+            </div>
+          </td>
+        );
+      })}
+      <td className="py-1.5 pl-2">
+        <Sparkline data={values} positive={true} />
+      </td>
+    </tr>
+  );
+}
+
+// EPS row component
+function EPSRow({ 
+  label, 
+  values, 
+  tooltip
+}: { 
+  label: string; 
+  values: (string | number | null)[];
+  tooltip: string;
+}) {
+  const numericValues = values.map(v => {
+    if (v === null) return null;
+    const num = typeof v === 'string' ? parseFloat(v) : v;
+    return isNaN(num) ? null : num;
+  });
+
+  const growthRates = numericValues.map((val, idx) => 
+    idx > 0 ? calculateGrowth(val, numericValues[idx - 1]) : null
+  );
+
+  return (
+    <tr className="border-b border-border/30 hover:bg-muted/10 transition-colors">
+      <td className="py-2 pr-4">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="text-xs text-muted-foreground cursor-help flex items-center gap-1">
+              {label}
+              <Info className="w-3 h-3 text-muted-foreground/50" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="max-w-xs">
+            <p className="text-xs">{tooltip}</p>
+          </TooltipContent>
+        </Tooltip>
+      </td>
+      {values.map((value, idx) => (
+        <td key={idx} className="py-2 px-2 text-right">
+          <div className="flex flex-col items-end">
+            <span className="font-mono text-xs text-foreground">
+              {formatEPS(value)}
+            </span>
+            {idx > 0 && growthRates[idx] !== null && (
+              <span className={`text-[10px] ${getGrowthColor(growthRates[idx])}`}>
+                {growthRates[idx]! > 0 ? '+' : ''}{growthRates[idx]!.toFixed(0)}%
+              </span>
+            )}
+          </div>
+        </td>
+      ))}
+      <td className="py-2 pl-2">
+        <Sparkline data={numericValues} positive={true} />
+      </td>
+    </tr>
+  );
+}
+
 export function HistoricalFinancials({ assetId, assetType, embedded = false }: HistoricalFinancialsProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [viewMode, setViewMode] = useState<'annual' | 'quarterly'>('annual');
   
-  // Only show for equities
   if (assetType !== 'equity') {
     return null;
   }
 
-  const { data, isLoading, error } = useSWR<{ annual: AnnualData[] }>(
+  const { data, isLoading, error } = useSWR<{ annual: FinancialData[], quarterly: FinancialData[] }>(
     `/api/dashboard/financials?asset_id=${assetId}`,
     fetcher
   );
 
   if (isLoading) {
     return (
-      <div className="bg-card border border-border rounded-lg p-4">
+      <div className={embedded ? "bg-muted/5 rounded-lg border border-border p-4" : "bg-card border border-border rounded-lg p-4"}>
         <div className="flex items-center gap-2 mb-4">
           <BarChart3 className="w-4 h-4 text-muted-foreground" />
           <span className="font-semibold text-sm">Historical Financials</span>
@@ -209,7 +329,7 @@ export function HistoricalFinancials({ assetId, assetType, embedded = false }: H
 
   if (error || !data?.annual || data.annual.length === 0) {
     return (
-      <div className="bg-card border border-border rounded-lg p-4">
+      <div className={embedded ? "bg-muted/5 rounded-lg border border-border p-4" : "bg-card border border-border rounded-lg p-4"}>
         <div className="flex items-center gap-2 mb-2">
           <BarChart3 className="w-4 h-4 text-muted-foreground" />
           <span className="font-semibold text-sm">Historical Financials</span>
@@ -219,148 +339,198 @@ export function HistoricalFinancials({ assetId, assetType, embedded = false }: H
     );
   }
 
-  // Get last 5 years of data (most recent first in API, so reverse for display)
-  const annualData = data.annual.slice(0, 5).reverse();
-  const years = annualData.map(d => getFiscalYear(d.fiscal_date_ending));
+  // Get data based on view mode
+  const displayData = viewMode === 'annual' 
+    ? data.annual.slice(0, 5).reverse() 
+    : (data.quarterly || []).slice(0, 8).reverse();
+  
+  const labels = viewMode === 'annual'
+    ? displayData.map(d => `FY${getFiscalYear(d.fiscal_date_ending).slice(2)}`)
+    : displayData.map(d => getQuarterLabel(d.fiscal_date_ending));
 
   // Extract values for each metric
-  const revenue = annualData.map(d => d.total_revenue);
-  const grossProfit = annualData.map(d => d.gross_profit);
-  const operatingIncome = annualData.map(d => d.operating_income);
-  const netIncome = annualData.map(d => d.net_income);
-  const cfo = annualData.map(d => d.operating_cashflow);
-  const cfi = annualData.map(d => d.investing_cashflow);
-  const cff = annualData.map(d => d.financing_cashflow);
-  const fcf = annualData.map(d => d.free_cash_flow);
+  const revenue = displayData.map(d => d.total_revenue);
+  const grossProfit = displayData.map(d => d.gross_profit);
+  const operatingIncome = displayData.map(d => d.operating_income);
+  const netIncome = displayData.map(d => d.net_income);
+  const cfo = displayData.map(d => d.operating_cashflow);
+  const cfi = displayData.map(d => d.investing_cashflow);
+  const cff = displayData.map(d => d.financing_cashflow);
+  const fcf = displayData.map(d => d.free_cash_flow);
+  const eps = displayData.map(d => d.eps_diluted);
 
-  // Calculate margins for the most recent year
-  const latestData = annualData[annualData.length - 1];
-  const grossMargin = latestData.total_revenue && latestData.gross_profit 
-    ? ((latestData.gross_profit / latestData.total_revenue) * 100).toFixed(1) 
-    : null;
-  const operatingMargin = latestData.total_revenue && latestData.operating_income
-    ? ((latestData.operating_income / latestData.total_revenue) * 100).toFixed(1)
-    : null;
-  const netMargin = latestData.total_revenue && latestData.net_income
-    ? ((latestData.net_income / latestData.total_revenue) * 100).toFixed(1)
-    : null;
+  // Calculate margins for each period
+  const grossMargins = displayData.map(d => 
+    d.total_revenue && d.gross_profit ? (d.gross_profit / d.total_revenue) * 100 : null
+  );
+  const operatingMargins = displayData.map(d => 
+    d.total_revenue && d.operating_income ? (d.operating_income / d.total_revenue) * 100 : null
+  );
+  const netMargins = displayData.map(d => 
+    d.total_revenue && d.net_income ? (d.net_income / d.total_revenue) * 100 : null
+  );
 
-  // For embedded mode, show the table directly without the collapsible card wrapper
+  // Latest margins for header display
+  const latestGrossMargin = grossMargins[grossMargins.length - 1];
+  const latestOperatingMargin = operatingMargins[operatingMargins.length - 1];
+  const latestNetMargin = netMargins[netMargins.length - 1];
+
+  const renderTable = () => (
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="border-b border-border">
+          <th className="text-left py-2 pr-4 text-xs font-medium text-muted-foreground w-32">Metric</th>
+          {labels.map((label, idx) => (
+            <th key={idx} className="text-right py-2 px-2 text-xs font-medium text-muted-foreground w-20">
+              {label}
+            </th>
+          ))}
+          <th className="text-left py-2 pl-2 text-xs font-medium text-muted-foreground w-16">Trend</th>
+        </tr>
+      </thead>
+      <tbody>
+        {/* Income Statement Section */}
+        <tr>
+          <td colSpan={labels.length + 2} className="pt-3 pb-1">
+            <div className="flex items-center gap-1.5">
+              <DollarSign className="w-3 h-3 text-primary" />
+              <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">Income Statement</span>
+            </div>
+          </td>
+        </tr>
+        <FinancialRow 
+          label="Revenue" 
+          values={revenue} 
+          tooltip="Total revenue from all sources (top line)"
+        />
+        <FinancialRow 
+          label="Gross Profit" 
+          values={grossProfit} 
+          tooltip="Revenue minus cost of goods sold"
+        />
+        <MarginRow 
+          label="↳ Gross Margin %" 
+          values={grossMargins} 
+          tooltip="Gross Profit / Revenue. Shows pricing power and cost efficiency. Expanding margins = good, compressing = concerning."
+        />
+        <FinancialRow 
+          label="Operating Income" 
+          values={operatingIncome} 
+          tooltip="Profit from core operations before interest and taxes (EBIT)"
+        />
+        <MarginRow 
+          label="↳ Operating Margin %" 
+          values={operatingMargins} 
+          tooltip="Operating Income / Revenue. Shows operational efficiency after all operating expenses."
+        />
+        <FinancialRow 
+          label="Net Income" 
+          values={netIncome} 
+          tooltip="Bottom line profit after all expenses, interest, and taxes"
+        />
+        <MarginRow 
+          label="↳ Net Margin %" 
+          values={netMargins} 
+          tooltip="Net Income / Revenue. Final profitability after all costs including taxes and interest."
+        />
+        <EPSRow 
+          label="Diluted EPS" 
+          values={eps} 
+          tooltip="Earnings Per Share (diluted). Net income divided by all potential shares. Key metric for stock valuation - watch for dilution from stock-based compensation."
+        />
+
+        {/* Cash Flow Section */}
+        <tr>
+          <td colSpan={labels.length + 2} className="pt-4 pb-1">
+            <div className="flex items-center gap-1.5">
+              <ArrowRightLeft className="w-3 h-3 text-blue-400" />
+              <span className="text-[10px] font-semibold text-blue-400 uppercase tracking-wider">Cash Flow Statement</span>
+            </div>
+          </td>
+        </tr>
+        <FinancialRow 
+          label="CFO" 
+          values={cfo} 
+          tooltip="Cash Flow from Operations - cash generated from core business activities. Should be positive and growing."
+        />
+        <FinancialRow 
+          label="CFI" 
+          values={cfi} 
+          tooltip="Cash Flow from Investing - cash used for investments, acquisitions, and capex. Typically negative for growth companies (spending on future growth)."
+          isNeutralColor={true}
+          sparklinePositive={false}
+        />
+        <FinancialRow 
+          label="CFF" 
+          values={cff} 
+          tooltip="Cash Flow from Financing - cash from/used for debt, equity, and dividends. Context matters: buybacks (negative) can be good, dilution (positive) can be bad."
+          isNeutralColor={true}
+        />
+        <FinancialRow 
+          label="Free Cash Flow" 
+          values={fcf} 
+          tooltip="Cash available after capital expenditures (CFO - CapEx). The real cash a company generates for shareholders."
+        />
+      </tbody>
+    </table>
+  );
+
+  // Embedded mode (in tabs)
   if (embedded) {
     return (
       <div className="bg-muted/5 rounded-lg border border-border p-4 overflow-x-auto">
-        {/* Header with margin indicators */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <BarChart3 className="w-4 h-4 text-muted-foreground" />
             <h3 className="font-semibold text-sm">Historical Financials</h3>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
-              {years.length}Y
-            </span>
+            {/* Annual/Quarterly Toggle */}
+            <div className="flex items-center bg-muted/30 rounded-md p-0.5 ml-2">
+              <button
+                onClick={() => setViewMode('annual')}
+                className={`px-2 py-0.5 text-[10px] rounded transition-colors ${
+                  viewMode === 'annual'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Annual
+              </button>
+              <button
+                onClick={() => setViewMode('quarterly')}
+                className={`px-2 py-0.5 text-[10px] rounded transition-colors ${
+                  viewMode === 'quarterly'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Quarterly
+              </button>
+            </div>
           </div>
           <div className="flex items-center gap-3">
-            {grossMargin && (
+            {latestGrossMargin && (
               <span className="text-[10px] text-muted-foreground">
-                GM: <span className="text-foreground font-mono">{grossMargin}%</span>
+                GM: <span className="text-foreground font-mono">{latestGrossMargin.toFixed(1)}%</span>
               </span>
             )}
-            {operatingMargin && (
+            {latestOperatingMargin && (
               <span className="text-[10px] text-muted-foreground">
-                OM: <span className="text-foreground font-mono">{operatingMargin}%</span>
+                OM: <span className="text-foreground font-mono">{latestOperatingMargin.toFixed(1)}%</span>
               </span>
             )}
-            {netMargin && (
+            {latestNetMargin && (
               <span className="text-[10px] text-muted-foreground">
-                NM: <span className="text-foreground font-mono">{netMargin}%</span>
+                NM: <span className="text-foreground font-mono">{latestNetMargin.toFixed(1)}%</span>
               </span>
             )}
           </div>
         </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="text-left py-2 pr-4 text-xs font-medium text-muted-foreground w-32">Metric</th>
-              {years.map(year => (
-                <th key={year} className="text-right py-2 px-2 text-xs font-medium text-muted-foreground w-20">
-                  FY{year.slice(2)}
-                </th>
-              ))}
-              <th className="text-left py-2 pl-2 text-xs font-medium text-muted-foreground w-16">Trend</th>
-            </tr>
-          </thead>
-          <tbody>
-            {/* Income Statement Section */}
-            <tr>
-              <td colSpan={years.length + 2} className="pt-3 pb-1">
-                <div className="flex items-center gap-1.5">
-                  <DollarSign className="w-3 h-3 text-primary" />
-                  <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">Income Statement</span>
-                </div>
-              </td>
-            </tr>
-            <FinancialRow 
-              label="Revenue" 
-              values={revenue} 
-              tooltip="Total revenue from all sources (top line)"
-            />
-            <FinancialRow 
-              label="Gross Profit" 
-              values={grossProfit} 
-              tooltip="Revenue minus cost of goods sold"
-            />
-            <FinancialRow 
-              label="Operating Income" 
-              values={operatingIncome} 
-              tooltip="Profit from core operations before interest and taxes (EBIT)"
-            />
-            <FinancialRow 
-              label="Net Income" 
-              values={netIncome} 
-              tooltip="Bottom line profit after all expenses, interest, and taxes"
-            />
-
-            {/* Cash Flow Section */}
-            <tr>
-              <td colSpan={years.length + 2} className="pt-4 pb-1">
-                <div className="flex items-center gap-1.5">
-                  <ArrowRightLeft className="w-3 h-3 text-blue-400" />
-                  <span className="text-[10px] font-semibold text-blue-400 uppercase tracking-wider">Cash Flow Statement</span>
-                </div>
-              </td>
-            </tr>
-            <FinancialRow 
-              label="CFO" 
-              values={cfo} 
-              tooltip="Cash Flow from Operations - cash generated from core business activities"
-              isCashFlow
-              cashFlowType="cfo"
-            />
-            <FinancialRow 
-              label="CFI" 
-              values={cfi} 
-              tooltip="Cash Flow from Investing - cash used for/from investments, acquisitions, and capex (typically negative)"
-              isCashFlow
-              cashFlowType="cfi"
-              sparklinePositive={false}
-            />
-            <FinancialRow 
-              label="CFF" 
-              values={cff} 
-              tooltip="Cash Flow from Financing - cash from/used for debt, equity, and dividends"
-              isCashFlow
-              cashFlowType="cff"
-            />
-            <FinancialRow 
-              label="Free Cash Flow" 
-              values={fcf} 
-              tooltip="Cash available after capital expenditures (CFO - CapEx)"
-            />
-          </tbody>
-        </table>
+        {renderTable()}
       </div>
     );
   }
 
+  // Card mode (standalone)
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden">
       <button
@@ -370,25 +540,44 @@ export function HistoricalFinancials({ assetId, assetType, embedded = false }: H
         <div className="flex items-center gap-2">
           <BarChart3 className="w-4 h-4 text-muted-foreground" />
           <h3 className="font-semibold text-sm">Historical Financials</h3>
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
-            {years.length}Y
-          </span>
+          {/* Annual/Quarterly Toggle */}
+          <div className="flex items-center bg-muted/50 rounded-md p-0.5 ml-2" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => setViewMode('annual')}
+              className={`px-2 py-0.5 text-[10px] rounded transition-colors ${
+                viewMode === 'annual'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Annual
+            </button>
+            <button
+              onClick={() => setViewMode('quarterly')}
+              className={`px-2 py-0.5 text-[10px] rounded transition-colors ${
+                viewMode === 'quarterly'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Quarterly
+            </button>
+          </div>
         </div>
         <div className="flex items-center gap-3">
-          {/* Quick margin indicators */}
-          {grossMargin && (
+          {latestGrossMargin && (
             <span className="text-[10px] text-muted-foreground">
-              GM: <span className="text-foreground font-mono">{grossMargin}%</span>
+              GM: <span className="text-foreground font-mono">{latestGrossMargin.toFixed(1)}%</span>
             </span>
           )}
-          {operatingMargin && (
+          {latestOperatingMargin && (
             <span className="text-[10px] text-muted-foreground">
-              OM: <span className="text-foreground font-mono">{operatingMargin}%</span>
+              OM: <span className="text-foreground font-mono">{latestOperatingMargin.toFixed(1)}%</span>
             </span>
           )}
-          {netMargin && (
+          {latestNetMargin && (
             <span className="text-[10px] text-muted-foreground">
-              NM: <span className="text-foreground font-mono">{netMargin}%</span>
+              NM: <span className="text-foreground font-mono">{latestNetMargin.toFixed(1)}%</span>
             </span>
           )}
           {isCollapsed ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronUp className="w-4 h-4 text-muted-foreground" />}
@@ -397,87 +586,7 @@ export function HistoricalFinancials({ assetId, assetType, embedded = false }: H
 
       {!isCollapsed && (
         <div className="p-4 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-left py-2 pr-4 text-xs font-medium text-muted-foreground w-32">Metric</th>
-                {years.map(year => (
-                  <th key={year} className="text-right py-2 px-2 text-xs font-medium text-muted-foreground w-20">
-                    FY{year.slice(2)}
-                  </th>
-                ))}
-                <th className="text-left py-2 pl-2 text-xs font-medium text-muted-foreground w-16">Trend</th>
-              </tr>
-            </thead>
-            <tbody>
-              {/* Income Statement Section */}
-              <tr>
-                <td colSpan={years.length + 2} className="pt-3 pb-1">
-                  <div className="flex items-center gap-1.5">
-                    <DollarSign className="w-3 h-3 text-primary" />
-                    <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">Income Statement</span>
-                  </div>
-                </td>
-              </tr>
-              <FinancialRow 
-                label="Revenue" 
-                values={revenue} 
-                tooltip="Total revenue from all sources (top line)"
-              />
-              <FinancialRow 
-                label="Gross Profit" 
-                values={grossProfit} 
-                tooltip="Revenue minus cost of goods sold"
-              />
-              <FinancialRow 
-                label="Operating Income" 
-                values={operatingIncome} 
-                tooltip="Profit from core operations before interest and taxes (EBIT)"
-              />
-              <FinancialRow 
-                label="Net Income" 
-                values={netIncome} 
-                tooltip="Bottom line profit after all expenses, interest, and taxes"
-              />
-
-              {/* Cash Flow Section */}
-              <tr>
-                <td colSpan={years.length + 2} className="pt-4 pb-1">
-                  <div className="flex items-center gap-1.5">
-                    <ArrowRightLeft className="w-3 h-3 text-blue-400" />
-                    <span className="text-[10px] font-semibold text-blue-400 uppercase tracking-wider">Cash Flow Statement</span>
-                  </div>
-                </td>
-              </tr>
-              <FinancialRow 
-                label="CFO" 
-                values={cfo} 
-                tooltip="Cash Flow from Operations - cash generated from core business activities"
-                isCashFlow
-                cashFlowType="cfo"
-              />
-              <FinancialRow 
-                label="CFI" 
-                values={cfi} 
-                tooltip="Cash Flow from Investing - cash used for/from investments, acquisitions, and capex (typically negative)"
-                isCashFlow
-                cashFlowType="cfi"
-                sparklinePositive={false}
-              />
-              <FinancialRow 
-                label="CFF" 
-                values={cff} 
-                tooltip="Cash Flow from Financing - cash from/used for debt, equity, and dividends"
-                isCashFlow
-                cashFlowType="cff"
-              />
-              <FinancialRow 
-                label="Free Cash Flow" 
-                values={fcf} 
-                tooltip="Cash available after capital expenditures (CFO - CapEx)"
-              />
-            </tbody>
-          </table>
+          {renderTable()}
         </div>
       )}
     </div>

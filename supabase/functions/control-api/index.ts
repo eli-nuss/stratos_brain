@@ -3751,7 +3751,8 @@ ${template}
             investing_cashflow,
             financing_cashflow,
             free_cash_flow,
-            capital_expenditures
+            capital_expenditures,
+            eps_diluted
           `)
           .eq('asset_id', assetId)
           .order('fiscal_date_ending', { ascending: false })
@@ -3764,7 +3765,7 @@ ${template}
           })
         }
         
-        // Fetch quarterly fundamentals (last 8 quarters for TTM calculation)
+        // Fetch quarterly fundamentals (last 20 quarters for quarterly view + TTM calculation)
         const { data: quarterlyData, error: quarterlyError } = await supabase
           .from('equity_quarterly_fundamentals')
           .select(`
@@ -3777,11 +3778,12 @@ ${template}
             operating_cashflow,
             investing_cashflow,
             financing_cashflow,
-            free_cash_flow
+            free_cash_flow,
+            eps_diluted
           `)
           .eq('asset_id', assetId)
           .order('fiscal_date_ending', { ascending: false })
-          .limit(8)
+          .limit(20) // Get 20 quarters (5 years) for quarterly view
         
         // Calculate TTM (Trailing Twelve Months) from last 4 quarters
         let ttm = null
@@ -3797,7 +3799,8 @@ ${template}
             operating_cashflow: last4Quarters.reduce((sum, q) => sum + (q.operating_cashflow || 0), 0),
             investing_cashflow: last4Quarters.reduce((sum, q) => sum + (q.investing_cashflow || 0), 0),
             financing_cashflow: last4Quarters.reduce((sum, q) => sum + (q.financing_cashflow || 0), 0),
-            free_cash_flow: last4Quarters.reduce((sum, q) => sum + (q.free_cash_flow || 0), 0)
+            free_cash_flow: last4Quarters.reduce((sum, q) => sum + (q.free_cash_flow || 0), 0),
+            eps_diluted: last4Quarters.reduce((sum, q) => sum + (parseFloat(q.eps_diluted) || 0), 0)
           }
         }
         
