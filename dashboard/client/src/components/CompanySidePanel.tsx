@@ -192,9 +192,9 @@ function MomentumBars({ momentum }: { momentum: MomentumData | null }) {
     );
   }
   
-  const rvol = momentum.rvol || 0;
-  const rsi = momentum.rsi || 0;
-  const adr = momentum.atr_pct ? momentum.atr_pct * 100 : 0; // Convert to percentage
+  const rvol = momentum.rvol ? Number(momentum.rvol.toFixed(1)) : 0;
+  const rsi = momentum.rsi ? Math.round(momentum.rsi) : 0; // Round to whole number
+  const adr = momentum.atr_pct ? Number((momentum.atr_pct * 100).toFixed(1)) : 0; // Convert to percentage
   
   return (
     <div className="py-3 border-b border-border space-y-2">
