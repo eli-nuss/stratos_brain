@@ -287,7 +287,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               
               {chartView === 'financials' ? (
                 <div className={`${isChartFullscreen ? 'min-h-[600px]' : 'min-h-[450px]'} w-full transition-all duration-300`}>
-                  <HistoricalFinancials assetId={parseInt(assetId)} assetType={asset.asset_type} embedded={true} />
+                  <HistoricalFinancials assetId={parseInt(assetId)} assetType={asset.asset_type} symbol={asset.symbol} embedded={true} />
                 </div>
               ) : (
                 <div className={`${isChartFullscreen ? 'h-[600px]' : 'h-[450px]'} w-full rounded-lg border border-border overflow-hidden transition-all duration-300`}>

@@ -2,12 +2,14 @@ import { useState } from "react";
 import useSWR from "swr";
 import { BarChart3, DollarSign, ArrowRightLeft, ChevronDown, ChevronUp, Info, TrendingUp } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { EarningsChart } from "./EarningsChart";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface HistoricalFinancialsProps {
   assetId: number;
   assetType: string;
+  symbol?: string;
   embedded?: boolean;
 }
 
@@ -568,7 +570,7 @@ const calculateNetDebtToEBITDA = (data: FinancialData): number | null => {
   return netDebt / data.ebitda;
 };
 
-export function HistoricalFinancials({ assetId, assetType, embedded = false }: HistoricalFinancialsProps) {
+export function HistoricalFinancials({ assetId, assetType, symbol, embedded = false }: HistoricalFinancialsProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [viewMode, setViewMode] = useState<'annual' | 'quarterly'>('annual');
   const [showForward, setShowForward] = useState(true);
@@ -899,6 +901,13 @@ export function HistoricalFinancials({ assetId, assetType, embedded = false }: H
   if (embedded) {
     return (
       <div className="bg-muted/5 rounded-lg border border-border p-4 overflow-x-auto">
+        {/* Earnings Chart with Price History */}
+        {symbol && (
+          <div className="mb-6 pb-4 border-b border-border">
+            <EarningsChart symbol={symbol} assetId={assetId} />
+          </div>
+        )}
+        
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <BarChart3 className="w-4 h-4 text-muted-foreground" />

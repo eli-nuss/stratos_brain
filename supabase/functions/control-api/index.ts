@@ -4155,6 +4155,51 @@ ${template}
 
       // ==================== END DASHBOARD ENDPOINTS ====================
 
+      // GET /dashboard/price-history?asset_id=123&days=365
+      // Fetches historical daily price data for charting
+      case req.method === 'GET' && path === '/dashboard/price-history': {
+        const assetIdParam = url.searchParams.get('asset_id')
+        const daysParam = url.searchParams.get('days') || '365'
+        
+        if (!assetIdParam) {
+          return new Response(JSON.stringify({ error: 'asset_id required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const assetId = parseInt(assetIdParam)
+        const days = Math.min(parseInt(daysParam), 2000) // Max 2000 days (~5.5 years)
+        
+        // Calculate the start date
+        const startDate = new Date()
+        startDate.setDate(startDate.getDate() - days)
+        const startDateStr = startDate.toISOString().split('T')[0]
+        
+        // Fetch daily bars
+        const { data: priceData, error: priceError } = await supabase
+          .from('daily_bars')
+          .select('date, open, high, low, close, volume')
+          .eq('asset_id', assetId)
+          .gte('date', startDateStr)
+          .order('date', { ascending: false })
+        
+        if (priceError) {
+          console.error('Price history error:', priceError)
+          return new Response(JSON.stringify({ error: priceError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify({
+          asset_id: assetId,
+          prices: priceData || []
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
       // GET /dashboard/earnings-calendar?symbol=AAPL
       // Fetches historical earnings dates from Alpha Vantage
       case req.method === 'GET' && path === '/dashboard/earnings-calendar': {
