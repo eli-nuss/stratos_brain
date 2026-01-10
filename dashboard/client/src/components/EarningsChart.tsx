@@ -243,7 +243,49 @@ export function EarningsChart({ symbol, assetId }: EarningsChartProps) {
           <h4 className="text-xs font-medium text-muted-foreground mb-2">Recent Earnings</h4>
           <div className="grid grid-cols-4 gap-2">
             {earningsData.earnings.slice(0, 4).map((e, i) => (
-              <div key={i} className="bg-muted/30 rounded p-2">
+              <div 
+                key={i} 
+                className="bg-muted/30 rounded p-2 cursor-help relative group"
+                title={`Fiscal Quarter: ${new Date(e.fiscalDateEnding).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}\nReport Date: ${e.reportedDate ? new Date(e.reportedDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'N/A'}\nReported EPS: $${e.reportedEPS?.toFixed(2) || 'N/A'}\nEstimated EPS: $${e.estimatedEPS?.toFixed(2) || 'N/A'}\nSurprise: ${e.surprisePercentage !== null ? (e.surprisePercentage >= 0 ? '+' : '') + e.surprisePercentage.toFixed(1) + '% ' + (e.surprisePercentage >= 0 ? '(Beat)' : '(Miss)') : 'N/A'}`}
+              >
+                {/* Custom tooltip on hover */}
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-card border border-border rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 w-48 pointer-events-none">
+                  <div className="text-xs space-y-1.5">
+                    <div>
+                      <span className="text-muted-foreground">Fiscal Quarter:</span>
+                      <span className="text-foreground ml-1 font-medium">
+                        {new Date(e.fiscalDateEnding).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                      </span>
+                    </div>
+                    {e.reportedDate && (
+                      <div>
+                        <span className="text-muted-foreground">Report Date:</span>
+                        <span className="text-foreground ml-1">
+                          {new Date(e.reportedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </span>
+                      </div>
+                    )}
+                    <div className="pt-1 border-t border-border">
+                      <span className="text-muted-foreground">Reported EPS:</span>
+                      <span className="text-foreground ml-1 font-medium">${e.reportedEPS?.toFixed(2) || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Estimated EPS:</span>
+                      <span className="text-foreground ml-1">${e.estimatedEPS?.toFixed(2) || '—'}</span>
+                    </div>
+                    {e.surprisePercentage !== null && (
+                      <div className="pt-1 border-t border-border">
+                        <span className="text-muted-foreground">Surprise:</span>
+                        <span className={`ml-1 font-medium ${e.surprisePercentage >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {e.surprisePercentage >= 0 ? '+' : ''}{e.surprisePercentage.toFixed(1)}%
+                          {e.surprisePercentage >= 0 ? ' (Beat)' : ' (Miss)'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  {/* Tooltip arrow */}
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-border"></div>
+                </div>
                 <p className="text-xs text-muted-foreground">
                   {new Date(e.fiscalDateEnding).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })}
                 </p>
