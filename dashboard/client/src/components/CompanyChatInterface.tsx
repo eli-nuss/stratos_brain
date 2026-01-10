@@ -388,7 +388,7 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
           <aside className={cn(
             "fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-card border-l border-border",
             "animate-in slide-in-from-right duration-300 ease-out",
-            "xl:sticky xl:top-0 xl:h-screen xl:w-96 xl:max-w-none xl:flex-shrink-0 xl:z-auto xl:animate-none"
+            "xl:relative xl:flex-none xl:w-96 xl:h-full xl:overflow-y-auto xl:z-auto xl:animate-none"
           )}>
             {/* Mobile close button */}
             <button

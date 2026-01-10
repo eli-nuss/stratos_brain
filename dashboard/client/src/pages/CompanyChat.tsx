@@ -100,10 +100,12 @@ export default function CompanyChatPage() {
   return (
     <DashboardLayout hideNavTabs>
       {/* 
-        Main layout container - uses flex with h-full to fill the available space.
-        The key is that this container doesn't scroll - only the children do.
+        Three-Column Layout (Application Shell Pattern)
+        - Left: Fixed-width sidebar with internal scroll
+        - Center: Flexible main content area (ONLY scrollable zone)
+        - Right: Fixed-width panel (handled by CompanyChatInterface)
       */}
-      <div className="flex h-full overflow-hidden">
+      <div className="flex flex-row h-full overflow-hidden">
         {/* Mobile Sidebar Overlay */}
         {showMobileSidebar && (
           <div 
@@ -114,13 +116,14 @@ export default function CompanyChatPage() {
 
         {/* 
           Left Sidebar - Company Chat List
-          - On mobile: fixed position, slides in from left
-          - On desktop (lg+): fixed to viewport height, stays in place while chat scrolls
-          - The sidebar itself has h-screen and contains its own scrollable area for the chat list
+          - Fixed width (w-72 on desktop)
+          - flex-none: Don't grow or shrink
+          - h-full: Fill parent height
+          - overflow-y-auto: Scroll internally if content is too long
         */}
         <aside className={`
           fixed inset-y-0 left-0 z-50 w-80 bg-card transform transition-transform duration-300 ease-in-out
-          lg:sticky lg:top-0 lg:h-screen lg:w-72 lg:flex-shrink-0 lg:translate-x-0
+          lg:relative lg:flex-none lg:w-72 lg:h-full lg:border-r lg:border-border lg:translate-x-0
           ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full'}
         `}>
           {/* Mobile close button */}
@@ -131,7 +134,7 @@ export default function CompanyChatPage() {
             <X className="w-5 h-5" />
           </button>
           
-          {/* CompanyChatList already has h-full and internal scrolling for the chat list */}
+          {/* CompanyChatList has h-full and internal scrolling */}
           <CompanyChatList
             selectedChatId={selectedChat?.chat_id || null}
             onSelectChat={handleSelectChat}
@@ -140,15 +143,17 @@ export default function CompanyChatPage() {
         </aside>
 
         {/* 
-          Main Content Area
-          - Takes remaining space with flex-1
-          - Has overflow-hidden so only the chat messages inside scroll
+          Center Panel - Main Content Area (Chat Interface)
+          - flex-1: Grow to fill remaining space
+          - h-full: Fill parent height
+          - overflow-hidden: This container doesn't scroll
+          - The CompanyChatInterface handles internal scrolling for messages
         */}
-        <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <main className="flex-1 h-full overflow-hidden bg-background">
           {selectedChat ? (
             <CompanyChatInterface chat={selectedChat} onRefresh={refresh} />
           ) : (
-            <div className="flex-1 flex items-center justify-center p-4 bg-background">
+            <div className="h-full flex items-center justify-center p-4">
               <div className="text-center max-w-sm">
                 <div className="inline-flex p-4 bg-muted rounded-full mb-4">
                   <MessageSquare className="w-10 h-10 text-muted-foreground" />

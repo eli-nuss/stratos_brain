@@ -61,9 +61,12 @@ export default function DashboardLayout({
     location.startsWith("/list/");
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Compact App Bar - Single Row (~52px) */}
-      <header className="h-[52px] border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-50 flex items-center px-4 gap-4">
+    // Root Container - Viewport-Fixed Application Shell
+    // h-screen: Fill entire viewport height
+    // overflow-hidden: Prevent body scroll - only specific panels scroll
+    <div className="h-screen w-screen flex flex-col overflow-hidden bg-background">
+      {/* Header - Fixed at top, never scrolls */}
+      <header className="flex-none h-[52px] border-b border-border bg-card/80 backdrop-blur-sm z-50 flex items-center px-4 gap-4">
         {/* Left: Logo + Nav Tabs */}
         <div className="flex items-center gap-4">
           {/* Logo */}
@@ -134,13 +137,15 @@ export default function DashboardLayout({
         </div>
       </header>
 
-      {/* Main Content Area */}
+      {/* Main Body Wrapper - Takes remaining vertical space */}
+      {/* flex-1: Grow to fill remaining space after header */}
+      {/* overflow-hidden: Prevent this container from scrolling */}
       {isMainDashboard && !hideNavTabs ? (
         // Dashboard view with sidebar
-        <div className="flex-1 flex overflow-hidden">
-          {/* Left Sidebar - Filters & Lists */}
+        <div className="flex-1 flex flex-row overflow-hidden">
+          {/* Left Sidebar - Fixed width, scrolls internally */}
           <aside className={cn(
-            "hidden md:flex flex-col transition-all duration-200",
+            "hidden md:flex flex-col flex-none h-full border-r border-border overflow-y-auto bg-card transition-all duration-200",
             sidebarCollapsed ? "w-0" : "w-64"
           )}>
             <ListSidebar
@@ -156,22 +161,18 @@ export default function DashboardLayout({
             />
           </aside>
 
-          {/* Main Content */}
-          <main className="flex-1 overflow-auto">
-            <div className="container py-4 h-full">
+          {/* Center Panel - The ONLY scrollable content area */}
+          <main className="flex-1 h-full overflow-y-auto scroll-smooth bg-background">
+            <div className="container py-4">
               {children}
             </div>
           </main>
         </div>
       ) : (
-        // Sub-page view (no sidebar)
-        <main className={cn(
-          hideNavTabs 
-            ? "flex-1 flex flex-col min-h-0 overflow-hidden" 
-            : "flex-1 container py-4"
-        )}>
+        // Sub-page view (no sidebar) - Children handle their own layout
+        <div className="flex-1 flex flex-col overflow-hidden">
           {children}
-        </main>
+        </div>
       )}
     </div>
   );
