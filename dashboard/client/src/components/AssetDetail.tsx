@@ -548,7 +548,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
             </div>
 
             {/* Fundamentals Summary */}
-            <FundamentalsSummary asset={{...asset, close: ohlcv?.[0]?.close}} />
+            <FundamentalsSummary asset={{...asset, close: ohlcv?.length ? ohlcv[ohlcv.length - 1]?.close : asset.close}} />
 
             {/* AI Documents Section */}
             <DocumentsSection 
