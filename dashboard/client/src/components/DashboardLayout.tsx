@@ -169,10 +169,10 @@ export default function DashboardLayout({
           </main>
         </div>
       ) : (
-        // Sub-page view (no sidebar) - Children handle their own layout
-        <div className="flex-1 flex flex-col overflow-hidden">
+        // Sub-page view (no sidebar) - Scrollable content area
+        <main className="flex-1 overflow-y-auto scroll-smooth bg-background">
           {children}
-        </div>
+        </main>
       )}
     </div>
   );
