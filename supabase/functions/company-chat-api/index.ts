@@ -629,21 +629,65 @@ async function executeFunctionCall(
         }
       }
       
-      // Return documents with full text
-      return {
-        ticker,
-        doc_type: docType,
-        documents_found: documents.length,
-        total_words: documents.reduce((sum, d) => sum + (d.word_count || 0), 0),
-        documents: documents.map(d => ({
+      // AGGRESSIVE TRUNCATION for memory-constrained Edge Function environment
+      // 256MB limit is tight. A 10-K is ~2MB text but creates ~10MB+ in V8 string memory.
+      const MAX_CHARS_PER_DOC = 100000 // ~25k tokens - enough for analysis but prevents crash
+      const MAX_TOTAL_CHARS = 150000 // Total limit across all docs
+      
+      let totalChars = 0
+      let wasTruncated = false
+      
+      const processedDocs = documents.map(d => {
+        let text = d.full_text || ''
+        const originalLength = text.length
+        
+        // Check total limit first
+        if (totalChars >= MAX_TOTAL_CHARS) {
+          text = '[DOCUMENT OMITTED - Memory limit reached. Ask for this document separately.]'
+          wasTruncated = true
+        }
+        // Check per-document limit
+        else if (text.length > MAX_CHARS_PER_DOC) {
+          text = text.substring(0, MAX_CHARS_PER_DOC) + '\n\n[DOCUMENT TRUNCATED - ' + (originalLength - MAX_CHARS_PER_DOC) + ' chars omitted. Ask for specific sections if needed.]'
+          wasTruncated = true
+          console.log(`⚠️ Document truncated: ${d.title} (${originalLength} -> ${MAX_CHARS_PER_DOC} chars)`)
+        }
+        // Check if this would exceed total limit
+        else if (totalChars + text.length > MAX_TOTAL_CHARS) {
+          const remainingChars = MAX_TOTAL_CHARS - totalChars
+          text = text.substring(0, remainingChars) + '\n\n[DOCUMENT TRUNCATED - Memory limit reached.]'
+          wasTruncated = true
+        }
+        
+        totalChars += text.length
+        
+        // Return processed doc - original full_text is not referenced to help GC
+        return {
           title: d.title,
           filing_date: d.filing_date,
           fiscal_year: d.fiscal_year,
           fiscal_quarter: d.fiscal_quarter,
           word_count: d.word_count,
-          full_text: d.full_text
-        }))
+          content: text // Use 'content' instead of 'full_text' to avoid confusion
+        }
+      })
+      
+      // Nullify the original documents array to help garbage collection
+      // @ts-ignore - intentional GC hint
+      documents.length = 0
+      
+      // Return processed documents
+      const result = {
+        ticker,
+        doc_type: docType,
+        documents_found: processedDocs.length,
+        total_chars_returned: totalChars,
+        truncation_applied: wasTruncated,
+        memory_note: wasTruncated ? 'Some documents were truncated for memory efficiency. Ask for specific sections if you need more detail.' : null,
+        documents: processedDocs
       }
+      
+      return result
     }
     
     case "web_search": {
@@ -803,7 +847,15 @@ function buildSystemPrompt(asset: Record<string, unknown>, contextSnapshot: Reco
 4. **Database Context**: Use asset_id ${asset.asset_id} for database functions. Query fundamentals, price history, and signals to ground your analysis.
 5. **Verify Claims**: If your memory conflicts with database/document data, ALWAYS trust the source data.
 6. **Transparency**: Be clear about data limitations and uncertainty. Cite your sources.
-7. **Actionable Insights**: End with clear takeaways or action items when appropriate.`
+7. **Actionable Insights**: End with clear takeaways or action items when appropriate.
+
+## MEMORY CONSTRAINT STRATEGY (CRITICAL)
+You are running in a memory-constrained serverless environment. For complex multi-step queries:
+- **DO NOT** chain heavy operations (get_company_docs + web_search + execute_python + generate_dynamic_ui) in a single response turn.
+- **Step 1**: Fetch data (documents OR web search). Return findings to user.
+- **Step 2**: If user confirms, proceed with analysis (Python calculations, charts).
+- If documents are truncated, inform the user and offer to fetch specific sections.
+- Prefer smaller, focused queries over massive all-in-one requests.`
   
   const responseFormat = chatConfig.response_format || `- Use markdown formatting with clear sections
 - Include relevant metrics and data points with citations
