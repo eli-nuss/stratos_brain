@@ -1052,10 +1052,10 @@ async function executeFunctionCall(
         return { error: `Could not find fundamental data for ${ticker}` }
       }
       
-      // Get quarterly financials for historical growth
+      // Get quarterly financials for historical growth (including EBITDA/EBIT for D&A calculation)
       const { data: quarterlies, error: qError } = await supabase
         .from('equity_quarterly_fundamentals')
-        .select('fiscal_date_ending, total_revenue, net_income, free_cash_flow, operating_cashflow, eps_diluted')
+        .select('fiscal_date_ending, total_revenue, net_income, free_cash_flow, operating_cashflow, eps_diluted, ebitda, ebit, capital_expenditures')
         .eq('asset_id', metadata.asset_id)
         .order('fiscal_date_ending', { ascending: false })
         .limit(8)
@@ -1096,13 +1096,32 @@ async function executeFunctionCall(
         }
       }
       
-      // DCF Model
+      // DCF Model with Owner Earnings Auto-Detection
       if (modelType === 'dcf' || modelType === 'both') {
-        const ttmFCF = quarterlies?.slice(0, 4).reduce((s, q) => s + (q.free_cash_flow || q.operating_cashflow || 0), 0) || 0
+        // Calculate TTM metrics
+        const ttmOCF = quarterlies?.slice(0, 4).reduce((s, q) => s + (q.operating_cashflow || 0), 0) || 0
+        const ttmCapex = Math.abs(quarterlies?.slice(0, 4).reduce((s, q) => s + (q.capital_expenditures || 0), 0) || 0)
+        // D&A = EBITDA - EBIT (proxy for depreciation & amortization)
+        const ttmDA = quarterlies?.slice(0, 4).reduce((s, q) => s + ((q.ebitda || 0) - (q.ebit || 0)), 0) || 0
+        
+        // Standard FCF calculation
+        const standardFCF = ttmOCF - ttmCapex
+        
+        // Owner Earnings calculation (Buffett method)
+        // Maintenance CapEx ≈ D&A, so Owner Earnings = OCF - D&A
+        const ownerEarnings = ttmOCF - Math.abs(ttmDA)
+        
+        // Auto-detect high-growth companies: if CapEx > 150% of D&A, use Owner Earnings
+        const capexToDA = ttmDA > 0 ? ttmCapex / ttmDA : 0
+        const isHighGrowthReinvestor = capexToDA > 1.5
+        
+        // Choose the appropriate FCF metric
+        const usedFCF = isHighGrowthReinvestor ? ownerEarnings : standardFCF
+        const methodUsed = isHighGrowthReinvestor ? 'Owner Earnings (Adj. for Growth CapEx)' : 'Standard Unlevered FCF'
         
         // Project 5 years of FCF
         let projectedFCFs = []
-        let fcf = ttmFCF
+        let fcf = usedFCF
         for (let i = 1; i <= 5; i++) {
           fcf = fcf * (1 + growthRate)
           projectedFCFs.push(fcf)
@@ -1124,12 +1143,37 @@ async function executeFunctionCall(
         const fairValuePerShare = equityValue / sharesOutstanding
         const upside = ((fairValuePerShare - currentPrice) / currentPrice * 100)
         
+        // Also calculate what standard FCF would have given (for comparison)
+        const standardFairValue = isHighGrowthReinvestor ? (() => {
+          let stdFcf = standardFCF
+          let stdProjected = []
+          for (let i = 1; i <= 5; i++) {
+            stdFcf = stdFcf * (1 + growthRate)
+            stdProjected.push(stdFcf)
+          }
+          const stdTerminal = (stdProjected[4] * (1 + terminalGrowth)) / (discountRate - terminalGrowth)
+          let stdPV = 0
+          for (let i = 0; i < 5; i++) {
+            stdPV += stdProjected[i] / Math.pow(1 + discountRate, i + 1)
+          }
+          return (stdPV + stdTerminal / Math.pow(1 + discountRate, 5)) / sharesOutstanding
+        })() : null
+        
         results.dcf_model = {
-          ttm_free_cash_flow_millions: (ttmFCF / 1e6).toFixed(1),
+          methodology: methodUsed,
+          ttm_operating_cash_flow_millions: (ttmOCF / 1e6).toFixed(1),
+          ttm_capex_millions: (ttmCapex / 1e6).toFixed(1),
+          ttm_depreciation_amortization_millions: (Math.abs(ttmDA) / 1e6).toFixed(1),
+          capex_to_da_ratio: capexToDA.toFixed(2) + 'x',
+          adjustment_note: isHighGrowthReinvestor 
+            ? `Switched to Owner Earnings because CapEx (${(ttmCapex/1e9).toFixed(1)}B) is ${capexToDA.toFixed(1)}x D&A (${(Math.abs(ttmDA)/1e9).toFixed(1)}B). This avoids penalizing growth investments.`
+            : 'Standard FCF used (CapEx is within normal maintenance range).',
+          starting_cash_flow_millions: (usedFCF / 1e6).toFixed(1),
           projected_fcf_year5_millions: (projectedFCFs[4] / 1e6).toFixed(1),
           terminal_value_billions: (terminalValue / 1e9).toFixed(2),
           enterprise_value_billions: (enterpriseValue / 1e9).toFixed(2),
           fair_value_per_share: fairValuePerShare.toFixed(2),
+          standard_fcf_fair_value: standardFairValue ? standardFairValue.toFixed(2) : null,
           upside_downside_pct: upside.toFixed(1) + '%',
           verdict: upside > 20 ? 'UNDERVALUED' : upside < -20 ? 'OVERVALUED' : 'FAIRLY VALUED'
         }
