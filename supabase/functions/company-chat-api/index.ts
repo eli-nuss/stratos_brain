@@ -653,9 +653,56 @@ async function executeFunctionCall(
     }
     
     case "execute_python": {
-      const result = await executePythonCode(args.code as string, args.purpose as string)
-      // Wrap in object for Gemini API compatibility
-      return { execution_result: result }
+      const MAX_RETRIES = 2
+      let attempts = 0
+      let lastResult = null
+      let currentCode = args.code as string
+      const purpose = args.purpose as string
+      
+      while (attempts < MAX_RETRIES) {
+        attempts++
+        const result = await executePythonCode(currentCode, purpose)
+        lastResult = result
+        
+        if (result.success) {
+          // Code executed successfully
+          console.log(`✅ Python execution succeeded on attempt ${attempts}`)
+          return { execution_result: result }
+        } else {
+          // Code failed - provide detailed error feedback for Gemini to fix
+          console.log(`⚠️ Python execution attempt ${attempts} failed: ${result.error}`)
+          
+          if (attempts < MAX_RETRIES) {
+            // Return error with fix instructions - Gemini will auto-retry
+            return {
+              execution_result: {
+                success: false,
+                purpose: purpose,
+                code: currentCode,
+                output: null,
+                error: result.error,
+                fix_instruction: `ERROR: The Python code failed to execute. Error message: ${result.error}. Please examine your code, fix the syntax or logic error, and call execute_python again with the corrected code.`,
+                attempt: attempts,
+                max_retries: MAX_RETRIES
+              }
+            }
+          }
+        }
+      }
+      
+      // All retries exhausted - return final error
+      console.log(`❌ Python execution failed after ${MAX_RETRIES} attempts`)
+      return {
+        execution_result: {
+          success: false,
+          purpose: purpose,
+          code: currentCode,
+          output: null,
+          error: lastResult?.error || 'Unknown error after max retries',
+          final_failure: true,
+          attempts_made: attempts
+        }
+      }
     }
     
     case "generate_dynamic_ui": {
@@ -871,7 +918,7 @@ async function callGeminiWithTools(
     
     for (const part of functionCallParts) {
       const fc = part.functionCall as { name: string; args: Record<string, unknown> }
-      console.log(`Executing function: ${fc.name}`, fc.args)
+      console.log(`Executing function: ${fc.name}`)
       
       const result = await executeFunctionCall(fc, supabase)
       
@@ -897,38 +944,14 @@ async function callGeminiWithTools(
         }
       })
       
-      // Enhanced audit logging for function results
-      console.log(`=== FUNCTION AUDIT: ${fc.name} ===`)
-      console.log(`Arguments: ${JSON.stringify(fc.args)}`)
-      console.log(`Result summary: ${JSON.stringify({
-        success: !result.error,
-        error: result.error || null,
-        resultKeys: Object.keys(result),
-        // For web search, show result count
-        ...(fc.name === 'web_search' && result.search_output ? {
-          searchQuery: result.search_output.query,
-          totalResults: result.search_output.total_results,
-          resultsReturned: result.search_output.results?.length || 0,
-          topResults: result.search_output.results?.slice(0, 3).map((r: {title: string; source: string}) => ({ title: r.title, source: r.source })) || []
-        } : {}),
-        // For price history, show date range
-        ...(fc.name === 'get_price_history' && result.bars ? {
-          barsCount: result.count,
-          dateRange: result.bars.length > 0 ? `${result.bars[result.bars.length-1]?.date} to ${result.bars[0]?.date}` : 'N/A'
-        } : {}),
-        // For technical indicators, show key values
-        ...(fc.name === 'get_technical_indicators' && result.indicators ? {
-          asOfDate: result.as_of_date,
-          rsi: result.indicators?.rsi_14,
-          macdLine: result.indicators?.macd_line
-        } : {})
-      }, null, 2)}`)
-      console.log(`=== END AUDIT: ${fc.name} ===`)
+      // Lightweight audit logging (verbose logging removed to save memory)
+      console.log(`✓ ${fc.name} completed: ${result.error ? 'ERROR' : 'OK'}`)
     }
     
     // Add the assistant's response and function results to messages
     // IMPORTANT: Preserve the full parts array including thoughtSignature for Gemini 3 models
-    console.log('Model response parts:', JSON.stringify(content.parts, null, 2))
+    // Model response logged (content truncated for memory efficiency)
+    console.log(`Model response: ${content.parts?.length || 0} parts`)
     
     // Verify thoughtSignature is present in function call parts
     for (const part of content.parts || []) {
@@ -953,8 +976,7 @@ async function callGeminiWithTools(
       ...requestBody,
       contents: messages
     }
-    console.log('Sending follow-up request with messages count:', messages.length)
-    console.log('Last model message parts:', JSON.stringify(messages[messages.length - 2]?.parts, null, 2))
+    console.log(`Sending follow-up request: ${messages.length} messages`)
     
     response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,

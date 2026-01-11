@@ -49,7 +49,7 @@ export function ThinkingSection({ toolCalls, codeExecution, groundingMetadata }:
       >
         <Sparkles className="w-4 h-4 text-primary" />
         <span className="font-medium">
-          {isExpanded ? 'Hide thinking' : 'Show thinking'}
+          {isExpanded ? 'Hide analysis' : 'Show thinking'}
         </span>
         <ChevronDown 
           className={cn(
