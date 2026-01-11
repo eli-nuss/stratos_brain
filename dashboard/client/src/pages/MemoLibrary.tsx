@@ -569,15 +569,30 @@ export default function MemoLibrary() {
                     <div className="h-px flex-1 bg-zinc-800/50"></div>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {groupMemos.map((memo) => (
-                      <MemoCard 
-                        key={`${groupKey}-${memo.file_id}`} 
-                        memo={memo} 
-                        onClick={() => setSelectedMemo(memo)} 
-                      />
-                    ))}
-                  </div>
+                  {isListView ? (
+                    <div className="overflow-x-auto pb-4 -mx-2 px-2">
+                      <div className="flex gap-4" style={{ minWidth: 'max-content' }}>
+                        {groupMemos.map((memo) => (
+                          <div key={`${groupKey}-${memo.file_id}`} className="w-[320px] flex-shrink-0">
+                            <MemoCard 
+                              memo={memo} 
+                              onClick={() => setSelectedMemo(memo)} 
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                      {groupMemos.map((memo) => (
+                        <MemoCard 
+                          key={`${groupKey}-${memo.file_id}`} 
+                          memo={memo} 
+                          onClick={() => setSelectedMemo(memo)} 
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
