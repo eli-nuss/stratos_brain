@@ -1918,9 +1918,9 @@ You are running in a memory-constrained serverless environment. For complex mult
 ${groundingRules}
 
 ## MACRO-AWARENESS PROTOCOL (MANDATORY)
-**Before recommending ANY stock or discussing investment timing, you MUST check the macro environment using `get_macro_context`.**
+**Before recommending ANY stock or discussing investment timing, you MUST check the macro environment using \`get_macro_context\`.**
 
-### When to Call `get_macro_context`:
+### When to Call \`get_macro_context\`:
 - User asks "Should I buy [stock]?" → Call FIRST
 - User asks about "market conditions" or "risks" → Call FIRST
 - User discusses "timing" or "when to enter" → Call FIRST
