@@ -988,6 +988,46 @@ async function callGeminiWithTools(
   }
 }
 
+// Wrapper function with timeout and error handling
+async function callGeminiWithToolsSafe(
+  messages: Array<{ role: string; parts: Array<{ text?: string }> }>,
+  systemInstruction: string,
+  supabase: ReturnType<typeof createClient>,
+  chatConfig: ChatConfig = {}
+): Promise<{
+  response: string;
+  toolCalls: unknown[];
+  codeExecutions: unknown[];
+  groundingMetadata: unknown | null;
+  error?: string;
+}> {
+  try {
+    // Create a timeout promise (55 seconds to leave buffer for response)
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Request timeout - the analysis took too long')), 55000)
+    })
+    
+    // Race between the actual call and timeout
+    const result = await Promise.race([
+      callGeminiWithTools(messages, systemInstruction, supabase, chatConfig),
+      timeoutPromise
+    ])
+    
+    return result
+  } catch (error) {
+    console.error('callGeminiWithToolsSafe error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+    
+    return {
+      response: `I encountered an error while processing your request: ${errorMessage}. Please try again or simplify your question.`,
+      toolCalls: [],
+      codeExecutions: [],
+      groundingMetadata: null,
+      error: errorMessage
+    }
+  }
+}
+
 // Main server handler
 serve(async (req: Request) => {
   // Handle CORS preflight
@@ -1272,9 +1312,9 @@ serve(async (req: Request) => {
         // Build system prompt with config
         const systemPrompt = buildSystemPrompt(asset, chat.context_snapshot, chatConfig)
         
-        // Call Gemini with tools and config
+        // Call Gemini with tools and config (using safe wrapper with timeout)
         const startTime = Date.now()
-        const geminiResult = await callGeminiWithTools(geminiMessages, systemPrompt, supabase, chatConfig)
+        const geminiResult = await callGeminiWithToolsSafe(geminiMessages, systemPrompt, supabase, chatConfig)
         const latencyMs = Date.now() - startTime
         
         // Save assistant message
