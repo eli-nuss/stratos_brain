@@ -1890,7 +1890,8 @@ serve(async (req: Request) => {
         })
       }
 
-      // POST /chats/:chatId/messages - Send a message with job tracking for real-time updates
+      // POST /chats/:chatId/messages - Send a message with FIRE AND FORGET pattern
+      // Returns 202 Accepted immediately, processes in background via EdgeRuntime.waitUntil
       case req.method === 'POST' && /^\/chats\/[a-f0-9-]+\/messages$/.test(path): {
         const chatId = path.split('/')[2]
         const body = await req.json()
@@ -1917,27 +1918,43 @@ serve(async (req: Request) => {
           })
         }
         
+        // Get asset info early (needed for validation)
+        const { data: asset } = await supabase
+          .from('assets')
+          .select('*')
+          .eq('asset_id', parseInt(chat.asset_id))
+          .single()
+        
+        if (!asset) {
+          return new Response(JSON.stringify({ error: 'Asset not found' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
         // Create job record for tracking
         const { data: job, error: jobError } = await supabase
           .from('chat_jobs')
           .insert({
             chat_id: chatId,
             user_message: content,
-            status: 'processing'
+            status: 'pending'
           })
           .select()
           .single()
         
         if (jobError) {
           console.error('Failed to create job:', jobError)
-          // Continue without job tracking if it fails
+          return new Response(JSON.stringify({ error: 'Failed to create job' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
         }
         
-        const jobId = job?.id
+        const jobId = job.id
         
         // Helper to update job status
         const updateJob = async (status: string, updates: Record<string, unknown> = {}) => {
-          if (!jobId) return
           await supabase
             .from('chat_jobs')
             .update({ status, ...updates, updated_at: new Date().toISOString() })
@@ -1946,7 +1963,6 @@ serve(async (req: Request) => {
         
         // Helper to log tool execution for real-time UI
         const logTool = async (toolName: string, status: 'started' | 'completed' | 'failed') => {
-          if (!jobId) return
           const { data: currentJob } = await supabase
             .from('chat_jobs')
             .select('tool_calls')
@@ -1962,132 +1978,138 @@ serve(async (req: Request) => {
             .eq('id', jobId)
         }
         
-        try {
-          // Get asset info
-          const { data: asset } = await supabase
-            .from('assets')
-            .select('*')
-            .eq('asset_id', parseInt(chat.asset_id))
-            .single()
-          
-          if (!asset) {
-            await updateJob('failed', { error_message: 'Asset not found' })
-            return new Response(JSON.stringify({ error: 'Asset not found' }), {
-              status: 404,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            })
-          }
-          
-          // Fetch chat configuration
-          const chatConfig = await fetchChatConfig(supabase)
-          
-          // Get current sequence number
-          const { data: lastMessage } = await supabase
-            .from('chat_messages')
-            .select('sequence_num')
-            .eq('chat_id', chatId)
-            .order('sequence_num', { ascending: false })
-            .limit(1)
-            .single()
-          
-          const nextSeq = (lastMessage?.sequence_num || 0) + 1
-          
-          // Save user message
-          const { error: userMsgError } = await supabase
-            .from('chat_messages')
-            .insert({
-              chat_id: chatId,
-              sequence_num: nextSeq,
-              role: 'user',
-              content: content
-            })
-          
-          if (userMsgError) throw userMsgError
-          
-          // Build conversation history
-          const { data: history } = await supabase
-            .from('chat_messages')
-            .select('role, content, tool_calls, executable_code, code_execution_result')
-            .eq('chat_id', chatId)
-            .order('sequence_num', { ascending: true })
-            .limit(50)
-          
-          const geminiMessages: Array<{ role: string; parts: Array<{ text?: string }> }> = []
-          
-          for (const msg of history || []) {
-            if (msg.role === 'user' || msg.role === 'assistant') {
-              geminiMessages.push({
-                role: msg.role === 'user' ? 'user' : 'model',
-                parts: [{ text: msg.content || '' }]
+        // Define the long-running background task
+        const runAnalysisTask = async () => {
+          try {
+            // Update job status to processing
+            await updateJob('processing', { status_message: 'Starting analysis...' })
+            
+            // Fetch chat configuration
+            const chatConfig = await fetchChatConfig(supabase)
+            
+            // Get current sequence number
+            const { data: lastMessage } = await supabase
+              .from('chat_messages')
+              .select('sequence_num')
+              .eq('chat_id', chatId)
+              .order('sequence_num', { ascending: false })
+              .limit(1)
+              .single()
+            
+            const nextSeq = (lastMessage?.sequence_num || 0) + 1
+            
+            // Save user message
+            const { error: userMsgError } = await supabase
+              .from('chat_messages')
+              .insert({
+                chat_id: chatId,
+                sequence_num: nextSeq,
+                role: 'user',
+                content: content
               })
+            
+            if (userMsgError) throw userMsgError
+            
+            // Build conversation history
+            const { data: history } = await supabase
+              .from('chat_messages')
+              .select('role, content, tool_calls, executable_code, code_execution_result')
+              .eq('chat_id', chatId)
+              .order('sequence_num', { ascending: true })
+              .limit(50)
+            
+            const geminiMessages: Array<{ role: string; parts: Array<{ text?: string }> }> = []
+            
+            for (const msg of history || []) {
+              if (msg.role === 'user' || msg.role === 'assistant') {
+                geminiMessages.push({
+                  role: msg.role === 'user' ? 'user' : 'model',
+                  parts: [{ text: msg.content || '' }]
+                })
+              }
             }
-          }
-          
-          // Build system prompt
-          const systemPrompt = buildSystemPrompt(asset, chat.context_snapshot, chatConfig)
-          
-          // Call Gemini with tools (with job tracking for tool calls)
-          const startTime = Date.now()
-          const geminiResult = await callGeminiWithToolsSafe(
-            geminiMessages, 
-            systemPrompt, 
-            supabase, 
-            chatConfig,
-            logTool // Pass the tool logger for real-time updates
-          )
-          const latencyMs = Date.now() - startTime
-          
-          // Save assistant message
-          const { data: assistantMessage, error: assistantMsgError } = await supabase
-            .from('chat_messages')
-            .insert({
-              chat_id: chatId,
-              sequence_num: nextSeq + 1,
-              role: 'assistant',
-              content: geminiResult.response,
-              tool_calls: geminiResult.toolCalls.length > 0 ? geminiResult.toolCalls : null,
-              executable_code: geminiResult.codeExecutions.length > 0 ? (geminiResult.codeExecutions[0] as { code?: string })?.code : null,
-              code_execution_result: geminiResult.codeExecutions.length > 0 ? JSON.stringify((geminiResult.codeExecutions[0] as { result?: unknown })?.result) : null,
-              grounding_metadata: geminiResult.groundingMetadata,
-              model: chatConfig.model || GEMINI_MODEL,
-              latency_ms: latencyMs
+            
+            // Build system prompt
+            const systemPrompt = buildSystemPrompt(asset, chat.context_snapshot, chatConfig)
+            
+            // Call Gemini with tools - NO TIMEOUT WRAPPER!
+            // Let it run for as long as needed (up to edge function max)
+            const startTime = Date.now()
+            const geminiResult = await callGeminiWithTools(
+              geminiMessages, 
+              systemPrompt, 
+              supabase, 
+              chatConfig,
+              logTool // Pass the tool logger for real-time updates
+            )
+            const latencyMs = Date.now() - startTime
+            
+            // Save assistant message
+            const { data: assistantMessage, error: assistantMsgError } = await supabase
+              .from('chat_messages')
+              .insert({
+                chat_id: chatId,
+                sequence_num: nextSeq + 1,
+                role: 'assistant',
+                content: geminiResult.response,
+                tool_calls: geminiResult.toolCalls.length > 0 ? geminiResult.toolCalls : null,
+                executable_code: geminiResult.codeExecutions.length > 0 ? (geminiResult.codeExecutions[0] as { code?: string })?.code : null,
+                code_execution_result: geminiResult.codeExecutions.length > 0 ? JSON.stringify((geminiResult.codeExecutions[0] as { result?: unknown })?.result) : null,
+                grounding_metadata: geminiResult.groundingMetadata,
+                model: chatConfig.model || GEMINI_MODEL,
+                latency_ms: latencyMs
+              })
+              .select()
+              .single()
+            
+            if (assistantMsgError) throw assistantMsgError
+            
+            // Update chat's last_message_at
+            await supabase
+              .from('company_chats')
+              .update({ last_message_at: new Date().toISOString() })
+              .eq('chat_id', chatId)
+            
+            // Mark job as completed
+            await updateJob('completed', { 
+              completed_at: new Date().toISOString(),
+              result: { message_id: assistantMessage?.message_id }
             })
-            .select()
-            .single()
-          
-          if (assistantMsgError) throw assistantMsgError
-          
-          // Update chat's last_message_at
-          await supabase
-            .from('company_chats')
-            .update({ last_message_at: new Date().toISOString() })
-            .eq('chat_id', chatId)
-          
-          // Mark job as completed
-          await updateJob('completed', { 
-            completed_at: new Date().toISOString(),
-            result: { message_id: assistantMessage?.message_id }
-          })
-          
-          return new Response(JSON.stringify({
-            success: true,
-            job_id: jobId,
-            message: assistantMessage
-          }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-        } catch (err) {
-          console.error('Error processing message:', err)
-          await updateJob('failed', { error_message: err instanceof Error ? err.message : 'Unknown error' })
-          
-          return new Response(JSON.stringify({ 
-            error: err instanceof Error ? err.message : 'Failed to process message',
-            job_id: jobId
-          }), {
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
+            
+            console.log(`Job ${jobId} completed successfully in ${latencyMs}ms`)
+            
+          } catch (err) {
+            console.error('Background task failed:', err)
+            await updateJob('failed', { 
+              error_message: err instanceof Error ? err.message : 'Unknown error',
+              completed_at: new Date().toISOString()
+            })
+          }
         }
+        
+        // FIRE AND FORGET: Trigger the background work without waiting
+        // EdgeRuntime.waitUntil tells the edge function to keep running this promise
+        // even after we send the HTTP response
+        // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
+        if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
+          // @ts-ignore
+          EdgeRuntime.waitUntil(runAnalysisTask())
+        } else {
+          // Fallback for environments without EdgeRuntime (shouldn't happen in production)
+          // Just run it without waiting - the response will be sent before completion
+          runAnalysisTask().catch(err => console.error('Background task error:', err))
+        }
+        
+        // RETURN IMMEDIATELY with 202 Accepted
+        // The frontend's useSendMessage hook is already looking for status 202!
+        return new Response(JSON.stringify({
+          job_id: jobId,
+          status: 'pending',
+          message: 'Analysis started in background'
+        }), {
+          status: 202, // 202 = Accepted (Processing hasn't finished yet)
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
       }
 
       // GET /jobs/:jobId - Get job status
