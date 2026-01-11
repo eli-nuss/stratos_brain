@@ -389,6 +389,24 @@ const unifiedFunctionDeclarations = [
       },
       required: ["componentType", "title", "data"]
     }
+  },
+  // Macro Context Tool - provides market environment analysis
+  {
+    name: "get_macro_context",
+    description: "Fetches the current 'State of the Market' including Risk Regime, Interest Rates, Inflation, Commodity trends, and Sector Rotation. MANDATORY USE: Call this tool FIRST if the user asks about 'buying', 'market conditions', 'risks', 'outlook', or any investment recommendation. You cannot recommend a stock without knowing if the market environment is supportive or hostile.",
+    parameters: {
+      type: "object",
+      properties: {
+        focus_sector: { 
+          type: "string", 
+          description: "Optional: The sector of the stock being discussed (e.g., 'Technology', 'Consumer Discretionary') to check for specific sector headwinds or tailwinds." 
+        },
+        days_back: {
+          type: "number",
+          description: "Optional: Number of days of historical macro data to retrieve (default 1 for latest, max 30 for trend analysis)"
+        }
+      }
+    }
   }
 ]
 
@@ -1662,6 +1680,138 @@ print(f"✅ Data loaded: {len(df)} rows, columns: {list(df.columns)}")
       }
     }
     
+    case "get_macro_context": {
+      const days_back = Math.min((args.days_back as number) || 1, 30)
+      const focus_sector = args.focus_sector as string | undefined
+      
+      try {
+        // Fetch latest macro data
+        const { data: macroData, error } = await supabase
+          .from('daily_macro_metrics')
+          .select('*')
+          .order('date', { ascending: false })
+          .limit(days_back)
+        
+        if (error) {
+          console.error('Error fetching macro context:', error)
+          return {
+            error: 'Failed to fetch macro context',
+            message: error.message
+          }
+        }
+        
+        if (!macroData || macroData.length === 0) {
+          return {
+            error: 'No macro data available',
+            message: 'Macro data has not been ingested yet. Please run the ingest_macro_fmp_v2.py script.'
+          }
+        }
+        
+        const latest = macroData[0]
+        
+        // Parse sector rotation data
+        let sectorData: Record<string, number> = {}
+        try {
+          sectorData = typeof latest.sector_rotation === 'string' 
+            ? JSON.parse(latest.sector_rotation) 
+            : latest.sector_rotation || {}
+        } catch (e) {
+          console.error('Error parsing sector_rotation:', e)
+        }
+        
+        // Build the response
+        const response: Record<string, unknown> = {
+          date: latest.date,
+          timestamp: latest.created_at,
+          
+          // Market Regime
+          market_regime: latest.market_regime,
+          risk_premium: latest.risk_premium,
+          
+          // Rates & Credit
+          rates: {
+            us_10y_yield: latest.us10y_yield,
+            us_2y_yield: latest.us2y_yield,
+            yield_curve_spread: latest.yield_curve_10y_2y,
+            yield_curve_status: latest.yield_curve_10y_2y < 0 ? 'INVERTED (Recession Warning)' : 'Normal'
+          },
+          credit: {
+            junk_bond_price: latest.hyg_close,
+            credit_appetite: latest.hyg_close > 80 ? 'Healthy' : 'Stressed'
+          },
+          
+          // Commodities
+          commodities: {
+            oil_price: latest.oil_close,
+            oil_status: latest.oil_close > 85 ? 'High (Inflation Risk)' : latest.oil_close < 70 ? 'Low (Deflationary)' : 'Normal',
+            gold_price: latest.gold_close,
+            gold_status: latest.gold_close > 2000 ? 'Flight to Safety' : 'Normal',
+            copper_price: latest.copper_close,
+            copper_status: latest.copper_close > 4 ? 'Strong Economy' : 'Weak Economy'
+          },
+          
+          // Inflation
+          inflation: {
+            cpi_yoy: latest.cpi_yoy,
+            status: latest.cpi_yoy > 3 ? 'Hot (Fed Concern)' : latest.cpi_yoy < 2 ? 'Cool' : 'Target Range'
+          },
+          
+          // Market Breadth
+          market_breadth: {
+            spy_price: latest.spy_close,
+            spy_change_pct: latest.spy_change_pct,
+            iwm_price: latest.iwm_close,
+            iwm_change_pct: latest.iwm_change_pct,
+            breadth_rating: latest.breadth_rating,
+            interpretation: latest.breadth_rating === 'Divergent' 
+              ? 'WARNING: Large caps rising but small caps falling - fragile rally'
+              : latest.breadth_rating === 'Strong'
+              ? 'Healthy broad-based rally'
+              : 'Mixed signals'
+          },
+          
+          // Sector Rotation
+          sector_rotation: sectorData,
+          leading_sectors: Object.entries(sectorData)
+            .sort(([,a], [,b]) => (b as number) - (a as number))
+            .slice(0, 3)
+            .map(([sector, change]) => ({ sector, change_pct: change })),
+          lagging_sectors: Object.entries(sectorData)
+            .sort(([,a], [,b]) => (a as number) - (b as number))
+            .slice(0, 3)
+            .map(([sector, change]) => ({ sector, change_pct: change }))
+        }
+        
+        // Add focus sector analysis if requested
+        if (focus_sector && sectorData[focus_sector] !== undefined) {
+          response.focus_sector_analysis = {
+            sector: focus_sector,
+            performance_today: sectorData[focus_sector],
+            relative_rank: Object.values(sectorData).filter((v) => (v as number) > sectorData[focus_sector]).length + 1,
+            total_sectors: Object.keys(sectorData).length
+          }
+        }
+        
+        // Add historical trend if days_back > 1
+        if (days_back > 1 && macroData.length > 1) {
+          response.trend_analysis = {
+            regime_changes: macroData.map(d => ({ date: d.date, regime: d.market_regime })),
+            yield_curve_trend: macroData.map(d => ({ date: d.date, spread: d.yield_curve_10y_2y })),
+            spy_trend: macroData.map(d => ({ date: d.date, change_pct: d.spy_change_pct }))
+          }
+        }
+        
+        return response
+        
+      } catch (error) {
+        console.error('Error in get_macro_context:', error)
+        return {
+          error: 'Internal error fetching macro context',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        }
+      }
+    }
+    
     default:
       return { error: `Unknown function: ${name}` }
   }
@@ -1766,6 +1916,40 @@ You are running in a memory-constrained serverless environment. For complex mult
 
 ## CRITICAL GROUNDING RULES (READ FIRST)
 ${groundingRules}
+
+## MACRO-AWARENESS PROTOCOL (MANDATORY)
+**Before recommending ANY stock or discussing investment timing, you MUST check the macro environment using `get_macro_context`.**
+
+### When to Call `get_macro_context`:
+- User asks "Should I buy [stock]?" → Call FIRST
+- User asks about "market conditions" or "risks" → Call FIRST
+- User discusses "timing" or "when to enter" → Call FIRST
+- User mentions "Fed", "rates", "inflation", "recession" → Call to get current data
+
+### How to Interpret the Macro Context:
+1. **Risk Regime**: 
+   - "Risk-On" = Market is comfortable with risk, good for growth stocks
+   - "Risk-Off" = Flight to safety, favor defensive stocks, bonds, gold
+   - "Neutral" = Mixed signals, be selective
+
+2. **Yield Curve**:
+   - Inverted (negative spread) = Recession warning, be cautious
+   - Steepening = Economic expansion, favor cyclicals
+
+3. **Breadth Rating**:
+   - "Divergent" = Large caps up but small caps down = Fragile rally, warning sign
+   - "Strong" = Broad-based rally = Healthy market
+   - "Weak" = Broad-based decline = Stay defensive
+
+4. **Commodities**:
+   - Oil spiking = Inflation risk, bad for consumers
+   - Gold rallying = Fear/uncertainty, flight to safety
+   - Copper rising = Strong economy, good for industrials
+
+### Integration Rule:
+**NEVER say "This stock looks good" without explaining HOW the current macro environment supports or threatens that thesis.**
+
+Example: "AAPL has strong fundamentals, BUT the current Risk-Off regime and inverted yield curve suggest waiting for a better entry point."
 
 ## Your Tools & Capabilities
 ${roleDescription}
