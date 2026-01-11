@@ -58,41 +58,62 @@ type DocType = '10-K' | '10-Q' | '8-K' | 'DEF 14A' | 'transcript'
 // FMP API FUNCTIONS
 // ============================================================================
 
-// Fetch all SEC filings for a ticker (FMP's type filter is buggy, so we filter in code)
+// Fetch all SEC filings for a ticker in 90-day chunks (FMP has a 90-day limit per request)
 async function fetchAllFilings(ticker: string, yearsBack: number = 3): Promise<FMPFiling[]> {
-  const toDate = new Date()
-  const fromDate = new Date()
-  fromDate.setFullYear(fromDate.getFullYear() - yearsBack)
+  const allFilings: FMPFiling[] = []
+  const seenLinks = new Set<string>()
   
-  const fromStr = fromDate.toISOString().split('T')[0]
-  const toStr = toDate.toISOString().split('T')[0]
+  const endDate = new Date()
+  const startDate = new Date()
+  startDate.setFullYear(startDate.getFullYear() - yearsBack)
   
-  // FMP's type filter is buggy - fetch all and filter in code
-  const url = `${FMP_BASE_URL}/sec-filings-search/symbol?symbol=${ticker}&from=${fromStr}&to=${toStr}&page=0&limit=500&apikey=${FMP_API_KEY}`
+  console.log(`Fetching SEC filings for ${ticker} from ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]} in 90-day chunks`)
   
-  console.log(`Fetching all SEC filings for ${ticker} from ${fromStr} to ${toStr}`)
+  // Query in 90-day chunks to work around FMP's date range limit
+  let chunkEnd = new Date(endDate)
+  let chunkCount = 0
   
-  try {
-    const response = await fetch(url)
-    if (!response.ok) {
-      const text = await response.text()
-      console.error(`FMP API error for ${ticker}: ${response.status} - ${text}`)
-      return []
+  while (chunkEnd > startDate) {
+    const chunkStart = new Date(chunkEnd)
+    chunkStart.setDate(chunkStart.getDate() - 89) // 90-day window
+    if (chunkStart < startDate) {
+      chunkStart.setTime(startDate.getTime())
     }
     
-    const data = await response.json()
+    const fromStr = chunkStart.toISOString().split('T')[0]
+    const toStr = chunkEnd.toISOString().split('T')[0]
     
-    if (typeof data === 'string' && data.includes('Restricted')) {
-      console.error(`FMP API restricted: ${data}`)
-      return []
+    const url = `${FMP_BASE_URL}/sec-filings-search/symbol?symbol=${ticker}&from=${fromStr}&to=${toStr}&page=0&limit=500&apikey=${FMP_API_KEY}`
+    
+    try {
+      const response = await fetch(url)
+      if (response.ok) {
+        const data = await response.json()
+        if (Array.isArray(data)) {
+          for (const filing of data as FMPFiling[]) {
+            // Deduplicate by link
+            if (!seenLinks.has(filing.link)) {
+              seenLinks.add(filing.link)
+              allFilings.push(filing)
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`Error fetching chunk ${fromStr} to ${toStr}:`, error)
     }
     
-    console.log(`Received ${(data as FMPFiling[]).length} total filings for ${ticker}`)
-    return data as FMPFiling[]
-  } catch (error) {
-    console.error(`Error fetching filings for ${ticker}:`, error)
-    return []
+    // Move to previous chunk
+    chunkEnd = new Date(chunkStart)
+    chunkEnd.setDate(chunkEnd.getDate() - 1)
+    chunkCount++
+    
+    // Rate limiting between chunks
+    await new Promise(resolve => setTimeout(resolve, 100))
   }
+  
+  console.log(`Fetched ${allFilings.length} total filings for ${ticker} across ${chunkCount} chunks`)
+  return allFilings
 }
 
 // Filter filings by type

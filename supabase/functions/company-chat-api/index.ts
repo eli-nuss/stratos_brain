@@ -201,6 +201,34 @@ const unifiedFunctionDeclarations = [
       },
       required: ["code", "purpose"]
     }
+  },
+  // Generative UI function - renders visual components in the chat
+  {
+    name: "generate_dynamic_ui",
+    description: "Renders a visual UI component in the chat. Use this when the user asks for comparisons, trends, financial charts, data tables, or any visual representation of data. DO NOT use markdown tables - use this tool instead for better visualization.",
+    parameters: {
+      type: "object",
+      properties: {
+        componentType: { 
+          type: "string", 
+          enum: ["FinancialChart", "MetricCard", "RiskGauge", "DataTable", "ComparisonChart"],
+          description: "The type of React component to render. FinancialChart for line/bar charts, MetricCard for key stats, RiskGauge for risk indicators, DataTable for tabular data, ComparisonChart for side-by-side comparisons." 
+        },
+        title: { 
+          type: "string", 
+          description: "The title of the chart/card/table." 
+        },
+        data: { 
+          type: "object", 
+          description: "The structured JSON data for the component. For FinancialChart: {type: 'line'|'bar', metric: string, points: [{label: string, value: number}]}. For MetricCard: {metrics: [{label: string, value: string, trend: number}]}. For DataTable: {headers: string[], rows: string[][]}. For ComparisonChart: {items: [{name: string, value: number, color?: string}]}." 
+        },
+        insight: { 
+          type: "string", 
+          description: "A one-sentence analyst takeaway to display below the visualization." 
+        }
+      },
+      required: ["componentType", "title", "data"]
+    }
   }
 ]
 
@@ -628,6 +656,21 @@ async function executeFunctionCall(
       const result = await executePythonCode(args.code as string, args.purpose as string)
       // Wrap in object for Gemini API compatibility
       return { execution_result: result }
+    }
+    
+    case "generate_dynamic_ui": {
+      // This is a special tool - we don't execute it server-side
+      // Instead, we pass the args directly back to the frontend for rendering
+      // The frontend will use GenerativeUIRenderer to display the component
+      return {
+        ui_component: {
+          componentType: args.componentType,
+          title: args.title,
+          data: args.data,
+          insight: args.insight || null
+        },
+        render_instruction: "FRONTEND_RENDER"
+      }
     }
     
     default:

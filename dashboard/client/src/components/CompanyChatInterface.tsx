@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ThinkingSection } from './ThinkingSection';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { CompanySidePanel } from './CompanySidePanel';
+import { GenerativeUIRenderer } from './GenerativeUIRenderer';
 import { cn } from '@/lib/utils';
 
 interface CompanyChatInterfaceProps {
@@ -57,6 +58,22 @@ function MessageBubble({ message }: { message: ChatMessage }) {
             groundingMetadata={message.grounding_metadata}
           />
         )}
+
+        {/* Generative UI Components - Rendered before text content */}
+        {!isUser && message.tool_calls?.map((tool, idx) => {
+          if (tool.name === 'generate_dynamic_ui' && tool.result) {
+            // Extract the UI component data from the tool result
+            const result = tool.result as { ui_component?: { componentType: string; title: string; data: any; insight?: string } };
+            if (result.ui_component) {
+              return (
+                <div key={`ui-${idx}`} className="w-full max-w-2xl mb-3">
+                  <GenerativeUIRenderer toolCall={result.ui_component as any} />
+                </div>
+              );
+            }
+          }
+          return null;
+        })}
 
         {/* Message Content */}
         <div
