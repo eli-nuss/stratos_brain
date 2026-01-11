@@ -144,6 +144,30 @@ const unifiedFunctionDeclarations = [
       required: ["query"]
     }
   },
+  // Document retrieval function - for SEC filings and earnings transcripts
+  {
+    name: "get_company_docs",
+    description: "Retrieves FULL text of SEC filings (10-K annual reports, 10-Q quarterly reports) or Earnings Call Transcripts. Use this for deep dives, risk analysis, finding specific quotes from management, understanding business strategy, or any question that requires reading the actual source documents. This is your primary tool for fundamental research.",
+    parameters: {
+      type: "object",
+      properties: {
+        ticker: { 
+          type: "string", 
+          description: "The stock ticker symbol (e.g., 'AAPL', 'GOOGL')" 
+        },
+        doc_type: { 
+          type: "string", 
+          enum: ["10-K", "10-Q", "transcript"],
+          description: "Type of document: '10-K' for annual reports, '10-Q' for quarterly reports, 'transcript' for earnings call transcripts" 
+        },
+        years_back: { 
+          type: "number", 
+          description: "How many years of history to fetch (default 1, max 3)" 
+        }
+      },
+      required: ["ticker", "doc_type"]
+    }
+  },
   // Web search function wrapper
   {
     name: "web_search",
@@ -543,6 +567,57 @@ async function executeFunctionCall(
       return { assets: data || [], count: data?.length || 0, query: args.query }
     }
     
+    case "get_company_docs": {
+      const ticker = (args.ticker as string).toUpperCase()
+      const docType = args.doc_type as string
+      const yearsBack = Math.min(args.years_back as number || 1, 3)
+      
+      // Calculate date range
+      const endDate = new Date()
+      const startDate = new Date()
+      startDate.setFullYear(startDate.getFullYear() - yearsBack)
+      
+      // Query company_documents table
+      const { data: documents, error } = await supabase
+        .from('company_documents')
+        .select('id, ticker, doc_type, filing_date, fiscal_year, fiscal_quarter, title, full_text, word_count')
+        .eq('ticker', ticker)
+        .eq('doc_type', docType)
+        .eq('status', 'active')
+        .gte('filing_date', startDate.toISOString().split('T')[0])
+        .order('filing_date', { ascending: false })
+        .limit(yearsBack * (docType === '10-K' ? 1 : 4)) // 1 per year for 10-K, 4 per year for 10-Q/transcripts
+      
+      if (error) {
+        return { error: error.message }
+      }
+      
+      if (!documents || documents.length === 0) {
+        return { 
+          error: `No ${docType} documents found for ${ticker}. The documents may not have been ingested yet. Try using web_search as a fallback.`,
+          ticker,
+          doc_type: docType,
+          suggestion: 'Use web_search to find this information online'
+        }
+      }
+      
+      // Return documents with full text
+      return {
+        ticker,
+        doc_type: docType,
+        documents_found: documents.length,
+        total_words: documents.reduce((sum, d) => sum + (d.word_count || 0), 0),
+        documents: documents.map(d => ({
+          title: d.title,
+          filing_date: d.filing_date,
+          fiscal_year: d.fiscal_year,
+          fiscal_quarter: d.fiscal_quarter,
+          word_count: d.word_count,
+          full_text: d.full_text
+        }))
+      }
+    }
+    
     case "web_search": {
       const result = await executeWebSearch(args.query as string)
       // Wrap in object for Gemini API compatibility
@@ -598,59 +673,61 @@ async function fetchChatConfig(supabase: ReturnType<typeof createClient>): Promi
   return config
 }
 
-// Build system prompt for a company chat
+// Build system prompt for a company chat - Universal Analyst Protocol
 function buildSystemPrompt(asset: Record<string, unknown>, contextSnapshot: Record<string, unknown> | null, chatConfig: ChatConfig = {}): string {
   const today = new Date().toISOString().split('T')[0];
   
-  // Use config values or defaults
+  // Universal Analyst system prompt - prioritizes source documents and accurate calculations
   const intro = chatConfig.system_prompt_intro 
     ? chatConfig.system_prompt_intro
         .replace('{company_name}', String(asset.name))
         .replace('{symbol}', String(asset.symbol))
-    : `You are an AI research analyst assistant for ${asset.name} (${asset.symbol}).`
+    : `You are Stratos, an elite autonomous financial analyst for ${asset.name} (${asset.symbol}). Your goal is accuracy, depth, and data-driven insight.`
   
   const groundingRules = chatConfig.grounding_rules
     ? chatConfig.grounding_rules
         .replace(/{asset_id}/g, String(asset.asset_id))
         .replace(/{asset_type}/g, String(asset.asset_type))
         .replace(/{today}/g, today)
-    : `1. **Trust Data Over Memory**: Your internal training data is OUTDATED. The "Latest Context Snapshot" and "Database Functions" contain the REAL-TIME truth. ALWAYS query the database before making claims.
-2. **Public Status Verification**: This asset has ID ${asset.asset_id} and Type '${asset.asset_type}'.
-   - If 'asset_type' is 'equity', IT IS ALREADY A PUBLIC COMPANY trading on stock exchanges.
-   - If 'asset_type' is 'crypto', IT IS ALREADY A LISTED TOKEN trading on exchanges.
-   - **NEVER** discuss "upcoming IPOs", "listing rumors", or "going public soon" for this asset. It is ALREADY trading.
-3. **Date Awareness**: Today is **${today}**. Any news older than 7 days is "History", not "News". Do not confuse past events with current status.
-4. **Sanity Check**: Before answering any question about company status, IPO, or news, first check: "Does the database show active price history for this asset?" If yes, treat it as a mature public company/token.`
+    : `1. **Trust Data Over Memory**: Your internal training data is OUTDATED. The database and source documents contain the REAL-TIME truth. ALWAYS query before making claims.
+2. **Source Truth Priority**: When asked about risks, strategy, management commentary, or business details, do NOT guess. Use \`get_company_docs\` to read the actual SEC filings or earnings transcripts.
+3. **Zero-Math Tolerance**: You are bad at arithmetic. If the user asks for ANY calculation (growth rates, CAGR, valuation, projections, ratios), you MUST use \`execute_python\` to compute it accurately.
+4. **Public Status Verification**: This asset has ID ${asset.asset_id} and Type '${asset.asset_type}'. It is ALREADY a public company/token trading on exchanges. NEVER discuss "upcoming IPOs" or "going public soon".
+5. **Date Awareness**: Today is **${today}**. News older than 7 days is "History", not "News".
+6. **Citation Required**: Always cite the specific document and section (e.g., '10-K 2024, Risk Factors section') when providing facts from filings.`
   
-  const roleDescription = chatConfig.role_description || `You are helping a trader/investor research and analyze this company. You have access to:
-1. **Database Functions**: Query financial data, price history, technical indicators, signals, and AI reviews from the Stratos Brain database.
-2. **Web Search**: Search for current news, market conditions, and real-time information using the web_search function.
-3. **Python Code Execution**: Run Python code for calculations, statistical analysis, and data processing using the execute_python function.`
+  const roleDescription = chatConfig.role_description || `You are helping a trader/investor research and analyze this company with professional-grade tools:
+
+1. **Document Library (get_company_docs)**: Read FULL SEC filings (10-K, 10-Q) and earnings transcripts. Use this for deep dives, risk analysis, finding management quotes, or understanding business strategy.
+2. **Database Functions**: Query real-time financial data, price history, technical indicators, signals, and AI reviews.
+3. **Python Sandbox (execute_python)**: Execute Python code for accurate calculations, statistical analysis, forecasts, and data processing. NumPy, Pandas, and Matplotlib are available.
+4. **Web Search**: Search for current news and real-time information not in the database.`
   
   const guidelines = chatConfig.guidelines
     ? chatConfig.guidelines.replace(/{asset_id}/g, String(asset.asset_id))
-    : `1. Always use the asset_id (${asset.asset_id}) when calling database functions that require it.
-2. **ALWAYS** query the database FIRST before making any claims about the company's status, price, or performance.
-3. Start by gathering relevant data using the available functions before providing analysis.
-4. When asked about current events or news, use the web_search function, but verify claims against database data.
-5. For complex calculations or data analysis, use the execute_python function.
-6. Provide clear, actionable insights backed by data.
-7. Be transparent about data limitations and uncertainty.
-8. Format responses with clear sections and bullet points for readability.
-9. If your internal memory conflicts with database data, ALWAYS trust the database.`
+    : `## PROTOCOL - Follow This Order:
+
+1. **Reason First**: Before answering, analyze the user's intent. Are they asking for facts (use docs), math (use Python), or current events (use search)?
+2. **Source Documents**: For questions about risks, strategy, competitive position, or management tone → call \`get_company_docs\` FIRST.
+3. **Accurate Math**: For ANY numbers, calculations, or projections → use \`execute_python\`. Show your work.
+4. **Database Context**: Use asset_id ${asset.asset_id} for database functions. Query fundamentals, price history, and signals to ground your analysis.
+5. **Verify Claims**: If your memory conflicts with database/document data, ALWAYS trust the source data.
+6. **Transparency**: Be clear about data limitations and uncertainty. Cite your sources.
+7. **Actionable Insights**: End with clear takeaways or action items when appropriate.`
   
-  const responseFormat = chatConfig.response_format || `- Use markdown formatting for clarity
-- Include relevant metrics and data points
-- Cite which functions/data sources you used
+  const responseFormat = chatConfig.response_format || `- Use markdown formatting with clear sections
+- Include relevant metrics and data points with citations
+- Show calculation methodology when using Python
 - Provide both bullish and bearish perspectives when relevant
-- End with key takeaways or action items when appropriate`
+- Quote directly from filings when citing management commentary
+- End with key takeaways or action items`
   
   return `${intro}
 
 ## CRITICAL GROUNDING RULES (READ FIRST)
 ${groundingRules}
 
-## Your Role
+## Your Tools & Capabilities
 ${roleDescription}
 
 ## Company Context
@@ -663,10 +740,10 @@ ${roleDescription}
 - **Asset ID**: ${asset.asset_id} (use this for database queries)
 - **Today's Date**: ${today}
 
-${contextSnapshot ? `## Latest Context Snapshot (REAL-TIME DATA - TRUST THIS)
+${contextSnapshot ? `## Latest Context Snapshot (REAL-TIME DATA)
 ${JSON.stringify(contextSnapshot, null, 2)}` : ''}
 
-## Guidelines
+## Analysis Protocol
 ${guidelines}
 
 ## Response Format
