@@ -168,6 +168,34 @@ const unifiedFunctionDeclarations = [
       required: ["ticker", "doc_type"]
     }
   },
+  // Semantic search across document chunks - PREFERRED for specific questions
+  {
+    name: "search_company_docs",
+    description: "Semantically search inside 10-K/10-Q filings and earnings transcripts using AI embeddings. PREFERRED over get_company_docs for specific questions. Returns only the most relevant paragraphs instead of the entire document, preventing memory issues and providing faster, more accurate answers. Use this for questions like 'What are the AI risks?', 'Revenue recognition policy', 'What did management say about competition?'",
+    parameters: {
+      type: "object",
+      properties: {
+        ticker: { 
+          type: "string", 
+          description: "The stock ticker symbol (e.g., 'AAPL', 'NVDA')" 
+        },
+        search_query: { 
+          type: "string", 
+          description: "The specific question or topic to find (e.g., 'What are the AI risks?', 'Revenue recognition policy', 'Management commentary on margins')" 
+        },
+        doc_type: { 
+          type: "string", 
+          enum: ["10-K", "10-Q", "transcript", "all"],
+          description: "Type of document to search: '10-K', '10-Q', 'transcript', or 'all' for all types (default: 'all')" 
+        },
+        max_results: { 
+          type: "number", 
+          description: "Maximum number of relevant paragraphs to return (default 10, max 20)" 
+        }
+      },
+      required: ["ticker", "search_query"]
+    }
+  },
   // Web search function wrapper
   {
     name: "web_search",
@@ -183,20 +211,43 @@ const unifiedFunctionDeclarations = [
       required: ["query"]
     }
   },
-  // Python code execution function wrapper
+  // Python code execution function
   {
     name: "execute_python",
-    description: "Execute Python code for data analysis, calculations, or creating visualizations. The code runs in a sandboxed environment with numpy, pandas, and matplotlib available. Use this for complex calculations, statistical analysis, or generating charts.",
+    description: "Execute Python code in a sandboxed environment for calculations, data analysis, visualizations, or any computational task. NumPy, Pandas, Matplotlib, and other common libraries are available. Use this for accurate math, statistical analysis, and generating charts. For large datasets, use data_context to specify what data to pre-load (e.g., 'price_history' or 'fundamentals') - the data will be automatically loaded into a 'df' variable.",
     parameters: {
       type: "object",
       properties: {
         code: { 
           type: "string", 
-          description: "Python code to execute. Must be valid Python 3 code. Use print() to output results." 
+          description: "The Python code to execute. Must be valid Python 3 syntax. If data_context is specified, the data will be pre-loaded into a 'df' DataFrame variable." 
         },
-        purpose: {
-          type: "string",
-          description: "Brief description of what the code does"
+        purpose: { 
+          type: "string", 
+          description: "Brief description of what this code does (for logging and debugging)" 
+        },
+        data_context: {
+          type: "object",
+          description: "Optional: Specify data to pre-load into the sandbox. The data will be available as a 'df' DataFrame.",
+          properties: {
+            type: {
+              type: "string",
+              enum: ["price_history", "fundamentals", "signals", "custom"],
+              description: "Type of data to load: 'price_history' for OHLCV bars, 'fundamentals' for financial metrics, 'signals' for trading signals, 'custom' for raw data"
+            },
+            asset_id: {
+              type: "number",
+              description: "Asset ID to fetch data for (required for price_history, signals)"
+            },
+            ticker: {
+              type: "string",
+              description: "Ticker symbol (required for fundamentals)"
+            },
+            days: {
+              type: "number",
+              description: "Number of days of history to fetch (for price_history, default 365)"
+            }
+          }
         }
       },
       required: ["code", "purpose"]
@@ -799,6 +850,133 @@ async function executeFunctionCall(
       return result
     }
     
+    case "search_company_docs": {
+      // Semantic search using RAG - returns only relevant chunks instead of full documents
+      const ticker = (args.ticker as string).toUpperCase()
+      const searchQuery = args.search_query as string
+      const docType = (args.doc_type as string) || 'all'
+      const maxResults = Math.min(args.max_results as number || 10, 20)
+      
+      // Check if we have an OpenAI API key for embeddings
+      const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')
+      if (!OPENAI_API_KEY) {
+        // Fallback to full-text search if no embedding API available
+        console.log('⚠️ No OpenAI API key - falling back to full-text search')
+        
+        // Use PostgreSQL full-text search as fallback
+        const { data: chunks, error } = await supabase
+          .from('document_chunks')
+          .select('id, content, ticker, doc_type, filing_date, chunk_index')
+          .eq('ticker', ticker)
+          .textSearch('content', searchQuery.split(' ').join(' & '))
+          .limit(maxResults)
+        
+        if (error) {
+          return { error: error.message, fallback_used: 'full_text_search' }
+        }
+        
+        if (!chunks || chunks.length === 0) {
+          return {
+            error: `No relevant content found for "${searchQuery}" in ${ticker} documents.`,
+            ticker,
+            search_query: searchQuery,
+            suggestion: 'Try rephrasing your query or use get_company_docs to read the full document.'
+          }
+        }
+        
+        const context = chunks.map((c, i) => 
+          `[Result ${i + 1} - ${c.doc_type} ${c.filing_date}]\n${c.content}`
+        ).join('\n\n---\n\n')
+        
+        return {
+          ticker,
+          search_query: searchQuery,
+          results_count: chunks.length,
+          search_method: 'full_text_search',
+          note: 'Using keyword search. For better semantic results, ensure embeddings are generated.',
+          results: context
+        }
+      }
+      
+      try {
+        // 1. Generate embedding for the search query using OpenAI
+        const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${OPENAI_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            input: searchQuery,
+            model: 'text-embedding-3-small'
+          })
+        })
+        
+        if (!embeddingResponse.ok) {
+          const errorText = await embeddingResponse.text()
+          console.error('OpenAI embedding error:', errorText)
+          return { error: 'Failed to generate query embedding', details: errorText }
+        }
+        
+        const embeddingResult = await embeddingResponse.json()
+        const queryVector = embeddingResult.data[0].embedding
+        
+        // 2. Call the search_company_documents function
+        const { data: chunks, error } = await supabase.rpc('search_company_documents', {
+          query_embedding: queryVector,
+          filter_ticker: ticker,
+          match_threshold: 0.4, // Lower threshold to catch more results
+          match_count: maxResults,
+          filter_doc_type: docType === 'all' ? null : docType
+        })
+        
+        if (error) {
+          console.error('Semantic search error:', error)
+          return { error: error.message }
+        }
+        
+        if (!chunks || chunks.length === 0) {
+          return {
+            error: `No relevant content found for "${searchQuery}" in ${ticker} documents.`,
+            ticker,
+            search_query: searchQuery,
+            suggestion: 'Try rephrasing your query or use get_company_docs to read the full document.'
+          }
+        }
+        
+        // 3. Format results with source attribution
+        const formattedResults = chunks.map((c: { content: string; similarity: number; document_title: string; doc_type: string; filing_date: string; fiscal_year: number; fiscal_quarter: number }, i: number) => ({
+          rank: i + 1,
+          relevance_score: (c.similarity * 100).toFixed(1) + '%',
+          source: c.document_title || `${c.doc_type} ${c.filing_date}`,
+          fiscal_period: c.fiscal_quarter ? `Q${c.fiscal_quarter} ${c.fiscal_year}` : `FY${c.fiscal_year}`,
+          content: c.content
+        }))
+        
+        // Build context string for the LLM
+        const context = formattedResults.map((r: { rank: number; source: string; fiscal_period: string; relevance_score: string; content: string }) => 
+          `[Source: ${r.source} (${r.fiscal_period}) - Relevance: ${r.relevance_score}]\n${r.content}`
+        ).join('\n\n---\n\n')
+        
+        return {
+          ticker,
+          search_query: searchQuery,
+          results_count: formattedResults.length,
+          search_method: 'semantic_search',
+          note: 'These are the most relevant excerpts found using AI semantic search.',
+          results: context,
+          detailed_results: formattedResults
+        }
+        
+      } catch (err) {
+        console.error('search_company_docs error:', err)
+        return { 
+          error: err instanceof Error ? err.message : 'Unknown error during semantic search',
+          suggestion: 'Try using get_company_docs as a fallback.'
+        }
+      }
+    }
+    
     case "web_search": {
       const result = await executeWebSearch(args.query as string)
       // Wrap in object for Gemini API compatibility
@@ -811,6 +989,113 @@ async function executeFunctionCall(
       let lastResult = null
       let currentCode = args.code as string
       const purpose = args.purpose as string
+      const dataContext = args.data_context as { type?: string; asset_id?: number; ticker?: string; days?: number } | undefined
+      
+      // If data_context is provided, fetch data and prepend loading code
+      if (dataContext && dataContext.type) {
+        let dataLoadingCode = ''
+        let csvData = ''
+        
+        try {
+          if (dataContext.type === 'price_history' && dataContext.asset_id) {
+            // Fetch price history from database
+            const days = dataContext.days || 365
+            const startDate = new Date()
+            startDate.setDate(startDate.getDate() - days)
+            
+            const { data: priceData, error } = await supabase
+              .from('price_bars')
+              .select('bar_time, open, high, low, close, volume')
+              .eq('asset_id', dataContext.asset_id)
+              .gte('bar_time', startDate.toISOString())
+              .order('bar_time', { ascending: true })
+            
+            if (error) {
+              return { execution_result: { success: false, error: `Failed to fetch price data: ${error.message}` } }
+            }
+            
+            if (priceData && priceData.length > 0) {
+              // Convert to CSV format
+              const headers = 'date,open,high,low,close,volume'
+              const rows = priceData.map(p => 
+                `${p.bar_time},${p.open},${p.high},${p.low},${p.close},${p.volume}`
+              ).join('\n')
+              csvData = headers + '\n' + rows
+              
+              console.log(`📊 Pre-loading ${priceData.length} price bars for asset ${dataContext.asset_id}`)
+            }
+          } else if (dataContext.type === 'fundamentals' && dataContext.ticker) {
+            // Fetch fundamentals from database
+            const { data: fundData, error } = await supabase
+              .from('equity_fundamentals')
+              .select('*')
+              .eq('ticker', dataContext.ticker.toUpperCase())
+              .order('period_end_date', { ascending: false })
+              .limit(20)
+            
+            if (error) {
+              return { execution_result: { success: false, error: `Failed to fetch fundamentals: ${error.message}` } }
+            }
+            
+            if (fundData && fundData.length > 0) {
+              // Convert to CSV format
+              const keys = Object.keys(fundData[0])
+              const headers = keys.join(',')
+              const rows = fundData.map(f => 
+                keys.map(k => JSON.stringify(f[k] ?? '')).join(',')
+              ).join('\n')
+              csvData = headers + '\n' + rows
+              
+              console.log(`📊 Pre-loading ${fundData.length} fundamental records for ${dataContext.ticker}`)
+            }
+          } else if (dataContext.type === 'signals' && dataContext.asset_id) {
+            // Fetch signals from database
+            const { data: signalData, error } = await supabase
+              .from('signals')
+              .select('*')
+              .eq('asset_id', dataContext.asset_id)
+              .order('signal_time', { ascending: false })
+              .limit(100)
+            
+            if (error) {
+              return { execution_result: { success: false, error: `Failed to fetch signals: ${error.message}` } }
+            }
+            
+            if (signalData && signalData.length > 0) {
+              const keys = Object.keys(signalData[0])
+              const headers = keys.join(',')
+              const rows = signalData.map(s => 
+                keys.map(k => JSON.stringify(s[k] ?? '')).join(',')
+              ).join('\n')
+              csvData = headers + '\n' + rows
+              
+              console.log(`📊 Pre-loading ${signalData.length} signals for asset ${dataContext.asset_id}`)
+            }
+          }
+          
+          // If we have data, prepend the loading code
+          if (csvData) {
+            dataLoadingCode = `
+# AUTO-GENERATED: Data pre-loaded from database
+import pandas as pd
+import io
+
+_csv_data = """${csvData}"""
+
+df = pd.read_csv(io.StringIO(_csv_data))
+if 'date' in df.columns:
+    df['date'] = pd.to_datetime(df['date'])
+print(f"✅ Data loaded: {len(df)} rows, columns: {list(df.columns)}")
+
+# --- USER CODE STARTS HERE ---
+`
+            currentCode = dataLoadingCode + currentCode
+          }
+        } catch (dataErr) {
+          console.error('Error pre-loading data:', dataErr)
+          // Continue without pre-loaded data - user code might handle it
+        }
+      }
       
       while (attempts < MAX_RETRIES) {
         attempts++
