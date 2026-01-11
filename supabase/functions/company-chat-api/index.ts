@@ -629,20 +629,50 @@ async function executeFunctionCall(
         }
       }
       
-      // Return documents with full text
-      return {
-        ticker,
-        doc_type: docType,
-        documents_found: documents.length,
-        total_words: documents.reduce((sum, d) => sum + (d.word_count || 0), 0),
-        documents: documents.map(d => ({
+      // Truncate large documents to prevent memory issues and timeout
+      const MAX_CHARS_PER_DOC = 50000 // ~12,500 words
+      const MAX_TOTAL_CHARS = 100000 // Total limit across all docs
+      
+      let totalChars = 0
+      const processedDocs = documents.map(d => {
+        let text = d.full_text || ''
+        let wasTruncated = false
+        
+        // Check if this doc would exceed total limit
+        if (totalChars + text.length > MAX_TOTAL_CHARS) {
+          const remainingChars = Math.max(0, MAX_TOTAL_CHARS - totalChars)
+          text = text.slice(0, remainingChars)
+          wasTruncated = true
+        }
+        // Also enforce per-document limit
+        else if (text.length > MAX_CHARS_PER_DOC) {
+          text = text.slice(0, MAX_CHARS_PER_DOC)
+          wasTruncated = true
+        }
+        
+        totalChars += text.length
+        
+        return {
           title: d.title,
           filing_date: d.filing_date,
           fiscal_year: d.fiscal_year,
           fiscal_quarter: d.fiscal_quarter,
           word_count: d.word_count,
-          full_text: d.full_text
-        }))
+          full_text: text,
+          truncated: wasTruncated,
+          truncation_note: wasTruncated ? 'Document truncated for performance. Ask for specific sections if needed.' : null
+        }
+      })
+      
+      // Return documents with potentially truncated text
+      return {
+        ticker,
+        doc_type: docType,
+        documents_found: documents.length,
+        total_words: documents.reduce((sum, d) => sum + (d.word_count || 0), 0),
+        total_chars_returned: totalChars,
+        note: totalChars >= MAX_TOTAL_CHARS ? 'Documents were truncated for performance. For detailed analysis, ask about specific sections.' : null,
+        documents: processedDocs
       }
     }
     
