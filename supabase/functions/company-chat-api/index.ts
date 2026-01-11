@@ -202,6 +202,114 @@ const unifiedFunctionDeclarations = [
       required: ["code", "purpose"]
     }
   },
+  // NEW TIER 1 TOOLS - Track topic trends across earnings transcripts
+  {
+    name: "track_topic_trend",
+    description: "Search for how often a specific topic, keyword, or phrase is mentioned across a company's earnings call transcripts over multiple quarters. Use this to identify thematic momentum, strategic pivots, or emerging concerns (e.g., 'How many times was AI mentioned in the last 8 quarters?').",
+    parameters: {
+      type: "object",
+      properties: {
+        ticker: { 
+          type: "string", 
+          description: "The stock ticker symbol (e.g., 'AAPL', 'NVDA')" 
+        },
+        search_term: { 
+          type: "string", 
+          description: "The keyword or phrase to search for (e.g., 'artificial intelligence', 'supply chain', 'margin expansion')" 
+        },
+        quarters_back: { 
+          type: "number", 
+          description: "Number of quarters to search (default 8, max 16)" 
+        }
+      },
+      required: ["ticker", "search_term"]
+    }
+  },
+  // Analyze management tone changes across earnings calls
+  {
+    name: "analyze_management_tone",
+    description: "Compare the sentiment and linguistic patterns of a company's recent earnings call against previous calls. Detects shifts in management confidence, uncertainty language ('hopefully' vs 'we will'), and overall tone changes that may precede financial performance changes.",
+    parameters: {
+      type: "object",
+      properties: {
+        ticker: { 
+          type: "string", 
+          description: "The stock ticker symbol (e.g., 'AAPL', 'NVDA')" 
+        },
+        quarters_to_compare: { 
+          type: "number", 
+          description: "Number of recent quarters to analyze (default 4, max 8)" 
+        }
+      },
+      required: ["ticker"]
+    }
+  },
+  // Run standardized valuation models
+  {
+    name: "run_valuation_model",
+    description: "Run a standardized DCF (Discounted Cash Flow) or Comparable Company valuation model using the company's actual financial data. Returns fair value estimates with different assumption scenarios. Use this instead of ad-hoc calculations for professional-grade valuations.",
+    parameters: {
+      type: "object",
+      properties: {
+        ticker: { 
+          type: "string", 
+          description: "The stock ticker symbol (e.g., 'AAPL', 'NVDA')" 
+        },
+        model_type: { 
+          type: "string", 
+          enum: ["dcf", "comps", "both"],
+          description: "Type of valuation model: 'dcf' for Discounted Cash Flow, 'comps' for Comparable Companies, 'both' for both methods" 
+        },
+        growth_rate: { 
+          type: "number", 
+          description: "Expected revenue growth rate as decimal (e.g., 0.10 for 10%). If not provided, uses historical growth." 
+        },
+        discount_rate: { 
+          type: "number", 
+          description: "WACC/discount rate as decimal (e.g., 0.10 for 10%). Default is 10%." 
+        },
+        terminal_growth: { 
+          type: "number", 
+          description: "Terminal growth rate as decimal (e.g., 0.025 for 2.5%). Default is 2.5%." 
+        }
+      },
+      required: ["ticker", "model_type"]
+    }
+  },
+  // Generate scenario/sensitivity analysis matrix
+  {
+    name: "generate_scenario_matrix",
+    description: "Generate a sensitivity analysis table showing how key metrics (EPS, fair value, etc.) change under different scenarios. Essential for Bull Case vs Bear Case analysis and stress testing investment theses.",
+    parameters: {
+      type: "object",
+      properties: {
+        ticker: { 
+          type: "string", 
+          description: "The stock ticker symbol (e.g., 'AAPL', 'NVDA')" 
+        },
+        metric: { 
+          type: "string", 
+          enum: ["eps", "fair_value", "revenue", "fcf"],
+          description: "The metric to stress test: 'eps', 'fair_value', 'revenue', or 'fcf' (free cash flow)" 
+        },
+        variable_1: { 
+          type: "string", 
+          enum: ["revenue_growth", "margin", "multiple", "discount_rate"],
+          description: "First variable to vary (rows)" 
+        },
+        variable_2: { 
+          type: "string", 
+          enum: ["revenue_growth", "margin", "multiple", "discount_rate"],
+          description: "Second variable to vary (columns)" 
+        },
+        range_pct: { 
+          type: "number", 
+          description: "Percentage range to vary each variable (e.g., 20 means -20% to +20%). Default is 20." 
+        }
+      },
+      required: ["ticker", "metric", "variable_1", "variable_2"]
+    }
+  },
   // Generative UI function - renders visual components in the chat
   {
     name: "generate_dynamic_ui",
@@ -761,6 +869,431 @@ async function executeFunctionCall(
           insight: args.insight || null
         },
         render_instruction: "FRONTEND_RENDER"
+      }
+    }
+    
+    // NEW TIER 1 TOOL IMPLEMENTATIONS
+    
+    case "track_topic_trend": {
+      const ticker = (args.ticker as string).toUpperCase()
+      const searchTerm = (args.search_term as string).toLowerCase()
+      const quartersBack = Math.min(args.quarters_back as number || 8, 16)
+      
+      // Get transcripts for the ticker
+      const { data: transcripts, error } = await supabase
+        .from('company_documents')
+        .select('fiscal_year, fiscal_quarter, filing_date, full_text, title')
+        .eq('ticker', ticker)
+        .eq('doc_type', 'transcript')
+        .eq('status', 'active')
+        .order('filing_date', { ascending: false })
+        .limit(quartersBack)
+      
+      if (error) return { error: error.message }
+      
+      if (!transcripts || transcripts.length === 0) {
+        return {
+          error: `No earnings transcripts found for ${ticker}`,
+          ticker,
+          search_term: searchTerm
+        }
+      }
+      
+      // Count mentions in each transcript
+      const results = transcripts.map(t => {
+        const text = (t.full_text || '').toLowerCase()
+        // Count occurrences (case-insensitive)
+        const regex = new RegExp(searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
+        const matches = text.match(regex) || []
+        const count = matches.length
+        
+        // Extract sample contexts (first 3 mentions with surrounding text)
+        const contexts: string[] = []
+        let match
+        const contextRegex = new RegExp(`.{0,100}${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}.{0,100}`, 'gi')
+        let contextMatch
+        let contextCount = 0
+        while ((contextMatch = contextRegex.exec(text)) !== null && contextCount < 3) {
+          contexts.push('...' + contextMatch[0].trim() + '...')
+          contextCount++
+        }
+        
+        return {
+          quarter: `Q${t.fiscal_quarter} ${t.fiscal_year}`,
+          filing_date: t.filing_date,
+          mention_count: count,
+          sample_contexts: contexts
+        }
+      })
+      
+      // Calculate trend statistics
+      const counts = results.map(r => r.mention_count)
+      const avgMentions = counts.reduce((a, b) => a + b, 0) / counts.length
+      const recentAvg = counts.slice(0, Math.min(2, counts.length)).reduce((a, b) => a + b, 0) / Math.min(2, counts.length)
+      const olderAvg = counts.slice(-Math.min(2, counts.length)).reduce((a, b) => a + b, 0) / Math.min(2, counts.length)
+      const trendDirection = recentAvg > olderAvg * 1.2 ? 'INCREASING' : recentAvg < olderAvg * 0.8 ? 'DECREASING' : 'STABLE'
+      
+      return {
+        ticker,
+        search_term: searchTerm,
+        quarters_analyzed: results.length,
+        trend_direction: trendDirection,
+        average_mentions_per_quarter: avgMentions.toFixed(1),
+        recent_vs_older_ratio: olderAvg > 0 ? (recentAvg / olderAvg).toFixed(2) : 'N/A',
+        quarterly_breakdown: results,
+        insight: `"${searchTerm}" was mentioned an average of ${avgMentions.toFixed(1)} times per quarter. Trend is ${trendDirection}.`
+      }
+    }
+    
+    case "analyze_management_tone": {
+      const ticker = (args.ticker as string).toUpperCase()
+      const quartersToCompare = Math.min(args.quarters_to_compare as number || 4, 8)
+      
+      // Get recent transcripts
+      const { data: transcripts, error } = await supabase
+        .from('company_documents')
+        .select('fiscal_year, fiscal_quarter, filing_date, full_text, title')
+        .eq('ticker', ticker)
+        .eq('doc_type', 'transcript')
+        .eq('status', 'active')
+        .order('filing_date', { ascending: false })
+        .limit(quartersToCompare)
+      
+      if (error) return { error: error.message }
+      
+      if (!transcripts || transcripts.length < 2) {
+        return {
+          error: `Need at least 2 transcripts for tone comparison. Found ${transcripts?.length || 0} for ${ticker}`,
+          ticker
+        }
+      }
+      
+      // Linguistic analysis patterns
+      const uncertaintyWords = ['hopefully', 'might', 'maybe', 'uncertain', 'challenging', 'difficult', 'concerned', 'worried', 'cautious', 'headwinds']
+      const confidenceWords = ['confident', 'strong', 'excellent', 'outstanding', 'record', 'momentum', 'accelerating', 'excited', 'optimistic', 'committed']
+      const forwardLookingPositive = ['will deliver', 'will achieve', 'expect to grow', 'on track', 'well positioned']
+      const forwardLookingNegative = ['hope to', 'trying to', 'working on', 'attempting']
+      
+      const analyzeText = (text: string) => {
+        const lowerText = text.toLowerCase()
+        const wordCount = text.split(/\s+/).length
+        
+        const countMatches = (patterns: string[]) => 
+          patterns.reduce((sum, p) => sum + (lowerText.match(new RegExp(p, 'gi')) || []).length, 0)
+        
+        return {
+          word_count: wordCount,
+          uncertainty_score: countMatches(uncertaintyWords),
+          confidence_score: countMatches(confidenceWords),
+          forward_positive: countMatches(forwardLookingPositive),
+          forward_negative: countMatches(forwardLookingNegative),
+          // Normalized per 1000 words
+          uncertainty_per_1k: (countMatches(uncertaintyWords) / wordCount * 1000).toFixed(2),
+          confidence_per_1k: (countMatches(confidenceWords) / wordCount * 1000).toFixed(2)
+        }
+      }
+      
+      const analyses = transcripts.map(t => ({
+        quarter: `Q${t.fiscal_quarter} ${t.fiscal_year}`,
+        filing_date: t.filing_date,
+        ...analyzeText(t.full_text || '')
+      }))
+      
+      // Compare most recent to average of others
+      const mostRecent = analyses[0]
+      const previousAvg = {
+        uncertainty_per_1k: analyses.slice(1).reduce((s, a) => s + parseFloat(a.uncertainty_per_1k), 0) / (analyses.length - 1),
+        confidence_per_1k: analyses.slice(1).reduce((s, a) => s + parseFloat(a.confidence_per_1k), 0) / (analyses.length - 1)
+      }
+      
+      const uncertaintyChange = ((parseFloat(mostRecent.uncertainty_per_1k) - previousAvg.uncertainty_per_1k) / previousAvg.uncertainty_per_1k * 100).toFixed(1)
+      const confidenceChange = ((parseFloat(mostRecent.confidence_per_1k) - previousAvg.confidence_per_1k) / previousAvg.confidence_per_1k * 100).toFixed(1)
+      
+      let toneShift = 'NEUTRAL'
+      if (parseFloat(confidenceChange) > 15 && parseFloat(uncertaintyChange) < -10) toneShift = 'MORE CONFIDENT'
+      else if (parseFloat(uncertaintyChange) > 15 && parseFloat(confidenceChange) < -10) toneShift = 'MORE CAUTIOUS'
+      else if (parseFloat(confidenceChange) > 10) toneShift = 'SLIGHTLY MORE CONFIDENT'
+      else if (parseFloat(uncertaintyChange) > 10) toneShift = 'SLIGHTLY MORE CAUTIOUS'
+      
+      return {
+        ticker,
+        quarters_analyzed: analyses.length,
+        tone_shift: toneShift,
+        most_recent_quarter: mostRecent.quarter,
+        confidence_change_pct: confidenceChange + '%',
+        uncertainty_change_pct: uncertaintyChange + '%',
+        quarterly_analysis: analyses,
+        methodology: 'Linguistic pattern analysis comparing frequency of confidence vs uncertainty language per 1000 words',
+        insight: `Management tone in ${mostRecent.quarter} is ${toneShift} compared to previous ${analyses.length - 1} quarters. Confidence language ${parseFloat(confidenceChange) > 0 ? 'up' : 'down'} ${Math.abs(parseFloat(confidenceChange))}%, uncertainty language ${parseFloat(uncertaintyChange) > 0 ? 'up' : 'down'} ${Math.abs(parseFloat(uncertaintyChange))}%.`
+      }
+    }
+    
+    case "run_valuation_model": {
+      const ticker = (args.ticker as string).toUpperCase()
+      const modelType = args.model_type as string
+      const customGrowthRate = args.growth_rate as number | undefined
+      const discountRate = (args.discount_rate as number) || 0.10
+      const terminalGrowth = (args.terminal_growth as number) || 0.025
+      
+      // Get fundamental data
+      const { data: metadata, error: metaError } = await supabase
+        .from('equity_metadata')
+        .select('*')
+        .eq('symbol', ticker)
+        .single()
+      
+      if (metaError || !metadata) {
+        return { error: `Could not find fundamental data for ${ticker}` }
+      }
+      
+      // Get quarterly financials for historical growth
+      const { data: quarterlies, error: qError } = await supabase
+        .from('equity_quarterly_fundamentals')
+        .select('fiscal_date_ending, total_revenue, net_income, free_cash_flow, operating_cashflow, eps_diluted')
+        .eq('asset_id', metadata.asset_id)
+        .order('fiscal_date_ending', { ascending: false })
+        .limit(8)
+      
+      // Get current price
+      const { data: latestBar } = await supabase
+        .from('daily_bars')
+        .select('close')
+        .eq('asset_id', metadata.asset_id)
+        .order('date', { ascending: false })
+        .limit(1)
+        .single()
+      
+      const currentPrice = latestBar?.close || 0
+      const sharesOutstanding = metadata.shares_outstanding || 0
+      const marketCap = currentPrice * sharesOutstanding
+      
+      // Calculate historical growth rate if not provided
+      let growthRate = customGrowthRate
+      if (!growthRate && quarterlies && quarterlies.length >= 4) {
+        const recentRevenue = quarterlies.slice(0, 4).reduce((s, q) => s + (q.total_revenue || 0), 0)
+        const olderRevenue = quarterlies.slice(4, 8).reduce((s, q) => s + (q.total_revenue || 0), 0)
+        if (olderRevenue > 0) {
+          growthRate = (recentRevenue - olderRevenue) / olderRevenue
+        }
+      }
+      growthRate = growthRate || 0.05 // Default 5%
+      
+      const results: Record<string, unknown> = {
+        ticker,
+        current_price: currentPrice.toFixed(2),
+        market_cap_billions: (marketCap / 1e9).toFixed(2),
+        shares_outstanding_millions: (sharesOutstanding / 1e6).toFixed(1),
+        assumptions: {
+          growth_rate: (growthRate * 100).toFixed(1) + '%',
+          discount_rate: (discountRate * 100).toFixed(1) + '%',
+          terminal_growth: (terminalGrowth * 100).toFixed(1) + '%'
+        }
+      }
+      
+      // DCF Model
+      if (modelType === 'dcf' || modelType === 'both') {
+        const ttmFCF = quarterlies?.slice(0, 4).reduce((s, q) => s + (q.free_cash_flow || q.operating_cashflow || 0), 0) || 0
+        
+        // Project 5 years of FCF
+        let projectedFCFs = []
+        let fcf = ttmFCF
+        for (let i = 1; i <= 5; i++) {
+          fcf = fcf * (1 + growthRate)
+          projectedFCFs.push(fcf)
+        }
+        
+        // Calculate terminal value
+        const terminalFCF = projectedFCFs[4] * (1 + terminalGrowth)
+        const terminalValue = terminalFCF / (discountRate - terminalGrowth)
+        
+        // Discount all cash flows
+        let pvFCFs = 0
+        for (let i = 0; i < 5; i++) {
+          pvFCFs += projectedFCFs[i] / Math.pow(1 + discountRate, i + 1)
+        }
+        const pvTerminal = terminalValue / Math.pow(1 + discountRate, 5)
+        
+        const enterpriseValue = pvFCFs + pvTerminal
+        const equityValue = enterpriseValue // Simplified - should subtract net debt
+        const fairValuePerShare = equityValue / sharesOutstanding
+        const upside = ((fairValuePerShare - currentPrice) / currentPrice * 100)
+        
+        results.dcf_model = {
+          ttm_free_cash_flow_millions: (ttmFCF / 1e6).toFixed(1),
+          projected_fcf_year5_millions: (projectedFCFs[4] / 1e6).toFixed(1),
+          terminal_value_billions: (terminalValue / 1e9).toFixed(2),
+          enterprise_value_billions: (enterpriseValue / 1e9).toFixed(2),
+          fair_value_per_share: fairValuePerShare.toFixed(2),
+          upside_downside_pct: upside.toFixed(1) + '%',
+          verdict: upside > 20 ? 'UNDERVALUED' : upside < -20 ? 'OVERVALUED' : 'FAIRLY VALUED'
+        }
+      }
+      
+      // Comps Model
+      if (modelType === 'comps' || modelType === 'both') {
+        const pe = metadata.pe_ratio || metadata.trailing_pe
+        const ps = metadata.price_to_sales_ttm
+        const evEbitda = metadata.ev_to_ebitda
+        
+        // Industry average multiples (simplified - would ideally pull from sector peers)
+        const industryPE = 20
+        const industryPS = 3
+        const industryEVEBITDA = 12
+        
+        const peImpliedValue = pe ? currentPrice * (industryPE / pe) : null
+        const psImpliedValue = ps ? currentPrice * (industryPS / ps) : null
+        const evImpliedValue = evEbitda ? currentPrice * (industryEVEBITDA / evEbitda) : null
+        
+        const validValues = [peImpliedValue, psImpliedValue, evImpliedValue].filter(v => v !== null) as number[]
+        const avgImpliedValue = validValues.length > 0 ? validValues.reduce((a, b) => a + b, 0) / validValues.length : null
+        
+        results.comps_model = {
+          current_pe: pe?.toFixed(1) || 'N/A',
+          current_ps: ps?.toFixed(2) || 'N/A',
+          current_ev_ebitda: evEbitda?.toFixed(1) || 'N/A',
+          industry_avg_pe: industryPE,
+          industry_avg_ps: industryPS,
+          industry_avg_ev_ebitda: industryEVEBITDA,
+          pe_implied_value: peImpliedValue?.toFixed(2) || 'N/A',
+          ps_implied_value: psImpliedValue?.toFixed(2) || 'N/A',
+          ev_ebitda_implied_value: evImpliedValue?.toFixed(2) || 'N/A',
+          average_implied_value: avgImpliedValue?.toFixed(2) || 'N/A',
+          upside_downside_pct: avgImpliedValue ? ((avgImpliedValue - currentPrice) / currentPrice * 100).toFixed(1) + '%' : 'N/A'
+        }
+      }
+      
+      return results
+    }
+    
+    case "generate_scenario_matrix": {
+      const ticker = (args.ticker as string).toUpperCase()
+      const metric = args.metric as string
+      const variable1 = args.variable_1 as string
+      const variable2 = args.variable_2 as string
+      const rangePct = (args.range_pct as number) || 20
+      
+      // Get fundamental data
+      const { data: metadata, error: metaError } = await supabase
+        .from('equity_metadata')
+        .select('*')
+        .eq('symbol', ticker)
+        .single()
+      
+      if (metaError || !metadata) {
+        return { error: `Could not find fundamental data for ${ticker}` }
+      }
+      
+      // Get quarterly financials
+      const { data: quarterlies } = await supabase
+        .from('equity_quarterly_fundamentals')
+        .select('total_revenue, net_income, free_cash_flow, eps_diluted')
+        .eq('asset_id', metadata.asset_id)
+        .order('fiscal_date_ending', { ascending: false })
+        .limit(4)
+      
+      // Get current price
+      const { data: latestBar } = await supabase
+        .from('daily_bars')
+        .select('close')
+        .eq('asset_id', metadata.asset_id)
+        .order('date', { ascending: false })
+        .limit(1)
+        .single()
+      
+      const currentPrice = latestBar?.close || 0
+      const sharesOutstanding = metadata.shares_outstanding || 1
+      
+      // Calculate base values
+      const ttmRevenue = quarterlies?.reduce((s, q) => s + (q.total_revenue || 0), 0) || 0
+      const ttmNetIncome = quarterlies?.reduce((s, q) => s + (q.net_income || 0), 0) || 0
+      const ttmFCF = quarterlies?.reduce((s, q) => s + (q.free_cash_flow || 0), 0) || 0
+      const ttmEPS = quarterlies?.reduce((s, q) => s + (q.eps_diluted || 0), 0) || 0
+      const currentMargin = ttmRevenue > 0 ? ttmNetIncome / ttmRevenue : 0.1
+      const currentMultiple = metadata.pe_ratio || 20
+      
+      // Generate range values (-rangePct to +rangePct in 5 steps)
+      const steps = [-rangePct, -rangePct/2, 0, rangePct/2, rangePct]
+      
+      const getBaseValue = (variable: string) => {
+        switch (variable) {
+          case 'revenue_growth': return 0.10 // 10% base growth
+          case 'margin': return currentMargin
+          case 'multiple': return currentMultiple
+          case 'discount_rate': return 0.10
+          default: return 0.10
+        }
+      }
+      
+      const formatLabel = (variable: string, pctChange: number) => {
+        const base = getBaseValue(variable)
+        const adjusted = base * (1 + pctChange / 100)
+        switch (variable) {
+          case 'revenue_growth': return (adjusted * 100).toFixed(0) + '%'
+          case 'margin': return (adjusted * 100).toFixed(1) + '%'
+          case 'multiple': return adjusted.toFixed(1) + 'x'
+          case 'discount_rate': return (adjusted * 100).toFixed(1) + '%'
+          default: return adjusted.toFixed(2)
+        }
+      }
+      
+      const calculateMetric = (v1Pct: number, v2Pct: number) => {
+        const v1Base = getBaseValue(variable1)
+        const v2Base = getBaseValue(variable2)
+        const v1Adj = v1Base * (1 + v1Pct / 100)
+        const v2Adj = v2Base * (1 + v2Pct / 100)
+        
+        // Simplified calculation based on metric type
+        let result = 0
+        switch (metric) {
+          case 'eps':
+            // EPS = Revenue * (1+growth) * margin / shares
+            const growth = variable1 === 'revenue_growth' ? v1Adj : (variable2 === 'revenue_growth' ? v2Adj : 0.10)
+            const margin = variable1 === 'margin' ? v1Adj : (variable2 === 'margin' ? v2Adj : currentMargin)
+            result = ttmRevenue * (1 + growth) * margin / sharesOutstanding
+            return '$' + result.toFixed(2)
+          case 'fair_value':
+            // Fair Value = EPS * Multiple
+            const eps = ttmEPS || ttmNetIncome / sharesOutstanding
+            const multiple = variable1 === 'multiple' ? v1Adj : (variable2 === 'multiple' ? v2Adj : currentMultiple)
+            const growthAdj = variable1 === 'revenue_growth' ? v1Adj : (variable2 === 'revenue_growth' ? v2Adj : 0.10)
+            result = eps * (1 + growthAdj) * multiple
+            return '$' + result.toFixed(2)
+          case 'revenue':
+            const revGrowth = variable1 === 'revenue_growth' ? v1Adj : (variable2 === 'revenue_growth' ? v2Adj : 0.10)
+            result = ttmRevenue * (1 + revGrowth) / 1e9
+            return '$' + result.toFixed(1) + 'B'
+          case 'fcf':
+            const fcfGrowth = variable1 === 'revenue_growth' ? v1Adj : (variable2 === 'revenue_growth' ? v2Adj : 0.10)
+            const fcfMargin = variable1 === 'margin' ? v1Adj : (variable2 === 'margin' ? v2Adj : currentMargin)
+            result = ttmRevenue * (1 + fcfGrowth) * fcfMargin * 0.8 / 1e9 // 80% FCF conversion
+            return '$' + result.toFixed(1) + 'B'
+          default:
+            return 'N/A'
+        }
+      }
+      
+      // Build the matrix
+      const headers = ['', ...steps.map(s => formatLabel(variable2, s))]
+      const rows = steps.map(v1Pct => [
+        formatLabel(variable1, v1Pct),
+        ...steps.map(v2Pct => calculateMetric(v1Pct, v2Pct))
+      ])
+      
+      return {
+        ticker,
+        metric,
+        variable_1: variable1,
+        variable_2: variable2,
+        current_price: '$' + currentPrice.toFixed(2),
+        base_values: {
+          [variable1]: formatLabel(variable1, 0),
+          [variable2]: formatLabel(variable2, 0)
+        },
+        matrix: {
+          headers,
+          rows
+        },
+        insight: `Scenario matrix for ${ticker} ${metric.toUpperCase()} varying ${variable1} (rows) and ${variable2} (columns) by +/- ${rangePct}%`
       }
     }
     
