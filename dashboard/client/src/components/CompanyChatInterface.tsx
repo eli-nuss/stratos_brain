@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Sparkles, RefreshCw, ChevronRight, Bot, User, PanelRightClose, PanelRightOpen, Trash2, MessageSquare } from 'lucide-react';
+import { Send, Loader2, Sparkles, RefreshCw, ChevronRight, Bot, User, PanelRightClose, PanelRightOpen, Trash2, MessageSquare, Wrench, CheckCircle, XCircle } from 'lucide-react';
 import {
   useChatMessages,
-  sendChatMessage,
+  useSendMessage,
   refreshChatContext,
   clearChatMessages,
   ChatMessage,
@@ -123,13 +123,22 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
   const userId = user?.id || null;
   const { messages, isLoading: messagesLoading, refresh: refreshMessages } = useChatMessages(chat.chat_id);
   const [input, setInput] = useState('');
-  const [isSending, setIsSending] = useState(false);
   const [isRefreshingContext, setIsRefreshingContext] = useState(false);
   const [isClearingChat, setIsClearingChat] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [showFundamentals, setShowFundamentals] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Use the new job-based message sending hook
+  const {
+    sendMessage,
+    reset: resetSendState,
+    isSending,
+    isProcessing,
+    toolCalls,
+    isComplete,
+    error,
+  } = useSendMessage(chat.chat_id);
 
   // Show fundamentals panel by default on larger screens
   useEffect(() => {
@@ -141,10 +150,19 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  // Scroll to bottom when new messages arrive
+  // Scroll to bottom when new messages arrive or tool calls update
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, toolCalls]);
+
+  // Refresh messages when job completes
+  useEffect(() => {
+    if (isComplete) {
+      refreshMessages();
+      onRefresh?.();
+      resetSendState();
+    }
+  }, [isComplete, refreshMessages, onRefresh, resetSendState]);
 
   // Focus input on mount
   useEffect(() => {
@@ -152,22 +170,12 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
   }, [chat.chat_id]);
 
   const handleSend = async () => {
-    if (!input.trim() || isSending) return;
+    if (!input.trim() || isSending || isProcessing) return;
 
     const userMessage = input.trim();
     setInput('');
-    setError(null);
-    setIsSending(true);
 
-    try {
-      await sendChatMessage(chat.chat_id, userMessage, userId);
-      await refreshMessages();
-      onRefresh?.();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send message');
-    } finally {
-      setIsSending(false);
-    }
+    await sendMessage(userMessage);
   };
 
   const handleRefreshContext = async () => {
@@ -324,21 +332,44 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
             ))
           )}
 
-          {/* AI Thinking Indicator */}
-          {isSending && (
+          {/* AI Thinking Indicator with Real-time Tool Progress */}
+          {(isSending || isProcessing) && (
             <div className="flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
               <div className="flex-shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
                 <Bot className="w-4 h-4 text-primary" />
               </div>
-              <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-3">
-                <div className="flex items-center gap-3">
+              <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-3 min-w-[200px]">
+                <div className="flex items-center gap-3 mb-2">
                   <div className="flex gap-1">
                     <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                     <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                     <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                   </div>
-                  <span className="text-sm text-muted-foreground">Thinking...</span>
+                  <span className="text-sm text-muted-foreground">
+                    {isProcessing ? 'Analyzing...' : 'Starting...'}
+                  </span>
                 </div>
+                {/* Real-time tool execution progress */}
+                {toolCalls && toolCalls.length > 0 && (
+                  <div className="space-y-1.5 border-t border-border/50 pt-2 mt-2">
+                    {toolCalls.map((tc, idx) => (
+                      <div key={idx} className="flex items-center gap-2 text-xs">
+                        {tc.status === 'started' && (
+                          <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                        )}
+                        {tc.status === 'completed' && (
+                          <CheckCircle className="w-3 h-3 text-green-500" />
+                        )}
+                        {tc.status === 'failed' && (
+                          <XCircle className="w-3 h-3 text-destructive" />
+                        )}
+                        <span className="text-muted-foreground">
+                          {tc.tool_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -376,10 +407,14 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
             </div>
             <button
               onClick={handleSend}
-              disabled={!input.trim() || isSending}
+              disabled={!input.trim() || isSending || isProcessing}
               className="p-3 bg-primary hover:bg-primary/90 disabled:bg-muted disabled:cursor-not-allowed rounded-xl transition-all hover:scale-105 active:scale-95 disabled:hover:scale-100"
             >
-              <Send className="w-5 h-5 text-primary-foreground" />
+              {(isSending || isProcessing) ? (
+                <Loader2 className="w-5 h-5 text-primary-foreground animate-spin" />
+              ) : (
+                <Send className="w-5 h-5 text-primary-foreground" />
+              )}
             </button>
           </div>
           <p className="text-[10px] text-muted-foreground mt-2 text-center hidden sm:block">

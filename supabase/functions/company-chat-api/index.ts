@@ -1878,7 +1878,7 @@ serve(async (req: Request) => {
         })
       }
 
-      // POST /chats/:chatId/messages - Send a message and get AI response
+      // POST /chats/:chatId/messages - Send a message (dispatcher mode - creates job and triggers worker)
       case req.method === 'POST' && /^\/chats\/[a-f0-9-]+\/messages$/.test(path): {
         const chatId = path.split('/')[2]
         const body = await req.json()
@@ -1891,7 +1891,114 @@ serve(async (req: Request) => {
           })
         }
         
-        // Get chat info
+        // Verify chat exists
+        const { data: chat, error: chatError } = await supabase
+          .from('company_chats')
+          .select('chat_id')
+          .eq('chat_id', chatId)
+          .single()
+        
+        if (chatError || !chat) {
+          return new Response(JSON.stringify({ error: 'Chat not found' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Create job record
+        const { data: job, error: jobError } = await supabase
+          .from('chat_jobs')
+          .insert({
+            chat_id: chatId,
+            user_message: content,
+            status: 'pending'
+          })
+          .select()
+          .single()
+        
+        if (jobError) {
+          console.error('Failed to create job:', jobError)
+          return new Response(JSON.stringify({ error: 'Failed to create job' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Trigger background worker (fire and forget)
+        const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
+        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+        
+        // Use EdgeRuntime.waitUntil if available, otherwise just fire the request
+        const workerPromise = fetch(`${supabaseUrl}/functions/v1/chat-worker`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            jobId: job.id,
+            chatId: chatId,
+            message: content
+          })
+        }).catch(err => {
+          console.error('Failed to trigger worker:', err)
+        })
+        
+        // Don't await - let it run in background
+        // @ts-ignore - EdgeRuntime may not be available in all environments
+        if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
+          // @ts-ignore
+          EdgeRuntime.waitUntil(workerPromise)
+        }
+        
+        // Return immediately with job info
+        return new Response(JSON.stringify({
+          job_id: job.id,
+          status: 'pending',
+          message: 'Analysis started. Subscribe to job updates for progress.',
+          chat_id: chatId
+        }), {
+          status: 202, // Accepted
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /jobs/:jobId - Get job status
+      case req.method === 'GET' && /^\/jobs\/[a-f0-9-]+$/.test(path): {
+        const jobId = path.split('/').pop()
+        
+        const { data: job, error } = await supabase
+          .from('chat_jobs')
+          .select('*')
+          .eq('id', jobId)
+          .single()
+        
+        if (error || !job) {
+          return new Response(JSON.stringify({ error: 'Job not found' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(job), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // LEGACY: POST /chats/:chatId/messages/sync - Synchronous message (old behavior, kept for backward compatibility)
+      case req.method === 'POST' && /^\/chats\/[a-f0-9-]+\/messages\/sync$/.test(path): {
+        const chatId = path.split('/')[2]
+        const body = await req.json()
+        const { content } = body
+        
+        if (!content) {
+          return new Response(JSON.stringify({ error: 'content is required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Get chat info (legacy synchronous flow)
         const { data: chat, error: chatError } = await supabase
           .from('company_chats')
           .select('*')

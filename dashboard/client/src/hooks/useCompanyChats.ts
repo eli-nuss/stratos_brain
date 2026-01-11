@@ -1,6 +1,7 @@
 import useSWR from 'swr';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { useEffect, useState, useCallback } from 'react';
 
 // Helper to get user ID for API calls
 export function getUserId(): string | null {
@@ -103,6 +104,25 @@ export interface Attachment {
   name?: string;
 }
 
+// Job status interface for background processing
+export interface ChatJob {
+  id: string;
+  chat_id: string;
+  user_message: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  result: SendMessageResponse | null;
+  tool_calls: Array<{
+    tool_name: string;
+    status: 'started' | 'completed' | 'failed';
+    timestamp: string;
+    data?: unknown;
+  }> | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+}
+
 export interface SendMessageResponse {
   user_message: ChatMessage;
   assistant_message: ChatMessage;
@@ -114,6 +134,14 @@ export interface SendMessageResponse {
     outcome?: string;
   }>;
   grounding_metadata: GroundingMetadata | null;
+}
+
+// New interface for job-based response
+export interface JobCreatedResponse {
+  job_id: string;
+  status: 'pending';
+  message: string;
+  chat_id: string;
 }
 
 // Hook to list all company chats for the current user
@@ -185,6 +213,163 @@ export function useChatMessages(chatId: string | null, limit = 50) {
   };
 }
 
+// Hook to subscribe to job updates via Supabase Realtime
+export function useChatJob(jobId: string | null) {
+  const [job, setJob] = useState<ChatJob | null>(null);
+  const [isComplete, setIsComplete] = useState(false);
+
+  useEffect(() => {
+    if (!jobId) {
+      setJob(null);
+      setIsComplete(false);
+      return;
+    }
+
+    // Initial fetch
+    const fetchJob = async () => {
+      const { data, error } = await supabase
+        .from('chat_jobs')
+        .select('*')
+        .eq('id', jobId)
+        .single();
+      
+      if (!error && data) {
+        setJob(data as ChatJob);
+        if (data.status === 'completed' || data.status === 'failed') {
+          setIsComplete(true);
+        }
+      }
+    };
+
+    fetchJob();
+
+    // Subscribe to realtime updates
+    const channel = supabase
+      .channel(`job-${jobId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'chat_jobs',
+          filter: `id=eq.${jobId}`,
+        },
+        (payload) => {
+          const updatedJob = payload.new as ChatJob;
+          setJob(updatedJob);
+          if (updatedJob.status === 'completed' || updatedJob.status === 'failed') {
+            setIsComplete(true);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [jobId]);
+
+  return {
+    job,
+    isComplete,
+    isProcessing: job?.status === 'processing',
+    isPending: job?.status === 'pending',
+    isFailed: job?.status === 'failed',
+    toolCalls: job?.tool_calls || [],
+    result: job?.result,
+    error: job?.error_message,
+  };
+}
+
+// Hook to manage sending messages with job-based processing
+export function useSendMessage(chatId: string | null) {
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const { job, isComplete, isProcessing, toolCalls, result, error: jobError } = useChatJob(currentJobId);
+
+  // Reset when job completes
+  useEffect(() => {
+    if (isComplete) {
+      setIsSending(false);
+      if (jobError) {
+        setError(jobError);
+      }
+    }
+  }, [isComplete, jobError]);
+
+  const sendMessage = useCallback(async (content: string): Promise<string | null> => {
+    if (!chatId) {
+      setError('No chat selected');
+      return null;
+    }
+
+    setIsSending(true);
+    setError(null);
+    setCurrentJobId(null);
+
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+    
+    const userId = getUserId();
+    if (userId) {
+      headers['x-user-id'] = userId;
+    }
+    
+    const accessToken = getAccessToken();
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+
+    try {
+      const response = await fetch(`/api/company-chat-api/chats/${chatId}/messages`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ content }),
+      });
+
+      const data = await response.json();
+
+      if (response.status === 202) {
+        // Job-based response
+        setCurrentJobId(data.job_id);
+        return data.job_id;
+      } else if (response.ok) {
+        // Legacy synchronous response (shouldn't happen with new API)
+        setIsSending(false);
+        return null;
+      } else {
+        throw new Error(data.error || 'Failed to send message');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send message');
+      setIsSending(false);
+      return null;
+    }
+  }, [chatId]);
+
+  const reset = useCallback(() => {
+    setCurrentJobId(null);
+    setIsSending(false);
+    setError(null);
+  }, []);
+
+  return {
+    sendMessage,
+    reset,
+    isSending,
+    isProcessing,
+    currentJobId,
+    job,
+    toolCalls,
+    result,
+    isComplete,
+    error,
+  };
+}
+
 // Function to create or get a chat for an asset (user-specific)
 export async function createOrGetChat(
   assetId: number | string,
@@ -226,12 +411,12 @@ export async function createOrGetChat(
   return response.json();
 }
 
-// Function to send a message and get AI response
+// Legacy function to send a message and get AI response (synchronous - kept for backward compatibility)
 export async function sendChatMessage(
   chatId: string,
   content: string,
   userId?: string | null
-): Promise<SendMessageResponse> {
+): Promise<SendMessageResponse | JobCreatedResponse> {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
   };
@@ -253,9 +438,35 @@ export async function sendChatMessage(
     body: JSON.stringify({ content }),
   });
 
-  if (!response.ok) {
+  if (!response.ok && response.status !== 202) {
     const error = await response.json();
     throw new Error(error.error || 'Failed to send message');
+  }
+
+  return response.json();
+}
+
+// Function to poll job status (alternative to realtime for environments where it's not available)
+export async function pollJobStatus(jobId: string): Promise<ChatJob> {
+  const headers: HeadersInit = {};
+  
+  const userId = getUserId();
+  if (userId) {
+    headers['x-user-id'] = userId;
+  }
+  
+  const accessToken = getAccessToken();
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+  
+  const response = await fetch(`/api/company-chat-api/jobs/${jobId}`, {
+    headers,
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to get job status');
   }
 
   return response.json();
