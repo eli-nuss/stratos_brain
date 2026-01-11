@@ -205,7 +205,7 @@ const unifiedFunctionDeclarations = [
   // Generative UI function - renders visual components in the chat
   {
     name: "generate_dynamic_ui",
-    description: "Renders a visual UI component in the chat. Use this when the user asks for comparisons, trends, financial charts, data tables, or any visual representation of data. DO NOT use markdown tables - use this tool instead for better visualization.",
+    description: "Renders a visual UI component in the chat. Use this when the user asks for comparisons, trends, financial charts, data tables, or any visual representation of data. DO NOT use markdown tables - use this tool instead for better visualization. CRITICAL: Before calling this tool, use execute_python to calculate any derived values to ensure accuracy.",
     parameters: {
       type: "object",
       properties: {
@@ -216,11 +216,11 @@ const unifiedFunctionDeclarations = [
         },
         title: { 
           type: "string", 
-          description: "The title of the chart/card/table." 
+          description: "The title of the chart/card/table. Include the unit in the title (e.g., '($ Billions)' or '(%)')." 
         },
         data: { 
           type: "object", 
-          description: "The structured JSON data for the component. For FinancialChart: {type: 'line'|'bar', metric: string, points: [{label: string, value: number}]}. For MetricCard: {metrics: [{label: string, value: string, trend: number}]}. For DataTable: {headers: string[], rows: string[][]}. For ComparisonChart: {items: [{name: string, value: number, color?: string}]}." 
+          description: "STRICT JSON data. IMPORTANT UNIT RULES: 1) ALL 'value' fields MUST use the SAME unit type - either all raw numbers OR all percentages, NEVER mix. 2) For dollar amounts in billions, pass raw numbers (e.g., 15.7 not 15700000000) and indicate unit in title. 3) For percentages, pass as decimals 0-100 (e.g., 12 for 12%). 4) For ComparisonChart showing percentages, values must sum to 100. Schemas: FinancialChart: {type: 'line'|'bar', metric: string, points: [{label: string, value: number}]}. MetricCard: {metrics: [{label: string, value: string, trend: number}]}. DataTable: {headers: string[], rows: string[][]}. ComparisonChart: {items: [{name: string, value: number}]} where values are percentages summing to 100." 
         },
         insight: { 
           type: "string", 
