@@ -134,6 +134,24 @@ CREATE TRIGGER trigger_calculate_document_stats
     EXECUTE FUNCTION calculate_document_stats();
 
 -- ============================================================================
+-- STORAGE OPTIMIZATION: Enable compression for large text columns
+-- ============================================================================
+-- PostgreSQL uses TOAST (The Oversized-Attribute Storage Technique) for large values
+-- Setting compression to 'lz4' provides fast compression with good ratios for text
+-- This significantly reduces storage costs for thousands of documents
+
+-- Set compression for full_text column (the largest column)
+ALTER TABLE public.company_documents ALTER COLUMN full_text SET COMPRESSION lz4;
+
+-- Set compression for summary column
+ALTER TABLE public.company_documents ALTER COLUMN summary SET COMPRESSION lz4;
+
+-- Set storage to EXTENDED for full_text to ensure TOAST compression is used
+-- EXTENDED = compress first, then store out-of-line if still too big
+ALTER TABLE public.company_documents ALTER COLUMN full_text SET STORAGE EXTENDED;
+ALTER TABLE public.company_documents ALTER COLUMN summary SET STORAGE EXTENDED;
+
+-- ============================================================================
 -- COMMENTS
 -- ============================================================================
 
