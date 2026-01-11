@@ -1,6 +1,13 @@
 // Supabase Edge Function: ingest-filings
-// Fetches SEC filings (10-K, 10-Q) and earnings transcripts from Financial Modeling Prep
+// Fetches SEC filings (10-K, 10-Q, 8-K, DEF 14A) and earnings transcripts from FMP
 // and stores them in the company_documents table for AI analysis
+//
+// Priority Data (per Universal Analyst spec):
+// 1. Earnings Transcripts - CEO tone, Q&A, forward guidance (10/10 value)
+// 2. 10-K Annual Reports - Risk factors, MD&A (10/10 value)
+// 3. 10-Q Quarterly Reports - Immediate health checks (8/10 value)
+// 4. 8-K Material Events - Real-time alerts (9/10 value)
+// 5. DEF 14A Proxy - Executive comp, governance (8/10 value)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
@@ -11,12 +18,14 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 }
 
-// FMP API configuration - Using STABLE endpoints (not legacy v3/v4)
 const FMP_API_KEY = Deno.env.get('FMP_API_KEY') || ''
 const FMP_BASE_URL = 'https://financialmodelingprep.com/stable'
 
+// SEC EDGAR User-Agent (required for fetching filing content)
+const SEC_USER_AGENT = 'Stratos-Brain/1.0 (eli@stratosbrain.com)'
+
 // ============================================================================
-// FMP API TYPES
+// TYPES
 // ============================================================================
 
 interface FMPFiling {
@@ -43,16 +52,14 @@ interface FMPTranscript {
   content: string
 }
 
+type DocType = '10-K' | '10-Q' | '8-K' | 'DEF 14A' | 'transcript'
+
 // ============================================================================
-// FMP API FUNCTIONS (Using /stable/ endpoints)
+// FMP API FUNCTIONS
 // ============================================================================
 
-// Fetch SEC filings list for a ticker
-async function fetchFilingsList(
-  ticker: string, 
-  type: '10-K' | '10-Q' | '8-K', 
-  yearsBack: number = 3
-): Promise<FMPFiling[]> {
+// Fetch all SEC filings for a ticker (FMP's type filter is buggy, so we filter in code)
+async function fetchAllFilings(ticker: string, yearsBack: number = 3): Promise<FMPFiling[]> {
   const toDate = new Date()
   const fromDate = new Date()
   fromDate.setFullYear(fromDate.getFullYear() - yearsBack)
@@ -60,15 +67,16 @@ async function fetchFilingsList(
   const fromStr = fromDate.toISOString().split('T')[0]
   const toStr = toDate.toISOString().split('T')[0]
   
-  const url = `${FMP_BASE_URL}/sec-filings-search/symbol?symbol=${ticker}&type=${type}&from=${fromStr}&to=${toStr}&page=0&limit=100&apikey=${FMP_API_KEY}`
+  // FMP's type filter is buggy - fetch all and filter in code
+  const url = `${FMP_BASE_URL}/sec-filings-search/symbol?symbol=${ticker}&from=${fromStr}&to=${toStr}&page=0&limit=500&apikey=${FMP_API_KEY}`
   
-  console.log(`Fetching ${type} filings for ${ticker} from ${fromStr} to ${toStr}`)
+  console.log(`Fetching all SEC filings for ${ticker} from ${fromStr} to ${toStr}`)
   
   try {
     const response = await fetch(url)
     if (!response.ok) {
       const text = await response.text()
-      console.error(`FMP API error for ${ticker} ${type}: ${response.status} - ${text}`)
+      console.error(`FMP API error for ${ticker}: ${response.status} - ${text}`)
       return []
     }
     
@@ -79,37 +87,32 @@ async function fetchFilingsList(
       return []
     }
     
-    const filtered = (data as FMPFiling[]).filter(f => f.formType === type)
-    console.log(`Found ${filtered.length} ${type} filings for ${ticker}`)
-    return filtered
+    console.log(`Received ${(data as FMPFiling[]).length} total filings for ${ticker}`)
+    return data as FMPFiling[]
   } catch (error) {
     console.error(`Error fetching filings for ${ticker}:`, error)
     return []
   }
 }
 
-// Fetch available transcript dates for a ticker
+// Filter filings by type
+function filterFilingsByType(filings: FMPFiling[], type: string): FMPFiling[] {
+  const filtered = filings.filter(f => f.formType === type)
+  console.log(`  Found ${filtered.length} ${type} filings`)
+  return filtered
+}
+
+// Fetch transcript dates
 async function fetchTranscriptDates(ticker: string): Promise<FMPTranscriptDate[]> {
   const url = `${FMP_BASE_URL}/earning-call-transcript-dates?symbol=${ticker}&apikey=${FMP_API_KEY}`
   
-  console.log(`Fetching transcript dates for ${ticker}`)
-  
   try {
     const response = await fetch(url)
-    if (!response.ok) {
-      const text = await response.text()
-      console.error(`FMP API error for transcript dates ${ticker}: ${response.status} - ${text}`)
-      return []
-    }
+    if (!response.ok) return []
     
     const data = await response.json()
+    if (typeof data === 'string' && data.includes('Restricted')) return []
     
-    if (typeof data === 'string' && data.includes('Restricted')) {
-      console.error(`FMP API restricted for transcripts: ${data}`)
-      return []
-    }
-    
-    console.log(`Found ${(data as FMPTranscriptDate[]).length} transcript dates for ${ticker}`)
     return data as FMPTranscriptDate[]
   } catch (error) {
     console.error(`Error fetching transcript dates for ${ticker}:`, error)
@@ -117,27 +120,17 @@ async function fetchTranscriptDates(ticker: string): Promise<FMPTranscriptDate[]
   }
 }
 
-// Fetch a specific earnings transcript
+// Fetch a specific transcript
 async function fetchTranscript(ticker: string, year: number, quarter: number): Promise<FMPTranscript | null> {
   const url = `${FMP_BASE_URL}/earning-call-transcript?symbol=${ticker}&year=${year}&quarter=${quarter}&apikey=${FMP_API_KEY}`
   
   try {
     const response = await fetch(url)
-    if (!response.ok) {
-      console.error(`FMP API error for transcript ${ticker} Q${quarter} ${year}: ${response.status}`)
-      return null
-    }
+    if (!response.ok) return null
     
     const data = await response.json()
-    
-    if (typeof data === 'string' && data.includes('Restricted')) {
-      console.error(`FMP API restricted for transcript: ${data}`)
-      return null
-    }
-    
-    if (Array.isArray(data) && data.length > 0) {
-      return data[0] as FMPTranscript
-    }
+    if (typeof data === 'string' && data.includes('Restricted')) return null
+    if (Array.isArray(data) && data.length > 0) return data[0] as FMPTranscript
     
     return null
   } catch (error) {
@@ -149,10 +142,9 @@ async function fetchTranscript(ticker: string, year: number, quarter: number): P
 // Fetch SEC filing content from EDGAR
 async function fetchFilingContent(filing: FMPFiling): Promise<string | null> {
   try {
-    // SEC requires a proper User-Agent header with email
     const response = await fetch(filing.finalLink, {
       headers: {
-        'User-Agent': 'Stratos-Brain/1.0 (eli@stratosbrain.com)',
+        'User-Agent': SEC_USER_AGENT,
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5'
       }
@@ -165,7 +157,13 @@ async function fetchFilingContent(filing: FMPFiling): Promise<string | null> {
     
     const html = await response.text()
     
-    // Basic HTML to text conversion
+    // Check if we got blocked
+    if (html.includes('Your Request Originates from an Undeclared Automated Tool')) {
+      console.error('SEC EDGAR blocked the request - User-Agent may need updating')
+      return null
+    }
+    
+    // HTML to text conversion
     let text = html
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
@@ -199,7 +197,7 @@ async function fetchFilingContent(filing: FMPFiling): Promise<string | null> {
   }
 }
 
-// Create a structured document from filing metadata
+// Create document text from filing
 function createFilingDocument(filing: FMPFiling, content: string | null): string {
   let doc = `# ${filing.symbol} ${filing.formType} Filing
 
@@ -224,7 +222,7 @@ function createFilingDocument(filing: FMPFiling, content: string | null): string
   return doc
 }
 
-// Create a structured document from transcript
+// Create document text from transcript
 function createTranscriptDocument(transcript: FMPTranscript): string {
   return `# ${transcript.symbol} Earnings Call Transcript - Q${transcript.quarter} ${transcript.year}
 
@@ -247,11 +245,7 @@ interface IngestionResult {
   documents_inserted: number
   documents_skipped: number
   errors: string[]
-  details: {
-    '10-K': { inserted: number, skipped: number }
-    '10-Q': { inserted: number, skipped: number }
-    'transcript': { inserted: number, skipped: number }
-  }
+  details: Record<string, { inserted: number, skipped: number }>
 }
 
 async function ingestDocumentsForTicker(
@@ -261,13 +255,19 @@ async function ingestDocumentsForTicker(
   options: {
     fetchContent?: boolean
     includeTranscripts?: boolean
+    include8K?: boolean
+    includeProxy?: boolean
     yearsBack?: number
+    transcriptYearsBack?: number
   } = {}
 ): Promise<IngestionResult> {
   const { 
     fetchContent = false, 
     includeTranscripts = true,
-    yearsBack = 3 
+    include8K = false,  // Default false - poll separately for real-time
+    includeProxy = true,
+    yearsBack = 3,
+    transcriptYearsBack = 3
   } = options
   
   const result: IngestionResult = {
@@ -278,13 +278,19 @@ async function ingestDocumentsForTicker(
     details: {
       '10-K': { inserted: 0, skipped: 0 },
       '10-Q': { inserted: 0, skipped: 0 },
+      '8-K': { inserted: 0, skipped: 0 },
+      'DEF 14A': { inserted: 0, skipped: 0 },
       'transcript': { inserted: 0, skipped: 0 }
     }
   }
   
-  // 1. Fetch and store 10-K filings
-  console.log(`\n--- Fetching 10-K filings for ${ticker} ---`)
-  const annualFilings = await fetchFilingsList(ticker, '10-K', yearsBack)
+  // Fetch all SEC filings at once (more efficient than multiple calls)
+  console.log(`\n========== ${ticker}: Fetching SEC Filings ==========`)
+  const allFilings = await fetchAllFilings(ticker, yearsBack)
+  
+  // Process 10-K filings (Annual Reports)
+  console.log(`\n--- ${ticker}: Processing 10-K filings ---`)
+  const annualFilings = filterFilingsByType(allFilings, '10-K')
   
   for (const filing of annualFilings) {
     const filingDate = filing.filingDate.split(' ')[0]
@@ -309,6 +315,9 @@ async function ingestDocumentsForTicker(
     if (fetchContent) {
       console.log(`  Fetching content for 10-K ${year}...`)
       content = await fetchFilingContent(filing)
+      if (content) {
+        console.log(`  ✓ Fetched ${content.length} chars`)
+      }
     }
     
     const fullText = createFilingDocument(filing, content)
@@ -337,9 +346,9 @@ async function ingestDocumentsForTicker(
     }
   }
   
-  // 2. Fetch and store 10-Q filings
-  console.log(`\n--- Fetching 10-Q filings for ${ticker} ---`)
-  const quarterlyFilings = await fetchFilingsList(ticker, '10-Q', yearsBack)
+  // Process 10-Q filings (Quarterly Reports)
+  console.log(`\n--- ${ticker}: Processing 10-Q filings ---`)
+  const quarterlyFilings = filterFilingsByType(allFilings, '10-Q')
   
   for (const filing of quarterlyFilings) {
     const filingDate = filing.filingDate.split(' ')[0]
@@ -366,6 +375,9 @@ async function ingestDocumentsForTicker(
     if (fetchContent) {
       console.log(`  Fetching content for 10-Q Q${quarter} ${year}...`)
       content = await fetchFilingContent(filing)
+      if (content) {
+        console.log(`  ✓ Fetched ${content.length} chars`)
+      }
     }
     
     const fullText = createFilingDocument(filing, content)
@@ -395,19 +407,128 @@ async function ingestDocumentsForTicker(
     }
   }
   
-  // 3. Fetch and store earnings transcripts
+  // Process 8-K filings (Material Events) - optional, usually polled separately
+  if (include8K) {
+    console.log(`\n--- ${ticker}: Processing 8-K filings ---`)
+    const materialFilings = filterFilingsByType(allFilings, '8-K')
+    
+    // Only get last 10 8-Ks (they're frequent)
+    const recent8Ks = materialFilings.slice(0, 10)
+    
+    for (const filing of recent8Ks) {
+      const filingDate = filing.filingDate.split(' ')[0]
+      
+      const { data: existing } = await supabase
+        .from('company_documents')
+        .select('id')
+        .eq('ticker', ticker)
+        .eq('doc_type', '8-K')
+        .eq('filing_date', filingDate)
+        .single()
+      
+      if (existing) {
+        result.documents_skipped++
+        result.details['8-K'].skipped++
+        continue
+      }
+      
+      let content: string | null = null
+      if (fetchContent) {
+        content = await fetchFilingContent(filing)
+      }
+      
+      const fullText = createFilingDocument(filing, content)
+      
+      const { error } = await supabase
+        .from('company_documents')
+        .insert({
+          ticker,
+          asset_id: assetId,
+          doc_type: '8-K',
+          filing_date: filingDate,
+          fiscal_year: new Date(filingDate).getFullYear(),
+          title: `${ticker} Material Event (8-K) - ${filingDate}`,
+          full_text: fullText,
+          source_url: filing.finalLink,
+          source_api: 'fmp'
+        })
+      
+      if (error) {
+        result.errors.push(`8-K ${filingDate}: ${error.message}`)
+      } else {
+        console.log(`  ✓ Inserted 8-K ${filingDate}`)
+        result.documents_inserted++
+        result.details['8-K'].inserted++
+      }
+    }
+  }
+  
+  // Process DEF 14A (Proxy Statements) - most recent only
+  if (includeProxy) {
+    console.log(`\n--- ${ticker}: Processing DEF 14A (Proxy) ---`)
+    const proxyFilings = filterFilingsByType(allFilings, 'DEF 14A')
+    
+    if (proxyFilings.length > 0) {
+      const latestProxy = proxyFilings[0] // Most recent
+      const filingDate = latestProxy.filingDate.split(' ')[0]
+      
+      const { data: existing } = await supabase
+        .from('company_documents')
+        .select('id')
+        .eq('ticker', ticker)
+        .eq('doc_type', 'DEF 14A')
+        .eq('filing_date', filingDate)
+        .single()
+      
+      if (existing) {
+        console.log(`  Skipping DEF 14A ${filingDate} - already exists`)
+        result.documents_skipped++
+        result.details['DEF 14A'].skipped++
+      } else {
+        let content: string | null = null
+        if (fetchContent) {
+          console.log(`  Fetching content for DEF 14A...`)
+          content = await fetchFilingContent(latestProxy)
+        }
+        
+        const fullText = createFilingDocument(latestProxy, content)
+        
+        const { error } = await supabase
+          .from('company_documents')
+          .insert({
+            ticker,
+            asset_id: assetId,
+            doc_type: 'DEF 14A',
+            filing_date: filingDate,
+            fiscal_year: new Date(filingDate).getFullYear(),
+            title: `${ticker} Proxy Statement (DEF 14A) - ${filingDate}`,
+            full_text: fullText,
+            source_url: latestProxy.finalLink,
+            source_api: 'fmp'
+          })
+        
+        if (error) {
+          result.errors.push(`DEF 14A: ${error.message}`)
+        } else {
+          console.log(`  ✓ Inserted DEF 14A ${filingDate}`)
+          result.documents_inserted++
+          result.details['DEF 14A'].inserted++
+        }
+      }
+    }
+  }
+  
+  // Process Earnings Transcripts
   if (includeTranscripts) {
-    console.log(`\n--- Fetching earnings transcripts for ${ticker} ---`)
+    console.log(`\n--- ${ticker}: Processing Earnings Transcripts ---`)
     const transcriptDates = await fetchTranscriptDates(ticker)
     
-    // Filter to last N years
-    const cutoffYear = new Date().getFullYear() - yearsBack
+    const cutoffYear = new Date().getFullYear() - transcriptYearsBack
     const recentTranscripts = transcriptDates.filter(t => t.fiscalYear >= cutoffYear)
     
-    console.log(`Found ${recentTranscripts.length} transcripts in last ${yearsBack} years`)
+    console.log(`  Found ${recentTranscripts.length} transcripts in last ${transcriptYearsBack} years`)
     
     for (const td of recentTranscripts) {
-      // Check if already exists
       const { data: existing } = await supabase
         .from('company_documents')
         .select('id')
@@ -424,12 +545,11 @@ async function ingestDocumentsForTicker(
         continue
       }
       
-      // Fetch the transcript content
       console.log(`  Fetching transcript Q${td.quarter} ${td.fiscalYear}...`)
       const transcript = await fetchTranscript(ticker, td.fiscalYear, td.quarter)
       
       if (!transcript) {
-        console.log(`  No transcript content available for Q${td.quarter} ${td.fiscalYear}`)
+        console.log(`  No transcript content available`)
         continue
       }
       
@@ -451,7 +571,6 @@ async function ingestDocumentsForTicker(
         })
       
       if (error) {
-        console.error(`  Error inserting transcript Q${td.quarter} ${td.fiscalYear}:`, error.message)
         result.errors.push(`Transcript Q${td.quarter} ${td.fiscalYear}: ${error.message}`)
       } else {
         console.log(`  ✓ Inserted transcript Q${td.quarter} ${td.fiscalYear}`)
@@ -459,7 +578,7 @@ async function ingestDocumentsForTicker(
         result.details['transcript'].inserted++
       }
       
-      // Rate limiting for FMP
+      // Rate limiting
       await new Promise(resolve => setTimeout(resolve, 200))
     }
   }
@@ -493,7 +612,9 @@ serve(async (req: Request) => {
     
     // Parse query params
     const fetchContent = url.searchParams.get('fetch_content') === 'true'
-    const includeTranscripts = url.searchParams.get('transcripts') !== 'false' // Default true
+    const includeTranscripts = url.searchParams.get('transcripts') !== 'false'
+    const include8K = url.searchParams.get('include_8k') === 'true'
+    const includeProxy = url.searchParams.get('proxy') !== 'false'
     const yearsBack = parseInt(url.searchParams.get('years') || '3')
 
     switch (true) {
@@ -536,7 +657,7 @@ serve(async (req: Request) => {
         
         console.log(`\n========================================`)
         console.log(`Processing ${tickersToProcess.length} tickers`)
-        console.log(`Options: fetchContent=${fetchContent}, transcripts=${includeTranscripts}, years=${yearsBack}`)
+        console.log(`Options: fetchContent=${fetchContent}, transcripts=${includeTranscripts}, 8K=${include8K}, proxy=${includeProxy}, years=${yearsBack}`)
         console.log(`========================================\n`)
         
         const results: IngestionResult[] = []
@@ -545,10 +666,11 @@ serve(async (req: Request) => {
         let totalErrors = 0
         
         for (const { ticker, asset_id } of tickersToProcess) {
-          console.log(`\n========== Processing ${ticker} ==========`)
           const result = await ingestDocumentsForTicker(supabase, ticker, asset_id, {
             fetchContent,
             includeTranscripts,
+            include8K,
+            includeProxy,
             yearsBack
           })
           results.push(result)
@@ -556,7 +678,7 @@ serve(async (req: Request) => {
           totalSkipped += result.documents_skipped
           totalErrors += result.errors.length
           
-          // Rate limiting
+          // Rate limiting between tickers
           await new Promise(resolve => setTimeout(resolve, 500))
         }
         
@@ -603,11 +725,13 @@ serve(async (req: Request) => {
           .single()
         
         console.log(`\n========== Processing ${ticker} ==========`)
-        console.log(`Options: fetchContent=${fetchContent}, transcripts=${includeTranscripts}, years=${yearsBack}`)
+        console.log(`Options: fetchContent=${fetchContent}, transcripts=${includeTranscripts}, 8K=${include8K}, proxy=${includeProxy}, years=${yearsBack}`)
         
         const result = await ingestDocumentsForTicker(supabase, ticker, asset?.asset_id || null, {
           fetchContent,
           includeTranscripts,
+          include8K,
+          includeProxy,
           yearsBack
         })
         
@@ -674,13 +798,11 @@ serve(async (req: Request) => {
             'GET /status - Get ingestion status'
           ],
           query_params: [
-            'fetch_content=true - Fetch full SEC filing content from EDGAR (slower)',
+            'fetch_content=true - Fetch full SEC filing content from EDGAR',
             'transcripts=false - Skip earnings transcripts',
+            'include_8k=true - Include 8-K material events',
+            'proxy=false - Skip DEF 14A proxy statements',
             'years=N - Number of years to look back (default: 3)'
-          ],
-          body_params: [
-            'tickers: string[] - Specific tickers to process',
-            'limit: number - Max tickers when processing all equities'
           ]
         }), {
           status: 404,
