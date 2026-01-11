@@ -383,11 +383,14 @@ export function useSendMessage(chatId: string | null) {
     } catch (err) {
       clearTimeout(timeoutId);
       
-      // Check if this is a timeout/abort error
+      // Check if this is a timeout/abort error (client-side or server-side)
+      const errorMessage = err instanceof Error ? err.message.toLowerCase() : '';
       const isTimeout = err instanceof Error && (
         err.name === 'AbortError' || 
-        err.message.includes('timeout') ||
-        err.message.includes('network')
+        errorMessage.includes('timeout') ||
+        errorMessage.includes('network') ||
+        errorMessage.includes('took too long') ||
+        errorMessage.includes('analysis took')
       );
       
       if (isTimeout) {
