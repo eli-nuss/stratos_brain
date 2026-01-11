@@ -205,7 +205,7 @@ const unifiedFunctionDeclarations = [
   // NEW TIER 1 TOOLS - Track topic trends across earnings transcripts
   {
     name: "track_topic_trend",
-    description: "Search for how often a specific topic, keyword, or phrase is mentioned across a company's earnings call transcripts over multiple quarters. Use this to identify thematic momentum, strategic pivots, or emerging concerns (e.g., 'How many times was AI mentioned in the last 8 quarters?').",
+    description: "Search for how often a topic is mentioned across earnings transcripts. SMART USAGE: You MUST provide multiple synonyms to catch all mentions (e.g., for 'AI', provide ['AI', 'Artificial Intelligence', 'Generative AI', 'LLM', 'Machine Learning']). The tool sums them up for comprehensive tracking.",
     parameters: {
       type: "object",
       properties: {
@@ -213,16 +213,17 @@ const unifiedFunctionDeclarations = [
           type: "string", 
           description: "The stock ticker symbol (e.g., 'AAPL', 'NVDA')" 
         },
-        search_term: { 
-          type: "string", 
-          description: "The keyword or phrase to search for (e.g., 'artificial intelligence', 'supply chain', 'margin expansion')" 
+        search_phrases: { 
+          type: "array", 
+          items: { type: "string" },
+          description: "List of related keywords/phrases to search for. Include synonyms, acronyms, and variations to capture all mentions of the concept." 
         },
         quarters_back: { 
           type: "number", 
           description: "Number of quarters to search (default 8, max 16)" 
         }
       },
-      required: ["ticker", "search_term"]
+      required: ["ticker", "search_phrases"]
     }
   },
   // Analyze management tone changes across earnings calls
@@ -876,7 +877,26 @@ async function executeFunctionCall(
     
     case "track_topic_trend": {
       const ticker = (args.ticker as string).toUpperCase()
-      const searchTerm = (args.search_term as string).toLowerCase()
+      
+      // Handle both array (new way) and string (legacy/fallback) inputs
+      let phrases: string[] = []
+      
+      if (Array.isArray(args.search_phrases)) {
+        phrases = args.search_phrases as string[]
+      } else if (args.search_term) {
+        // Legacy fallback for old single-term format
+        phrases = [args.search_term as string]
+      } else {
+        return { error: "Missing search_phrases" }
+      }
+      
+      // Sanitize phrases: trim and remove empty strings
+      phrases = phrases.map(p => p.trim()).filter(p => p.length > 0)
+      
+      if (phrases.length === 0) {
+        return { error: "No valid search phrases provided" }
+      }
+      
       const quartersBack = Math.min(args.quarters_back as number || 8, 16)
       
       // Get transcripts for the ticker
@@ -895,26 +915,36 @@ async function executeFunctionCall(
         return {
           error: `No earnings transcripts found for ${ticker}`,
           ticker,
-          search_term: searchTerm
+          search_phrases: phrases
         }
       }
       
-      // Count mentions in each transcript
+      // Build the "Master Regex" - escape special chars and join with OR (|)
+      // Example: "AI|Artificial Intelligence|GenAI" matches any of these
+      const escapedPhrases = phrases.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+      const masterRegex = new RegExp(`(${escapedPhrases.join('|')})`, 'gi')
+      
+      // Count mentions in each transcript using the master regex
       const results = transcripts.map(t => {
-        const text = (t.full_text || '').toLowerCase()
-        // Count occurrences (case-insensitive)
-        const regex = new RegExp(searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
-        const matches = text.match(regex) || []
+        const text = t.full_text || ''
+        
+        // Using match() with the master regex catches ANY of the synonyms
+        const matches = text.match(masterRegex) || []
         const count = matches.length
         
-        // Extract sample contexts (first 3 mentions with surrounding text)
+        // Extract context samples (first 3 instances where ANY synonym appeared)
         const contexts: string[] = []
-        let match
-        const contextRegex = new RegExp(`.{0,100}${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}.{0,100}`, 'gi')
         let contextMatch
         let contextCount = 0
-        while ((contextMatch = contextRegex.exec(text)) !== null && contextCount < 3) {
-          contexts.push('...' + contextMatch[0].trim() + '...')
+        
+        // Reset lastIndex because exec() is stateful with 'g' flag
+        masterRegex.lastIndex = 0
+        
+        while ((contextMatch = masterRegex.exec(text)) !== null && contextCount < 3) {
+          const start = Math.max(0, contextMatch.index - 80)
+          const end = Math.min(text.length, contextMatch.index + contextMatch[0].length + 80)
+          const snippet = text.substring(start, end).replace(/\n/g, ' ')
+          contexts.push('...' + snippet + '...')
           contextCount++
         }
         
@@ -928,20 +958,20 @@ async function executeFunctionCall(
       
       // Calculate trend statistics
       const counts = results.map(r => r.mention_count)
-      const avgMentions = counts.reduce((a, b) => a + b, 0) / counts.length
+      const avgMentions = counts.length > 0 ? counts.reduce((a, b) => a + b, 0) / counts.length : 0
       const recentAvg = counts.slice(0, Math.min(2, counts.length)).reduce((a, b) => a + b, 0) / Math.min(2, counts.length)
       const olderAvg = counts.slice(-Math.min(2, counts.length)).reduce((a, b) => a + b, 0) / Math.min(2, counts.length)
       const trendDirection = recentAvg > olderAvg * 1.2 ? 'INCREASING' : recentAvg < olderAvg * 0.8 ? 'DECREASING' : 'STABLE'
       
       return {
         ticker,
-        search_term: searchTerm,
+        search_phrases: phrases, // Return the list so the UI knows what was searched
         quarters_analyzed: results.length,
         trend_direction: trendDirection,
         average_mentions_per_quarter: avgMentions.toFixed(1),
         recent_vs_older_ratio: olderAvg > 0 ? (recentAvg / olderAvg).toFixed(2) : 'N/A',
         quarterly_breakdown: results,
-        insight: `"${searchTerm}" was mentioned an average of ${avgMentions.toFixed(1)} times per quarter. Trend is ${trendDirection}.`
+        insight: `The topics [${phrases.join(', ')}] were mentioned an average of ${avgMentions.toFixed(1)} times per quarter. Trend is ${trendDirection}.`
       }
     }
     
