@@ -1,233 +1,251 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '../lib/supabase';
-import { RealtimeChannel } from '@supabase/supabase-js';
+import useSWR from 'swr';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { useEffect, useState, useCallback, useRef } from 'react';
 
-// Types
+// Helper to get user ID for API calls
+export function getUserId(): string | null {
+  // This is a simple approach - we'll also create a hook version
+  // For now, we read from localStorage where Supabase stores session
+  try {
+    const storageKey = Object.keys(localStorage).find(key => 
+      key.startsWith('sb-') && key.endsWith('-auth-token')
+    );
+    if (storageKey) {
+      const data = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      return data?.user?.id || null;
+    }
+  } catch {
+    // Ignore errors
+  }
+  return null;
+}
+
+// Helper to get access token for API calls
+export function getAccessToken(): string | null {
+  try {
+    const storageKey = Object.keys(localStorage).find(key => 
+      key.startsWith('sb-') && key.endsWith('-auth-token')
+    );
+    if (storageKey) {
+      const data = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      return data?.access_token || null;
+    }
+  } catch {
+    // Ignore errors
+  }
+  return null;
+}
+
+// Create a fetcher that includes user_id header and authorization
+const createFetcher = (userId: string | null, accessToken: string | null) => async (url: string) => {
+  const headers: HeadersInit = {};
+  if (userId) {
+    headers['x-user-id'] = userId;
+  }
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+  const res = await fetch(url, { headers });
+  return res.json();
+};
+
 export interface CompanyChat {
-  id: string;
+  chat_id: string;
   asset_id: string;
   asset_type: 'equity' | 'crypto';
   display_name: string;
+  status: 'active' | 'archived';
+  last_message_at: string | null;
   created_at: string;
-  updated_at: string;
+  message_count: number;
+  user_id?: string | null;
 }
 
 export interface ChatMessage {
-  id: string;
+  message_id: string;
   chat_id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  ui_components?: unknown[];
+  sequence_num: number;
+  role: 'user' | 'assistant' | 'tool' | 'system';
+  content: string | null;
+  tool_calls: ToolCall[] | null;
+  executable_code: string | null;
+  code_execution_result: string | null;
+  grounding_metadata: GroundingMetadata | null;
+  attachments: Attachment[] | null;
+  model: string | null;
+  latency_ms: number | null;
   created_at: string;
-}
-
-export interface ChatJob {
-  id: string;
-  chat_id: string;
-  user_message_id: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  tool_calls: ToolCall[];
-  result?: {
-    content: string;
-    ui_components?: unknown[];
-  };
-  error?: string;
-  created_at: string;
-  completed_at?: string;
 }
 
 export interface ToolCall {
-  tool_name: string;
-  status: 'started' | 'completed' | 'failed';
-  timestamp: string;
-  error?: string;
+  name: string;
+  args: Record<string, unknown>;
+  result: unknown;
 }
 
-// Helper to get user ID from localStorage
-function getUserId(): string | null {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('stratos_user_id');
-  }
-  return null;
-}
-
-// Helper to get access token from localStorage
-function getAccessToken(): string | null {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('stratos_access_token');
-  }
-  return null;
-}
-
-// Hook to fetch and subscribe to a specific chat's messages
-export function useCompanyChat(chatId: string | null) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const channelRef = useRef<RealtimeChannel | null>(null);
-
-  // Fetch messages for this chat
-  const fetchMessages = useCallback(async () => {
-    if (!chatId) {
-      setMessages([]);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const { data, error: fetchError } = await supabase
-        .from('chat_messages')
-        .select('*')
-        .eq('chat_id', chatId)
-        .order('created_at', { ascending: true });
-
-      if (fetchError) throw fetchError;
-      setMessages(data || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch messages');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [chatId]);
-
-  // Subscribe to new messages
-  useEffect(() => {
-    if (!chatId) return;
-
-    // Initial fetch
-    fetchMessages();
-
-    // Set up realtime subscription
-    const channel = supabase
-      .channel(`chat-messages-${chatId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'chat_messages',
-          filter: `chat_id=eq.${chatId}`,
-        },
-        (payload) => {
-          const newMessage = payload.new as ChatMessage;
-          setMessages((prev) => {
-            // Avoid duplicates
-            if (prev.some((m) => m.id === newMessage.id)) {
-              return prev;
-            }
-            return [...prev, newMessage];
-          });
-        }
-      )
-      .subscribe();
-
-    channelRef.current = channel;
-
-    return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
+export interface GroundingMetadata {
+  searchEntryPoint?: {
+    renderedContent: string;
+  };
+  groundingChunks?: Array<{
+    web?: {
+      uri: string;
+      title: string;
     };
-  }, [chatId, fetchMessages]);
+  }>;
+  webSearchQueries?: string[];
+}
+
+export interface Attachment {
+  type: 'image' | 'file';
+  url: string;
+  mime_type: string;
+  name?: string;
+}
+
+// Job status interface for background processing
+export interface ChatJob {
+  id: string;
+  chat_id: string;
+  user_message: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  result: SendMessageResponse | null;
+  tool_calls: Array<{
+    tool_name: string;
+    status: 'started' | 'completed' | 'failed';
+    timestamp: string;
+    data?: unknown;
+  }> | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+}
+
+export interface SendMessageResponse {
+  user_message: ChatMessage;
+  assistant_message: ChatMessage;
+  tool_calls: ToolCall[];
+  code_executions: Array<{
+    code?: string;
+    language?: string;
+    output?: string;
+    outcome?: string;
+  }>;
+  grounding_metadata: GroundingMetadata | null;
+}
+
+// New interface for job-based response
+export interface JobCreatedResponse {
+  job_id: string;
+  status: 'pending';
+  message: string;
+  chat_id: string;
+}
+
+// Hook to list all company chats for the current user
+export function useCompanyChats() {
+  const { user, session } = useAuth();
+  const userId = user?.id || null;
+  const accessToken = session?.access_token || null;
+  
+  const { data, error, isLoading, mutate } = useSWR<{ chats: CompanyChat[] }>(
+    '/api/company-chat-api/chats',
+    createFetcher(userId, accessToken),
+    {
+      refreshInterval: 30000, // Refresh every 30 seconds
+    }
+  );
 
   return {
-    messages,
+    chats: data?.chats || [],
     isLoading,
     error,
-    refetch: fetchMessages,
+    refresh: mutate,
   };
 }
 
-// Hook to fetch user's chats
-export function useUserChats() {
-  const [chats, setChats] = useState<CompanyChat[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchChats = useCallback(async () => {
-    const userId = getUserId();
-    if (!userId) {
-      setChats([]);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const { data, error: fetchError } = await supabase
-        .from('company_chats')
-        .select('*')
-        .eq('user_id', userId)
-        .order('updated_at', { ascending: false });
-
-      if (fetchError) throw fetchError;
-      setChats(data || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch chats');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchChats();
-  }, [fetchChats]);
+// Hook to get a single chat's details
+export function useCompanyChat(chatId: string | null) {
+  const { user, session } = useAuth();
+  const userId = user?.id || null;
+  const accessToken = session?.access_token || null;
+  
+  const { data, error, isLoading, mutate } = useSWR<CompanyChat>(
+    chatId ? `/api/company-chat-api/chats/${chatId}` : null,
+    createFetcher(userId, accessToken)
+  );
 
   return {
-    chats,
+    chat: data,
     isLoading,
     error,
-    refetch: fetchChats,
+    refresh: mutate,
   };
 }
 
-// Hook to subscribe to a chat job's status and tool calls
+// Hook to get messages for a chat
+export function useChatMessages(chatId: string | null, limit = 50) {
+  const { user, session } = useAuth();
+  const userId = user?.id || null;
+  const accessToken = session?.access_token || null;
+  
+  const { data, error, isLoading, mutate } = useSWR<{
+    messages: ChatMessage[];
+    total: number;
+    has_more: boolean;
+  }>(
+    chatId ? `/api/company-chat-api/chats/${chatId}/messages?limit=${limit}` : null,
+    createFetcher(userId, accessToken),
+    {
+      refreshInterval: 0, // Don't auto-refresh, we'll manually update
+    }
+  );
+
+  return {
+    messages: data?.messages || [],
+    total: data?.total || 0,
+    hasMore: data?.has_more || false,
+    isLoading,
+    error,
+    refresh: mutate,
+  };
+}
+
+// Hook to subscribe to job updates via Supabase Realtime
 export function useChatJob(jobId: string | null) {
   const [job, setJob] = useState<ChatJob | null>(null);
   const [isComplete, setIsComplete] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const channelRef = useRef<RealtimeChannel | null>(null);
 
-  // Fetch initial job state
-  const fetchJob = useCallback(async () => {
+  useEffect(() => {
     if (!jobId) {
       setJob(null);
       setIsComplete(false);
-      setIsProcessing(false);
       return;
     }
 
-    try {
+    // Initial fetch
+    const fetchJob = async () => {
       const { data, error } = await supabase
         .from('chat_jobs')
         .select('*')
         .eq('id', jobId)
         .single();
-
-      if (error) throw error;
       
-      setJob(data);
-      setIsComplete(data.status === 'completed' || data.status === 'failed');
-      setIsProcessing(data.status === 'pending' || data.status === 'processing');
-    } catch (err) {
-      console.error('Error fetching job:', err);
-    }
-  }, [jobId]);
+      if (!error && data) {
+        setJob(data as ChatJob);
+        if (data.status === 'completed' || data.status === 'failed') {
+          setIsComplete(true);
+        }
+      }
+    };
 
-  // Subscribe to job updates
-  useEffect(() => {
-    if (!jobId) return;
-
-    // Initial fetch
     fetchJob();
 
-    // Set up realtime subscription
+    // Subscribe to realtime updates
     const channel = supabase
-      .channel(`chat-job-${jobId}`)
+      .channel(`job-${jobId}`)
       .on(
         'postgres_changes',
         {
@@ -239,29 +257,27 @@ export function useChatJob(jobId: string | null) {
         (payload) => {
           const updatedJob = payload.new as ChatJob;
           setJob(updatedJob);
-          setIsComplete(updatedJob.status === 'completed' || updatedJob.status === 'failed');
-          setIsProcessing(updatedJob.status === 'pending' || updatedJob.status === 'processing');
+          if (updatedJob.status === 'completed' || updatedJob.status === 'failed') {
+            setIsComplete(true);
+          }
         }
       )
       .subscribe();
 
-    channelRef.current = channel;
-
     return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
+      supabase.removeChannel(channel);
     };
-  }, [jobId, fetchJob]);
+  }, [jobId]);
 
   return {
     job,
     isComplete,
-    isProcessing,
+    isProcessing: job?.status === 'processing',
+    isPending: job?.status === 'pending',
+    isFailed: job?.status === 'failed',
     toolCalls: job?.tool_calls || [],
     result: job?.result,
-    error: job?.error,
+    error: job?.error_message,
   };
 }
 
@@ -527,14 +543,49 @@ export async function createOrGetChat(
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.message || 'Failed to create chat');
+    throw new Error(error.error || 'Failed to create chat');
   }
 
   return response.json();
 }
 
-// Function to delete a chat
-export async function deleteChat(chatId: string): Promise<void> {
+// Legacy function to send a message and get AI response (synchronous - kept for backward compatibility)
+export async function sendChatMessage(
+  chatId: string,
+  content: string,
+  userId?: string | null
+): Promise<SendMessageResponse | JobCreatedResponse> {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  
+  const effectiveUserId = userId || getUserId();
+  if (effectiveUserId) {
+    headers['x-user-id'] = effectiveUserId;
+  }
+  
+  // Add authorization header
+  const accessToken = getAccessToken();
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+  
+  const response = await fetch(`/api/company-chat-api/chats/${chatId}/messages`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ content }),
+  });
+
+  if (!response.ok && response.status !== 202) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to send message');
+  }
+
+  return response.json();
+}
+
+// Function to poll job status (alternative to realtime for environments where it's not available)
+export async function pollJobStatus(jobId: string): Promise<ChatJob> {
   const headers: HeadersInit = {};
   
   const userId = getUserId();
@@ -547,6 +598,33 @@ export async function deleteChat(chatId: string): Promise<void> {
     headers['Authorization'] = `Bearer ${accessToken}`;
   }
   
+  const response = await fetch(`/api/company-chat-api/jobs/${jobId}`, {
+    headers,
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to get job status');
+  }
+
+  return response.json();
+}
+
+// Function to archive a chat
+export async function archiveChat(chatId: string, userId?: string | null): Promise<void> {
+  const headers: HeadersInit = {};
+  
+  const effectiveUserId = userId || getUserId();
+  if (effectiveUserId) {
+    headers['x-user-id'] = effectiveUserId;
+  }
+  
+  // Add authorization header
+  const accessToken = getAccessToken();
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+  
   const response = await fetch(`/api/company-chat-api/chats/${chatId}`, {
     method: 'DELETE',
     headers,
@@ -554,6 +632,58 @@ export async function deleteChat(chatId: string): Promise<void> {
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.message || 'Failed to delete chat');
+    throw new Error(error.error || 'Failed to archive chat');
+  }
+}
+
+// Function to refresh context snapshot
+export async function refreshChatContext(chatId: string, userId?: string | null): Promise<void> {
+  const headers: HeadersInit = {};
+  
+  const effectiveUserId = userId || getUserId();
+  if (effectiveUserId) {
+    headers['x-user-id'] = effectiveUserId;
+  }
+  
+  // Add authorization header
+  const accessToken = getAccessToken();
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+  
+  const response = await fetch(`/api/company-chat-api/chats/${chatId}/context`, {
+    method: 'POST',
+    headers,
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to refresh context');
+  }
+}
+
+// Function to clear all messages from a chat
+export async function clearChatMessages(chatId: string, userId?: string | null): Promise<void> {
+  const headers: HeadersInit = {};
+  
+  const effectiveUserId = userId || getUserId();
+  if (effectiveUserId) {
+    headers['x-user-id'] = effectiveUserId;
+  }
+  
+  // Add authorization header
+  const accessToken = getAccessToken();
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+  
+  const response = await fetch(`/api/company-chat-api/chats/${chatId}/messages`, {
+    method: 'DELETE',
+    headers,
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to clear chat');
   }
 }
