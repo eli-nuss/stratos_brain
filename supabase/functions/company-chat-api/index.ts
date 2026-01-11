@@ -1480,7 +1480,8 @@ async function callGeminiWithTools(
   messages: Array<{ role: string; parts: Array<{ text?: string; functionCall?: unknown; functionResponse?: unknown }> }>,
   systemInstruction: string,
   supabase: ReturnType<typeof createClient>,
-  chatConfig: ChatConfig = {}
+  chatConfig: ChatConfig = {},
+  logTool?: (toolName: string, status: 'started' | 'completed' | 'failed') => Promise<void>
 ): Promise<{
   response: string;
   toolCalls: unknown[];
@@ -1555,7 +1556,17 @@ async function callGeminiWithTools(
       const fc = part.functionCall as { name: string; args: Record<string, unknown> }
       console.log(`Executing function: ${fc.name}`)
       
+      // Log tool start for real-time UI updates
+      if (logTool) {
+        await logTool(fc.name, 'started').catch(e => console.error('Failed to log tool start:', e))
+      }
+      
       const result = await executeFunctionCall(fc, supabase)
+      
+      // Log tool completion
+      if (logTool) {
+        await logTool(fc.name, result.error ? 'failed' : 'completed').catch(e => console.error('Failed to log tool completion:', e))
+      }
       
       // Track tool calls and code executions separately
       if (fc.name === 'execute_python') {
@@ -1650,7 +1661,8 @@ async function callGeminiWithToolsSafe(
   messages: Array<{ role: string; parts: Array<{ text?: string }> }>,
   systemInstruction: string,
   supabase: ReturnType<typeof createClient>,
-  chatConfig: ChatConfig = {}
+  chatConfig: ChatConfig = {},
+  logTool?: (toolName: string, status: 'started' | 'completed' | 'failed') => Promise<void>
 ): Promise<{
   response: string;
   toolCalls: unknown[];
@@ -1666,7 +1678,7 @@ async function callGeminiWithToolsSafe(
     
     // Race between the actual call and timeout
     const result = await Promise.race([
-      callGeminiWithTools(messages, systemInstruction, supabase, chatConfig),
+      callGeminiWithTools(messages, systemInstruction, supabase, chatConfig, logTool),
       timeoutPromise
     ])
     
@@ -1878,7 +1890,7 @@ serve(async (req: Request) => {
         })
       }
 
-      // POST /chats/:chatId/messages - Send a message (dispatcher mode - creates job and triggers worker)
+      // POST /chats/:chatId/messages - Send a message with job tracking for real-time updates
       case req.method === 'POST' && /^\/chats\/[a-f0-9-]+\/messages$/.test(path): {
         const chatId = path.split('/')[2]
         const body = await req.json()
@@ -1891,10 +1903,10 @@ serve(async (req: Request) => {
           })
         }
         
-        // Verify chat exists
+        // Get chat info
         const { data: chat, error: chatError } = await supabase
           .from('company_chats')
-          .select('chat_id')
+          .select('*')
           .eq('chat_id', chatId)
           .single()
         
@@ -1905,62 +1917,177 @@ serve(async (req: Request) => {
           })
         }
         
-        // Create job record
+        // Create job record for tracking
         const { data: job, error: jobError } = await supabase
           .from('chat_jobs')
           .insert({
             chat_id: chatId,
             user_message: content,
-            status: 'pending'
+            status: 'processing'
           })
           .select()
           .single()
         
         if (jobError) {
           console.error('Failed to create job:', jobError)
-          return new Response(JSON.stringify({ error: 'Failed to create job' }), {
+          // Continue without job tracking if it fails
+        }
+        
+        const jobId = job?.id
+        
+        // Helper to update job status
+        const updateJob = async (status: string, updates: Record<string, unknown> = {}) => {
+          if (!jobId) return
+          await supabase
+            .from('chat_jobs')
+            .update({ status, ...updates, updated_at: new Date().toISOString() })
+            .eq('id', jobId)
+        }
+        
+        // Helper to log tool execution for real-time UI
+        const logTool = async (toolName: string, status: 'started' | 'completed' | 'failed') => {
+          if (!jobId) return
+          const { data: currentJob } = await supabase
+            .from('chat_jobs')
+            .select('tool_calls')
+            .eq('id', jobId)
+            .single()
+          
+          const existingCalls = currentJob?.tool_calls || []
+          const toolCall = { tool_name: toolName, status, timestamp: new Date().toISOString() }
+          
+          await supabase
+            .from('chat_jobs')
+            .update({ tool_calls: [...existingCalls, toolCall] })
+            .eq('id', jobId)
+        }
+        
+        try {
+          // Get asset info
+          const { data: asset } = await supabase
+            .from('assets')
+            .select('*')
+            .eq('asset_id', parseInt(chat.asset_id))
+            .single()
+          
+          if (!asset) {
+            await updateJob('failed', { error_message: 'Asset not found' })
+            return new Response(JSON.stringify({ error: 'Asset not found' }), {
+              status: 404,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            })
+          }
+          
+          // Fetch chat configuration
+          const chatConfig = await fetchChatConfig(supabase)
+          
+          // Get current sequence number
+          const { data: lastMessage } = await supabase
+            .from('chat_messages')
+            .select('sequence_num')
+            .eq('chat_id', chatId)
+            .order('sequence_num', { ascending: false })
+            .limit(1)
+            .single()
+          
+          const nextSeq = (lastMessage?.sequence_num || 0) + 1
+          
+          // Save user message
+          const { error: userMsgError } = await supabase
+            .from('chat_messages')
+            .insert({
+              chat_id: chatId,
+              sequence_num: nextSeq,
+              role: 'user',
+              content: content
+            })
+          
+          if (userMsgError) throw userMsgError
+          
+          // Build conversation history
+          const { data: history } = await supabase
+            .from('chat_messages')
+            .select('role, content, tool_calls, executable_code, code_execution_result')
+            .eq('chat_id', chatId)
+            .order('sequence_num', { ascending: true })
+            .limit(50)
+          
+          const geminiMessages: Array<{ role: string; parts: Array<{ text?: string }> }> = []
+          
+          for (const msg of history || []) {
+            if (msg.role === 'user' || msg.role === 'assistant') {
+              geminiMessages.push({
+                role: msg.role === 'user' ? 'user' : 'model',
+                parts: [{ text: msg.content || '' }]
+              })
+            }
+          }
+          
+          // Build system prompt
+          const systemPrompt = buildSystemPrompt(asset, chat.context_snapshot, chatConfig)
+          
+          // Call Gemini with tools (with job tracking for tool calls)
+          const startTime = Date.now()
+          const geminiResult = await callGeminiWithToolsSafe(
+            geminiMessages, 
+            systemPrompt, 
+            supabase, 
+            chatConfig,
+            logTool // Pass the tool logger for real-time updates
+          )
+          const latencyMs = Date.now() - startTime
+          
+          // Save assistant message
+          const { data: assistantMessage, error: assistantMsgError } = await supabase
+            .from('chat_messages')
+            .insert({
+              chat_id: chatId,
+              sequence_num: nextSeq + 1,
+              role: 'assistant',
+              content: geminiResult.response,
+              tool_calls: geminiResult.toolCalls.length > 0 ? geminiResult.toolCalls : null,
+              executable_code: geminiResult.codeExecutions.length > 0 ? (geminiResult.codeExecutions[0] as { code?: string })?.code : null,
+              code_execution_result: geminiResult.codeExecutions.length > 0 ? JSON.stringify((geminiResult.codeExecutions[0] as { result?: unknown })?.result) : null,
+              grounding_metadata: geminiResult.groundingMetadata,
+              model: chatConfig.model || GEMINI_MODEL,
+              latency_ms: latencyMs
+            })
+            .select()
+            .single()
+          
+          if (assistantMsgError) throw assistantMsgError
+          
+          // Update chat's last_message_at
+          await supabase
+            .from('company_chats')
+            .update({ last_message_at: new Date().toISOString() })
+            .eq('chat_id', chatId)
+          
+          // Mark job as completed
+          await updateJob('completed', { 
+            completed_at: new Date().toISOString(),
+            result: { message_id: assistantMessage?.message_id }
+          })
+          
+          return new Response(JSON.stringify({
+            success: true,
+            job_id: jobId,
+            message: assistantMessage
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        } catch (err) {
+          console.error('Error processing message:', err)
+          await updateJob('failed', { error_message: err instanceof Error ? err.message : 'Unknown error' })
+          
+          return new Response(JSON.stringify({ 
+            error: err instanceof Error ? err.message : 'Failed to process message',
+            job_id: jobId
+          }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
         }
-        
-        // Trigger background worker (fire and forget)
-        const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
-        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
-        
-        // Use EdgeRuntime.waitUntil if available, otherwise just fire the request
-        const workerPromise = fetch(`${supabaseUrl}/functions/v1/chat-worker`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${supabaseServiceKey}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            jobId: job.id,
-            chatId: chatId,
-            message: content
-          })
-        }).catch(err => {
-          console.error('Failed to trigger worker:', err)
-        })
-        
-        // Don't await - let it run in background
-        // @ts-ignore - EdgeRuntime may not be available in all environments
-        if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
-          // @ts-ignore
-          EdgeRuntime.waitUntil(workerPromise)
-        }
-        
-        // Return immediately with job info
-        return new Response(JSON.stringify({
-          job_id: job.id,
-          status: 'pending',
-          message: 'Analysis started. Subscribe to job updates for progress.',
-          chat_id: chatId
-        }), {
-          status: 202, // Accepted
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
       }
 
       // GET /jobs/:jobId - Get job status
