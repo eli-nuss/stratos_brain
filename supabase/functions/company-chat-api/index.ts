@@ -993,11 +993,17 @@ async function executeFunctionCall(
         }
       }
       
-      const analyses = transcripts.map(t => ({
-        quarter: `Q${t.fiscal_quarter} ${t.fiscal_year}`,
-        filing_date: t.filing_date,
-        ...analyzeText(t.full_text || '')
-      }))
+      const analyses = transcripts.map(t => {
+        // Format fiscal year as 2-digit (e.g., 2026 -> FY26)
+        const fyShort = String(t.fiscal_year).slice(-2)
+        return {
+          quarter: `Q${t.fiscal_quarter} FY${fyShort}`,
+          earnings_call_date: t.filing_date,
+          fiscal_year: t.fiscal_year,
+          fiscal_quarter: t.fiscal_quarter,
+          ...analyzeText(t.full_text || '')
+        }
+      })
       
       // Compare most recent to average of others
       const mostRecent = analyses[0]
