@@ -138,6 +138,7 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
     toolCalls,
     isComplete,
     error,
+    isRecovering,
   } = useSendMessage(chat.chat_id);
 
   // Show fundamentals panel by default on larger screens
@@ -346,7 +347,7 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
                     <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                   </div>
                   <span className="text-sm text-muted-foreground">
-                    {isProcessing ? 'Analyzing...' : 'Starting...'}
+                    {isRecovering ? 'Reconnecting to analysis...' : isProcessing ? 'Analyzing...' : 'Starting...'}
                   </span>
                 </div>
                 {/* Real-time tool execution progress */}

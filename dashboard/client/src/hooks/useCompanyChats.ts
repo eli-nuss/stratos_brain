@@ -282,10 +282,12 @@ export function useChatJob(jobId: string | null) {
 }
 
 // Hook to manage sending messages with job-based processing
+// Handles timeout gracefully by polling for job completion
 export function useSendMessage(chatId: string | null) {
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isRecovering, setIsRecovering] = useState(false);
 
   const { job, isComplete, isProcessing, toolCalls, result, error: jobError } = useChatJob(currentJobId);
 
@@ -293,11 +295,39 @@ export function useSendMessage(chatId: string | null) {
   useEffect(() => {
     if (isComplete) {
       setIsSending(false);
+      setIsRecovering(false);
       if (jobError) {
         setError(jobError);
+      } else {
+        // Clear any timeout error since job completed successfully
+        setError(null);
       }
     }
   }, [isComplete, jobError]);
+
+  // Poll for latest job when recovering from timeout
+  const pollForLatestJob = useCallback(async () => {
+    if (!chatId) return null;
+    
+    try {
+      // Query the chat_jobs table for the most recent pending/processing job for this chat
+      const { data, error: queryError } = await supabase
+        .from('chat_jobs')
+        .select('*')
+        .eq('chat_id', chatId)
+        .in('status', ['pending', 'processing', 'completed'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (!queryError && data) {
+        return data.id;
+      }
+    } catch {
+      // Ignore errors
+    }
+    return null;
+  }, [chatId]);
 
   const sendMessage = useCallback(async (content: string): Promise<string | null> => {
     if (!chatId) {
@@ -308,6 +338,7 @@ export function useSendMessage(chatId: string | null) {
     setIsSending(true);
     setError(null);
     setCurrentJobId(null);
+    setIsRecovering(false);
 
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
@@ -323,50 +354,90 @@ export function useSendMessage(chatId: string | null) {
       headers['Authorization'] = `Bearer ${accessToken}`;
     }
 
+    // Create an AbortController for timeout handling
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute client timeout
+
     try {
       const response = await fetch(`/api/company-chat-api/chats/${chatId}/messages`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ content }),
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
       const data = await response.json();
 
       if (response.status === 202) {
-        // Job-based response
+        // Job-based response - got job_id, now track it
         setCurrentJobId(data.job_id);
         return data.job_id;
       } else if (response.ok) {
-        // Legacy synchronous response (shouldn't happen with new API)
+        // Legacy synchronous response
         setIsSending(false);
         return null;
       } else {
         throw new Error(data.error || 'Failed to send message');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send message');
-      setIsSending(false);
-      return null;
+      clearTimeout(timeoutId);
+      
+      // Check if this is a timeout/abort error
+      const isTimeout = err instanceof Error && (
+        err.name === 'AbortError' || 
+        err.message.includes('timeout') ||
+        err.message.includes('network')
+      );
+      
+      if (isTimeout) {
+        // Don't show error yet - try to recover by finding the job
+        setIsRecovering(true);
+        console.log('Request timed out, attempting to recover by finding job...');
+        
+        // Wait a moment then poll for the job
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const jobId = await pollForLatestJob();
+        
+        if (jobId) {
+          console.log('Found job after timeout:', jobId);
+          setCurrentJobId(jobId);
+          // Keep isSending true - the job subscription will handle completion
+          return jobId;
+        } else {
+          // Couldn't find job - show error
+          setError('Request timed out. Please try again.');
+          setIsSending(false);
+          setIsRecovering(false);
+          return null;
+        }
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to send message');
+        setIsSending(false);
+        return null;
+      }
     }
-  }, [chatId]);
+  }, [chatId, pollForLatestJob]);
 
   const reset = useCallback(() => {
     setCurrentJobId(null);
     setIsSending(false);
     setError(null);
+    setIsRecovering(false);
   }, []);
 
   return {
     sendMessage,
     reset,
     isSending,
-    isProcessing,
+    isProcessing: isProcessing || isRecovering,
     currentJobId,
     job,
     toolCalls,
     result,
     isComplete,
     error,
+    isRecovering,
   };
 }
 
