@@ -1,5 +1,6 @@
 import useSWR from 'swr';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 // Helper to get user ID for API calls
 export function getUserId(): string | null {
@@ -19,11 +20,30 @@ export function getUserId(): string | null {
   return null;
 }
 
-// Create a fetcher that includes user_id header
-const createFetcher = (userId: string | null) => async (url: string) => {
+// Helper to get access token for API calls
+export function getAccessToken(): string | null {
+  try {
+    const storageKey = Object.keys(localStorage).find(key => 
+      key.startsWith('sb-') && key.endsWith('-auth-token')
+    );
+    if (storageKey) {
+      const data = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      return data?.access_token || null;
+    }
+  } catch {
+    // Ignore errors
+  }
+  return null;
+}
+
+// Create a fetcher that includes user_id header and authorization
+const createFetcher = (userId: string | null, accessToken: string | null) => async (url: string) => {
   const headers: HeadersInit = {};
   if (userId) {
     headers['x-user-id'] = userId;
+  }
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
   }
   const res = await fetch(url, { headers });
   return res.json();
@@ -98,12 +118,13 @@ export interface SendMessageResponse {
 
 // Hook to list all company chats for the current user
 export function useCompanyChats() {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const userId = user?.id || null;
+  const accessToken = session?.access_token || null;
   
   const { data, error, isLoading, mutate } = useSWR<{ chats: CompanyChat[] }>(
     '/api/company-chat-api/chats',
-    createFetcher(userId),
+    createFetcher(userId, accessToken),
     {
       refreshInterval: 30000, // Refresh every 30 seconds
     }
@@ -119,12 +140,13 @@ export function useCompanyChats() {
 
 // Hook to get a single chat's details
 export function useCompanyChat(chatId: string | null) {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const userId = user?.id || null;
+  const accessToken = session?.access_token || null;
   
   const { data, error, isLoading, mutate } = useSWR<CompanyChat>(
     chatId ? `/api/company-chat-api/chats/${chatId}` : null,
-    createFetcher(userId)
+    createFetcher(userId, accessToken)
   );
 
   return {
@@ -137,8 +159,9 @@ export function useCompanyChat(chatId: string | null) {
 
 // Hook to get messages for a chat
 export function useChatMessages(chatId: string | null, limit = 50) {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const userId = user?.id || null;
+  const accessToken = session?.access_token || null;
   
   const { data, error, isLoading, mutate } = useSWR<{
     messages: ChatMessage[];
@@ -146,7 +169,7 @@ export function useChatMessages(chatId: string | null, limit = 50) {
     has_more: boolean;
   }>(
     chatId ? `/api/company-chat-api/chats/${chatId}/messages?limit=${limit}` : null,
-    createFetcher(userId),
+    createFetcher(userId, accessToken),
     {
       refreshInterval: 0, // Don't auto-refresh, we'll manually update
     }
@@ -177,6 +200,12 @@ export async function createOrGetChat(
   const effectiveUserId = userId || getUserId();
   if (effectiveUserId) {
     headers['x-user-id'] = effectiveUserId;
+  }
+  
+  // Add authorization header
+  const accessToken = getAccessToken();
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
   }
   
   const response = await fetch('/api/company-chat-api/chats', {
@@ -212,6 +241,12 @@ export async function sendChatMessage(
     headers['x-user-id'] = effectiveUserId;
   }
   
+  // Add authorization header
+  const accessToken = getAccessToken();
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+  
   const response = await fetch(`/api/company-chat-api/chats/${chatId}/messages`, {
     method: 'POST',
     headers,
@@ -235,6 +270,12 @@ export async function archiveChat(chatId: string, userId?: string | null): Promi
     headers['x-user-id'] = effectiveUserId;
   }
   
+  // Add authorization header
+  const accessToken = getAccessToken();
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+  
   const response = await fetch(`/api/company-chat-api/chats/${chatId}`, {
     method: 'DELETE',
     headers,
@@ -255,6 +296,12 @@ export async function refreshChatContext(chatId: string, userId?: string | null)
     headers['x-user-id'] = effectiveUserId;
   }
   
+  // Add authorization header
+  const accessToken = getAccessToken();
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+  
   const response = await fetch(`/api/company-chat-api/chats/${chatId}/context`, {
     method: 'POST',
     headers,
@@ -273,6 +320,12 @@ export async function clearChatMessages(chatId: string, userId?: string | null):
   const effectiveUserId = userId || getUserId();
   if (effectiveUserId) {
     headers['x-user-id'] = effectiveUserId;
+  }
+  
+  // Add authorization header
+  const accessToken = getAccessToken();
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
   }
   
   const response = await fetch(`/api/company-chat-api/chats/${chatId}/messages`, {
