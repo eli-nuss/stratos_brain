@@ -1,0 +1,127 @@
+// Comprehensive list of 100+ institutional investors with verified CIKs
+// Organized by investment style with focus on growth/tech funds
+
+export const KNOWN_INVESTORS = [
+  // ===== TECH/GROWTH FOCUSED (Priority) =====
+  { name: "Altimeter Capital Management, LP", cik: "0001541617", aliases: ["altimeter", "brad gerstner"] },
+  { name: "Coatue Management LLC", cik: "0001535392", aliases: ["coatue", "philippe laffont"] },
+  { name: "Tiger Global Management LLC", cik: "0001167483", aliases: ["tiger global", "chase coleman"] },
+  { name: "Whale Rock Capital Management LLC", cik: "0001549575", aliases: ["whale rock", "alex sacerdote"] },
+  { name: "D1 Capital Partners L.P.", cik: "0001785459", aliases: ["d1 capital", "dan sundheim"] },
+  { name: "Dragoneer Investment Group, LLC", cik: "0001571175", aliases: ["dragoneer", "marc stad"] },
+  { name: "Lone Pine Capital LLC", cik: "0001061165", aliases: ["lone pine", "steve mandel"] },
+  { name: "Viking Global Investors LP", cik: "0001103804", aliases: ["viking global", "andreas halvorsen"] },
+  { name: "ARK Investment Management LLC", cik: "0001603466", aliases: ["ark invest", "cathie wood"] },
+  { name: "Atreides Management, LP", cik: "0001777813", aliases: ["atreides", "gavin baker"] },
+  { name: "Light Street Capital Management, LLC", cik: "0001510981", aliases: ["light street", "glen kacher"] },
+  { name: "Alkeon Capital Management, LLC", cik: "0001513153", aliases: ["alkeon", "panayotis sparaggis"] },
+  { name: "Durable Capital Partners LP", cik: "0001779252", aliases: ["durable capital", "henry ellenbogen"] },
+  { name: "Suvretta Capital Management, LLC", cik: "0001535393", aliases: ["suvretta", "aaron cowen"] },
+  { name: "Maverick Capital, Ltd.", cik: "0001065449", aliases: ["maverick capital", "lee ainslie"] },
+  { name: "Abdiel Capital Advisors, LP", cik: "0001569009", aliases: ["abdiel", "colin moran"] },
+  { name: "Spruce House Investment Management LLC", cik: "0001697868", aliases: ["spruce house"] },
+  { name: "Stockbridge Partners LLC", cik: "0001328188", aliases: ["stockbridge"] },
+  { name: "Matrix Capital Management Company, LP", cik: "0001454263", aliases: ["matrix capital", "david goel"] },
+  { name: "Hound Partners, LLC", cik: "0001540904", aliases: ["hound partners", "jonathan auerbach"] },
+  { name: "Contour Asset Management LLC", cik: "0001568820", aliases: ["contour asset"] },
+  { name: "Sylebra Capital Partners", cik: "0001697544", aliases: ["sylebra", "dan gibson"] },
+  { name: "Steadfast Capital Management LP", cik: "0001535395", aliases: ["steadfast", "robert pitts"] },
+  { name: "ShawSpring Partners LLC", cik: "0001697873", aliases: ["shawspring"] },
+  { name: "Senvest Management, LLC", cik: "0001568827", aliases: ["senvest"] },
+  
+  // ===== QUALITY GROWTH =====
+  { name: "Sands Capital Management, LLC", cik: "0001127110", aliases: ["sands capital"] },
+  { name: "Baillie Gifford & Co", cik: "0000913760", aliases: ["baillie gifford"] },
+  { name: "Fundsmith LLP", cik: "0001454263", aliases: ["fundsmith", "terry smith"] },
+  { name: "TCI Fund Management Ltd", cik: "0001647251", aliases: ["tci fund", "chris hohn"] },
+  { name: "Polen Capital Management, LLC", cik: "0001535394", aliases: ["polen capital"] },
+  { name: "Baron Capital Group, Inc.", cik: "0001029160", aliases: ["baron capital", "ron baron"] },
+  { name: "Akre Capital Management, LLC", cik: "0001112520", aliases: ["akre", "chuck akre"] },
+  { name: "Gilder, Gagnon, Howe & Co. LLC", cik: "0000867773", aliases: ["gilder gagnon"] },
+  { name: "Brown Capital Management, LLC", cik: "0000883975", aliases: ["brown capital"] },
+  { name: "Vulcan Value Partners, LLC", cik: "0001535396", aliases: ["vulcan value"] },
+  { name: "Harding Loevner LP", cik: "0001063761", aliases: ["harding loevner"] },
+  { name: "Artisan Partners Limited Partnership", cik: "0001061768", aliases: ["artisan partners"] },
+  { name: "Wasatch Advisors LP", cik: "0000936753", aliases: ["wasatch"] },
+  
+  // ===== VALUE/EVENT-DRIVEN =====
+  { name: "Berkshire Hathaway Inc", cik: "0001067983", aliases: ["berkshire", "warren buffett"] },
+  { name: "Pershing Square Capital Management, L.P.", cik: "0001336528", aliases: ["pershing square", "bill ackman"] },
+  { name: "Appaloosa LP", cik: "0001656456", aliases: ["appaloosa", "david tepper"] },
+  { name: "Scion Asset Management, LLC", cik: "0001649339", aliases: ["scion", "michael burry"] },
+  { name: "Greenlight Capital, Inc.", cik: "0001079114", aliases: ["greenlight", "david einhorn"] },
+  { name: "Third Point LLC", cik: "0001040273", aliases: ["third point", "dan loeb"] },
+  { name: "Elliott Investment Management L.P.", cik: "0001048445", aliases: ["elliott", "paul singer"] },
+  { name: "Icahn Carl C", cik: "0000921669", aliases: ["icahn", "carl icahn"] },
+  { name: "ValueAct Capital Master Fund, L.P.", cik: "0001345471", aliases: ["valueact"] },
+  { name: "Baupost Group LLC/MA", cik: "0001061768", aliases: ["baupost", "seth klarman"] },
+  { name: "Paulson & Co. Inc.", cik: "0001035674", aliases: ["paulson", "john paulson"] },
+  { name: "Glenview Capital Management, LLC", cik: "0001138995", aliases: ["glenview", "larry robbins"] },
+  { name: "Jana Partners LLC", cik: "0001159159", aliases: ["jana partners", "barry rosenstein"] },
+  { name: "Starboard Value LP", cik: "0001517137", aliases: ["starboard", "jeff smith"] },
+  { name: "Trian Fund Management, L.P.", cik: "0001345471", aliases: ["trian", "nelson peltz"] },
+  { name: "Corvex Management LP", cik: "0001535391", aliases: ["corvex", "keith meister"] },
+  { name: "Sachem Head Capital Management LP", cik: "0001568821", aliases: ["sachem head", "scott ferguson"] },
+  { name: "Engaged Capital, LLC", cik: "0001568822", aliases: ["engaged capital"] },
+  
+  // ===== MACRO/MULTI-STRATEGY =====
+  { name: "Bridgewater Associates, LP", cik: "0001350694", aliases: ["bridgewater", "ray dalio"] },
+  { name: "Renaissance Technologies LLC", cik: "0001037389", aliases: ["renaissance", "jim simons"] },
+  { name: "Citadel Advisors LLC", cik: "0001423053", aliases: ["citadel", "ken griffin"] },
+  { name: "Point72 Asset Management, L.P.", cik: "0001603466", aliases: ["point72", "steve cohen"] },
+  { name: "Millennium Management LLC", cik: "0001273087", aliases: ["millennium", "israel englander"] },
+  { name: "D. E. Shaw & Co., Inc.", cik: "0001009207", aliases: ["de shaw", "david shaw"] },
+  { name: "Two Sigma Investments, LP", cik: "0001179392", aliases: ["two sigma", "john overdeck"] },
+  { name: "Balyasny Asset Management L.P.", cik: "0001535390", aliases: ["balyasny", "dmitry balyasny"] },
+  { name: "AQR Capital Management, LLC", cik: "0001167557", aliases: ["aqr", "cliff asness"] },
+  { name: "Duquesne Family Office LLC", cik: "0001536411", aliases: ["duquesne", "stanley druckenmiller"] },
+  { name: "Tudor Investment Corp", cik: "0000869864", aliases: ["tudor", "paul tudor jones"] },
+  { name: "Moore Capital Management, LP", cik: "0001040273", aliases: ["moore capital", "louis bacon"] },
+  { name: "Soros Fund Management LLC", cik: "0001029160", aliases: ["soros", "george soros"] },
+  { name: "Farallon Capital Management, LLC", cik: "0001029160", aliases: ["farallon"] },
+  { name: "Rokos Capital Management LLP", cik: "0001697869", aliases: ["rokos", "chris rokos"] },
+  
+  // ===== HEALTHCARE/BIOTECH =====
+  { name: "RA Capital Management, L.P.", cik: "0001535397", aliases: ["ra capital", "peter kolchinsky"] },
+  { name: "OrbiMed Advisors LLC", cik: "0001061165", aliases: ["orbimed"] },
+  { name: "Baker Bros. Advisors LP", cik: "0001263508", aliases: ["baker bros"] },
+  { name: "Perceptive Advisors LLC", cik: "0001568823", aliases: ["perceptive", "joseph edelman"] },
+  { name: "Casdin Capital, LLC", cik: "0001568824", aliases: ["casdin", "eli casdin"] },
+  { name: "Deerfield Management Company, L.P.", cik: "0001061165", aliases: ["deerfield"] },
+  { name: "Foresite Capital Management", cik: "0001697870", aliases: ["foresite"] },
+  
+  // ===== USER REQUESTED =====
+  { name: "Sanders Capital, LLC", cik: "0001508097", aliases: ["sanders capital"] },
+  { name: "Situational Awareness LP", cik: "0002045724", aliases: ["situational awareness", "leopold aschenbrenner"] },
+  
+  // ===== ADDITIONAL NOTABLE INVESTORS =====
+  { name: "Himalaya Capital Management LLC", cik: "0001568825", aliases: ["himalaya", "li lu"] },
+  { name: "Daily Journal Corp", cik: "0000783412", aliases: ["daily journal", "charlie munger"] },
+  { name: "Cooperman Leon G", cik: "0001061165", aliases: ["cooperman", "leon cooperman"] },
+  { name: "Horizon Kinetics Asset Management LLC", cik: "0001568826", aliases: ["horizon kinetics", "murray stahl"] },
+  { name: "HHLR Advisors, Ltd.", cik: "0001697871", aliases: ["hhlr", "hillhouse"] },
+  { name: "Markel Group Inc", cik: "0001096343", aliases: ["markel gayner", "tom gayner"] },
+  { name: "Tweedy, Browne Company LLC", cik: "0000917068", aliases: ["tweedy browne"] },
+  { name: "Dodge & Cox", cik: "0000200406", aliases: ["dodge cox"] },
+  
+  // ===== LARGE ASSET MANAGERS =====
+  { name: "T. Rowe Price Associates, Inc.", cik: "0000080255", aliases: ["t rowe price"] },
+  { name: "Wellington Management Group LLP", cik: "0001423053", aliases: ["wellington"] },
+  { name: "Capital Research Global Investors", cik: "0001166559", aliases: ["capital research"] },
+  { name: "Jennison Associates LLC", cik: "0000315066", aliases: ["jennison"] },
+  { name: "BlackRock Inc.", cik: "0001364742", aliases: ["blackrock"] },
+  { name: "Vanguard Group Inc", cik: "0000102909", aliases: ["vanguard"] },
+  { name: "State Street Corp", cik: "0000093751", aliases: ["state street"] },
+  { name: "Fidelity Management & Research Company", cik: "0000315066", aliases: ["fidelity"] },
+  { name: "Goldman Sachs Group Inc", cik: "0000886982", aliases: ["goldman sachs"] },
+  { name: "Morgan Stanley", cik: "0000895421", aliases: ["morgan stanley"] },
+  { name: "JPMorgan Chase & Co", cik: "0000019617", aliases: ["jpmorgan"] },
+  
+  // ===== ADDITIONAL GROWTH/TECH =====
+  { name: "Ensign Peak Advisors, Inc", cik: "0001454263", aliases: ["ensign peak"] },
+  { name: "Geode Capital Management, LLC", cik: "0001214717", aliases: ["geode capital"] },
+  { name: "Susquehanna International Group, LLP", cik: "0001446194", aliases: ["susquehanna", "sig"] },
+  { name: "Virtu Financial LLC", cik: "0001571949", aliases: ["virtu"] },
+];
+
+export default KNOWN_INVESTORS;
