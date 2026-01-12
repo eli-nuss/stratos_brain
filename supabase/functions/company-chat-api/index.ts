@@ -403,9 +403,30 @@ const unifiedFunctionDeclarations = [
         },
         days_back: {
           type: "number",
-          description: "Optional: Number of days of historical macro data to retrieve (default 1 for latest, max 30 for trend analysis)"
+          description: "Number of days of macro history to analyze for trends (default: 1, max: 30)"
         }
-      }
+      },
+      required: []
+    }
+  },
+  
+  // Institutional Flows Tool - tracks "Smart Money" positioning
+  {
+    name: "get_institutional_flows",
+    description: "Tracks institutional investor (hedge funds, mutual funds) positioning in a stock via 13F filings. Shows whether 'Smart Money' is accumulating (bullish) or distributing (bearish). CRITICAL for avoiding 'value traps' where fundamentals look good but institutions are selling. Use this when analyzing ANY stock to detect institutional accumulation/distribution trends.",
+    parameters: {
+      type: "object",
+      properties: {
+        symbol: { 
+          type: "string", 
+          description: "The stock ticker symbol (e.g., 'AAPL', 'TSLA')" 
+        },
+        lookback_quarters: {
+          type: "number",
+          description: "Number of quarters to analyze for trend (default: 2, max: 4). Use 2 for recent trend, 4 for longer-term pattern."
+        }
+      },
+      required: ["symbol"]
     }
   }
 ]
@@ -1812,6 +1833,169 @@ print(f"✅ Data loaded: {len(df)} rows, columns: {list(df.columns)}")
       }
     }
     
+    case "get_institutional_flows": {
+      const symbol = (args.symbol as string).toUpperCase()
+      const lookback_quarters = Math.min((args.lookback_quarters as number) || 2, 4)
+      
+      try {
+        // Get FMP API key from environment
+        const FMP_API_KEY = Deno.env.get('FMP_API_KEY')
+        if (!FMP_API_KEY) {
+          return {
+            error: 'FMP API key not configured',
+            message: 'Please set FMP_API_KEY in Supabase secrets'
+          }
+        }
+        
+        // Calculate which quarters to fetch (Q3 2024 is most recent available as of Jan 2026)
+        const quarters: Array<{year: number, quarter: number}> = []
+        let year = 2024
+        let quarter = 3
+        
+        for (let i = 0; i < lookback_quarters; i++) {
+          quarters.push({ year, quarter })
+          // Go back one quarter
+          if (quarter === 1) {
+            year -= 1
+            quarter = 4
+          } else {
+            quarter -= 1
+          }
+        }
+        
+        // Fetch data for each quarter
+        const quarterlyData = []
+        for (const { year, quarter } of quarters) {
+          const url = `https://financialmodelingprep.com/stable/institutional-ownership/symbol-positions-summary?symbol=${symbol}&year=${year}&quarter=${quarter}&apikey=${FMP_API_KEY}`
+          
+          const response = await fetch(url)
+          if (!response.ok) {
+            console.error(`Failed to fetch Q${quarter} ${year}:`, response.statusText)
+            continue
+          }
+          
+          const data = await response.json()
+          if (data && data.length > 0) {
+            quarterlyData.push({ ...data[0], year, quarter })
+          }
+        }
+        
+        if (quarterlyData.length === 0) {
+          return {
+            error: 'No institutional data available',
+            message: `No 13F data found for ${symbol}. This could mean the stock is too small to have significant institutional ownership.`
+          }
+        }
+        
+        // Analyze the most recent quarter
+        const latest = quarterlyData[0]
+        
+        // Determine the flow trend
+        let flow_trend = 'Neutral'
+        let flow_strength = 0
+        
+        if (latest.investorsHoldingChange > 0) {
+          flow_trend = 'Accumulation'
+          flow_strength = latest.investorsHoldingChange
+        } else if (latest.investorsHoldingChange < 0) {
+          flow_trend = 'Distribution'
+          flow_strength = Math.abs(latest.investorsHoldingChange)
+        }
+        
+        // Detect value traps (improving fundamentals but decreasing institutional ownership)
+        const is_potential_value_trap = latest.investorsHoldingChange < -50 || 
+                                        (latest.closedPositions > latest.newPositions * 1.5)
+        
+        // Detect short squeeze setup (high institutional ownership + high short interest)
+        const short_squeeze_potential = latest.putCallRatio > 1.5 && latest.investorsHolding > 1000
+        
+        // Build the response
+        const response = {
+          symbol,
+          as_of_quarter: `Q${latest.quarter} ${latest.year}`,
+          date: latest.date,
+          
+          // Holder Metrics
+          institutional_holders: {
+            current: latest.investorsHolding,
+            previous: latest.lastInvestorsHolding,
+            change: latest.investorsHoldingChange,
+            change_pct: latest.lastInvestorsHolding > 0 
+              ? ((latest.investorsHoldingChange / latest.lastInvestorsHolding) * 100).toFixed(2)
+              : 'N/A'
+          },
+          
+          // Ownership Metrics
+          ownership: {
+            percent: latest.ownershipPercent,
+            previous_percent: latest.lastOwnershipPercent,
+            change_pct: latest.ownershipPercentChange,
+            total_value_usd: latest.totalInvested,
+            total_shares: latest.numberOf13Fshares
+          },
+          
+          // Position Changes (The Key Signal)
+          position_changes: {
+            new_positions: latest.newPositions,
+            increased_positions: latest.increasedPositions,
+            closed_positions: latest.closedPositions,
+            reduced_positions: latest.reducedPositions,
+            net_new: (latest.newPositions + latest.increasedPositions) - (latest.closedPositions + latest.reducedPositions)
+          },
+          
+          // Options Activity
+          options_sentiment: {
+            total_calls: latest.totalCalls,
+            total_puts: latest.totalPuts,
+            put_call_ratio: latest.putCallRatio,
+            interpretation: latest.putCallRatio > 1.2 
+              ? 'Bearish (More puts than calls)' 
+              : latest.putCallRatio < 0.8 
+              ? 'Bullish (More calls than puts)' 
+              : 'Neutral'
+          },
+          
+          // Flow Analysis
+          flow_analysis: {
+            trend: flow_trend,
+            strength: flow_strength,
+            interpretation: flow_trend === 'Accumulation'
+              ? `✅ BULLISH: ${flow_strength} more institutions entered this quarter. Smart Money is buying.`
+              : flow_trend === 'Distribution'
+              ? `⚠️ BEARISH: ${flow_strength} institutions exited this quarter. Smart Money is selling.`
+              : 'Neutral: No significant change in institutional interest.'
+          },
+          
+          // Risk Flags
+          risk_flags: {
+            potential_value_trap: is_potential_value_trap,
+            short_squeeze_potential: short_squeeze_potential,
+            warnings: [
+              ...(is_potential_value_trap ? ['⚠️ VALUE TRAP RISK: Institutions are fleeing despite potentially attractive valuation'] : []),
+              ...(short_squeeze_potential ? ['🚀 SHORT SQUEEZE POTENTIAL: High put/call ratio with strong institutional backing'] : [])
+            ]
+          },
+          
+          // Historical Trend (if multiple quarters available)
+          historical_trend: quarterlyData.length > 1 ? quarterlyData.map(q => ({
+            quarter: `Q${q.quarter} ${q.year}`,
+            holders: q.investorsHolding,
+            ownership_pct: q.ownershipPercent,
+            flow: q.investorsHoldingChange > 0 ? 'Accumulation' : q.investorsHoldingChange < 0 ? 'Distribution' : 'Flat'
+          })) : undefined
+        }
+        
+        return response
+        
+      } catch (error) {
+        console.error('Error in get_institutional_flows:', error)
+        return {
+          error: 'Internal error fetching institutional flows',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        }
+      }
+    }
+    
     default:
       return { error: `Unknown function: ${name}` }
   }
@@ -1950,6 +2134,47 @@ ${groundingRules}
 **NEVER say "This stock looks good" without explaining HOW the current macro environment supports or threatens that thesis.**
 
 Example: "AAPL has strong fundamentals, BUT the current Risk-Off regime and inverted yield curve suggest waiting for a better entry point."
+
+## INSTITUTIONAL FLOWS PROTOCOL (FOLLOW THE SMART MONEY)
+**Before recommending ANY stock, you MUST check institutional positioning using \`get_institutional_flows\` to avoid value traps.**
+
+### When to Call \`get_institutional_flows\`:
+- User asks "Should I buy [stock]?" → Call AFTER macro context
+- User asks "Is [stock] undervalued?" → Call to check if institutions agree
+- User discusses "value" or "opportunity" → Call to detect value traps
+- Any stock analysis → Call to see if Smart Money is buying or selling
+
+### How to Interpret Institutional Flows:
+1. **Accumulation (Positive investorsHoldingChange)**:
+   - ✅ BULLISH: More institutions are entering → Smart Money is buying
+   - Confirms your bullish thesis
+   - Example: "Institutions added +120 positions last quarter - they see value here"
+
+2. **Distribution (Negative investorsHoldingChange)**:
+   - ⚠️ BEARISH: Institutions are exiting → Smart Money is selling
+   - **VALUE TRAP WARNING**: Stock may look cheap but institutions know something
+   - Example: "Despite low P/E, institutions fled (-80 holders). This is a value trap."
+
+3. **Position Changes**:
+   - **new_positions + increased_positions > closed_positions + reduced_positions** = Bullish
+   - **closed_positions + reduced_positions > new_positions + increased_positions** = Bearish
+
+4. **Put/Call Ratio**:
+   - > 1.2 = Bearish (More puts than calls)
+   - < 0.8 = Bullish (More calls than puts)
+   - > 1.5 + High institutional ownership = Short squeeze potential 🚀
+
+### Critical Rule - Avoiding Value Traps:
+**If fundamentals look good BUT institutions are distributing, you MUST warn the user:**
+
+Example: "INTC looks cheap at 10x P/E, BUT institutions exited -150 positions last quarter. This is a classic value trap - they know something we don't. AVOID."
+
+### Integration with Macro:
+**Combine both tools for complete picture:**
+- Macro = Market environment (tailwind or headwind?)
+- Institutional Flows = Smart Money positioning (are they buying or selling?)
+
+Example: "NVDA has strong fundamentals. ✅ Macro: Risk-On regime supports growth stocks. ✅ Institutions: +200 new holders last quarter. STRONG BUY."
 
 ## Your Tools & Capabilities
 ${roleDescription}
