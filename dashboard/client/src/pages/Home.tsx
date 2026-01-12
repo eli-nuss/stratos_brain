@@ -11,6 +11,7 @@ import ModelPortfolioHoldings from "@/components/ModelPortfolioHoldings";
 import AssetDetail from "@/components/AssetDetail";
 import useSWR from "swr";
 import { useStockLists, StockList } from "@/hooks/useStockLists";
+import { GlobalChatInterface } from "@/components/GlobalChatInterface";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -121,6 +122,22 @@ export default function Home() {
       onListDeleted={mutateLists}
       onListRenamed={mutateLists}
     >
+      {/* NEW: Global Brain Section */}
+      <section className="relative rounded-xl overflow-hidden border border-slate-700 bg-slate-900 shadow-2xl mb-6">
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/20 via-slate-900 to-slate-900 z-0" />
+        <div className="relative z-10 p-6">
+          <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
+            <span className="text-4xl">🧠</span> Stratos CIO
+          </h1>
+          <p className="text-slate-400 max-w-2xl mb-6">
+            Your autonomous Chief Investment Officer. Query the entire market, screen for opportunities, and analyze macro trends in real-time.
+          </p>
+          <div className="h-[600px] bg-slate-950/50 backdrop-blur-sm rounded-lg border border-slate-800/50">
+            <GlobalChatInterface />
+          </div>
+        </div>
+      </section>
+
       <div className="h-[calc(100vh-10rem)] sm:h-[calc(100vh-8rem)]">
         {activeTab === "watchlist" ? (
           <CustomizableWatchlistTable

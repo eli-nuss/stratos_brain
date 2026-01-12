@@ -61,6 +61,16 @@ export default defineConfig({
           });
         },
       },
+      "/api/global-chat-api": {
+        target: "https://wfogbaipiqootjrsprde.supabase.co/functions/v1/global-chat-api",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/global-chat-api/, ""),
+        configure: (proxy, _options) => {
+          proxy.on("proxyReq", (proxyReq, _req, _res) => {
+            proxyReq.setHeader("x-stratos-key", process.env.STRATOS_BRAIN_API_KEY || "stratos_brain_api_key_2024");
+          });
+        },
+      },
     },
   },
 });
