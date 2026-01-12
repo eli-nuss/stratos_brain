@@ -355,44 +355,56 @@ const DEEP_RESEARCH_TEMPLATE = `# Deep Research Report: [Company Name] ([Ticker]
 
 *[Synthesize everything above: This company makes money by [X], selling primarily to [Y] customers, with [Z]% recurring revenue. The key economic drivers are [A, B, C]. Margins are [expanding/stable/contracting] because [reason].]*
 
+### 1.11 Upcoming Catalysts (12-Month View)
+
+**What events will move this stock in the next 12 months?**
+
+| # | Catalyst | Expected Date | Impact | Bull Case | Bear Case |
+|---|----------|---------------|--------|-----------|-----------|
+| 1 | [Event: e.g., Q2 Earnings] | [Date] | High/Med/Low | [Positive scenario] | [Negative scenario] |
+| 2 | [Event: e.g., Product Launch] | [Date] | | | |
+| 3 | [Event: e.g., FDA Decision] | [Date] | | | |
+
+**Catalyst Assessment:** *[Which catalyst has the highest probability of moving the stock? What's the risk/reward setup?]*
+
 ---
 
 ## Part 2: Historical Financial Analysis
 
-### 2.1 Income Statement Trends (7-10 Years)
+### 2.1 Income Statement Trends (5 Years)
 
 *[Agent Instruction: Extract actual historical data. Use Google Search to find investor presentations, 10-K filings, and financial databases.]*
 
-| Metric ($M) | FY-9 | FY-8 | FY-7 | FY-6 | FY-5 | FY-4 | FY-3 | FY-2 | FY-1 | TTM |
-|-------------|------|------|------|------|------|------|------|------|------|-----|
-| Revenue | | | | | | | | | | |
-| YoY Growth % | | | | | | | | | | |
-| Gross Profit | | | | | | | | | | |
-| Gross Margin % | | | | | | | | | | |
-| EBITDA | | | | | | | | | | |
-| EBITDA Margin % | | | | | | | | | | |
-| EBIT | | | | | | | | | | |
-| EBIT Margin % | | | | | | | | | | |
-| Net Income | | | | | | | | | | |
-| Net Margin % | | | | | | | | | | |
-| Diluted EPS | | | | | | | | | | |
+| Metric ($M) | FY-5 | FY-4 | FY-3 | FY-2 | FY-1 | TTM |
+|-------------|------|------|------|------|------|-----|
+| Revenue | | | | | | |
+| YoY Growth % | | | | | | |
+| Gross Profit | | | | | | |
+| Gross Margin % | | | | | | |
+| EBITDA | | | | | | |
+| EBITDA Margin % | | | | | | |
+| EBIT | | | | | | |
+| EBIT Margin % | | | | | | |
+| Net Income | | | | | | |
+| Net Margin % | | | | | | |
+| Diluted EPS | | | | | | |
 
 **Key Observations:**
 1. **Revenue Growth:** *[Describe the trajectory - accelerating, decelerating, cyclical?]*
 2. **Margin Story:** *[Are margins expanding? Why or why not?]*
 3. **Inflection Points:** *[Any major changes? What caused them?]*
 
-### 2.2 Cash Flow Analysis (7-10 Years)
+### 2.2 Cash Flow Analysis (5 Years)
 
-| Metric ($M) | FY-9 | FY-8 | FY-7 | FY-6 | FY-5 | FY-4 | FY-3 | FY-2 | FY-1 | TTM |
-|-------------|------|------|------|------|------|------|------|------|------|-----|
-| Operating Cash Flow | | | | | | | | | | |
-| Capital Expenditures | | | | | | | | | | |
-| Free Cash Flow | | | | | | | | | | |
-| FCF Margin % | | | | | | | | | | |
-| FCF Conversion % | | | | | | | | | | |
-| Dividends Paid | | | | | | | | | | |
-| Share Buybacks | | | | | | | | | | |
+| Metric ($M) | FY-5 | FY-4 | FY-3 | FY-2 | FY-1 | TTM |
+|-------------|------|------|------|------|------|-----|
+| Operating Cash Flow | | | | | | |
+| Capital Expenditures | | | | | | |
+| Free Cash Flow | | | | | | |
+| FCF Margin % | | | | | | |
+| FCF Conversion % | | | | | | |
+| Dividends Paid | | | | | | |
+| Share Buybacks | | | | | | |
 
 **Cash Flow Quality Assessment:**
 - Is FCF tracking net income? *[If not, why?]*
@@ -601,14 +613,17 @@ Based on the business model analysis above, these are the **3-5 metrics that act
 
 ### 5.4 Guidance vs Reality ("Say/Do" Audit)
 
-| Year | What Management Promised | What Actually Happened | Grade |
-|------|--------------------------|------------------------|-------|
-| FY-3 | | | A/B/C/D/F |
-| FY-2 | | | |
-| FY-1 | | | |
+**Find one specific example where management missed or exceeded their own long-term guidance:**
 
-**Management Credibility Score:** [High/Medium/Low]
-*[Do they under-promise and over-deliver, or vice versa?]*
+| Timeframe | What Management Promised | What Actually Happened | Assessment |
+|-----------|--------------------------|------------------------|------------|
+| [Year/Period] | [Specific guidance given] | [Actual outcome] | [Met/Exceeded/Missed] |
+
+**Example Analysis:** *[Describe the specific promise, the context, and what it reveals about management's forecasting ability and credibility.]*
+
+**Management Credibility Assessment:** 
+- **Track Record:** *[Based on this and other examples, do they tend to under-promise and over-deliver, or vice versa?]*
+- **Communication Style:** *[Are they transparent about challenges? Do they provide realistic guidance?]*
 
 ---
 
@@ -661,9 +676,13 @@ Based on the business model analysis above, these are the **3-5 metrics that act
 
 ## Part 8: Summary & Key Takeaways
 
-### 8.1 Business Model Summary
+### 8.1 Investment Thesis Recap (The Bull vs Bear Case)
 
-*[1 paragraph: How does this company make money? What's the economic engine?]*
+**The Bull Case:** *[2-3 sentences: Why would this investment succeed? What are the key drivers of upside?]*
+
+**The Bear Case:** *[2-3 sentences: Why would this investment fail? What are the key risks?]*
+
+**Net Assessment:** *[1 sentence: Given the above, what is the risk/reward setup?]*
 
 ### 8.2 The Key Metrics That Matter
 
@@ -1056,11 +1075,13 @@ async function callGeminiWithSearch(
   prompt: string,
   apiKey: string,
   systemPrompt: string = SYSTEM_PROMPT,
-  maxTokens: number = 16384
+  maxTokens: number = 16384,
+  useSearch: boolean = true // Enable/disable Google Search grounding
 ): Promise<{ text: string; sources: Array<{ title: string; uri: string }> }> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${apiKey}`
   
-  const requestBody = {
+  // Build request body - only include tools if useSearch is true
+  const requestBody: Record<string, unknown> = {
     contents: [
       {
         role: "user",
@@ -1070,18 +1091,22 @@ async function callGeminiWithSearch(
     systemInstruction: {
       parts: [{ text: systemPrompt }]
     },
-    tools: [
-      {
-        googleSearch: {}
-      }
-    ],
     generationConfig: {
       temperature: 0.7,
       maxOutputTokens: maxTokens,
     }
   }
   
-  console.log('Calling Gemini API with Google Search grounding...')
+  // Only add Google Search tool if useSearch is enabled
+  if (useSearch) {
+    requestBody.tools = [
+      {
+        googleSearch: {}
+      }
+    ]
+  }
+  
+  console.log(`Calling Gemini API ${useSearch ? 'with' : 'without'} Google Search grounding...`)
   
   const response = await fetch(url, {
     method: 'POST',
@@ -1115,8 +1140,8 @@ async function callGeminiWithSearch(
       }
     }
     
-    // Extract grounding sources
-    if (candidate.groundingMetadata?.groundingChunks) {
+    // Extract grounding sources (only if search was used)
+    if (useSearch && candidate.groundingMetadata?.groundingChunks) {
       for (const chunk of candidate.groundingMetadata.groundingChunks) {
         if (chunk.web) {
           sources.push({
@@ -1162,10 +1187,303 @@ serve(async (req) => {
       }
       
       // Validate document type - now includes deep_research
-      const validTypes = ['one_pager', 'memo', 'deep_research']
+      const validTypes = ['one_pager', 'memo', 'deep_research', 'all']
       const docType = validTypes.includes(document_type) ? document_type : 'one_pager'
       
       console.log(`Generating ${docType} for ${symbol} (asset_type: ${asset_type || 'not specified'})...`)
+      // ==================== CASCADE GENERATION (document_type: 'all') ====================
+      if (document_type === 'all') {
+        console.log(`Starting Cascade Generation for ${symbol}...`)
+        const startTime = Date.now()
+        const results: { deep_research?: string; memo?: string; one_pager?: string } = {}
+        
+        // Fetch asset data first (shared across all documents)
+        let assetDataUrl = `${supabaseUrl}/functions/v1/control-api/dashboard/asset?symbol=${symbol}`
+        if (asset_type) {
+          assetDataUrl += `&asset_type=${asset_type}`
+        }
+        
+        const assetResponse = await fetch(assetDataUrl)
+        if (!assetResponse.ok) {
+          const errorText = await assetResponse.text()
+          return new Response(JSON.stringify({ error: 'Failed to fetch asset data', details: errorText }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const assetData: AssetData = await assetResponse.json()
+        const companyName = assetData.asset?.name || symbol
+        const todayDate = new Date().toISOString().split('T')[0]
+        
+        // Fetch additional fundamental data for deep research
+        if (asset_id) {
+          try {
+            const { data: quarterlyData } = await supabase
+              .from('equity_quarterly_fundamentals')
+              .select('*')
+              .eq('asset_id', asset_id)
+              .order('fiscal_date_ending', { ascending: false })
+              .limit(20)
+            
+            if (quarterlyData) {
+              assetData.quarterly_fundamentals = quarterlyData
+            }
+            
+            const { data: annualData } = await supabase
+              .from('equity_annual_fundamentals')
+              .select('*')
+              .eq('asset_id', asset_id)
+              .order('fiscal_date_ending', { ascending: false })
+              .limit(10)
+            
+            if (annualData) {
+              assetData.annual_fundamentals = annualData
+            }
+            
+            const { data: metadataData } = await supabase
+              .from('equity_metadata')
+              .select('*')
+              .eq('asset_id', asset_id)
+              .single()
+            
+            if (metadataData) {
+              assetData.fundamentals = metadataData
+            }
+          } catch (err) {
+            console.log('Note: Could not fetch additional fundamentals data:', err)
+          }
+        }
+        
+        // --- PHASE 1: THE SOURCE OF TRUTH (Deep Research) ---
+        console.log('Phase 1: Generating Deep Research Report (with Google Search)...')
+        const researchContext = formatDeepResearchContext(assetData)
+        const researchPrompt = `
+# TASK: Generate Deep Research Report for ${symbol} (${companyName})
+
+## CONTEXT
+You are creating a comprehensive Deep Research Report that will serve as the foundation for ongoing investment research. This report will be used with the Company Chat feature for follow-up questions.
+
+## INPUT DATA
+
+### Asset: ${symbol} (${companyName})
+### Date: ${todayDate}
+### Asset Type: ${asset_type || 'equity'}
+
+### DATABASE DATA (Use as starting point, but research extensively beyond this):
+\`\`\`json
+${researchContext}
+\`\`\`
+
+### TEMPLATE (Follow this structure exactly):
+\`\`\`markdown
+${DEEP_RESEARCH_TEMPLATE}
+\`\`\`
+
+## CRITICAL INSTRUCTIONS
+
+1. **BUSINESS MODEL FIRST**: Before writing ANY financials, deeply research and understand:
+   - What products/services does ${companyName} sell?
+   - How does revenue actually flow in? (Subscription? Transaction? License?)
+   - Who are the customers? (Enterprise? SMB? Consumer?)
+   - What's the geographic breakdown?
+   - What drives margins?
+
+2. **USE GOOGLE SEARCH EXTENSIVELY**: You MUST research:
+   - Recent investor presentations
+   - 10-K and 10-Q filings (especially Item 1 - Business Description)
+   - Earnings call transcripts
+   - Industry reports
+   - Competitor analysis
+   - Management interviews
+
+3. **IDENTIFY BUSINESS-SPECIFIC METRICS**: Based on the business model you discover:
+   - What 3-5 metrics ACTUALLY MATTER for THIS specific business?
+   - Do NOT use generic metrics
+   - Each metric must be justified based on the business model
+
+4. **HISTORICAL DATA**: Show 5 years of financial history where available
+
+5. **CITE EVERYTHING**: Every data point should have a source
+
+6. **OUTPUT**: Return the complete Deep Research Report in clean Markdown format following the template exactly.
+`
+        
+        const { text: deepResearchText, sources } = await callGeminiWithSearch(
+          researchPrompt,
+          geminiApiKey,
+          DEEP_RESEARCH_SYSTEM_PROMPT,
+          32768,
+          true // useSearch = TRUE
+        )
+        
+        if (!deepResearchText || deepResearchText.trim() === '') {
+          return new Response(JSON.stringify({ error: 'Failed to generate Deep Research Report' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Save Deep Research Report
+        const deepResearchFileName = `${symbol}_Deep_Research_Report_${todayDate}.md`
+        const deepResearchPath = `deep_research/${asset_id || symbol}/${deepResearchFileName}`
+        
+        await supabase.storage.from('asset-files').upload(deepResearchPath, deepResearchText, {
+          contentType: 'text/markdown',
+          upsert: true
+        })
+        
+        const { data: deepResearchUrl } = supabase.storage.from('asset-files').getPublicUrl(deepResearchPath)
+        results.deep_research = deepResearchUrl.publicUrl
+        
+        if (asset_id) {
+          await supabase.from('asset_files').delete().eq('asset_id', asset_id).eq('file_type', 'deep_research')
+          await supabase.from('asset_files').insert({
+            asset_id,
+            file_name: deepResearchFileName,
+            file_path: deepResearchUrl.publicUrl,
+            file_type: 'deep_research',
+            file_size: deepResearchText.length,
+            description: `Generated by Gemini AI (${sources.length} sources cited)`
+          })
+        }
+        
+        console.log('Phase 1 complete. Deep Research Report saved.')
+        
+        // --- PHASE 2: THE SYNTHESIS (Memo) ---
+        console.log('Phase 2: Synthesizing Investment Memo (no search)...')
+        const memoPrompt = `
+You are the Stratos Brain Investment Committee Secretary.
+
+TASK: Convert the provided Deep Research Report into a standard Investment Memo.
+
+CRITICAL RULES:
+1. DO NOT SEARCH THE WEB. Use the Report below as your ONLY source of truth.
+2. If the Report lacks data for a section, state "Not specified in Research Report".
+3. Maintain the same "Bull/Bear" stance as the Report.
+4. Use the exact financial figures from the Report - do not make up new numbers.
+5. Follow the TEMPLATE structure exactly.
+
+<SOURCE_REPORT>
+${deepResearchText}
+</SOURCE_REPORT>
+
+<TEMPLATE>
+${MEMO_TEMPLATE}
+</TEMPLATE>
+
+Generate the complete Investment Memo following the template structure. Use only information from the SOURCE_REPORT.
+`
+        
+        const { text: memoText } = await callGeminiWithSearch(
+          memoPrompt,
+          geminiApiKey,
+          "You are an expert financial synthesizer. Your job is to transform comprehensive research into concise investment documents. Use ONLY the provided source material - do not add external information.",
+          16384,
+          false // useSearch = FALSE
+        )
+        
+        // Save Memo
+        const memoFileName = `${symbol}_Investment_Memo_${todayDate}.md`
+        const memoPath = `memos/${asset_id || symbol}/${memoFileName}`
+        
+        await supabase.storage.from('asset-files').upload(memoPath, memoText, {
+          contentType: 'text/markdown',
+          upsert: true
+        })
+        
+        const { data: memoUrl } = supabase.storage.from('asset-files').getPublicUrl(memoPath)
+        results.memo = memoUrl.publicUrl
+        
+        if (asset_id) {
+          await supabase.from('asset_files').delete().eq('asset_id', asset_id).eq('file_type', 'memo')
+          await supabase.from('asset_files').insert({
+            asset_id,
+            file_name: memoFileName,
+            file_path: memoUrl.publicUrl,
+            file_type: 'memo',
+            file_size: memoText.length,
+            description: 'Synthesized from Deep Research Report'
+          })
+        }
+        
+        console.log('Phase 2 complete. Investment Memo saved.')
+        
+        // --- PHASE 3: THE SNAPSHOT (One Pager) ---
+        console.log('Phase 3: Synthesizing One Pager (no search)...')
+        const onePagerPrompt = `
+You are the Stratos Brain Investment Committee Secretary.
+
+TASK: Synthesize the provided Deep Research Report into a high-impact One Pager.
+
+CRITICAL RULES:
+1. DO NOT SEARCH THE WEB. Use the Report below as your ONLY source of truth.
+2. Extract only the most critical information - this is a 1-page summary.
+3. Maintain the same investment stance as the Report.
+4. Use the exact financial figures from the Report.
+5. Follow the TEMPLATE structure exactly.
+
+<SOURCE_REPORT>
+${deepResearchText}
+</SOURCE_REPORT>
+
+<TEMPLATE>
+${ONE_PAGER_TEMPLATE}
+</TEMPLATE>
+
+Generate the complete One Pager following the template structure. Use only information from the SOURCE_REPORT.
+`
+        
+        const { text: onePagerText } = await callGeminiWithSearch(
+          onePagerPrompt,
+          geminiApiKey,
+          "You are an expert financial synthesizer. Your job is to distill comprehensive research into a single-page investment snapshot. Be concise but impactful. Use ONLY the provided source material.",
+          8192,
+          false // useSearch = FALSE
+        )
+        
+        // Save One Pager
+        const onePagerFileName = `${symbol}_One_Pager_${todayDate}.md`
+        const onePagerPath = `one_pagers/${asset_id || symbol}/${onePagerFileName}`
+        
+        await supabase.storage.from('asset-files').upload(onePagerPath, onePagerText, {
+          contentType: 'text/markdown',
+          upsert: true
+        })
+        
+        const { data: onePagerUrl } = supabase.storage.from('asset-files').getPublicUrl(onePagerPath)
+        results.one_pager = onePagerUrl.publicUrl
+        
+        if (asset_id) {
+          await supabase.from('asset_files').delete().eq('asset_id', asset_id).eq('file_type', 'one_pager')
+          await supabase.from('asset_files').insert({
+            asset_id,
+            file_name: onePagerFileName,
+            file_path: onePagerUrl.publicUrl,
+            file_type: 'one_pager',
+            file_size: onePagerText.length,
+            description: 'Synthesized from Deep Research Report'
+          })
+        }
+        
+        console.log('Phase 3 complete. One Pager saved.')
+        
+        const totalTime = (Date.now() - startTime) / 1000
+        console.log(`Cascade generation complete in ${totalTime}s`)
+        
+        return new Response(JSON.stringify({
+          success: true,
+          document_type: 'all',
+          files: results,
+          generation_time_seconds: totalTime,
+          sources_cited: sources.length
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+      
+      // ==================== SINGLE DOCUMENT GENERATION ====================
+
       
       // Step 1: Fetch asset data from control-api
       // Include asset_type if provided to disambiguate symbols like COMP (Compass equity vs Compound crypto)

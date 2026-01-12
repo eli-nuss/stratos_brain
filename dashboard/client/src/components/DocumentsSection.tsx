@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileText, Sparkles, ChevronDown, ChevronUp, ExternalLink, Loader2, Clock, CheckCircle, BookOpen, MessageSquare } from 'lucide-react';
+import { FileText, Sparkles, ChevronDown, ChevronUp, ExternalLink, Loader2, Clock, CheckCircle, BookOpen, MessageSquare, Zap } from 'lucide-react';
 
 interface AssetFile {
   file_id: number;
@@ -25,6 +25,13 @@ interface GenerationStatus {
   error?: string;
 }
 
+interface CascadeStatus {
+  isGenerating: boolean;
+  currentPhase: 'idle' | 'deep_research' | 'memo' | 'one_pager' | 'complete';
+  progress?: string;
+  error?: string;
+}
+
 const API_BASE = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1';
 
 export function DocumentsSection({ assetId, symbol, companyName, assetType, onOpenChat }: DocumentsSectionProps) {
@@ -37,6 +44,7 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
   const [onePagerStatus, setOnePagerStatus] = useState<GenerationStatus>({ isGenerating: false });
   const [memoStatus, setMemoStatus] = useState<GenerationStatus>({ isGenerating: false });
   const [deepResearchStatus, setDeepResearchStatus] = useState<GenerationStatus>({ isGenerating: false });
+  const [cascadeStatus, setCascadeStatus] = useState<CascadeStatus>({ isGenerating: false, currentPhase: 'idle' });
 
   // Fetch documents on mount and when assetId changes
   useEffect(() => {
@@ -67,6 +75,72 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
       setDeepResearch(deepResearchFiles);
     } catch (error) {
       console.error('Error fetching documents:', error);
+    }
+  };
+
+  // Generate all documents using cascade workflow
+  const generateAllDocuments = async () => {
+    setCascadeStatus({ 
+      isGenerating: true, 
+      currentPhase: 'deep_research',
+      progress: 'Phase 1/3: Researching & Writing Deep Report...'
+    });
+
+    try {
+      const response = await fetch(`${API_BASE}/control-api/dashboard/create-document`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          symbol,
+          asset_id: assetId,
+          asset_type: assetType,
+          document_type: 'all' // Cascade generation
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setCascadeStatus({ 
+          isGenerating: false, 
+          currentPhase: 'complete',
+          progress: `All documents generated in ${data.generation_time_seconds?.toFixed(1)}s with ${data.sources_cited} sources` 
+        });
+        
+        // Refresh documents to show all new files
+        await fetchDocuments();
+        
+        // Open the deep research document in a new tab
+        if (data.files?.deep_research) {
+          window.open(data.files.deep_research, '_blank');
+        }
+        
+        // Clear the success message after 10 seconds
+        setTimeout(() => {
+          setCascadeStatus({ isGenerating: false, currentPhase: 'idle' });
+        }, 10000);
+      } else {
+        setCascadeStatus({ 
+          isGenerating: false, 
+          currentPhase: 'idle',
+          error: data.error || 'Failed to generate documents' 
+        });
+        
+        setTimeout(() => {
+          setCascadeStatus({ isGenerating: false, currentPhase: 'idle' });
+        }, 10000);
+      }
+    } catch (error) {
+      console.error('Error generating documents:', error);
+      setCascadeStatus({ 
+        isGenerating: false, 
+        currentPhase: 'idle',
+        error: 'Network error. Please try again.' 
+      });
+      
+      setTimeout(() => {
+        setCascadeStatus({ isGenerating: false, currentPhase: 'idle' });
+      }, 10000);
     }
   };
 
@@ -160,6 +234,7 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
     const latestDoc = documents[0];
     const historyDocs = documents.slice(1);
     const hasHistory = historyDocs.length > 0;
+    const isCascadeGenerating = cascadeStatus.isGenerating;
 
     return (
       <div className="flex-1 min-w-0">
@@ -170,7 +245,7 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
           </h4>
           <button
             onClick={() => generateDocument(docType)}
-            disabled={status.isGenerating}
+            disabled={status.isGenerating || isCascadeGenerating}
             className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
               isDeepResearch 
                 ? 'bg-purple-600 hover:bg-purple-500 disabled:bg-gray-600' 
@@ -331,11 +406,72 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
 
   return (
     <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-800">
-      <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
-        <Sparkles className="w-4 h-4 text-emerald-400" />
-        AI Documents
-        <span className="text-xs text-gray-500 font-normal ml-2">Powered by Gemini</span>
-      </h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-base font-semibold text-white flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-emerald-400" />
+          AI Documents
+          <span className="text-xs text-gray-500 font-normal ml-2">Powered by Gemini</span>
+        </h3>
+        
+        {/* Generate All Button */}
+        <button
+          onClick={generateAllDocuments}
+          disabled={cascadeStatus.isGenerating || onePagerStatus.isGenerating || memoStatus.isGenerating || deepResearchStatus.isGenerating}
+          className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gradient-to-r from-purple-600 to-emerald-600 hover:from-purple-500 hover:to-emerald-500 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Zap className="w-4 h-4" />
+          Generate All Documents
+        </button>
+      </div>
+
+      {/* Cascade Generation Status */}
+      {cascadeStatus.isGenerating && (
+        <div className="mb-4 p-4 rounded-lg bg-gradient-to-r from-purple-900/30 to-emerald-900/30 border border-purple-700/50">
+          <div className="flex items-center gap-3 mb-2">
+            <Loader2 className="w-5 h-5 animate-spin text-purple-400" />
+            <span className="text-sm font-medium text-white">Cascade Document Generation</span>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${cascadeStatus.currentPhase === 'deep_research' ? 'bg-purple-400 animate-pulse' : cascadeStatus.currentPhase !== 'idle' ? 'bg-emerald-400' : 'bg-gray-600'}`} />
+              <span className={`text-xs ${cascadeStatus.currentPhase === 'deep_research' ? 'text-purple-300' : 'text-gray-400'}`}>
+                Phase 1: Deep Research Report (with Google Search)
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${cascadeStatus.currentPhase === 'memo' ? 'bg-purple-400 animate-pulse' : ['one_pager', 'complete'].includes(cascadeStatus.currentPhase) ? 'bg-emerald-400' : 'bg-gray-600'}`} />
+              <span className={`text-xs ${cascadeStatus.currentPhase === 'memo' ? 'text-purple-300' : 'text-gray-400'}`}>
+                Phase 2: Investment Memo (synthesized from research)
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${cascadeStatus.currentPhase === 'one_pager' ? 'bg-purple-400 animate-pulse' : cascadeStatus.currentPhase === 'complete' ? 'bg-emerald-400' : 'bg-gray-600'}`} />
+              <span className={`text-xs ${cascadeStatus.currentPhase === 'one_pager' ? 'text-purple-300' : 'text-gray-400'}`}>
+                Phase 3: One Pager (synthesized from research)
+              </span>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-3">
+            Deep Research does the heavy lifting with Google Search. Memo and One Pager are synthesized from the research for perfect consistency.
+          </p>
+        </div>
+      )}
+
+      {/* Cascade Success/Error Status */}
+      {!cascadeStatus.isGenerating && cascadeStatus.currentPhase === 'complete' && cascadeStatus.progress && (
+        <div className="mb-4 p-3 rounded-lg bg-emerald-900/30 border border-emerald-700/50">
+          <div className="flex items-center gap-2 text-emerald-400">
+            <CheckCircle className="w-4 h-4" />
+            <span className="text-sm">{cascadeStatus.progress}</span>
+          </div>
+        </div>
+      )}
+
+      {cascadeStatus.error && (
+        <div className="mb-4 p-3 rounded-lg bg-red-900/30 border border-red-700/50">
+          <span className="text-sm text-red-400">{cascadeStatus.error}</span>
+        </div>
+      )}
       
       {/* Deep Research Report - Full Width at Top */}
       <div className="mb-4 pb-4 border-b border-gray-700">
