@@ -1,32 +1,27 @@
-import { useState } from "react";
-import DashboardLayout from "@/components/DashboardLayout";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Search, Plus, RefreshCw, Trash2, TrendingUp, TrendingDown, Minus, DollarSign, Users } from "lucide-react";
-import { toast } from "sonner";
-import useSWR from "swr";
+import { useState, useEffect } from 'react';
+import { 
+  Users, TrendingUp, Search, Plus, ArrowLeft, 
+  BarChart3, BrainCircuit, Activity, RefreshCw, Trash2, X,
+  ChevronRight, DollarSign, Percent, Target
+} from 'lucide-react';
+import DashboardLayout from '@/components/DashboardLayout';
+import { useAuth } from '@/contexts/AuthContext';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import useSWR, { mutate } from 'swr';
 
-const API_BASE = "/api/investor-api";
-
-const fetcher = async (url: string) => {
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`API error: ${res.status}`);
-  }
-  const data = await res.json();
-  return Array.isArray(data) ? data : [];
-};
-
-interface InvestorSummary {
+// Types
+interface Investor {
   investor_id: number;
   investor_name: string;
   cik: string;
+  manager_name?: string;
   last_filing_date: string;
   last_updated: string;
+  top_sector?: string;
+  turnover_rate?: string;
+  performance_1y?: number;
+  performance_ytd?: number;
   total_positions: number;
   total_portfolio_value: number;
   new_positions: number;
@@ -36,7 +31,10 @@ interface InvestorSummary {
   top_holdings: string[];
 }
 
-interface Holding {
+interface EnrichedHolding {
+  id: number;
+  investor_id: number;
+  investor_name: string;
   symbol: string;
   company_name: string;
   shares: number;
@@ -47,368 +45,588 @@ interface Holding {
   action: string;
   date_reported: string;
   quarter: string;
+  // Stratos AI enrichment
+  current_price?: number;
+  day_change?: number;
+  stratos_ai_score?: number;
+  stratos_ai_direction?: string;
+  stratos_rsi?: number;
+  sector?: string;
+}
+
+interface ConsensusStock {
+  symbol: string;
+  company_name: string;
+  guru_count: number;
+  guru_names: string[];
+  total_guru_invested: number;
+  avg_conviction: number;
+  latest_filing_date: string;
+  // Stratos AI enrichment
+  current_price?: number;
+  day_change?: number;
+  stratos_ai_score?: number;
+  stratos_ai_direction?: string;
+  stratos_rsi?: number;
+  sector?: string;
 }
 
 interface SearchResult {
   cik: string;
   name: string;
-  entityType?: string;
+  date?: string;
 }
 
-export default function InvestorWatchlist() {
+// Fetcher with error handling
+const fetcher = async (url: string) => {
+  const res = await fetch(url, {
+    headers: { 'x-stratos-key': 'stratos_brain_api_key_2024' }
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'Request failed' }));
+    throw new Error(error.error || 'Request failed');
+  }
+  return res.json();
+};
 
-  const [searchQuery, setSearchQuery] = useState("");
+// Format helpers
+const formatCurrency = (value: number | null | undefined): string => {
+  if (value === null || value === undefined) return '-';
+  if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`;
+  if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
+  if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
+  return `$${value.toLocaleString()}`;
+};
+
+const formatNumber = (value: number | null | undefined): string => {
+  if (value === null || value === undefined) return '-';
+  if (value >= 1e9) return `${(value / 1e9).toFixed(2)}B`;
+  if (value >= 1e6) return `${(value / 1e6).toFixed(2)}M`;
+  if (value >= 1e3) return `${(value / 1e3).toFixed(1)}K`;
+  return value.toLocaleString();
+};
+
+const getInitials = (name: string): string => {
+  return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+};
+
+const getScoreColor = (score: number | null | undefined): string => {
+  if (score === null || score === undefined) return 'text-slate-500';
+  if (score >= 70) return 'text-emerald-400';
+  if (score >= 40) return 'text-amber-400';
+  return 'text-red-400';
+};
+
+const getActionBadge = (action: string) => {
+  const styles: Record<string, string> = {
+    NEW: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+    ADD: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    REDUCE: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+    SOLD: 'bg-red-500/20 text-red-400 border-red-500/30',
+    HOLD: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
+  };
+  return styles[action] || styles.HOLD;
+};
+
+export default function InvestorWatchlist() {
+  const { user } = useAuth();
+  const [activeView, setActiveView] = useState<'overview' | 'detail'>('overview');
+  const [selectedInvestor, setSelectedInvestor] = useState<Investor | null>(null);
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedInvestor, setSelectedInvestor] = useState<number | null>(null);
+  const [isTracking, setIsTracking] = useState(false);
 
-  // Fetch list of tracked investors
-  const { data: investors, mutate: mutateInvestors, isLoading: isLoadingInvestors } = useSWR<InvestorSummary[]>(
-    `${API_BASE}/investors`,
+  // Fetch investors list
+  const { data: investors, error: investorsError, isLoading: investorsLoading } = useSWR<Investor[]>(
+    '/api/investor-api/investors',
+    fetcher,
+    { refreshInterval: 60000 }
+  );
+
+  // Fetch consensus stocks
+  const { data: consensusStocks } = useSWR<ConsensusStock[]>(
+    '/api/investor-api/consensus?min_gurus=2',
+    fetcher,
+    { refreshInterval: 60000 }
+  );
+
+  // Fetch enriched holdings for selected investor
+  const { data: holdings, isLoading: holdingsLoading } = useSWR<EnrichedHolding[]>(
+    selectedInvestor ? `/api/investor-api/holdings/${selectedInvestor.investor_id}?enriched=true` : null,
     fetcher
   );
 
-  // Fetch holdings for selected investor
-  const { data: holdings, mutate: mutateHoldings, isLoading: isLoadingHoldings } = useSWR<Holding[]>(
-    selectedInvestor ? `${API_BASE}/holdings/${selectedInvestor}` : null,
-    fetcher
-  );
+  const investorList = Array.isArray(investors) ? investors : [];
+  const consensusList = Array.isArray(consensusStocks) ? consensusStocks : [];
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
-
+  // Search for investors
+  const handleSearch = async (query: string) => {
+    if (!query || query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    
     setIsSearching(true);
     try {
-      const response = await fetch(`${API_BASE}/search?query=${encodeURIComponent(searchQuery)}`);
-      const data = await response.json();
-      setSearchResults(data);
-    } catch (error) {
-      toast.error("Could not search for investors. Please try again.");
+      const res = await fetch(`/api/investor-api/search?query=${encodeURIComponent(query)}`, {
+        headers: { 'x-stratos-key': 'stratos_brain_api_key_2024' }
+      });
+      const data = await res.json();
+      setSearchResults(Array.isArray(data) ? data : []);
+    } catch (err) {
+      toast.error('Search failed');
+      setSearchResults([]);
     } finally {
       setIsSearching(false);
     }
   };
 
-  const handleTrackInvestor = async (cik: string, name: string) => {
+  // Track a new investor
+  const handleTrack = async (result: SearchResult) => {
+    setIsTracking(true);
     try {
-      const response = await fetch(`${API_BASE}/track`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cik, name }),
+      const res = await fetch('/api/investor-api/track', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-stratos-key': 'stratos_brain_api_key_2024'
+        },
+        body: JSON.stringify({ cik: result.cik, name: result.name })
       });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        toast.success(`Added ${name} with ${data.holdingsCount} holdings from ${data.quarter}`);
-        mutateInvestors();
-        setIsDialogOpen(false);
-        setSearchQuery("");
-        setSearchResults([]);
-      } else {
-        toast.error(data.error || "Failed to track investor");
-      }
-    } catch (error) {
-      toast.error("Failed to track investor. Please try again.");
+      
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      
+      toast.success(`Now tracking ${result.name}`);
+      setShowSearchModal(false);
+      setSearchQuery('');
+      setSearchResults([]);
+      mutate('/api/investor-api/investors');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to track investor');
+    } finally {
+      setIsTracking(false);
     }
   };
 
-  const handleRefreshInvestor = async (investorId: number, name: string) => {
-    try {
-      const response = await fetch(`${API_BASE}/refresh/${investorId}`, {
-        method: "POST",
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        toast.success(`Updated ${name} with ${data.holdingsCount} holdings from ${data.quarter}`);
-        mutateInvestors();
-        if (selectedInvestor === investorId) {
-          mutateHoldings();
-        }
-      } else {
-        toast.error(data.error || "Failed to refresh holdings");
-      }
-    } catch (error) {
-      toast.error("Failed to refresh holdings. Please try again.");
-    }
-  };
-
-  const handleDeleteInvestor = async (investorId: number, name: string) => {
+  // Delete an investor
+  const handleDelete = async (investorId: number, name: string) => {
     if (!confirm(`Remove ${name} from tracking?`)) return;
-
+    
     try {
-      const response = await fetch(`${API_BASE}/investors/${investorId}`, {
-        method: "DELETE",
+      await fetch(`/api/investor-api/investors/${investorId}`, {
+        method: 'DELETE',
+        headers: { 'x-stratos-key': 'stratos_brain_api_key_2024' }
       });
-
-      if (response.ok) {
-        toast.success(`${name} removed from tracking`);
-        mutateInvestors();
-        if (selectedInvestor === investorId) {
-          setSelectedInvestor(null);
-        }
+      toast.success(`Removed ${name}`);
+      mutate('/api/investor-api/investors');
+      if (selectedInvestor?.investor_id === investorId) {
+        setSelectedInvestor(null);
+        setActiveView('overview');
       }
-    } catch (error) {
-      toast.error("Failed to remove investor. Please try again.");
+    } catch (err) {
+      toast.error('Failed to remove investor');
     }
   };
 
-  const formatCurrency = (value: number | null | undefined) => {
-    if (value == null) return '$0';
-    if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
-    if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
-    if (value >= 1e3) return `$${(value / 1e3).toFixed(2)}K`;
-    return `$${value.toFixed(0)}`;
+  // Refresh holdings
+  const handleRefresh = async (investorId: number) => {
+    try {
+      const res = await fetch(`/api/investor-api/refresh/${investorId}`, {
+        method: 'POST',
+        headers: { 'x-stratos-key': 'stratos_brain_api_key_2024' }
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      
+      toast.success(`Refreshed holdings (${data.holdingsCount} positions)`);
+      mutate('/api/investor-api/investors');
+      mutate(`/api/investor-api/holdings/${investorId}?enriched=true`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to refresh');
+    }
   };
 
-  const formatNumber = (value: number | null | undefined) => {
-    if (value == null) return '0';
-    if (value >= 1e9) return `${(value / 1e9).toFixed(2)}B`;
-    if (value >= 1e6) return `${(value / 1e6).toFixed(2)}M`;
-    if (value >= 1e3) return `${(value / 1e3).toFixed(2)}K`;
-    return value.toFixed(0);
+  // Select investor for detail view
+  const handleSelectInvestor = (investor: Investor) => {
+    setSelectedInvestor(investor);
+    setActiveView('detail');
   };
 
-  const getActionBadge = (action: string) => {
-    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
-      NEW: { variant: "default", icon: Plus },
-      ADD: { variant: "default", icon: TrendingUp },
-      REDUCE: { variant: "secondary", icon: TrendingDown },
-      SOLD: { variant: "destructive", icon: Minus },
-      HOLD: { variant: "outline", icon: Minus },
-    };
-
-    const config = variants[action] || variants.HOLD;
-    const Icon = config.icon;
-
-    return (
-      <Badge variant={config.variant} className="gap-1">
-        <Icon className="h-3 w-3" />
-        {action}
-      </Badge>
-    );
-  };
-
-  const investorList = Array.isArray(investors) ? investors : [];
-  const selectedInvestorData = investorList.find((g) => g.investor_id === selectedInvestor);
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery) handleSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   return (
     <DashboardLayout>
-      <div className="container mx-auto p-6 space-y-6">
+      <div className="flex h-[calc(100vh-6rem)] flex-col p-6 space-y-6 overflow-auto">
+        
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-shrink-0">
           <div>
-            <h1 className="text-3xl font-bold">Investor Watchlist</h1>
-            <p className="text-muted-foreground">
-              Track institutional investor portfolios via 13F filings
+            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+              <Users className="w-6 h-6 text-indigo-400" />
+              Smart Money Tracker
+            </h1>
+            <p className="text-slate-400">
+              Analyze institutional portfolios with Stratos AI overlays
             </p>
           </div>
+          <button 
+            onClick={() => setShowSearchModal(true)}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg transition-all"
+          >
+            <Plus className="w-4 h-4" /> Add Investor
+          </button>
+        </div>
 
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Investor
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
-              <DialogHeader>
-                <DialogTitle>Search for Investor</DialogTitle>
-                <DialogDescription>
-                  Search by fund name or investor name (e.g., "Berkshire Hathaway", "Scion", "Pershing Square")
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Search for investor..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                />
-                <Button onClick={handleSearch} disabled={isSearching}>
-                  <Search className="h-4 w-4" />
-                </Button>
+        {/* --- VIEW 1: AGGREGATE OVERVIEW --- */}
+        {activeView === 'overview' && (
+          <div className="space-y-6 flex-1 min-h-0">
+            
+            {/* Top Section: Consensus + Leaderboard */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              
+              {/* Consensus Ideas */}
+              <div className="lg:col-span-2 bg-slate-900/50 border border-slate-800 rounded-xl p-5">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <BrainCircuit className="w-5 h-5 text-emerald-400" />
+                  High Conviction Consensus
+                  <span className="text-xs font-normal text-slate-500 ml-2">(Owned by 2+ Investors)</span>
+                </h3>
+                
+                {consensusList.length > 0 ? (
+                  <div className="overflow-hidden rounded-lg border border-slate-800">
+                    <table className="w-full text-sm text-left text-slate-300">
+                      <thead className="bg-slate-950 text-slate-400 uppercase text-xs">
+                        <tr>
+                          <th className="px-4 py-3">Ticker</th>
+                          <th className="px-4 py-3">Investors</th>
+                          <th className="px-4 py-3">Avg Weight</th>
+                          <th className="px-4 py-3">Total Invested</th>
+                          <th className="px-4 py-3">Stratos Score</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800 bg-slate-900/30">
+                        {consensusList.slice(0, 8).map((stock) => (
+                          <tr key={stock.symbol} className="hover:bg-slate-800/50 transition-colors">
+                            <td className="px-4 py-3 font-medium text-white">{stock.symbol}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-1">
+                                <span className="text-indigo-400 font-bold">{stock.guru_count}</span>
+                                <span className="text-slate-500 text-xs">investors</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">{(stock.avg_conviction ?? 0).toFixed(1)}%</td>
+                            <td className="px-4 py-3">{formatCurrency(stock.total_guru_invested)}</td>
+                            <td className={cn("px-4 py-3 font-bold", getScoreColor(stock.stratos_ai_score))}>
+                              {stock.stratos_ai_score ?? '-'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-slate-500">
+                    Track at least 2 investors to see consensus picks
+                  </div>
+                )}
               </div>
 
-              {searchResults.length > 0 && (
-                <div className="mt-4 space-y-2 max-h-[400px] overflow-y-auto">
-                  {searchResults.map((result) => (
-                    <Card key={result.cik} className="cursor-pointer hover:bg-accent" onClick={() => handleTrackInvestor(result.cik, result.name)}>
-                      <CardHeader className="p-4">
-                        <CardTitle className="text-sm">{result.name}</CardTitle>
-                        <CardDescription className="text-xs">CIK: {result.cik}</CardDescription>
-                      </CardHeader>
-                    </Card>
+              {/* Quick Stats */}
+              <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-5">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-indigo-400" />
+                  Portfolio Stats
+                </h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-3 bg-slate-950 rounded-lg border border-slate-800/50">
+                    <div className="flex items-center gap-3">
+                      <Users className="w-5 h-5 text-indigo-400" />
+                      <span className="text-slate-400">Tracked Investors</span>
+                    </div>
+                    <span className="text-white font-mono text-lg">{investorList.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-slate-950 rounded-lg border border-slate-800/50">
+                    <div className="flex items-center gap-3">
+                      <DollarSign className="w-5 h-5 text-emerald-400" />
+                      <span className="text-slate-400">Total AUM</span>
+                    </div>
+                    <span className="text-white font-mono text-lg">
+                      {formatCurrency(investorList.reduce((sum, i) => sum + (i.total_portfolio_value || 0), 0))}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-slate-950 rounded-lg border border-slate-800/50">
+                    <div className="flex items-center gap-3">
+                      <Target className="w-5 h-5 text-amber-400" />
+                      <span className="text-slate-400">Consensus Picks</span>
+                    </div>
+                    <span className="text-white font-mono text-lg">{consensusList.length}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Investor Cards Grid */}
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-4">Your Tracked Funds</h3>
+              
+              {investorsLoading ? (
+                <div className="text-center py-12 text-slate-500">Loading investors...</div>
+              ) : investorList.length === 0 ? (
+                <div className="text-center py-12 bg-slate-900/50 border border-slate-800 rounded-xl">
+                  <Users className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+                  <p className="text-slate-400 mb-4">No investors tracked yet</p>
+                  <button 
+                    onClick={() => setShowSearchModal(true)}
+                    className="text-indigo-400 hover:text-indigo-300"
+                  >
+                    + Add your first investor
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {investorList.map((investor) => (
+                    <div 
+                      key={investor.investor_id}
+                      className="group relative bg-slate-900 border border-slate-800 hover:border-indigo-500/50 rounded-xl p-5 cursor-pointer transition-all hover:shadow-lg hover:shadow-indigo-500/10"
+                      onClick={() => handleSelectInvestor(investor)}
+                    >
+                      {/* Card Header */}
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 font-bold text-sm">
+                          {getInitials(investor.investor_name)}
+                        </div>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleRefresh(investor.investor_id); }}
+                            className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors"
+                            title="Refresh holdings"
+                          >
+                            <RefreshCw className="w-4 h-4 text-slate-400" />
+                          </button>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleDelete(investor.investor_id, investor.investor_name); }}
+                            className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors"
+                            title="Remove"
+                          >
+                            <Trash2 className="w-4 h-4 text-slate-400" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Card Body */}
+                      <h4 className="text-base font-bold text-white mb-1 line-clamp-1">{investor.investor_name}</h4>
+                      <p className="text-sm text-slate-500 mb-4">
+                        {investor.total_positions} positions • {investor.last_filing_date || 'No filings'}
+                      </p>
+                      
+                      {/* Stats Grid */}
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="bg-slate-950 p-2 rounded border border-slate-800/50">
+                          <div className="text-slate-500 text-xs">AUM</div>
+                          <div className="text-white font-mono">{formatCurrency(investor.total_portfolio_value)}</div>
+                        </div>
+                        <div className="bg-slate-950 p-2 rounded border border-slate-800/50">
+                          <div className="text-slate-500 text-xs">New</div>
+                          <div className="text-emerald-400 font-mono">{investor.new_positions}</div>
+                        </div>
+                      </div>
+
+                      {/* Top Holdings Preview */}
+                      {investor.top_holdings && investor.top_holdings.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-slate-800">
+                          <div className="text-xs text-slate-500 mb-1">Top Holdings</div>
+                          <div className="flex flex-wrap gap-1">
+                            {investor.top_holdings.slice(0, 5).map((symbol) => (
+                              <span key={symbol} className="px-1.5 py-0.5 bg-slate-800 rounded text-xs text-slate-300">
+                                {symbol}
+                              </span>
+                            ))}
+                            {investor.top_holdings.length > 5 && (
+                              <span className="px-1.5 py-0.5 text-xs text-slate-500">
+                                +{investor.top_holdings.length - 5}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Hover Arrow */}
+                      <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
                   ))}
                 </div>
               )}
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Sidebar: List of Gurus */}
-          <div className="lg:col-span-1">
-            <Card>
-              <CardHeader>
-                <CardTitle>Tracked Investors</CardTitle>
-                <CardDescription>
-                  {investorList.length} investors tracked
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {isLoadingInvestors && <p className="text-sm text-muted-foreground">Loading...</p>}
-                
-                {investorList.map((investor) => (
-                  <Card
-                    key={investor.investor_id}
-                    className={`cursor-pointer transition-colors ${
-                      selectedInvestor === investor.investor_id ? "bg-accent" : "hover:bg-accent/50"
-                    }`}
-                    onClick={() => setSelectedInvestor(investor.investor_id)}
-                  >
-                    <CardHeader className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <CardTitle className="text-sm">{investor.investor_name}</CardTitle>
-                          <CardDescription className="text-xs mt-1">
-                            {investor.total_positions} positions • {investor.quarter || investor.last_filing_date}
-                          </CardDescription>
-                          <div className="flex gap-2 mt-2">
-                            <Badge variant="outline" className="text-xs">
-                              <DollarSign className="h-3 w-3 mr-1" />
-                              {formatCurrency(investor.total_portfolio_value)}
-                            </Badge>
-                          </div>
-                        </div>
-                        <div className="flex gap-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRefreshInvestor(investor.investor_id, investor.investor_name);
-                            }}
-                          >
-                            <RefreshCw className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteInvestor(investor.investor_id, investor.investor_name);
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardHeader>
-                  </Card>
-                ))}
-
-                {!isLoadingInvestors && investorList.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-8">
-                    No investors tracked yet. Click "Add Investor" to get started.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+            </div>
           </div>
+        )}
 
-          {/* Main Content: Holdings Table */}
-          <div className="lg:col-span-2">
-            {selectedInvestorData ? (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle>{selectedInvestorData.investor_name}</CardTitle>
-                      <CardDescription>
-                        Portfolio as of {selectedInvestorData.last_filing_date} • {selectedInvestorData.total_positions} positions
-                      </CardDescription>
-                    </div>
-                    <div className="flex gap-2">
-                      <Badge variant="outline">
-                        <Users className="h-3 w-3 mr-1" />
-                        {selectedInvestorData.new_positions} New
-                      </Badge>
-                      <Badge variant="outline">
-                        <TrendingUp className="h-3 w-3 mr-1" />
-                        {selectedInvestorData.increased_positions} Added
-                      </Badge>
-                      <Badge variant="outline">
-                        <TrendingDown className="h-3 w-3 mr-1" />
-                        {selectedInvestorData.reduced_positions} Reduced
-                      </Badge>
-                    </div>
+        {/* --- VIEW 2: PORTFOLIO DETAIL (THE X-RAY) --- */}
+        {activeView === 'detail' && selectedInvestor && (
+          <div className="flex-1 flex flex-col min-h-0">
+            {/* Breadcrumb */}
+            <button 
+              onClick={() => setActiveView('overview')}
+              className="flex items-center gap-2 text-slate-400 hover:text-white mb-4 transition-colors w-fit"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back to Overview
+            </button>
+
+            {/* Fund Header */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 mb-6 flex-shrink-0">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-white mb-2">{selectedInvestor.investor_name}</h2>
+                  <div className="flex items-center gap-6 text-sm text-slate-400 flex-wrap">
+                    <span className="flex items-center gap-2">
+                      <DollarSign className="w-4 h-4" /> AUM: <span className="text-white">{formatCurrency(selectedInvestor.total_portfolio_value)}</span>
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4" /> Positions: <span className="text-white">{selectedInvestor.total_positions}</span>
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <Activity className="w-4 h-4" /> Last Filing: <span className="text-white">{selectedInvestor.last_filing_date || 'N/A'}</span>
+                    </span>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  {isLoadingHoldings && <p className="text-sm text-muted-foreground">Loading holdings...</p>}
-                  
-                  {holdings && holdings.length > 0 && (
-                    <div className="rounded-md border">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Symbol</TableHead>
-                            <TableHead>Company</TableHead>
-                            <TableHead className="text-right">% Portfolio</TableHead>
-                            <TableHead className="text-right">Value</TableHead>
-                            <TableHead className="text-right">Shares</TableHead>
-                            <TableHead className="text-right">Change</TableHead>
-                            <TableHead>Action</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {holdings.map((holding) => (
-                            <TableRow key={holding.symbol}>
-                              <TableCell className="font-medium">{holding.symbol}</TableCell>
-                              <TableCell className="max-w-[200px] truncate">{holding.company_name}</TableCell>
-                              <TableCell className="text-right font-medium">
-                                {(holding.percent_portfolio ?? 0).toFixed(2)}%
-                              </TableCell>
-                              <TableCell className="text-right">{formatCurrency(holding.value)}</TableCell>
-                              <TableCell className="text-right">{formatNumber(holding.shares)}</TableCell>
-                              <TableCell className="text-right">
-                                <span className={(holding.change_percent ?? 0) > 0 ? "text-green-600" : (holding.change_percent ?? 0) < 0 ? "text-red-600" : ""}>
-                                  {(holding.change_percent ?? 0) > 0 ? "+" : ""}{(holding.change_percent ?? 0).toFixed(1)}%
-                                </span>
-                              </TableCell>
-                              <TableCell>{getActionBadge(holding.action)}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => handleRefresh(selectedInvestor.investor_id)}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm transition-colors flex items-center gap-2"
+                  >
+                    <RefreshCw className="w-4 h-4" /> Refresh
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* The "X-Ray" Table */}
+            <div className="flex-1 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden flex flex-col min-h-0">
+              <div className="p-4 border-b border-slate-800 bg-slate-900/50 flex justify-between items-center flex-shrink-0">
+                <h3 className="font-semibold text-white flex items-center gap-2">
+                  <BrainCircuit className="w-5 h-5 text-indigo-400" />
+                  Portfolio X-Ray
+                </h3>
+                <div className="text-xs text-slate-500">
+                  Holdings from 13F (Lagged) • Live Stratos AI Scores
+                </div>
+              </div>
+              
+              <div className="flex-1 overflow-auto">
+                {holdingsLoading ? (
+                  <div className="text-center py-12 text-slate-500">Loading holdings...</div>
+                ) : !holdings || holdings.length === 0 ? (
+                  <div className="text-center py-12 text-slate-500">No holdings found</div>
+                ) : (
+                  <table className="w-full text-sm text-left text-slate-300">
+                    <thead className="bg-slate-950 text-slate-400 uppercase text-xs sticky top-0">
+                      <tr>
+                        <th className="px-4 py-3">Ticker</th>
+                        <th className="px-4 py-3">Company</th>
+                        <th className="px-4 py-3 text-right">% Port</th>
+                        <th className="px-4 py-3 text-right">Value</th>
+                        <th className="px-4 py-3 text-right">Shares</th>
+                        <th className="px-4 py-3 text-center">Action</th>
+                        <th className="px-4 py-3 text-center">Stratos Score</th>
+                        <th className="px-4 py-3 text-center">RSI</th>
+                        <th className="px-4 py-3">Sector</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800">
+                      {holdings.map((holding) => (
+                        <tr key={holding.id} className="hover:bg-slate-800/50 transition-colors">
+                          <td className="px-4 py-3 font-medium text-white">{holding.symbol}</td>
+                          <td className="px-4 py-3 text-slate-400 max-w-[200px] truncate">{holding.company_name}</td>
+                          <td className="px-4 py-3 text-right font-mono">{(holding.percent_portfolio ?? 0).toFixed(2)}%</td>
+                          <td className="px-4 py-3 text-right font-mono">{formatCurrency(holding.value)}</td>
+                          <td className="px-4 py-3 text-right font-mono">{formatNumber(holding.shares)}</td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={cn("px-2 py-0.5 rounded text-xs border", getActionBadge(holding.action))}>
+                              {holding.action}
+                            </span>
+                          </td>
+                          <td className={cn("px-4 py-3 text-center font-bold", getScoreColor(holding.stratos_ai_score))}>
+                            {holding.stratos_ai_score ?? '-'}
+                          </td>
+                          <td className="px-4 py-3 text-center font-mono text-slate-400">
+                            {holding.stratos_rsi?.toFixed(0) ?? '-'}
+                          </td>
+                          <td className="px-4 py-3 text-slate-500 text-xs">{holding.sector || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Search Modal */}
+        {showSearchModal && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+            <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-lg shadow-2xl">
+              <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-white">Add Investor</h3>
+                <button 
+                  onClick={() => { setShowSearchModal(false); setSearchQuery(''); setSearchResults([]); }}
+                  className="p-1 hover:bg-slate-800 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-slate-400" />
+                </button>
+              </div>
+              
+              <div className="p-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search by fund name or manager..."
+                    className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                    autoFocus
+                  />
+                </div>
+                
+                <div className="mt-4 max-h-80 overflow-auto">
+                  {isSearching ? (
+                    <div className="text-center py-8 text-slate-500">Searching...</div>
+                  ) : searchResults.length > 0 ? (
+                    <div className="space-y-2">
+                      {searchResults.map((result) => (
+                        <button
+                          key={result.cik}
+                          onClick={() => handleTrack(result)}
+                          disabled={isTracking}
+                          className="w-full p-3 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded-lg text-left transition-colors disabled:opacity-50"
+                        >
+                          <div className="font-medium text-white">{result.name}</div>
+                          <div className="text-sm text-slate-500">CIK: {result.cik} {result.date && `• Latest: ${result.date}`}</div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : searchQuery.length >= 2 ? (
+                    <div className="text-center py-8 text-slate-500">No investors found</div>
+                  ) : (
+                    <div className="text-center py-8 text-slate-500">
+                      <p className="mb-2">Search for institutional investors</p>
+                      <p className="text-xs">Try: Berkshire, Pershing Square, Scion, Bridgewater...</p>
                     </div>
                   )}
-
-                  {!isLoadingHoldings && holdings?.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-8">
-                      No holdings found for this investor.
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            ) : (
-              <Card className="h-full flex items-center justify-center">
-                <CardContent className="text-center py-12">
-                  <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-lg font-medium">Select an investor to view their portfolio</p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Click on an investor from the list to see their holdings
-                  </p>
-                </CardContent>
-              </Card>
-            )}
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </DashboardLayout>
   );

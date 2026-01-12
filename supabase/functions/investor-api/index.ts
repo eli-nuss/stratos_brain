@@ -509,14 +509,116 @@ serve(async (req) => {
       }
 
       // GET /holdings/:investorId - Get holdings for an investor
+      // Optional query param: ?enriched=true to include Stratos AI data
       case req.method === 'GET' && path.startsWith('/holdings/'): {
         const investorId = path.split('/')[2]
+        const enriched = url.searchParams.get('enriched') === 'true'
         
-        const { data, error } = await supabase
+        // Get base holdings
+        const { data: holdings, error } = await supabase
           .from('v_guru_latest_holdings')
           .select('*')
           .eq('investor_id', investorId)
           .order('percent_portfolio', { ascending: false, nullsFirst: false })
+
+        if (error) throw error
+
+        // If enriched, join with Stratos dashboard data
+        if (enriched && holdings && holdings.length > 0) {
+          const symbols = holdings.map(h => h.symbol).filter(s => s && s !== 'UNKNOWN')
+          
+          // Fetch live Stratos data for these tickers
+          const { data: assetData } = await supabase
+            .from('v_dashboard_all_assets')
+            .select('symbol, price, change_1d, ai_score, ai_direction, rsi_14, sector')
+            .in('symbol', symbols)
+
+          // Create lookup map
+          const assetMap = new Map(
+            (assetData || []).map(a => [a.symbol, a])
+          )
+
+          // Merge data
+          const enrichedHoldings = holdings.map(h => {
+            const live = assetMap.get(h.symbol) || {}
+            return {
+              ...h,
+              current_price: live.price || null,
+              day_change: live.change_1d || null,
+              stratos_ai_score: live.ai_score || null,
+              stratos_ai_direction: live.ai_direction || null,
+              stratos_rsi: live.rsi_14 || null,
+              sector: live.sector || null
+            }
+          })
+
+          return new Response(JSON.stringify(enrichedHoldings), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+
+        return new Response(JSON.stringify(holdings || []), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /consensus - Get stocks owned by multiple gurus with Stratos AI scores
+      case req.method === 'GET' && path === '/consensus': {
+        const minGurus = parseInt(url.searchParams.get('min_gurus') || '2')
+        
+        // Get consensus data from the view
+        const { data: consensus, error } = await supabase
+          .from('v_guru_consensus')
+          .select('*')
+          .gte('guru_count', minGurus)
+          .order('guru_count', { ascending: false })
+          .order('total_guru_invested', { ascending: false })
+          .limit(50)
+
+        if (error) throw error
+
+        // Enrich with Stratos AI data
+        if (consensus && consensus.length > 0) {
+          const symbols = consensus.map(c => c.symbol).filter(s => s && s !== 'UNKNOWN')
+          
+          const { data: assetData } = await supabase
+            .from('v_dashboard_all_assets')
+            .select('symbol, price, change_1d, ai_score, ai_direction, rsi_14, sector')
+            .in('symbol', symbols)
+
+          const assetMap = new Map(
+            (assetData || []).map(a => [a.symbol, a])
+          )
+
+          const enrichedConsensus = consensus.map(c => {
+            const live = assetMap.get(c.symbol) || {}
+            return {
+              ...c,
+              current_price: live.price || null,
+              day_change: live.change_1d || null,
+              stratos_ai_score: live.ai_score || null,
+              stratos_ai_direction: live.ai_direction || null,
+              stratos_rsi: live.rsi_14 || null,
+              sector: live.sector || null
+            }
+          })
+
+          return new Response(JSON.stringify(enrichedConsensus), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+
+        return new Response(JSON.stringify(consensus || []), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /leaderboard - Get performance leaderboard
+      case req.method === 'GET' && path === '/leaderboard': {
+        const { data, error } = await supabase
+          .from('v_guru_performance_leaderboard')
+          .select('*')
+          .limit(20)
 
         if (error) throw error
 
