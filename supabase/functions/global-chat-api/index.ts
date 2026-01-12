@@ -24,10 +24,10 @@ const corsHeaders = {
 
 // Unified function declarations for Gemini
 const unifiedFunctionDeclarations = [
-  // Screen assets across the entire database
+  // Screen assets across the entire database using v_dashboard_all_assets view
   {
     name: "screen_assets",
-    description: "Screen and filter assets (equities or crypto) based on various criteria. Returns a list of matching assets with key metrics. Use this to find stocks/crypto matching specific criteria like 'tech stocks with >20% revenue growth' or 'crypto with market cap over $1B'.",
+    description: "Scan the entire database for stocks/crypto matching fundamental and technical criteria. Use this for 'Find me stocks that...' queries. Returns real-time data from your proprietary database with AI scores, fundamentals, and technicals.",
     parameters: {
       type: "object",
       properties: {
@@ -38,17 +38,17 @@ const unifiedFunctionDeclarations = [
         },
         sector: {
           type: "string",
-          description: "Filter by sector (e.g., 'Technology', 'Healthcare', 'Financial Services'). Only applies to equities."
+          description: "Filter by sector (e.g., 'Technology', 'Healthcare', 'Financial Services', 'Energy', 'Consumer Cyclical'). Only applies to equities."
         },
         industry: {
           type: "string",
-          description: "Filter by industry (e.g., 'Software', 'Semiconductors'). Only applies to equities."
+          description: "Filter by industry (e.g., 'Software - Application', 'Semiconductors', 'Biotechnology'). Only applies to equities."
         },
-        min_market_cap: {
+        min_market_cap_billions: {
           type: "number",
           description: "Minimum market cap in billions USD (e.g., 10 for $10B+)"
         },
-        max_market_cap: {
+        max_market_cap_billions: {
           type: "number",
           description: "Maximum market cap in billions USD"
         },
@@ -58,37 +58,54 @@ const unifiedFunctionDeclarations = [
         },
         max_pe_ratio: {
           type: "number",
-          description: "Maximum P/E ratio"
+          description: "Maximum P/E ratio (e.g., 15 for value stocks)"
         },
         min_revenue_growth: {
           type: "number",
-          description: "Minimum revenue growth rate as decimal (e.g., 0.20 for 20%+)"
+          description: "Minimum YoY revenue growth as decimal (e.g., 0.20 for 20%+)"
         },
-        min_ai_score: {
+        min_profit_margin: {
           type: "number",
-          description: "Minimum AI composite score (0-100)"
+          description: "Minimum profit margin as decimal (e.g., 0.15 for 15%+)"
         },
-        min_return_1m: {
+        min_roe: {
           type: "number",
-          description: "Minimum 1-month return as decimal (e.g., 0.10 for 10%+)"
+          description: "Minimum return on equity as decimal (e.g., 0.20 for 20%+)"
         },
-        max_return_1m: {
+        min_performance_1m: {
+          type: "number",
+          description: "Minimum 1-month return as decimal (e.g., 0.05 for 5%+)"
+        },
+        max_performance_1m: {
           type: "number",
           description: "Maximum 1-month return as decimal"
         },
+        min_ai_direction_score: {
+          type: "number",
+          description: "Minimum AI direction score (0-100, higher = more bullish)"
+        },
+        min_ai_setup_quality: {
+          type: "number",
+          description: "Minimum AI setup quality score (0-100)"
+        },
+        setup_type: {
+          type: "string",
+          enum: ["breakout", "pullback", "momentum", "reversal", "consolidation"],
+          description: "Filter by AI-detected setup type"
+        },
         sort_by: {
           type: "string",
-          enum: ["market_cap", "ai_score", "return_1m", "return_3m", "pe_ratio", "revenue_growth"],
+          enum: ["market_cap", "revenue_growth", "performance_1m", "performance_30d", "pe_ratio", "ai_direction_score", "ai_setup_quality", "profit_margin", "roe"],
           description: "Field to sort results by"
         },
         sort_order: {
           type: "string",
           enum: ["asc", "desc"],
-          description: "Sort order: 'asc' for ascending, 'desc' for descending"
+          description: "Sort order: 'asc' for ascending, 'desc' for descending (default: desc)"
         },
         limit: {
           type: "number",
-          description: "Maximum number of results to return (default 20, max 50)"
+          description: "Maximum number of results to return (default 15, max 50)"
         }
       },
       required: ["asset_type"]
@@ -422,77 +439,139 @@ async function executeFunctionCall(
 
   switch (name) {
     case "screen_assets": {
+      console.log("🔍 Running Screen:", JSON.stringify(args))
+      
       const assetType = args.asset_type as string
-      const limit = Math.min((args.limit as number) || 20, 50)
+      const limit = Math.min((args.limit as number) || 15, 50)
       
-      // Build query based on asset type
-      if (assetType === 'equity' || assetType === 'all') {
-        let query = supabase
-          .from('equity_metadata')
-          .select('symbol, company_name, sector, industry, market_cap, pe_ratio, revenue_growth_yoy, ai_score')
-        
-        if (args.sector) query = query.eq('sector', args.sector)
-        if (args.industry) query = query.eq('industry', args.industry)
-        if (args.min_market_cap) query = query.gte('market_cap', (args.min_market_cap as number) * 1e9)
-        if (args.max_market_cap) query = query.lte('market_cap', (args.max_market_cap as number) * 1e9)
-        if (args.min_pe_ratio) query = query.gte('pe_ratio', args.min_pe_ratio)
-        if (args.max_pe_ratio) query = query.lte('pe_ratio', args.max_pe_ratio)
-        if (args.min_revenue_growth) query = query.gte('revenue_growth_yoy', args.min_revenue_growth)
-        if (args.min_ai_score) query = query.gte('ai_score', args.min_ai_score)
-        
-        // Sort
-        const sortBy = args.sort_by as string || 'market_cap'
-        const sortOrder = args.sort_order === 'asc' ? true : false
-        query = query.order(sortBy, { ascending: sortOrder, nullsFirst: false })
-        query = query.limit(limit)
-        
-        const { data, error } = await query
-        if (error) return { error: error.message }
-        
-        return {
-          asset_type: assetType,
-          count: data?.length || 0,
-          assets: data?.map(d => ({
-            symbol: d.symbol,
-            name: d.company_name,
-            sector: d.sector,
-            industry: d.industry,
-            market_cap_b: d.market_cap ? (d.market_cap / 1e9).toFixed(1) + 'B' : null,
-            pe_ratio: d.pe_ratio?.toFixed(1),
-            revenue_growth: d.revenue_growth_yoy ? (d.revenue_growth_yoy * 100).toFixed(1) + '%' : null,
-            ai_score: d.ai_score
-          })) || []
+      // Use v_dashboard_all_assets view which has all the data we need
+      let query = supabase
+        .from('v_dashboard_all_assets')
+        .select(`
+          asset_id, symbol, name, asset_type, sector, industry,
+          close, return_1d, return_7d, return_30d, return_365d,
+          market_cap, pe_ratio, forward_pe, peg_ratio,
+          revenue_ttm, revenue_growth_yoy, profit_margin, operating_margin, roe, roa,
+          ai_direction, ai_direction_score, ai_setup_quality_score, setup_type, ai_confidence, ai_summary,
+          beta, dividend_yield, eps, analyst_target_price
+        `)
+      
+      // Filter by asset type
+      if (assetType === 'equity') {
+        query = query.eq('asset_type', 'equity')
+      } else if (assetType === 'crypto') {
+        query = query.eq('asset_type', 'crypto')
+      }
+      // 'all' doesn't add a filter
+      
+      // Sector/Industry filters (equities only)
+      if (args.sector) query = query.ilike('sector', `%${args.sector}%`)
+      if (args.industry) query = query.ilike('industry', `%${args.industry}%`)
+      
+      // Market cap filters (convert billions to actual value)
+      if (args.min_market_cap_billions) query = query.gte('market_cap', (args.min_market_cap_billions as number) * 1e9)
+      if (args.max_market_cap_billions) query = query.lte('market_cap', (args.max_market_cap_billions as number) * 1e9)
+      
+      // Valuation filters
+      if (args.min_pe_ratio) query = query.gte('pe_ratio', args.min_pe_ratio)
+      if (args.max_pe_ratio) query = query.lte('pe_ratio', args.max_pe_ratio)
+      
+      // Fundamental filters
+      if (args.min_revenue_growth) query = query.gte('revenue_growth_yoy', args.min_revenue_growth)
+      if (args.min_profit_margin) query = query.gte('profit_margin', args.min_profit_margin)
+      if (args.min_roe) query = query.gte('roe', args.min_roe)
+      
+      // Performance filters
+      if (args.min_performance_1m) query = query.gte('return_30d', args.min_performance_1m)
+      if (args.max_performance_1m) query = query.lte('return_30d', args.max_performance_1m)
+      
+      // AI score filters
+      if (args.min_ai_direction_score) query = query.gte('ai_direction_score', args.min_ai_direction_score)
+      if (args.min_ai_setup_quality) query = query.gte('ai_setup_quality_score', args.min_ai_setup_quality)
+      if (args.setup_type) query = query.eq('setup_type', args.setup_type)
+      
+      // Sorting - map sort_by to actual column names
+      const sortMapping: Record<string, string> = {
+        'market_cap': 'market_cap',
+        'revenue_growth': 'revenue_growth_yoy',
+        'performance_1m': 'return_30d',
+        'performance_30d': 'return_30d',
+        'pe_ratio': 'pe_ratio',
+        'ai_direction_score': 'ai_direction_score',
+        'ai_setup_quality': 'ai_setup_quality_score',
+        'profit_margin': 'profit_margin',
+        'roe': 'roe'
+      }
+      const sortBy = sortMapping[args.sort_by as string] || 'market_cap'
+      const sortOrder = args.sort_order === 'asc'
+      query = query.order(sortBy, { ascending: sortOrder, nullsFirst: false })
+      query = query.limit(limit)
+      
+      const { data, error } = await query
+      
+      if (error) {
+        console.error('Screen error:', error)
+        return { error: error.message }
+      }
+      
+      if (!data || data.length === 0) {
+        return { 
+          result: "No assets found matching your criteria. Try relaxing some filters.",
+          filters_applied: args,
+          count: 0
         }
       }
       
-      if (assetType === 'crypto') {
-        let query = supabase
-          .from('crypto_metadata')
-          .select('symbol, name, market_cap, price, change_24h, volume_24h')
-        
-        if (args.min_market_cap) query = query.gte('market_cap', (args.min_market_cap as number) * 1e9)
-        if (args.max_market_cap) query = query.lte('market_cap', (args.max_market_cap as number) * 1e9)
-        
-        query = query.order('market_cap', { ascending: false, nullsFirst: false })
-        query = query.limit(limit)
-        
-        const { data, error } = await query
-        if (error) return { error: error.message }
-        
-        return {
-          asset_type: 'crypto',
-          count: data?.length || 0,
-          assets: data?.map(d => ({
-            symbol: d.symbol,
-            name: d.name,
-            market_cap_b: d.market_cap ? (d.market_cap / 1e9).toFixed(1) + 'B' : null,
-            price: d.price,
-            change_24h: d.change_24h ? (d.change_24h * 100).toFixed(2) + '%' : null
-          })) || []
+      // Format the results for clean display
+      const formattedAssets = data.map((d: Record<string, unknown>) => {
+        const result: Record<string, unknown> = {
+          symbol: d.symbol,
+          name: d.name,
+          type: d.asset_type
         }
-      }
+        
+        // Add sector/industry for equities
+        if (d.asset_type === 'equity') {
+          result.sector = d.sector
+          result.industry = d.industry
+        }
+        
+        // Market cap
+        if (d.market_cap) {
+          const mcap = d.market_cap as number
+          result.market_cap = mcap >= 1e12 
+            ? `$${(mcap / 1e12).toFixed(2)}T` 
+            : mcap >= 1e9 
+              ? `$${(mcap / 1e9).toFixed(1)}B`
+              : `$${(mcap / 1e6).toFixed(0)}M`
+        }
+        
+        // Price and returns
+        result.price = d.close ? `$${(d.close as number).toFixed(2)}` : null
+        result.return_1d = d.return_1d ? `${((d.return_1d as number) * 100).toFixed(2)}%` : null
+        result.return_30d = d.return_30d ? `${((d.return_30d as number) * 100).toFixed(1)}%` : null
+        
+        // Fundamentals
+        if (d.pe_ratio) result.pe_ratio = (d.pe_ratio as number).toFixed(1)
+        if (d.revenue_growth_yoy) result.revenue_growth = `${((d.revenue_growth_yoy as number) * 100).toFixed(1)}%`
+        if (d.profit_margin) result.profit_margin = `${((d.profit_margin as number) * 100).toFixed(1)}%`
+        if (d.roe) result.roe = `${((d.roe as number) * 100).toFixed(1)}%`
+        
+        // AI scores
+        if (d.ai_direction) result.ai_direction = d.ai_direction
+        if (d.ai_direction_score) result.ai_direction_score = d.ai_direction_score
+        if (d.setup_type) result.setup_type = d.setup_type
+        if (d.ai_setup_quality_score) result.ai_setup_quality = d.ai_setup_quality_score
+        if (d.ai_summary) result.ai_summary = d.ai_summary
+        
+        return result
+      })
       
-      return { error: 'Invalid asset_type' }
+      return {
+        count: data.length,
+        filters_applied: args,
+        assets: formattedAssets
+      }
     }
 
     case "search_assets": {
