@@ -2166,10 +2166,13 @@ Example: "AAPL has strong fundamentals, BUT the current Risk-Off regime and inve
 **Before recommending ANY stock, you MUST check institutional positioning using \`get_institutional_flows\` to avoid value traps.**
 
 ### When to Call \`get_institutional_flows\`:
+- User asks about "top holders", "institutional holders", "who owns", "shareholders", "13F" → Call IMMEDIATELY to show holder names
 - User asks "Should I buy [stock]?" → Call AFTER macro context
 - User asks "Is [stock] undervalued?" → Call to check if institutions agree
 - User discusses "value" or "opportunity" → Call to detect value traps
 - Any stock analysis → Call to see if Smart Money is buying or selling
+
+**IMPORTANT**: This tool returns the TOP 10 INSTITUTIONAL HOLDERS BY NAME (e.g., Vanguard, BlackRock, Citadel) with share counts and value. Always use this tool when users want to know WHO owns the stock.
 
 ### How to Interpret Institutional Flows:
 1. **Accumulation (Positive investorsHoldingChange)**:
