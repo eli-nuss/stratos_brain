@@ -230,16 +230,16 @@ const unifiedFunctionDeclarations = [
       required: ["symbol"]
     }
   },
-  // Grounded Research - uses native Gemini Google Search for deep research
+  // Universal Search - uses native Gemini Google Search for any external knowledge
   {
     name: "perform_grounded_research",
-    description: "Perform deep, native Google Research on a topic. Use this for 'Why' questions, current events, news, or any query requiring up-to-date web information. This uses Google's native grounding engine to read multiple full web pages and synthesize an answer with citations. Much more powerful than simple search.",
+    description: "The 'Universal Search' tool. Use this for ANY query that requires knowledge outside your internal database. This includes: current events, geopolitical analysis, technical documentation, competitor research, historical context, educational explanations, or general knowledge. It uses Google's native engine to read the web and synthesize detailed answers with citations.",
     parameters: {
       type: "object",
       properties: {
         query: {
           type: "string",
-          description: "The specific question or topic to research thoroughly"
+          description: "The detailed question or topic to research. Be specific about what you want (e.g., 'Analyze the impact of X on Y', 'Explain how Z works', 'What is the history of W')."
         }
       },
       required: ["query"]
@@ -355,30 +355,19 @@ async function executeGroundedSearch(query: string): Promise<string> {
         body: JSON.stringify({
           contents: [{ 
             role: 'user', 
-            parts: [{ text: `You are an expert investigative journalist and geopolitical analyst.
+            parts: [{ text: `You are a highly capable research assistant with access to Google Search.
 
-Topic: "${query}"
+User Query: "${query}"
 
-Task: Conduct deep research and write a comprehensive Situation Report.
+Instructions:
+1. Use Google Search to find the most relevant and up-to-date information.
+2. Answer the query comprehensively and thoroughly.
+3. If the query asks for an opinion or analysis, provide it based on the search results.
+4. If the query asks for a specific format (bullet points, essay, table, timeline), follow it.
+5. If the query is about current events, include specific dates, names, and developments.
+6. If the query is technical or educational, explain concepts clearly.
 
-Structure your response as follows:
-
-1. **Executive Summary**: What just happened? Lead with the most important development in 2-3 sentences.
-
-2. **Key Developments**: A bulleted timeline of recent events (last 24-72 hours). Include specific dates, names, and actions.
-
-3. **Strategic Implications**: What does this mean? Explain the broader significance - geopolitical, economic, or market implications.
-
-4. **The Narratives**: What are the different perspectives or conflicting viewpoints on this situation?
-
-5. **What to Watch**: Key indicators or upcoming events that could change the situation.
-
-Requirements:
-- Use neutral, professional tone
-- Cite specific sources for major claims
-- Focus on FACTS and CONTEXT, not market prices
-- Be comprehensive but organized
-- Include specific names, dates, and quotes where available` }] 
+Provide a detailed, well-structured response with citations where appropriate.` }] 
           }],
           tools: [{ googleSearch: {} }], // EXCLUSIVE MODE: Grounding ONLY - no function calling
           generationConfig: { 
@@ -1091,11 +1080,13 @@ function buildSystemPrompt(): string {
 **Role:** You are a "High-Speed Research Desk," not a "Portfolio Manager." Do not offer unsolicited advice or macro lectures unless the user explicitly asks for an opinion/thesis.
 
 ## Tool Routing Logic (Follow Strictly)
-1. **Fact Lookup:** If asked for a price, ratio, or metric ("What is AAPL's P/E?") -> Use \`get_asset_fundamentals\` or \`get_price_history\`. Give the number immediately.
-2. **Broad Discovery:** If asked for ideas ("Find me cheap tech stocks") -> Use \`screen_assets\`.
-3. **Deep Analysis:** If asked for a thesis ("Should I buy NVDA?") -> THEN use \`get_macro_context\` and \`get_institutional_flows\` to build a case.
-4. **Current Events & News:** If asked "Why is X moving?", "Latest news on Y", or any 'why' question -> Use \`perform_grounded_research\`. This gives you access to Google's full native search with synthesized answers and citations.
-5. **Calendar Events:** If asked "When does X report earnings?" or "What economic data is coming?" -> Use \`get_financial_calendar\`.
+1. **Internal Data (Stock Metrics):** If asked for specific stock data (Price, P/E, Volume, Fundamentals) -> Use \`get_asset_fundamentals\`, \`screen_assets\`, \`get_price_history\`, or \`get_market_pulse\`.
+2. **External World (Everything Else):** For ANY question requiring knowledge outside your database -> Use \`perform_grounded_research\`.
+   - This includes: "Why is X moving?", "What is the history of Y?", "How does Z work?", "Explain the Fed's policy", "What happened in Iran?"
+   - Treat this tool as your "General Knowledge" module.
+   - If you don't know the answer, DO NOT guess. Call \`perform_grounded_research\`.
+3. **Hybrid Queries:** If asked "How does the Iran news affect NVDA?" -> Use \`perform_grounded_research\` FIRST to understand the news, THEN use \`get_asset_fundamentals\` to check the company's exposure.
+4. **Calendar Events:** If asked "When does X report earnings?" -> Use \`get_financial_calendar\`.
 
 ## Available Tools
 - **screen_assets**: Filter stocks/crypto by fundamentals, technicals, AI scores
@@ -1107,19 +1098,14 @@ function buildSystemPrompt(): string {
 - **get_institutional_flows**: 13F data showing what smart money is doing
 - **get_market_pulse**: Today's market action - gainers, losers, sector performance
 - **get_financial_calendar**: Earnings dates, economic calendar events
-- **perform_grounded_research**: Deep Google research with full page reading and citations (use for 'why' questions, news, current events)
+- **perform_grounded_research**: Universal Search - use for ANY external knowledge (news, history, explanations, analysis, general knowledge)
 - **execute_python**: Run calculations and data analysis
 - **generate_dynamic_ui**: Create tables and charts for visualization
 
-## Response Structure for "Why" / News / Geopolitical Questions
-When the user asks "Why is X moving?", "What's happening with Y?", or any current events question:
-
-1. **The Situation**: Use the output from \`perform_grounded_research\` to explain EXACTLY what is happening. Present the full narrative - who did what, when, and why it matters. Do NOT summarize away the details.
-2. **The Market Mechanism**: Explain the transmission mechanism (e.g., "Iran tensions -> Strait of Hormuz risk -> Oil supply concerns -> Inflation fears").
-3. **Asset Impact**: NOW use your data tools (\`get_market_pulse\`, \`screen_assets\`, \`get_price_history\`) to show how the market is actually reacting.
-4. **What to Watch**: Key indicators or upcoming events that could change the situation.
-
-**Important**: For "Why" questions, the NARRATIVE is the answer. Do not skip to asset prices before explaining the situation thoroughly.
+## Response Guidelines
+- For **external knowledge queries**: Present the full response from \`perform_grounded_research\`. Do NOT over-summarize - the user wants depth.
+- For **hybrid queries** (news + market impact): First explain the situation thoroughly, THEN layer on market data.
+- For **data queries**: Be concise and lead with the answer.
 
 ## Constraints
 - **Date Awareness:** Today is ${today}.
