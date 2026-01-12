@@ -1891,7 +1891,17 @@ print(f"✅ Data loaded: {len(df)} rows, columns: {list(df.columns)}")
         const latest = quarterlyData[0]
         
         // Fetch top institutional holders using extract-analytics endpoint
-        let topHolders: Array<{holder: string, shares: number, value: string, change: number}> = []
+        let topHolders: Array<{
+          holder: string, 
+          cik: string,
+          shares: number, 
+          value: string, 
+          change: number,
+          performance_1y?: string,
+          performance_3y?: string,
+          performance_5y?: string,
+          vs_sp500_1y?: string
+        }> = []
         try {
           const holdersUrl = `https://financialmodelingprep.com/stable/institutional-ownership/extract-analytics/holder?symbol=${symbol}&year=${latest.year}&quarter=${latest.quarter}&page=0&apikey=${FMP_API_KEY}`
           const holdersResponse = await fetch(holdersUrl)
@@ -1899,15 +1909,54 @@ print(f"✅ Data loaded: {len(df)} rows, columns: {list(df.columns)}")
             const holdersData = await holdersResponse.json()
             if (Array.isArray(holdersData) && holdersData.length > 0) {
               // Sort by shares and take top 10
-              topHolders = holdersData
+              const top10Holders = holdersData
                 .sort((a: any, b: any) => (b.sharesNumber || 0) - (a.sharesNumber || 0))
                 .slice(0, 10)
-                .map((h: any) => ({
-                  holder: h.investorName || 'Unknown',
-                  shares: h.sharesNumber || 0,
-                  value: h.marketValue ? `$${(h.marketValue / 1_000_000).toFixed(1)}M` : 'N/A',
-                  change: h.changeInShares || 0
-                }))
+              
+              // Fetch performance data for each holder in parallel
+              const holdersWithPerformance = await Promise.all(
+                top10Holders.map(async (h: any) => {
+                  const holderData: any = {
+                    holder: h.investorName || 'Unknown',
+                    cik: h.cik || '',
+                    shares: h.sharesNumber || 0,
+                    value: h.marketValue ? `$${(h.marketValue / 1_000_000_000).toFixed(2)}B` : 'N/A',
+                    change: h.changeInSharesNumber || 0
+                  }
+                  
+                  // Fetch holder performance summary if CIK is available
+                  if (h.cik) {
+                    try {
+                      const perfUrl = `https://financialmodelingprep.com/stable/institutional-ownership/holder-performance-summary?cik=${h.cik}&page=0&apikey=${FMP_API_KEY}`
+                      const perfResponse = await fetch(perfUrl)
+                      if (perfResponse.ok) {
+                        const perfData = await perfResponse.json()
+                        if (Array.isArray(perfData) && perfData.length > 0) {
+                          const latestPerf = perfData[0]
+                          holderData.performance_1y = latestPerf.performancePercentage1year != null 
+                            ? `${latestPerf.performancePercentage1year.toFixed(1)}%` 
+                            : 'N/A'
+                          holderData.performance_3y = latestPerf.performancePercentage3year != null 
+                            ? `${latestPerf.performancePercentage3year.toFixed(1)}%` 
+                            : 'N/A'
+                          holderData.performance_5y = latestPerf.performancePercentage5year != null 
+                            ? `${latestPerf.performancePercentage5year.toFixed(1)}%` 
+                            : 'N/A'
+                          holderData.vs_sp500_1y = latestPerf.performance1yearRelativeToSP500Percentage != null 
+                            ? `${latestPerf.performance1yearRelativeToSP500Percentage > 0 ? '+' : ''}${latestPerf.performance1yearRelativeToSP500Percentage.toFixed(1)}%` 
+                            : 'N/A'
+                        }
+                      }
+                    } catch (perfError) {
+                      console.error(`Error fetching performance for ${h.cik}:`, perfError)
+                    }
+                  }
+                  
+                  return holderData
+                })
+              )
+              
+              topHolders = holdersWithPerformance
             }
           }
         } catch (holdersError) {
