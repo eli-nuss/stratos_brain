@@ -64,7 +64,10 @@ interface ConsensusStock {
   latest_filing_date: string;
   // Stratos AI enrichment
   current_price?: number;
+  market_cap?: number;
   day_change?: number;
+  change_30d?: number;
+  change_365d?: number;
   stratos_ai_score?: number;
   stratos_ai_direction?: string;
   stratos_rsi?: number;
@@ -302,31 +305,62 @@ export default function InvestorWatchlist() {
                 </h3>
                 
                 {consensusList.length > 0 ? (
-                  <div className="overflow-hidden rounded-lg border border-slate-800">
+                  <div className="overflow-x-auto rounded-lg border border-slate-800">
                     <table className="w-full text-sm text-left text-slate-300">
                       <thead className="bg-slate-950 text-slate-400 uppercase text-xs">
                         <tr>
-                          <th className="px-4 py-3">Ticker</th>
-                          <th className="px-4 py-3">Investors</th>
-                          <th className="px-4 py-3">Avg Weight</th>
-                          <th className="px-4 py-3">Total Invested</th>
-                          <th className="px-4 py-3">Stratos Score</th>
+                          <th className="px-3 py-3">Ticker</th>
+                          <th className="px-3 py-3 text-center">Investors</th>
+                          <th className="px-3 py-3 text-right">Avg Weight</th>
+                          <th className="px-3 py-3 text-right">Total Invested</th>
+                          <th className="px-3 py-3 text-right">MC</th>
+                          <th className="px-3 py-3 text-center">AI Direction</th>
+                          <th className="px-3 py-3 text-right">24h%</th>
+                          <th className="px-3 py-3 text-right">30d%</th>
+                          <th className="px-3 py-3 text-right">365d%</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800 bg-slate-900/30">
-                        {consensusList.slice(0, 8).map((stock) => (
+                        {consensusList.slice(0, 10).map((stock) => (
                           <tr key={stock.symbol} className="hover:bg-slate-800/50 transition-colors">
-                            <td className="px-4 py-3 font-medium text-white">{stock.symbol}</td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-1">
-                                <span className="text-indigo-400 font-bold">{stock.guru_count}</span>
-                                <span className="text-slate-500 text-xs">investors</span>
-                              </div>
+                            <td className="px-3 py-3 font-medium text-white">{stock.symbol}</td>
+                            <td className="px-3 py-3 text-center">
+                              <span className="text-indigo-400 font-bold">{stock.guru_count}</span>
                             </td>
-                            <td className="px-4 py-3">{(stock.avg_conviction ?? 0).toFixed(1)}%</td>
-                            <td className="px-4 py-3">{formatCurrency(stock.total_guru_invested)}</td>
-                            <td className={cn("px-4 py-3 font-bold", getScoreColor(stock.stratos_ai_score))}>
-                              {stock.stratos_ai_score ?? '-'}
+                            <td className="px-3 py-3 text-right font-mono">{(stock.avg_conviction ?? 0).toFixed(1)}%</td>
+                            <td className="px-3 py-3 text-right font-mono">{formatCurrency(stock.total_guru_invested)}</td>
+                            <td className="px-3 py-3 text-right font-mono text-slate-400">{formatCurrency(stock.market_cap)}</td>
+                            <td className="px-3 py-3 text-center">
+                              {stock.stratos_ai_direction ? (
+                                <span className={cn(
+                                  "px-2 py-0.5 rounded text-xs font-medium",
+                                  stock.stratos_ai_direction === 'BULLISH' ? 'bg-emerald-500/20 text-emerald-400' :
+                                  stock.stratos_ai_direction === 'BEARISH' ? 'bg-red-500/20 text-red-400' :
+                                  'bg-slate-500/20 text-slate-400'
+                                )}>
+                                  {stock.stratos_ai_score ?? '-'}
+                                </span>
+                              ) : (
+                                <span className="text-slate-500">-</span>
+                              )}
+                            </td>
+                            <td className={cn(
+                              "px-3 py-3 text-right font-mono",
+                              (stock.day_change ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
+                            )}>
+                              {stock.day_change != null ? `${stock.day_change >= 0 ? '+' : ''}${stock.day_change.toFixed(2)}%` : '-'}
+                            </td>
+                            <td className={cn(
+                              "px-3 py-3 text-right font-mono",
+                              (stock.change_30d ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
+                            )}>
+                              {stock.change_30d != null ? `${stock.change_30d >= 0 ? '+' : ''}${stock.change_30d.toFixed(1)}%` : '-'}
+                            </td>
+                            <td className={cn(
+                              "px-3 py-3 text-right font-mono",
+                              (stock.change_365d ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
+                            )}>
+                              {stock.change_365d != null ? `${stock.change_365d >= 0 ? '+' : ''}${stock.change_365d.toFixed(1)}%` : '-'}
                             </td>
                           </tr>
                         ))}

@@ -577,25 +577,54 @@ serve(async (req) => {
 
         if (error) throw error
 
-        // Enrich with Stratos AI data
+        // Enrich with Stratos AI data + market cap + performance
         if (consensus && consensus.length > 0) {
           const symbols = consensus.map(c => c.symbol).filter(s => s && s !== 'UNKNOWN')
           
+          // Get Stratos AI data from dashboard view
           const { data: assetData } = await supabase
             .from('v_dashboard_all_assets')
-            .select('symbol, price, change_1d, ai_score, ai_direction, rsi_14, sector')
+            .select('symbol, price, change_1d, change_30d, change_365d, ai_score, ai_direction, rsi_14, sector, market_cap')
             .in('symbol', symbols)
 
           const assetMap = new Map(
             (assetData || []).map(a => [a.symbol, a])
           )
 
+          // For symbols not in Stratos, try to get market cap from FMP
+          const missingSymbols = symbols.filter(s => !assetMap.has(s))
+          if (missingSymbols.length > 0 && FMP_API_KEY) {
+            try {
+              const profileUrl = `${FMP_BASE_URL}/profile?symbol=${missingSymbols.join(',')}&apikey=${FMP_API_KEY}`
+              const profileResp = await fetch(profileUrl)
+              if (profileResp.ok) {
+                const profiles = await profileResp.json()
+                for (const p of profiles) {
+                  if (p.symbol) {
+                    assetMap.set(p.symbol, {
+                      symbol: p.symbol,
+                      price: p.price,
+                      market_cap: p.mktCap,
+                      change_1d: p.changes ? (p.changes / p.price * 100) : null,
+                      sector: p.sector
+                    })
+                  }
+                }
+              }
+            } catch (e) {
+              console.error('FMP profile fetch error:', e)
+            }
+          }
+
           const enrichedConsensus = consensus.map(c => {
-            const live = assetMap.get(c.symbol) || {}
+            const live = assetMap.get(c.symbol) || {} as any
             return {
               ...c,
               current_price: live.price || null,
+              market_cap: live.market_cap || null,
               day_change: live.change_1d || null,
+              change_30d: live.change_30d || null,
+              change_365d: live.change_365d || null,
               stratos_ai_score: live.ai_score || null,
               stratos_ai_direction: live.ai_direction || null,
               stratos_rsi: live.rsi_14 || null,
