@@ -1890,6 +1890,30 @@ print(f"✅ Data loaded: {len(df)} rows, columns: {list(df.columns)}")
         // Analyze the most recent quarter
         const latest = quarterlyData[0]
         
+        // Fetch top institutional holders using extract-analytics endpoint
+        let topHolders: Array<{holder: string, shares: number, value: string, change: number}> = []
+        try {
+          const holdersUrl = `https://financialmodelingprep.com/stable/institutional-ownership/extract-analytics/holder?symbol=${symbol}&year=${latest.year}&quarter=${latest.quarter}&page=0&apikey=${FMP_API_KEY}`
+          const holdersResponse = await fetch(holdersUrl)
+          if (holdersResponse.ok) {
+            const holdersData = await holdersResponse.json()
+            if (Array.isArray(holdersData) && holdersData.length > 0) {
+              // Sort by shares and take top 10
+              topHolders = holdersData
+                .sort((a: any, b: any) => (b.sharesNumber || 0) - (a.sharesNumber || 0))
+                .slice(0, 10)
+                .map((h: any) => ({
+                  holder: h.investorName || 'Unknown',
+                  shares: h.sharesNumber || 0,
+                  value: h.marketValue ? `$${(h.marketValue / 1_000_000).toFixed(1)}M` : 'N/A',
+                  change: h.changeInShares || 0
+                }))
+            }
+          }
+        } catch (holdersError) {
+          console.error('Error fetching top holders:', holdersError)
+        }
+        
         // Determine the flow trend
         let flow_trend = 'Neutral'
         let flow_strength = 0
@@ -1965,6 +1989,9 @@ print(f"✅ Data loaded: {len(df)} rows, columns: {list(df.columns)}")
               ? `⚠️ BEARISH: ${flow_strength} institutions exited this quarter. Smart Money is selling.`
               : 'Neutral: No significant change in institutional interest.'
           },
+          
+          // Top 10 Institutional Holders
+          top_holders: topHolders.length > 0 ? topHolders : undefined,
           
           // Risk Flags
           risk_flags: {
