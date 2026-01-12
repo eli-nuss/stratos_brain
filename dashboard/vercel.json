@@ -17,6 +17,10 @@
       "destination": "https://wfogbaipiqootjrsprde.supabase.co/functions/v1/global-chat-api/:path*"
     },
     {
+      "source": "/api/investor-api/:path*",
+      "destination": "https://wfogbaipiqootjrsprde.supabase.co/functions/v1/investor-api/:path*"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
@@ -30,6 +34,12 @@
     },
     {
       "source": "/api/global-chat-api/:path*",
+      "headers": [
+        { "key": "x-stratos-key", "value": "stratos_brain_api_key_2024" }
+      ]
+    },
+    {
+      "source": "/api/investor-api/:path*",
       "headers": [
         { "key": "x-stratos-key", "value": "stratos_brain_api_key_2024" }
       ]
