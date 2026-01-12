@@ -12,7 +12,14 @@ import useSWR from "swr";
 
 const API_BASE = "/api/investor-api";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = async (url: string) => {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`API error: ${res.status}`);
+  }
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+};
 
 interface InvestorSummary {
   investor_id: number;
@@ -62,7 +69,7 @@ export default function InvestorWatchlist() {
     fetcher
   );
 
-  // Fetch holdings for selected guru
+  // Fetch holdings for selected investor
   const { data: holdings, mutate: mutateHoldings, isLoading: isLoadingHoldings } = useSWR<Holding[]>(
     selectedInvestor ? `${API_BASE}/holdings/${selectedInvestor}` : null,
     fetcher
@@ -100,11 +107,7 @@ export default function InvestorWatchlist() {
         setSearchQuery("");
         setSearchResults([]);
       } else {
-        toast({
-          title: "Failed to track guru",
-          description: data.error || "Unknown error",
-          variant: "destructive",
-        });
+        toast.error(data.error || "Failed to track investor");
       }
     } catch (error) {
       toast.error("Failed to track investor. Please try again.");
@@ -126,11 +129,7 @@ export default function InvestorWatchlist() {
           mutateHoldings();
         }
       } else {
-        toast({
-          title: "Refresh failed",
-          description: data.error || "Unknown error",
-          variant: "destructive",
-        });
+        toast.error(data.error || "Failed to refresh holdings");
       }
     } catch (error) {
       toast.error("Failed to refresh holdings. Please try again.");
@@ -191,7 +190,8 @@ export default function InvestorWatchlist() {
     );
   };
 
-  const selectedInvestorData = investors?.find((g) => g.investor_id === selectedInvestor);
+  const investorList = Array.isArray(investors) ? investors : [];
+  const selectedInvestorData = investorList.find((g) => g.investor_id === selectedInvestor);
 
   return (
     <DashboardLayout>
@@ -255,31 +255,31 @@ export default function InvestorWatchlist() {
               <CardHeader>
                 <CardTitle>Tracked Investors</CardTitle>
                 <CardDescription>
-                  {investors?.length || 0} investors tracked
+                  {investorList.length} investors tracked
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
                 {isLoadingInvestors && <p className="text-sm text-muted-foreground">Loading...</p>}
                 
-                {investors?.map((guru) => (
+                {investorList.map((investor) => (
                   <Card
-                    key={guru.investor_id}
+                    key={investor.investor_id}
                     className={`cursor-pointer transition-colors ${
-                      selectedInvestor === guru.investor_id ? "bg-accent" : "hover:bg-accent/50"
+                      selectedInvestor === investor.investor_id ? "bg-accent" : "hover:bg-accent/50"
                     }`}
-                    onClick={() => setSelectedInvestor(guru.investor_id)}
+                    onClick={() => setSelectedInvestor(investor.investor_id)}
                   >
                     <CardHeader className="p-4">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <CardTitle className="text-sm">{guru.investor_name}</CardTitle>
+                          <CardTitle className="text-sm">{investor.investor_name}</CardTitle>
                           <CardDescription className="text-xs mt-1">
-                            {guru.total_positions} positions • {guru.quarter || guru.last_filing_date}
+                            {investor.total_positions} positions • {investor.quarter || investor.last_filing_date}
                           </CardDescription>
                           <div className="flex gap-2 mt-2">
                             <Badge variant="outline" className="text-xs">
                               <DollarSign className="h-3 w-3 mr-1" />
-                              {formatCurrency(guru.total_portfolio_value)}
+                              {formatCurrency(investor.total_portfolio_value)}
                             </Badge>
                           </div>
                         </div>
@@ -289,7 +289,7 @@ export default function InvestorWatchlist() {
                             variant="ghost"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleRefreshInvestor(guru.investor_id, guru.investor_name);
+                              handleRefreshInvestor(investor.investor_id, investor.investor_name);
                             }}
                           >
                             <RefreshCw className="h-3 w-3" />
@@ -299,7 +299,7 @@ export default function InvestorWatchlist() {
                             variant="ghost"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDeleteInvestor(guru.investor_id, guru.investor_name);
+                              handleDeleteInvestor(investor.investor_id, investor.investor_name);
                             }}
                           >
                             <Trash2 className="h-3 w-3" />
@@ -310,7 +310,7 @@ export default function InvestorWatchlist() {
                   </Card>
                 ))}
 
-                {!isLoadingInvestors && investors?.length === 0 && (
+                {!isLoadingInvestors && investorList.length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-8">
                     No investors tracked yet. Click "Add Investor" to get started.
                   </p>
@@ -398,7 +398,7 @@ export default function InvestorWatchlist() {
               <Card className="h-full flex items-center justify-center">
                 <CardContent className="text-center py-12">
                   <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-lg font-medium">Select a guru to view their portfolio</p>
+                  <p className="text-lg font-medium">Select an investor to view their portfolio</p>
                   <p className="text-sm text-muted-foreground mt-2">
                     Click on an investor from the list to see their holdings
                   </p>
