@@ -144,6 +144,21 @@ const unifiedFunctionDeclarations = [
       required: ["query"]
     }
   },
+  // Deep Research Report retrieval - comprehensive business model and key metrics analysis
+  {
+    name: "get_deep_research_report",
+    description: "Retrieves the latest Deep Research Report for a company if one exists. This comprehensive report contains: 1) Business Model Deep Dive (how the company makes money, revenue streams, customer segments, margins), 2) Historical Financial Analysis (7-10 years of data), 3) Key Metrics That Matter (3-5 business-specific metrics with historical trends), 4) Competitive Position, 5) Management Assessment. USE THIS FIRST when answering questions about business model, revenue breakdown, key metrics, or comprehensive company analysis. If no report exists, suggest generating one.",
+    parameters: {
+      type: "object",
+      properties: {
+        asset_id: { 
+          type: "number", 
+          description: "The internal asset ID" 
+        }
+      },
+      required: ["asset_id"]
+    }
+  },
   // Document retrieval function - for SEC filings and earnings transcripts
   {
     name: "get_company_docs",
@@ -792,6 +807,76 @@ async function executeFunctionCall(
       if (error) return { error: error.message }
       // Wrap array in object for Gemini API compatibility
       return { assets: data || [], count: data?.length || 0, query: args.query }
+    }
+    
+    case "get_deep_research_report": {
+      const assetId = args.asset_id as number
+      
+      // Query asset_files for the latest deep research report
+      const { data: files, error } = await supabase
+        .from('asset_files')
+        .select('file_id, file_name, file_path, file_type, description, created_at')
+        .eq('asset_id', assetId)
+        .eq('file_type', 'deep_research')
+        .order('created_at', { ascending: false })
+        .limit(1)
+      
+      if (error) {
+        return { error: error.message }
+      }
+      
+      if (!files || files.length === 0) {
+        return {
+          report_exists: false,
+          message: 'No Deep Research Report exists for this company yet. Suggest the user generate one from the Documents section on the asset detail page. The report will provide comprehensive business model analysis and key metrics.',
+          asset_id: assetId
+        }
+      }
+      
+      const latestReport = files[0]
+      
+      // Fetch the actual content from storage
+      try {
+        const response = await fetch(latestReport.file_path)
+        if (!response.ok) {
+          return {
+            report_exists: true,
+            file_name: latestReport.file_name,
+            created_at: latestReport.created_at,
+            error: 'Could not fetch report content. The file may have been moved.',
+            file_url: latestReport.file_path
+          }
+        }
+        
+        let content = await response.text()
+        
+        // Truncate if too long for context (similar to company_docs)
+        const MAX_REPORT_CHARS = 100000
+        let wasTruncated = false
+        if (content.length > MAX_REPORT_CHARS) {
+          content = content.substring(0, MAX_REPORT_CHARS) + '\n\n[REPORT TRUNCATED - Ask about specific sections for more detail.]'
+          wasTruncated = true
+        }
+        
+        return {
+          report_exists: true,
+          file_name: latestReport.file_name,
+          created_at: latestReport.created_at,
+          description: latestReport.description,
+          truncated: wasTruncated,
+          content: content,
+          file_url: latestReport.file_path,
+          usage_note: 'This Deep Research Report contains comprehensive analysis. Reference specific sections when answering user questions about business model, revenue breakdown, key metrics, competitive position, or management.'
+        }
+      } catch (fetchError) {
+        return {
+          report_exists: true,
+          file_name: latestReport.file_name,
+          created_at: latestReport.created_at,
+          error: 'Failed to fetch report content',
+          file_url: latestReport.file_path
+        }
+      }
     }
     
     case "get_company_docs": {
@@ -2140,22 +2225,24 @@ function buildSystemPrompt(asset: Record<string, unknown>, contextSnapshot: Reco
   
   const roleDescription = chatConfig.role_description || `You are helping a trader/investor research and analyze this company with professional-grade tools:
 
-1. **Document Library (get_company_docs)**: Read FULL SEC filings (10-K, 10-Q) and earnings transcripts. Use this for deep dives, risk analysis, finding management quotes, or understanding business strategy.
-2. **Database Functions**: Query real-time financial data, price history, technical indicators, signals, and AI reviews.
-3. **Python Sandbox (execute_python)**: Execute Python code for accurate calculations, statistical analysis, forecasts, and data processing. NumPy, Pandas, and Matplotlib are available.
-4. **Web Search**: Search for current news and real-time information not in the database.`
+1. **Deep Research Reports (get_deep_research_report)**: CHECK THIS FIRST for questions about business model, revenue breakdown, key metrics, or comprehensive analysis. These AI-generated reports contain 15-20 pages of analysis including business model deep dive, 7-10 years of financials, and the 3-5 metrics that actually matter for this specific business.
+2. **Document Library (get_company_docs)**: Read FULL SEC filings (10-K, 10-Q) and earnings transcripts. Use this for deep dives, risk analysis, finding management quotes, or understanding business strategy.
+3. **Database Functions**: Query real-time financial data, price history, technical indicators, signals, and AI reviews.
+4. **Python Sandbox (execute_python)**: Execute Python code for accurate calculations, statistical analysis, forecasts, and data processing. NumPy, Pandas, and Matplotlib are available.
+5. **Web Search**: Search for current news and real-time information not in the database.`
   
   const guidelines = chatConfig.guidelines
     ? chatConfig.guidelines.replace(/{asset_id}/g, String(asset.asset_id))
     : `## PROTOCOL - Follow This Order:
 
 1. **Reason First**: Before answering, analyze the user's intent. Are they asking for facts (use docs), math (use Python), or current events (use search)?
-2. **Source Documents**: For questions about risks, strategy, competitive position, or management tone → call \`get_company_docs\` FIRST.
-3. **Accurate Math**: For ANY numbers, calculations, or projections → use \`execute_python\`. Show your work.
-4. **Database Context**: Use asset_id ${asset.asset_id} for database functions. Query fundamentals, price history, and signals to ground your analysis.
-5. **Verify Claims**: If your memory conflicts with database/document data, ALWAYS trust the source data.
-6. **Transparency**: Be clear about data limitations and uncertainty. Cite your sources.
-7. **Actionable Insights**: End with clear takeaways or action items when appropriate.
+2. **Deep Research First**: For questions about business model, revenue breakdown, key metrics, how the company makes money, or comprehensive analysis → call \`get_deep_research_report\` FIRST. If no report exists, suggest generating one.
+3. **Source Documents**: For questions about risks, strategy, competitive position, or management tone → call \`get_company_docs\` or \`search_company_docs\`.
+4. **Accurate Math**: For ANY numbers, calculations, or projections → use \`execute_python\`. Show your work.
+5. **Database Context**: Use asset_id ${asset.asset_id} for database functions. Query fundamentals, price history, and signals to ground your analysis.
+6. **Verify Claims**: If your memory conflicts with database/document data, ALWAYS trust the source data.
+7. **Transparency**: Be clear about data limitations and uncertainty. Cite your sources.
+8. **Actionable Insights**: End with clear takeaways or action items when appropriate.
 
 ## MEMORY CONSTRAINT STRATEGY (CRITICAL)
 You are running in a memory-constrained serverless environment. For complex multi-step queries:

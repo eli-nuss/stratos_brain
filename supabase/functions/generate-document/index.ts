@@ -1,5 +1,5 @@
 // Supabase Edge Function: Gemini-based Document Generation
-// Generates investment memos and one-pagers using Gemini 3 Pro with Google Search grounding
+// Generates investment memos, one-pagers, and deep research reports using Gemini 3 Pro with Google Search grounding
 //
 // This replaces the Manus-based document generation with a synchronous Gemini approach.
 // The function fetches asset data from the control-api, then uses Gemini with web search
@@ -235,6 +235,486 @@ Price: $[X] | Target: $[X] | Upside: [X]% | Trend: [Bullish/Bearish]
 * **Management "Say/Do" Check:** [Pass/Fail] – *[Briefly: Do they have a history of missing guidance?]*
 `
 
+// ==================== NEW: DEEP RESEARCH REPORT TEMPLATE ====================
+
+const DEEP_RESEARCH_TEMPLATE = `# Deep Research Report: [Company Name] ([Ticker])
+
+**Generated:** [Date] | **Analyst:** Stratos Brain AI | **Report Version:** 1.0
+
+---
+
+## Executive Summary
+
+*[2-3 paragraph summary covering: 1) What the company does and how it makes money, 2) The 3-5 key metrics that matter for this business, 3) Current state and investment implications]*
+
+---
+
+## Part 1: Business Model Deep Dive
+
+### 1.1 Company Overview
+
+**What does this company actually do?**
+
+*[Comprehensive description of the company's core business, history, founding story, and current market position. Include when founded, key milestones, and current scale.]*
+
+### 1.2 Products & Services Breakdown
+
+| Product/Service | Description | Revenue Contribution | Growth Rate | Margin Profile |
+|-----------------|-------------|---------------------|-------------|----------------|
+| [Product 1] | [What it does] | [X]% | [X]% | [High/Medium/Low] |
+| [Product 2] | | | | |
+| [Product 3] | | | | |
+
+**Analysis:** *[Which products are growth drivers vs cash cows? Any products in decline?]*
+
+### 1.3 Revenue Model Analysis
+
+**How exactly does money flow into this business?**
+
+| Revenue Stream | Type | % of Total | Recurring? | Visibility |
+|----------------|------|------------|------------|------------|
+| [Stream 1] | (Subscription/Transaction/License/Hardware/Services) | [X]% | Yes/No | High/Medium/Low |
+| [Stream 2] | | | | |
+| [Stream 3] | | | | |
+
+**Revenue Quality Assessment:** *[Is this high-quality recurring revenue or lumpy one-time sales? What's the predictability?]*
+
+### 1.4 Revenue Breakdown by Geography
+
+| Region | Revenue ($M) | % of Total | YoY Growth | Key Trends |
+|--------|-------------|------------|------------|------------|
+| North America | | | | |
+| Europe | | | | |
+| Asia-Pacific | | | | |
+| Latin America | | | | |
+| Other | | | | |
+
+**Geographic Risk Assessment:** *[Concentration risk? Currency exposure? Regulatory differences by region?]*
+
+### 1.5 Revenue Breakdown by Channel
+
+| Channel | Description | % of Revenue | Trend | Strategic Importance |
+|---------|-------------|--------------|-------|---------------------|
+| Direct Sales | | | | |
+| Partner/Reseller | | | | |
+| E-commerce/Self-serve | | | | |
+| Enterprise | | | | |
+
+### 1.6 Customer Analysis
+
+**Who buys from this company and why?**
+
+| Customer Segment | Description | % of Revenue | Avg Deal Size | Retention Rate | Growth |
+|------------------|-------------|--------------|---------------|----------------|--------|
+| [Segment 1] | | | | | |
+| [Segment 2] | | | | | |
+| [Segment 3] | | | | | |
+
+**Customer Concentration:** 
+- Top customer: [X]% of revenue
+- Top 10 customers: [X]% of revenue
+- **Risk Assessment:** *[Is there dangerous concentration?]*
+
+**Value Proposition:** *[Why do customers choose this company over alternatives? What problem does it solve?]*
+
+### 1.7 The Buying Process
+
+**How do customers actually buy?**
+
+- **Sales Cycle Length:** [X] months (typical range: [X-Y] months)
+- **Decision Makers:** [Who signs the check? C-suite? Department head? End user?]
+- **Procurement Process:** [RFP? Direct negotiation? Self-serve? Land-and-expand?]
+- **Switching Costs:** [High/Medium/Low] — *[Explain: What makes it hard/easy to switch?]*
+- **Implementation Time:** [X] weeks/months
+
+### 1.8 Seasonality & Cyclicality
+
+| Quarter | Typical Revenue Pattern | % of Annual | Explanation |
+|---------|------------------------|-------------|-------------|
+| Q1 | [Strong/Weak/Normal] | [X]% | [Why?] |
+| Q2 | | | |
+| Q3 | | | |
+| Q4 | | | |
+
+**Cyclical Sensitivity:** *[How does this business perform in recessions? Is it tied to GDP, housing, tech spending, etc.?]*
+
+### 1.9 Margin Structure by Segment
+
+| Segment | Gross Margin | Operating Margin | Key Cost Drivers |
+|---------|--------------|------------------|------------------|
+| [Segment 1] | [X]% | [X]% | [Main costs] |
+| [Segment 2] | | | |
+| [Segment 3] | | | |
+| **Consolidated** | **[X]%** | **[X]%** | |
+
+**Margin Trajectory:** *[Are margins expanding or contracting? What's driving the change?]*
+
+### 1.10 Business Model Summary
+
+**The Business Model in One Paragraph:**
+
+*[Synthesize everything above: This company makes money by [X], selling primarily to [Y] customers, with [Z]% recurring revenue. The key economic drivers are [A, B, C]. Margins are [expanding/stable/contracting] because [reason].]*
+
+---
+
+## Part 2: Historical Financial Analysis
+
+### 2.1 Income Statement Trends (7-10 Years)
+
+*[Agent Instruction: Extract actual historical data. Use Google Search to find investor presentations, 10-K filings, and financial databases.]*
+
+| Metric ($M) | FY-9 | FY-8 | FY-7 | FY-6 | FY-5 | FY-4 | FY-3 | FY-2 | FY-1 | TTM |
+|-------------|------|------|------|------|------|------|------|------|------|-----|
+| Revenue | | | | | | | | | | |
+| YoY Growth % | | | | | | | | | | |
+| Gross Profit | | | | | | | | | | |
+| Gross Margin % | | | | | | | | | | |
+| EBITDA | | | | | | | | | | |
+| EBITDA Margin % | | | | | | | | | | |
+| EBIT | | | | | | | | | | |
+| EBIT Margin % | | | | | | | | | | |
+| Net Income | | | | | | | | | | |
+| Net Margin % | | | | | | | | | | |
+| Diluted EPS | | | | | | | | | | |
+
+**Key Observations:**
+1. **Revenue Growth:** *[Describe the trajectory - accelerating, decelerating, cyclical?]*
+2. **Margin Story:** *[Are margins expanding? Why or why not?]*
+3. **Inflection Points:** *[Any major changes? What caused them?]*
+
+### 2.2 Cash Flow Analysis (7-10 Years)
+
+| Metric ($M) | FY-9 | FY-8 | FY-7 | FY-6 | FY-5 | FY-4 | FY-3 | FY-2 | FY-1 | TTM |
+|-------------|------|------|------|------|------|------|------|------|------|-----|
+| Operating Cash Flow | | | | | | | | | | |
+| Capital Expenditures | | | | | | | | | | |
+| Free Cash Flow | | | | | | | | | | |
+| FCF Margin % | | | | | | | | | | |
+| FCF Conversion % | | | | | | | | | | |
+| Dividends Paid | | | | | | | | | | |
+| Share Buybacks | | | | | | | | | | |
+
+**Cash Flow Quality Assessment:**
+- Is FCF tracking net income? *[If not, why?]*
+- Working capital trends: *[Cash tied up in inventory/receivables?]*
+- CapEx intensity: *[Maintenance vs growth capex?]*
+
+### 2.3 Balance Sheet Health
+
+| Metric | Current | 3Y Avg | 5Y Avg | Industry Avg | Assessment |
+|--------|---------|--------|--------|--------------|------------|
+| Cash & Equivalents ($M) | | | | | |
+| Total Debt ($M) | | | | | |
+| Net Debt ($M) | | | | | |
+| Debt/EBITDA | | | | | |
+| Net Debt/EBITDA | | | | | |
+| Interest Coverage | | | | | |
+| Current Ratio | | | | | |
+| Quick Ratio | | | | | |
+
+**Financial Strength Grade:** [A/B/C/D/F]
+*[Explanation: Why this grade? Any concerns?]*
+
+### 2.4 Return on Capital Analysis
+
+| Metric | Current | 3Y Avg | 5Y Avg | 10Y Avg | Industry Avg | Assessment |
+|--------|---------|--------|--------|---------|--------------|------------|
+| ROIC | | | | | | |
+| ROE | | | | | | |
+| ROA | | | | | | |
+| ROCE | | | | | | |
+
+**Capital Efficiency Assessment:**
+- Is ROIC > WACC? *[Creating or destroying value?]*
+- ROIC trend: *[Improving, stable, or declining?]*
+- What drives returns? *[Margins? Asset turns? Leverage?]*
+
+### 2.5 Revenue by Segment (Historical)
+
+| Segment ($M) | FY-5 | FY-4 | FY-3 | FY-2 | FY-1 | TTM | 5Y CAGR |
+|--------------|------|------|------|------|------|-----|---------|
+| [Segment 1] | | | | | | | |
+| [Segment 2] | | | | | | | |
+| [Segment 3] | | | | | | | |
+| **Total** | | | | | | | |
+
+**Segment Mix Shift:** *[How is the business mix changing over time? Is this good or bad for margins/growth?]*
+
+---
+
+## Part 3: Key Metrics That Matter
+
+### 3.1 Identifying the Right Metrics
+
+*[Agent Instruction: Based on the business model analysis, identify 3-5 metrics that ACTUALLY MATTER for this specific business. Do NOT use generic metrics. The metrics must be specific to this company's business model.]*
+
+**Why These Metrics?**
+
+Based on the business model analysis above, these are the **3-5 metrics that actually matter** for evaluating [Company Name]:
+
+| # | Metric | Why It Matters for THIS Business | Current Value | Historical Range | Target/Benchmark |
+|---|--------|----------------------------------|---------------|------------------|------------------|
+| 1 | [Metric 1] | [Specific explanation] | | | |
+| 2 | [Metric 2] | [Specific explanation] | | | |
+| 3 | [Metric 3] | [Specific explanation] | | | |
+| 4 | [Metric 4] | [Specific explanation] | | | |
+| 5 | [Metric 5] | [Specific explanation] | | | |
+
+### 3.2 Key Metric #1: [Metric Name]
+
+**Definition:** *[Exactly how is this calculated? Formula if applicable.]*
+
+**Why It Matters for [Company Name]:** *[Specific explanation tied to the business model discovered in Part 1]*
+
+**Historical Trend:**
+
+| Period | Value | YoY Change | Commentary |
+|--------|-------|------------|------------|
+| FY-5 | | | |
+| FY-4 | | | |
+| FY-3 | | | |
+| FY-2 | | | |
+| FY-1 | | | |
+| TTM/Latest | | | |
+
+**Management Commentary:** *[What has management said about this metric in recent earnings calls? Include direct quotes if available.]*
+
+**What to Watch:**
+- **Bullish signal:** *[What would indicate improvement?]*
+- **Bearish signal:** *[What would indicate deterioration?]*
+
+### 3.3 Key Metric #2: [Metric Name]
+
+*[Same detailed structure as 3.2]*
+
+### 3.4 Key Metric #3: [Metric Name]
+
+*[Same detailed structure as 3.2]*
+
+### 3.5 Key Metric #4: [Metric Name]
+
+*[Same detailed structure as 3.2]*
+
+### 3.6 Key Metric #5: [Metric Name]
+
+*[Same detailed structure as 3.2]*
+
+### 3.7 Key Metrics Dashboard Summary
+
+| Metric | Current | vs 1Y Ago | vs 3Y Ago | vs 5Y Ago | Trend | Signal |
+|--------|---------|-----------|-----------|-----------|-------|--------|
+| [Metric 1] | | | | | ↑/↓/→ | 🟢/🟡/🔴 |
+| [Metric 2] | | | | | | |
+| [Metric 3] | | | | | | |
+| [Metric 4] | | | | | | |
+| [Metric 5] | | | | | | |
+
+**Overall Assessment:** *[Are the key metrics improving or deteriorating? What's the trajectory?]*
+
+---
+
+## Part 4: Competitive Position
+
+### 4.1 Industry Overview
+
+*[Brief overview: Industry size, growth rate, key trends, major players]*
+
+- **Total Addressable Market (TAM):** $[X]B
+- **Industry Growth Rate:** [X]% CAGR
+- **Key Industry Trends:** *[3-5 major trends affecting the industry]*
+
+### 4.2 Competitive Landscape
+
+| Competitor | Revenue | Market Share | Key Strengths | Key Weaknesses | Threat Level |
+|------------|---------|--------------|---------------|----------------|--------------|
+| **[This Company]** | $[X]B | [X]% | | | — |
+| [Competitor 1] | | | | | High/Med/Low |
+| [Competitor 2] | | | | | |
+| [Competitor 3] | | | | | |
+| [Competitor 4] | | | | | |
+
+### 4.3 Competitive Advantages (Moat Analysis)
+
+| Moat Type | Present? | Strength (1-5) | Evidence |
+|-----------|----------|----------------|----------|
+| Network Effects | Yes/No | | |
+| Switching Costs | Yes/No | | |
+| Cost Advantages | Yes/No | | |
+| Intangible Assets (Brand/IP) | Yes/No | | |
+| Efficient Scale | Yes/No | | |
+
+**Overall Moat Assessment:** [Wide/Narrow/None]
+*[Explanation: What is the durable competitive advantage, if any?]*
+
+### 4.4 Market Share Trends
+
+| Year | [Company] Share | Main Competitor | Industry Trend |
+|------|-----------------|-----------------|----------------|
+| 5Y Ago | [X]% | [X]% | |
+| 3Y Ago | | | |
+| Current | | | |
+
+**Share Trajectory:** *[Gaining or losing share? Why?]*
+
+---
+
+## Part 5: Management & Capital Allocation
+
+### 5.1 Leadership Team
+
+**CEO:** [Name] (Since [Year])
+- **Background:** *[Brief bio - previous roles, education]*
+- **Track Record:** *[Key accomplishments and failures at this company]*
+- **Compensation:** *[How are they paid? Aligned with shareholders?]*
+- **Ownership:** [X]% of shares outstanding
+
+**CFO:** [Name] (Since [Year])
+- **Background:** *[Brief bio]*
+- **Track Record:** *[Key accomplishments]*
+
+**Key Executives:** *[Any other critical leaders to note?]*
+
+### 5.2 Capital Allocation History (5 Years)
+
+| Use of Cash | 5Y Total ($M) | % of Total | Assessment |
+|-------------|---------------|------------|------------|
+| CapEx (Maintenance) | | | Good/Bad/Neutral |
+| CapEx (Growth) | | | |
+| M&A | | | |
+| Dividends | | | |
+| Buybacks | | | |
+| Debt Paydown | | | |
+| **Total Cash Deployed** | | 100% | |
+
+**Capital Allocation Grade:** [A/B/C/D/F]
+*[Explanation: Are they good stewards of capital?]*
+
+### 5.3 M&A Track Record
+
+| Acquisition | Year | Price Paid | Strategic Rationale | Outcome (Success/Failure) |
+|-------------|------|------------|---------------------|---------------------------|
+| [Deal 1] | | | | |
+| [Deal 2] | | | | |
+| [Deal 3] | | | | |
+
+**M&A Assessment:** *[Good acquirer or value destroyer?]*
+
+### 5.4 Guidance vs Reality ("Say/Do" Audit)
+
+| Year | What Management Promised | What Actually Happened | Grade |
+|------|--------------------------|------------------------|-------|
+| FY-3 | | | A/B/C/D/F |
+| FY-2 | | | |
+| FY-1 | | | |
+
+**Management Credibility Score:** [High/Medium/Low]
+*[Do they under-promise and over-deliver, or vice versa?]*
+
+---
+
+## Part 6: Risks & Considerations
+
+### 6.1 Key Risk Factors
+
+| Risk | Probability | Impact | Mitigation | How to Monitor |
+|------|-------------|--------|------------|----------------|
+| [Risk 1] | H/M/L | H/M/L | [What company is doing] | [What to watch] |
+| [Risk 2] | | | | |
+| [Risk 3] | | | | |
+| [Risk 4] | | | | |
+| [Risk 5] | | | | |
+
+### 6.2 Bear Case Scenario
+
+**What would have to go wrong for this investment to fail?**
+
+*[Detailed bear case: specific scenarios, quantified downside]*
+
+### 6.3 Regulatory & ESG Considerations
+
+- **Regulatory Risks:** *[Any pending regulation? Antitrust? Industry-specific?]*
+- **ESG Concerns:** *[Environmental, social, governance issues?]*
+- **Litigation:** *[Any material lawsuits?]*
+
+---
+
+## Part 7: Valuation Context
+
+### 7.1 Current Valuation Multiples
+
+| Metric | Current | 5Y Avg | 10Y Avg | Industry Avg | vs History |
+|--------|---------|--------|---------|--------------|------------|
+| P/E (TTM) | | | | | Premium/Discount |
+| P/E (NTM) | | | | | |
+| EV/EBITDA | | | | | |
+| EV/Revenue | | | | | |
+| P/FCF | | | | | |
+| P/B | | | | | |
+
+### 7.2 Valuation Assessment
+
+**Is the stock cheap, fair, or expensive?**
+
+*[Analysis: Compare to history, peers, and growth rate. What multiple is appropriate for this business?]*
+
+---
+
+## Part 8: Summary & Key Takeaways
+
+### 8.1 Business Model Summary
+
+*[1 paragraph: How does this company make money? What's the economic engine?]*
+
+### 8.2 The Key Metrics That Matter
+
+| # | Metric | Current | Assessment | Trend |
+|---|--------|---------|------------|-------|
+| 1 | [Metric 1] | [Value] | [Good/Neutral/Concerning] | ↑/↓/→ |
+| 2 | [Metric 2] | | | |
+| 3 | [Metric 3] | | | |
+| 4 | [Metric 4] | | | |
+| 5 | [Metric 5] | | | |
+
+### 8.3 Key Questions for Further Research
+
+*[List 3-5 specific questions that need more investigation]*
+
+1. [Question 1]
+2. [Question 2]
+3. [Question 3]
+
+### 8.4 Suggested Follow-Up Topics for Company Chat
+
+Use the **Company Chat** feature to dive deeper into:
+- Specific sections of 10-K/10-Q filings
+- Management commentary from earnings calls
+- Competitive dynamics and market share data
+- Historical trends in any metric
+- Risk factor analysis
+
+---
+
+## Appendix
+
+### A. Data Sources
+
+*[List all sources used: SEC filings, investor presentations, news articles, etc.]*
+
+### B. Glossary
+
+*[Define any industry-specific or company-specific terms]*
+
+### C. Methodology Notes
+
+*[Explain any calculations, assumptions, or data adjustments]*
+
+---
+
+*This Deep Research Report was generated by Stratos Brain AI using Gemini 3 Pro with Google Search grounding. All data should be verified against primary sources before making investment decisions. Use the Company Chat feature to ask follow-up questions about any section of this report.*
+`
+
+// ==================== SYSTEM PROMPTS ====================
+
 const SYSTEM_PROMPT = `# ROLE & OBJECTIVE
 You are the **Lead Equity Research Agent** for Stratos Brain. Your goal is to generate institutional-grade investment documents that are 100% compliant with a specific **Template**.
 
@@ -265,6 +745,103 @@ Once you have gathered the missing qualitative data, generate the full document.
 * **Opinion:** Be decisive. If the data suggests a "Bullish" trend, say so clearly, backed by the database evidence.
 `
 
+const DEEP_RESEARCH_SYSTEM_PROMPT = `# ROLE & OBJECTIVE
+
+You are the **Lead Equity Research Analyst** for Stratos Brain, tasked with generating comprehensive Deep Research Reports. Your goal is to create institutional-grade research that answers two fundamental questions:
+
+1. **How does this company make money?** (Business Model)
+2. **What metrics actually matter for this specific business?** (Key Metrics)
+
+This report will serve as the foundation for ongoing research conversations via the Company Chat interface.
+
+# THE WORKFLOW
+
+## PHASE 1: BUSINESS MODEL DEEP DIVE
+
+Before generating any financials, you MUST deeply understand the business model:
+
+1. **Products/Services:** What exactly does the company sell? How has the product mix evolved?
+2. **Revenue Streams:** Subscription? Transaction? License? Hardware? Services? What's recurring vs one-time?
+3. **Customer Base:** Who buys? Enterprise? SMB? Consumer? Government? What's the concentration?
+4. **Geographic Mix:** Where does revenue come from? Any concentration risks?
+5. **Channel Strategy:** Direct sales? Partners? E-commerce? How do customers actually buy?
+6. **Seasonality:** Any quarterly patterns? Cyclical exposure to macro factors?
+7. **Margin Structure:** What drives costs? How do margins vary by segment?
+
+**RESEARCH REQUIRED:** Use Google Search extensively to find:
+- Recent investor presentations and investor day materials
+- 10-K business description sections (Item 1)
+- Industry reports and market research
+- Management interviews and conference presentations
+- Competitor comparisons and market share data
+
+## PHASE 2: FINANCIAL DATA EXTRACTION
+
+Extract and present historical financials for 7-10 years where available:
+- Income statement metrics (Revenue, Gross Profit, EBITDA, EBIT, Net Income)
+- Cash flow metrics (OCF, CapEx, FCF)
+- Balance sheet metrics (Cash, Debt, Working Capital)
+- Return metrics (ROIC, ROE, ROA)
+- Segment breakdowns by business line and geography
+
+**CALCULATE:**
+- YoY growth rates for all metrics
+- Margins (Gross, EBITDA, EBIT, Net, FCF)
+- CAGRs for key metrics over 3Y, 5Y, 10Y periods
+- FCF conversion (FCF / Net Income)
+
+## PHASE 3: KEY METRICS IDENTIFICATION
+
+**THIS IS CRITICAL:** Based on the business model discovered in Phase 1, identify 3-5 metrics that ACTUALLY MATTER for THIS specific business.
+
+**DO NOT use generic metrics.** The metrics must be SPECIFIC to this business model:
+- For a SaaS company: ARR, Net Revenue Retention, CAC Payback, Rule of 40
+- For a retailer: Same-store sales, Inventory turns, Sales per sq ft
+- For a bank: NIM, Efficiency ratio, NPL ratio, CET1 ratio
+- For a manufacturer: Capacity utilization, Book-to-bill, Backlog
+- For a subscription business: Churn rate, ARPU, LTV/CAC
+
+**For each key metric you identify:**
+1. Define exactly how it's calculated
+2. Explain why it matters for THIS specific business (tie back to the business model)
+3. Show the historical trend (5+ years if available)
+4. Include management commentary from recent earnings calls
+5. Identify what would signal improvement vs deterioration
+
+## PHASE 4: SYNTHESIS
+
+Bring everything together:
+- Executive summary that captures the essence of the business
+- Competitive position and moat analysis
+- Management quality assessment
+- Risk factors specific to this business
+- Valuation context (is it cheap/fair/expensive vs history and peers?)
+- Key questions for follow-up research
+
+# STYLE GUIDELINES
+
+- **Tone:** Professional, objective, institutional (Goldman Sachs/Morgan Stanley quality)
+- **Formatting:** Clean Markdown with extensive use of tables for financial data
+- **Data:** Use exact numbers from sources. Cite everything with links.
+- **Length:** Comprehensive (15-20 pages equivalent) but readable
+- **Tables:** Use tables extensively - they make financial data scannable
+- **Citations:** Include source links for all external data points
+
+# CRITICAL RULES
+
+1. **Business Model First:** Do NOT discuss financials until you understand HOW the company makes money
+2. **Specific Metrics:** Do NOT use generic metrics. Every metric must be justified for THIS specific business
+3. **Historical Context:** Show 7-10 years of data where available to identify trends
+4. **Management Voice:** Include direct quotes from earnings calls where relevant
+5. **No Hallucination:** If data is unavailable, say so explicitly. Do NOT make up numbers.
+6. **Actionable:** End with specific questions for follow-up research via Company Chat
+7. **Source Everything:** Every data point should have a source. Use Google Search extensively.
+
+# OUTPUT FORMAT
+
+Generate the complete report following the TEMPLATE structure exactly. Fill in every section with real data from your research. If a section cannot be completed due to lack of data, note what's missing and why.
+`
+
 // ==================== HELPER FUNCTIONS ====================
 
 interface AssetData {
@@ -276,6 +853,9 @@ interface AssetData {
   signals: Array<Record<string, unknown>>
   review: Record<string, unknown> | null
   review_status: string
+  fundamentals?: Record<string, unknown>
+  quarterly_fundamentals?: Array<Record<string, unknown>>
+  annual_fundamentals?: Array<Record<string, unknown>>
 }
 
 function formatDatabaseContext(data: AssetData): string {
@@ -361,9 +941,122 @@ function formatDatabaseContext(data: AssetData): string {
   return JSON.stringify(context, null, 2)
 }
 
+function formatDeepResearchContext(data: AssetData): string {
+  const asset = data.asset || {}
+  const review = data.review || {}
+  const features = data.features || {}
+  const ohlcv = data.ohlcv || []
+  const fundamentals = data.fundamentals || {}
+  const quarterlyFundamentals = data.quarterly_fundamentals || []
+  const annualFundamentals = data.annual_fundamentals || []
+  
+  // Get more OHLCV for deep research (last 252 trading days = ~1 year)
+  const recentOhlcv = ohlcv.slice(-252)
+  
+  const context = {
+    // Core info
+    symbol: asset.symbol,
+    company_name: asset.name,
+    sector: asset.sector || asset.category,
+    industry: asset.industry || asset.category,
+    description: asset.short_description,
+    asset_type: asset.asset_type,
+    
+    // Current Valuation Metrics
+    valuation: {
+      market_cap: asset.market_cap,
+      enterprise_value: asset.enterprise_value,
+      pe_ratio: asset.pe_ratio,
+      forward_pe: asset.forward_pe,
+      price_to_sales_ttm: asset.price_to_sales_ttm,
+      ev_to_ebitda: asset.ev_to_ebitda,
+      ev_to_revenue: asset.ev_to_revenue,
+      price_to_book: asset.price_to_book,
+      price_to_fcf: asset.price_to_fcf,
+      peg_ratio: asset.peg_ratio,
+    },
+    
+    // Current Fundamentals
+    fundamentals: {
+      revenue_ttm: asset.revenue_ttm || fundamentals.revenue_ttm,
+      revenue_growth_yoy: asset.revenue_growth_yoy || fundamentals.revenue_growth_yoy,
+      gross_margin: asset.gross_margin || fundamentals.gross_margin,
+      operating_margin: asset.operating_margin || fundamentals.operating_margin,
+      profit_margin: asset.profit_margin || fundamentals.profit_margin,
+      ebitda: asset.ebitda || fundamentals.ebitda,
+      ebitda_margin: fundamentals.ebitda_margin,
+      free_cash_flow: asset.free_cash_flow || fundamentals.free_cash_flow,
+      fcf_margin: fundamentals.fcf_margin,
+      roe: asset.roe || fundamentals.roe,
+      roa: asset.roa || fundamentals.roa,
+      roic: fundamentals.roic,
+      eps: asset.eps,
+      eps_growth_yoy: asset.earnings_growth_yoy,
+      dividend_yield: asset.dividend_yield,
+      payout_ratio: fundamentals.payout_ratio,
+    },
+    
+    // Balance Sheet
+    balance_sheet: {
+      total_cash: asset.total_cash || fundamentals.total_cash,
+      total_debt: asset.total_debt || fundamentals.total_debt,
+      net_debt: fundamentals.net_debt,
+      debt_to_equity: fundamentals.debt_to_equity,
+      current_ratio: fundamentals.current_ratio,
+      quick_ratio: fundamentals.quick_ratio,
+      book_value_per_share: fundamentals.book_value_per_share,
+    },
+    
+    // Historical Quarterly Fundamentals (for trend analysis)
+    quarterly_history: quarterlyFundamentals.slice(-20), // Last 5 years of quarters
+    
+    // Historical Annual Fundamentals (for long-term trends)
+    annual_history: annualFundamentals.slice(-10), // Last 10 years
+    
+    // Price context
+    price_data: {
+      current_price: asset.current_price,
+      week_52_high: asset.week_52_high,
+      week_52_low: asset.week_52_low,
+      analyst_target_price: asset.analyst_target_price,
+      beta: asset.beta,
+      avg_volume: asset.avg_volume,
+    },
+    
+    // AI Review data (if available)
+    ai_analysis: {
+      review_status: data.review_status,
+      direction_score: review.ai_direction_score,
+      quality_score: review.ai_setup_quality_score,
+      attention_level: review.attention_level,
+      setup_type: review.setup_type,
+      summary: review.summary_text || review.ai_summary_text,
+    },
+    
+    // Technical features
+    technical: {
+      rsi_14: features.rsi_14,
+      trend_regime: features.trend_regime,
+      return_1d: features.return_1d,
+      return_5d: features.return_5d,
+      return_21d: features.return_21d,
+      return_63d: features.return_63d,
+      return_252d: features.return_252d,
+    },
+    
+    // Recent price action (1 year)
+    ohlcv_1y: recentOhlcv,
+    as_of_date: data.as_of_date,
+  }
+  
+  return JSON.stringify(context, null, 2)
+}
+
 async function callGeminiWithSearch(
   prompt: string,
-  apiKey: string
+  apiKey: string,
+  systemPrompt: string = SYSTEM_PROMPT,
+  maxTokens: number = 16384
 ): Promise<{ text: string; sources: Array<{ title: string; uri: string }> }> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${apiKey}`
   
@@ -375,7 +1068,7 @@ async function callGeminiWithSearch(
       }
     ],
     systemInstruction: {
-      parts: [{ text: SYSTEM_PROMPT }]
+      parts: [{ text: systemPrompt }]
     },
     tools: [
       {
@@ -384,7 +1077,7 @@ async function callGeminiWithSearch(
     ],
     generationConfig: {
       temperature: 0.7,
-      maxOutputTokens: 16384,
+      maxOutputTokens: maxTokens,
     }
   }
   
@@ -468,8 +1161,8 @@ serve(async (req) => {
         })
       }
       
-      // Validate document type
-      const validTypes = ['one_pager', 'memo']
+      // Validate document type - now includes deep_research
+      const validTypes = ['one_pager', 'memo', 'deep_research']
       const docType = validTypes.includes(document_type) ? document_type : 'one_pager'
       
       console.log(`Generating ${docType} for ${symbol} (asset_type: ${asset_type || 'not specified'})...`)
@@ -495,11 +1188,118 @@ serve(async (req) => {
       const companyName = assetData.asset?.name || symbol
       const todayDate = new Date().toISOString().split('T')[0]
       
-      // Step 2: Prepare the prompt
-      const databaseContext = formatDatabaseContext(assetData)
-      const template = docType === 'memo' ? MEMO_TEMPLATE : ONE_PAGER_TEMPLATE
+      // For deep research, fetch additional fundamental data
+      if (docType === 'deep_research' && asset_id) {
+        try {
+          // Fetch quarterly fundamentals
+          const { data: quarterlyData } = await supabase
+            .from('equity_quarterly_fundamentals')
+            .select('*')
+            .eq('asset_id', asset_id)
+            .order('fiscal_date_ending', { ascending: false })
+            .limit(20)
+          
+          if (quarterlyData) {
+            assetData.quarterly_fundamentals = quarterlyData
+          }
+          
+          // Fetch annual fundamentals
+          const { data: annualData } = await supabase
+            .from('equity_annual_fundamentals')
+            .select('*')
+            .eq('asset_id', asset_id)
+            .order('fiscal_date_ending', { ascending: false })
+            .limit(10)
+          
+          if (annualData) {
+            assetData.annual_fundamentals = annualData
+          }
+          
+          // Fetch equity metadata
+          const { data: metadataData } = await supabase
+            .from('equity_metadata')
+            .select('*')
+            .eq('asset_id', asset_id)
+            .single()
+          
+          if (metadataData) {
+            assetData.fundamentals = metadataData
+          }
+        } catch (err) {
+          console.log('Note: Could not fetch additional fundamentals data:', err)
+        }
+      }
       
-      const prompt = `
+      // Step 2: Prepare the prompt based on document type
+      let databaseContext: string
+      let template: string
+      let systemPrompt: string
+      let maxTokens: number
+      
+      if (docType === 'deep_research') {
+        databaseContext = formatDeepResearchContext(assetData)
+        template = DEEP_RESEARCH_TEMPLATE
+        systemPrompt = DEEP_RESEARCH_SYSTEM_PROMPT
+        maxTokens = 32768 // Larger output for comprehensive report
+      } else {
+        databaseContext = formatDatabaseContext(assetData)
+        template = docType === 'memo' ? MEMO_TEMPLATE : ONE_PAGER_TEMPLATE
+        systemPrompt = SYSTEM_PROMPT
+        maxTokens = 16384
+      }
+      
+      const prompt = docType === 'deep_research' 
+        ? `
+# TASK: Generate Deep Research Report for ${symbol} (${companyName})
+
+## CONTEXT
+You are creating a comprehensive Deep Research Report that will serve as the foundation for ongoing investment research. This report will be used with the Company Chat feature for follow-up questions.
+
+## INPUT DATA
+
+### Asset: ${symbol} (${companyName})
+### Date: ${todayDate}
+### Asset Type: ${asset_type || 'equity'}
+
+### DATABASE DATA (Use as starting point, but research extensively beyond this):
+\`\`\`json
+${databaseContext}
+\`\`\`
+
+### TEMPLATE (Follow this structure exactly):
+\`\`\`markdown
+${template}
+\`\`\`
+
+## CRITICAL INSTRUCTIONS
+
+1. **BUSINESS MODEL FIRST**: Before writing ANY financials, deeply research and understand:
+   - What products/services does ${companyName} sell?
+   - How does revenue actually flow in? (Subscription? Transaction? License?)
+   - Who are the customers? (Enterprise? SMB? Consumer?)
+   - What's the geographic breakdown?
+   - What drives margins?
+
+2. **USE GOOGLE SEARCH EXTENSIVELY**: You MUST research:
+   - Recent investor presentations
+   - 10-K and 10-Q filings (especially Item 1 - Business Description)
+   - Earnings call transcripts
+   - Industry reports
+   - Competitor analysis
+   - Management interviews
+
+3. **IDENTIFY BUSINESS-SPECIFIC METRICS**: Based on the business model you discover:
+   - What 3-5 metrics ACTUALLY MATTER for THIS specific business?
+   - Do NOT use generic metrics
+   - Each metric must be justified based on the business model
+
+4. **HISTORICAL DATA**: Show 7-10 years of financial history where available
+
+5. **CITE EVERYTHING**: Every data point should have a source
+
+6. **OUTPUT**: Return the complete Deep Research Report in clean Markdown format following the template exactly.
+`
+        : `
 # TASK: Generate Investment ${docType === 'memo' ? 'Memo' : 'One Pager'} for ${symbol}
 
 ## INPUT DATA
@@ -539,10 +1339,15 @@ ${template}
 `
       
       // Step 3: Call Gemini with Google Search
-      console.log('Calling Gemini API...')
+      console.log(`Calling Gemini API for ${docType}...`)
       const startTime = Date.now()
       
-      const { text: documentContent, sources } = await callGeminiWithSearch(prompt, geminiApiKey)
+      const { text: documentContent, sources } = await callGeminiWithSearch(
+        prompt, 
+        geminiApiKey, 
+        systemPrompt,
+        maxTokens
+      )
       
       const generationTime = (Date.now() - startTime) / 1000
       console.log(`Document generated in ${generationTime}s with ${sources.length} sources`)
@@ -555,11 +1360,19 @@ ${template}
       }
       
       // Step 4: Save to Supabase Storage
-      const fileName = docType === 'one_pager'
-        ? `${symbol}_One_Pager_${todayDate}.md`
-        : `${symbol}_Investment_Memo_${todayDate}.md`
+      let fileName: string
+      let storagePath: string
       
-      const storagePath = `${docType}s/${asset_id || symbol}/${fileName}`
+      if (docType === 'deep_research') {
+        fileName = `${symbol}_Deep_Research_Report_${todayDate}.md`
+        storagePath = `deep_research/${asset_id || symbol}/${fileName}`
+      } else if (docType === 'memo') {
+        fileName = `${symbol}_Investment_Memo_${todayDate}.md`
+        storagePath = `memos/${asset_id || symbol}/${fileName}`
+      } else {
+        fileName = `${symbol}_One_Pager_${todayDate}.md`
+        storagePath = `one_pagers/${asset_id || symbol}/${fileName}`
+      }
       
       const { error: uploadError } = await supabase.storage
         .from('asset-files')
@@ -631,7 +1444,7 @@ ${template}
         status: 'ok',
         service: 'generate-document',
         model: 'gemini-3-pro-preview',
-        features: ['google_search_grounding', 'memo', 'one_pager']
+        features: ['google_search_grounding', 'memo', 'one_pager', 'deep_research']
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
