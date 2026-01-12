@@ -764,8 +764,8 @@ export default function InvestorWatchlist() {
 
         {/* Asset Detail Modal */}
         {selectedAssetId && (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-            <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-6xl h-[90vh] shadow-2xl overflow-hidden">
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-card border border-border rounded-lg shadow-lg w-full sm:w-[90vw] lg:w-[80vw] max-w-[1600px] h-[95vh] sm:h-[90vh] lg:h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
               <AssetDetail 
                 assetId={selectedAssetId} 
                 onClose={handleCloseAssetDetail} 
