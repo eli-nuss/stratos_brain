@@ -69,87 +69,136 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     console.log('[Auth] Initializing auth...');
     console.log('[Auth] Current URL:', window.location.href);
     
+    let isMounted = true;
+    let authSubscription: { unsubscribe: () => void } | null = null;
+    
     // Get initial session with error handling
     const initializeAuth = async () => {
       try {
+        // Add a small delay to avoid race conditions with Supabase initialization
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        if (!isMounted) return;
+        
         const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+        
+        if (!isMounted) return;
         
         if (error) {
           console.error('[Auth] Error getting session:', error);
-          setLoading(false);
+          if (isMounted) setLoading(false);
           return;
         }
         
         console.log('[Auth] Initial session:', initialSession?.user?.email || 'None');
         
-        if (initialSession?.user) {
+        if (initialSession?.user && isMounted) {
           console.log('[Auth] Setting initial user:', initialSession.user.email);
           setSession(initialSession);
           setUser(initialSession.user);
           const profileData = await fetchProfile(initialSession.user.id);
-          setProfile(profileData);
+          if (isMounted) {
+            setProfile(profileData);
+          }
         }
         
-        setLoading(false);
-        console.log('[Auth] Initialization complete, loading set to false');
+        if (isMounted) {
+          setLoading(false);
+          console.log('[Auth] Initialization complete, loading set to false');
+        }
       } catch (err) {
         console.error('[Auth] Exception during initialization:', err);
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     initializeAuth();
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
-        console.log('[Auth] Auth state change:', event, currentSession?.user?.email || 'No session');
-        
-        // Check domain restriction for new sign-ins
-        if (event === 'SIGNED_IN' && currentSession?.user) {
-          const email = currentSession.user.email;
-          if (!isEmailDomainAllowed(email)) {
-            console.warn(`[Auth] Domain not allowed for email: ${email}`);
-            await supabase.auth.signOut();
-            setUser(null);
-            setProfile(null);
-            setSession(null);
-            setLoading(false);
+    const setupAuthListener = () => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (event, currentSession) => {
+          if (!isMounted) return;
+          
+          console.log('[Auth] Auth state change:', event, currentSession?.user?.email || 'No session');
+          
+          // Check domain restriction for new sign-ins
+          if (event === 'SIGNED_IN' && currentSession?.user) {
+            const email = currentSession.user.email;
+            if (!isEmailDomainAllowed(email)) {
+              console.warn(`[Auth] Domain not allowed for email: ${email}`);
+              await supabase.auth.signOut();
+              if (isMounted) {
+                setUser(null);
+                setProfile(null);
+                setSession(null);
+                setLoading(false);
+              }
+              return;
+            }
+            
+            // Valid sign in - update state immediately
+            console.log('[Auth] Valid sign in, updating state for:', email);
+            if (isMounted) {
+              setSession(currentSession);
+              setUser(currentSession.user);
+              setLoading(false);
+              console.log('[Auth] User state updated, loading set to false');
+            }
+            
+            // Fetch profile in background (don't block state update)
+            fetchProfile(currentSession.user.id).then(profileData => {
+              if (isMounted) {
+                console.log('[Auth] Profile fetched:', profileData?.display_name);
+                setProfile(profileData);
+              }
+            }).catch(err => {
+              console.error('[Auth] Error fetching profile:', err);
+            });
             return;
           }
-          
-          // Valid sign in - update state immediately
-          console.log('[Auth] Valid sign in, updating state for:', email);
-          setSession(currentSession);
-          setUser(currentSession.user);
-          setLoading(false);
-          console.log('[Auth] User state updated, loading set to false');
-          
-          // Fetch profile in background (don't block state update)
-          fetchProfile(currentSession.user.id).then(profileData => {
-            console.log('[Auth] Profile fetched:', profileData?.display_name);
-            setProfile(profileData);
-          });
-          return;
-        }
 
-        // Handle other events
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-        
-        if (currentSession?.user) {
-          const profileData = await fetchProfile(currentSession.user.id);
-          setProfile(profileData);
-        } else {
-          setProfile(null);
+          // Handle other events
+          if (isMounted) {
+            setSession(currentSession);
+            setUser(currentSession?.user ?? null);
+          }
+          
+          if (currentSession?.user) {
+            const profileData = await fetchProfile(currentSession.user.id);
+            if (isMounted) {
+              setProfile(profileData);
+            }
+          } else {
+            if (isMounted) {
+              setProfile(null);
+            }
+          }
+          
+          if (isMounted) {
+            setLoading(false);
+          }
         }
-        
-        setLoading(false);
-      }
-    );
+      );
+      
+      authSubscription = subscription;
+    };
+
+    setupAuthListener();
 
     // Cleanup subscription on unmount
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      if (authSubscription) {
+        try {
+          authSubscription.unsubscribe();
+        } catch (err) {
+          console.error('[Auth] Error unsubscribing:', err);
+        }
+      }
+    };
   }, []);
 
   // Sign in with magic link
