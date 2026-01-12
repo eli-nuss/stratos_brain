@@ -20,13 +20,19 @@
 
 ### Macro & Ecosystem Tools (Context Alpha)
 - [ ] `map_supply_chain` - Use graph database or API to list key suppliers and customers. Identify contagion risk across the supply chain.
-- [ ] `get_macro_context` - Fetch key macro indicators (10Y Treasury, CPI, Sector Rotations) relative to asset's beta. Prevent "market blind" analysis.
+- [x] `get_macro_context` - ✅ **COMPLETED (Jan 11, 2026)** - Fetch key macro indicators (10Y Treasury, CPI, Sector Rotations) relative to asset's beta. Prevent "market blind" analysis.
 - [ ] `monitor_insider_activity` - Dedicated feed for Form 4 filings. Track insider buying/selling as conviction signal.
 
 ### Alternative Data Tools (Information Advantage)
 - [ ] `get_web_traffic` - Query APIs (Semrush/SimilarWeb) for visitor trends as revenue proxy for e-commerce stocks.
 - [ ] `get_app_metrics` - Query app store rankings or download estimates (Sensor Tower) for product traction signals.
 - [ ] `check_gov_contracts` - Search USspending.gov for awarded government contracts. Essential for defense/industrial firms.
+
+### Market Structure & Positioning Tools (Flow & Sentiment Alpha)
+- [ ] `get_options_sentiment` - Analyze Put/Call ratio, Implied Volatility (IV) skew, and unusual options activity. Provides leading indicator of market expectations vs. trailing price data. Detects "Smart Money" positioning before breakouts. **Implementation**: FMP Endpoint `v3/stock_options_chain`.
+- [ ] `get_institutional_flows` - Track 13F filings to monitor hedge fund and institutional accumulation/distribution. Identifies value traps (improving fundamentals but decreasing institutional ownership). **Implementation**: FMP Endpoints `v3/institutional-holder` and `v3/mutual-fund-holder`.
+- [ ] `get_revenue_segments` - Break down revenue by geography and product line for true exposure analysis. Critical for geopolitical risk assessment (e.g., China exposure during tariffs). **Implementation**: FMP Endpoints `v4/revenue-product-segmentation` and `v4/revenue-geographic-segmentation`.
+- [ ] `monitor_short_interest` - Track Short Interest % of Float and Days to Cover. Detects short squeeze setups and crowded trades for risk management. **Implementation**: FMP Endpoint `v3/quote-short`.
 
 ### Agentic Workflow Capabilities
 - [ ] `devils_advocate_mode` - Once user is bullish, create rigorous "Pre-Mortem" by searching for negative news, short-seller reports, and litigation to stress-test thesis.
