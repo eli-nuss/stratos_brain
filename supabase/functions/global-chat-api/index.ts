@@ -919,7 +919,7 @@ Deno.serve(async (req: Request) => {
 
   // Verify API key
   const stratosKey = req.headers.get('x-stratos-key')
-  if (stratosKey !== 'stratos-internal-key-2024') {
+  if (stratosKey !== 'stratos_brain_api_key_2024') {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
