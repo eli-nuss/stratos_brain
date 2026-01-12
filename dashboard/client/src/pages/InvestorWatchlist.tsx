@@ -10,11 +10,11 @@ import { Search, Plus, RefreshCw, Trash2, TrendingUp, TrendingDown, Minus, Dolla
 import { toast } from "sonner";
 import useSWR from "swr";
 
-const API_BASE = "/api/guru-api";
+const API_BASE = "/api/investor-api";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-interface GuruSummary {
+interface InvestorSummary {
   investor_id: number;
   investor_name: string;
   cik: string;
@@ -48,23 +48,23 @@ interface SearchResult {
   entityType?: string;
 }
 
-export default function GuruTracker() {
+export default function InvestorWatchlist() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedGuru, setSelectedGuru] = useState<number | null>(null);
+  const [selectedInvestor, setSelectedInvestor] = useState<number | null>(null);
 
-  // Fetch list of tracked gurus
-  const { data: gurus, mutate: mutateGurus, isLoading: isLoadingGurus } = useSWR<GuruSummary[]>(
+  // Fetch list of tracked investors
+  const { data: investors, mutate: mutateInvestors, isLoading: isLoadingInvestors } = useSWR<InvestorSummary[]>(
     `${API_BASE}/investors`,
     fetcher
   );
 
   // Fetch holdings for selected guru
   const { data: holdings, mutate: mutateHoldings, isLoading: isLoadingHoldings } = useSWR<Holding[]>(
-    selectedGuru ? `${API_BASE}/holdings/${selectedGuru}` : null,
+    selectedInvestor ? `${API_BASE}/holdings/${selectedInvestor}` : null,
     fetcher
   );
 
@@ -77,17 +77,13 @@ export default function GuruTracker() {
       const data = await response.json();
       setSearchResults(data);
     } catch (error) {
-      toast({
-        title: "Search failed",
-        description: "Could not search for investors. Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Could not search for investors. Please try again.");
     } finally {
       setIsSearching(false);
     }
   };
 
-  const handleTrackGuru = async (cik: string, name: string) => {
+  const handleTrackInvestor = async (cik: string, name: string) => {
     try {
       const response = await fetch(`${API_BASE}/track`, {
         method: "POST",
@@ -98,11 +94,8 @@ export default function GuruTracker() {
       const data = await response.json();
 
       if (response.ok) {
-        toast({
-          title: "Guru tracked!",
-          description: `Added ${name} with ${data.holdingsCount} holdings from ${data.quarter}`,
-        });
-        mutateGurus();
+        toast.success(`Added ${name} with ${data.holdingsCount} holdings from ${data.quarter}`);
+        mutateInvestors();
         setIsDialogOpen(false);
         setSearchQuery("");
         setSearchResults([]);
@@ -114,15 +107,11 @@ export default function GuruTracker() {
         });
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to track investor. Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Failed to track investor. Please try again.");
     }
   };
 
-  const handleRefreshGuru = async (investorId: number, name: string) => {
+  const handleRefreshInvestor = async (investorId: number, name: string) => {
     try {
       const response = await fetch(`${API_BASE}/refresh/${investorId}`, {
         method: "POST",
@@ -131,12 +120,9 @@ export default function GuruTracker() {
       const data = await response.json();
 
       if (response.ok) {
-        toast({
-          title: "Refreshed!",
-          description: `Updated ${name} with ${data.holdingsCount} holdings from ${data.quarter}`,
-        });
-        mutateGurus();
-        if (selectedGuru === investorId) {
+        toast.success(`Updated ${name} with ${data.holdingsCount} holdings from ${data.quarter}`);
+        mutateInvestors();
+        if (selectedInvestor === investorId) {
           mutateHoldings();
         }
       } else {
@@ -147,15 +133,11 @@ export default function GuruTracker() {
         });
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to refresh holdings. Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Failed to refresh holdings. Please try again.");
     }
   };
 
-  const handleDeleteGuru = async (investorId: number, name: string) => {
+  const handleDeleteInvestor = async (investorId: number, name: string) => {
     if (!confirm(`Remove ${name} from tracking?`)) return;
 
     try {
@@ -164,21 +146,14 @@ export default function GuruTracker() {
       });
 
       if (response.ok) {
-        toast({
-          title: "Removed",
-          description: `${name} removed from tracking`,
-        });
-        mutateGurus();
-        if (selectedGuru === investorId) {
-          setSelectedGuru(null);
+        toast.success(`${name} removed from tracking`);
+        mutateInvestors();
+        if (selectedInvestor === investorId) {
+          setSelectedInvestor(null);
         }
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to remove investor. Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Failed to remove investor. Please try again.");
     }
   };
 
@@ -216,7 +191,7 @@ export default function GuruTracker() {
     );
   };
 
-  const selectedGuruData = gurus?.find((g) => g.investor_id === selectedGuru);
+  const selectedInvestorData = investors?.find((g) => g.investor_id === selectedInvestor);
 
   return (
     <DashboardLayout>
@@ -224,9 +199,9 @@ export default function GuruTracker() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Guru Tracker</h1>
+            <h1 className="text-3xl font-bold">Investor Watchlist</h1>
             <p className="text-muted-foreground">
-              Track the portfolios of super-investors via 13F filings
+              Track institutional investor portfolios via 13F filings
             </p>
           </div>
 
@@ -234,7 +209,7 @@ export default function GuruTracker() {
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
-                Add Guru
+                Add Investor
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px]">
@@ -260,7 +235,7 @@ export default function GuruTracker() {
               {searchResults.length > 0 && (
                 <div className="mt-4 space-y-2 max-h-[400px] overflow-y-auto">
                   {searchResults.map((result) => (
-                    <Card key={result.cik} className="cursor-pointer hover:bg-accent" onClick={() => handleTrackGuru(result.cik, result.name)}>
+                    <Card key={result.cik} className="cursor-pointer hover:bg-accent" onClick={() => handleTrackInvestor(result.cik, result.name)}>
                       <CardHeader className="p-4">
                         <CardTitle className="text-sm">{result.name}</CardTitle>
                         <CardDescription className="text-xs">CIK: {result.cik}</CardDescription>
@@ -280,19 +255,19 @@ export default function GuruTracker() {
               <CardHeader>
                 <CardTitle>Tracked Investors</CardTitle>
                 <CardDescription>
-                  {gurus?.length || 0} gurus tracked
+                  {investors?.length || 0} investors tracked
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
-                {isLoadingGurus && <p className="text-sm text-muted-foreground">Loading...</p>}
+                {isLoadingInvestors && <p className="text-sm text-muted-foreground">Loading...</p>}
                 
-                {gurus?.map((guru) => (
+                {investors?.map((guru) => (
                   <Card
                     key={guru.investor_id}
                     className={`cursor-pointer transition-colors ${
-                      selectedGuru === guru.investor_id ? "bg-accent" : "hover:bg-accent/50"
+                      selectedInvestor === guru.investor_id ? "bg-accent" : "hover:bg-accent/50"
                     }`}
-                    onClick={() => setSelectedGuru(guru.investor_id)}
+                    onClick={() => setSelectedInvestor(guru.investor_id)}
                   >
                     <CardHeader className="p-4">
                       <div className="flex items-start justify-between">
@@ -314,7 +289,7 @@ export default function GuruTracker() {
                             variant="ghost"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleRefreshGuru(guru.investor_id, guru.investor_name);
+                              handleRefreshInvestor(guru.investor_id, guru.investor_name);
                             }}
                           >
                             <RefreshCw className="h-3 w-3" />
@@ -324,7 +299,7 @@ export default function GuruTracker() {
                             variant="ghost"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDeleteGuru(guru.investor_id, guru.investor_name);
+                              handleDeleteInvestor(guru.investor_id, guru.investor_name);
                             }}
                           >
                             <Trash2 className="h-3 w-3" />
@@ -335,9 +310,9 @@ export default function GuruTracker() {
                   </Card>
                 ))}
 
-                {!isLoadingGurus && gurus?.length === 0 && (
+                {!isLoadingInvestors && investors?.length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-8">
-                    No gurus tracked yet. Click "Add Guru" to get started.
+                    No investors tracked yet. Click "Add Investor" to get started.
                   </p>
                 )}
               </CardContent>
@@ -346,28 +321,28 @@ export default function GuruTracker() {
 
           {/* Main Content: Holdings Table */}
           <div className="lg:col-span-2">
-            {selectedGuruData ? (
+            {selectedInvestorData ? (
               <Card>
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle>{selectedGuruData.investor_name}</CardTitle>
+                      <CardTitle>{selectedInvestorData.investor_name}</CardTitle>
                       <CardDescription>
-                        Portfolio as of {selectedGuruData.last_filing_date} • {selectedGuruData.total_positions} positions
+                        Portfolio as of {selectedInvestorData.last_filing_date} • {selectedInvestorData.total_positions} positions
                       </CardDescription>
                     </div>
                     <div className="flex gap-2">
                       <Badge variant="outline">
                         <Users className="h-3 w-3 mr-1" />
-                        {selectedGuruData.new_positions} New
+                        {selectedInvestorData.new_positions} New
                       </Badge>
                       <Badge variant="outline">
                         <TrendingUp className="h-3 w-3 mr-1" />
-                        {selectedGuruData.increased_positions} Added
+                        {selectedInvestorData.increased_positions} Added
                       </Badge>
                       <Badge variant="outline">
                         <TrendingDown className="h-3 w-3 mr-1" />
-                        {selectedGuruData.reduced_positions} Reduced
+                        {selectedInvestorData.reduced_positions} Reduced
                       </Badge>
                     </div>
                   </div>

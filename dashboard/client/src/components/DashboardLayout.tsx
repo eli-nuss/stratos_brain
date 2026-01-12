@@ -31,7 +31,7 @@ interface DashboardLayoutProps {
 const navLinks = [
   { href: '/chat', label: 'Research', icon: MessageSquare },
   { href: '/brain', label: 'Stratos Brain', icon: Brain },
-  { href: '/gurus', label: 'Guru Tracker', icon: Users },
+  { href: '/gurus', label: 'Investor Watchlist', icon: Users },
   { href: '/memos', label: 'Memos', icon: FileText },
   { href: '/docs', label: 'Docs', icon: BookOpen },
   { href: '/todo', label: 'To-Do', icon: CheckSquare },

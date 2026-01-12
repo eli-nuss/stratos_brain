@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 
 // Configuration
 const SUPABASE_URL = "https://wfogbaipiqootjrsprde.supabase.co/functions/v1/control-api";
-const GURU_API_URL = "https://wfogbaipiqootjrsprde.supabase.co/functions/v1/guru-api";
+const GURU_API_URL = "https://wfogbaipiqootjrsprde.supabase.co/functions/v1/investor-api";
 const STRATOS_API_KEY = process.env.STRATOS_BRAIN_API_KEY || "stratos_brain_api_key_2024";
 
 async function startServer() {
@@ -26,7 +26,7 @@ async function startServer() {
   app.use(express.json());
 
   // Guru API Proxy Route
-  app.use("/api/guru-api", async (req, res) => {
+  app.use("/api/investor-api", async (req, res) => {
     try {
       const endpoint = req.path; // e.g., /search, /track
       const query = req.query;
