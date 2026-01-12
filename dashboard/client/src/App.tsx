@@ -12,6 +12,7 @@ import MemoLibrary from "./pages/MemoLibrary";
 import MemoViewer from "./pages/MemoViewer";
 import CompanyChat from "./pages/CompanyChat";
 import TodoList from "./pages/TodoList";
+import StratosBrain from "./pages/StratosBrain";
 import { AuthCallback } from "./pages/AuthCallback";
 import FeedbackButton from "./components/FeedbackButton";
 
@@ -33,6 +34,7 @@ function Router() {
       <Route path={"/memo/:id"} component={MemoViewer} />
       <Route path={"/chat"} component={CompanyChat} />
       <Route path={"/chat/:chatId"} component={CompanyChat} />
+      <Route path={"/brain"} component={StratosBrain} />
       <Route path={"/todo"} component={TodoList} />
       <Route path={"/auth/callback"} component={AuthCallback} />
       <Route path={"/404"} component={NotFound} />
