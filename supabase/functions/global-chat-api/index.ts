@@ -291,6 +291,50 @@ const unifiedFunctionDeclarations = [
       },
       required: ["componentType", "title", "data"]
     }
+  },
+  // Get market pulse - today's market action
+  {
+    name: "get_market_pulse",
+    description: "Get today's market action including top gainers, losers, most active stocks, and sector performance. Use this for 'How is the market today?', 'What's moving?', 'Top gainers?', 'Which sectors are leading?'",
+    parameters: {
+      type: "object",
+      properties: {
+        data_type: {
+          type: "string",
+          enum: ["overview", "gainers", "losers", "actives", "sectors"],
+          description: "Type of market data: 'overview' for summary of all, 'gainers' for top gainers, 'losers' for top losers, 'actives' for most active by volume, 'sectors' for sector performance"
+        },
+        limit: {
+          type: "number",
+          description: "Number of results to return (default 10, max 20)"
+        }
+      },
+      required: ["data_type"]
+    }
+  },
+  // Get financial calendar - earnings and economic events
+  {
+    name: "get_financial_calendar",
+    description: "Get upcoming earnings dates and economic calendar events. Use this for 'When does X report earnings?', 'What earnings are this week?', 'Is CPI coming out?', 'Economic calendar'",
+    parameters: {
+      type: "object",
+      properties: {
+        calendar_type: {
+          type: "string",
+          enum: ["earnings", "economic", "both"],
+          description: "Type of calendar: 'earnings' for company earnings, 'economic' for economic events (CPI, Fed, GDP), 'both' for all"
+        },
+        symbol: {
+          type: "string",
+          description: "Optional: specific stock symbol to check earnings date for"
+        },
+        days_ahead: {
+          type: "number",
+          description: "Number of days to look ahead (default 7, max 30)"
+        }
+      },
+      required: ["calendar_type"]
+    }
   }
 ]
 
@@ -747,10 +791,23 @@ async function executeFunctionCall(
         return { error: 'FMP API key not configured' }
       }
       
-      const quarters: Array<{year: number, quarter: number}> = []
-      let year = 2024
-      let quarter = 3
+      // Dynamic date calculation - FMP 13F data lags by ~45 days
+      // Go back 2 quarters from now to ensure full filing availability
+      const now = new Date()
+      const currentYear = now.getFullYear()
+      const currentMonth = now.getMonth() // 0-indexed
       
+      let year = currentYear
+      let quarter = Math.floor(currentMonth / 3) + 1 // 1-4
+      
+      // Go back 2 quarters to get latest available data
+      quarter -= 2
+      if (quarter <= 0) {
+        quarter += 4
+        year -= 1
+      }
+      
+      const quarters: Array<{year: number, quarter: number}> = []
       for (let i = 0; i < lookback_quarters; i++) {
         quarters.push({ year, quarter })
         if (quarter === 1) { year -= 1; quarter = 4 } else { quarter -= 1 }
@@ -823,6 +880,163 @@ async function executeFunctionCall(
       }
     }
 
+    case "get_market_pulse": {
+      const dataType = args.data_type as string
+      const limit = Math.min((args.limit as number) || 10, 20)
+      
+      if (!FMP_API_KEY) {
+        return { error: 'FMP API key not configured' }
+      }
+      
+      const result: Record<string, unknown> = {
+        as_of: new Date().toISOString().split('T')[0],
+        data_type: dataType
+      }
+      
+      try {
+        if (dataType === 'overview' || dataType === 'sectors') {
+          // Get sector performance
+          const sectorUrl = `https://financialmodelingprep.com/api/v3/sector-performance?apikey=${FMP_API_KEY}`
+          const sectorRes = await fetch(sectorUrl)
+          if (sectorRes.ok) {
+            const sectorData = await sectorRes.json()
+            result.sectors = sectorData.map((s: Record<string, unknown>) => ({
+              sector: s.sector,
+              change: s.changesPercentage
+            }))
+          }
+        }
+        
+        if (dataType === 'overview' || dataType === 'gainers') {
+          // Get top gainers
+          const gainersUrl = `https://financialmodelingprep.com/api/v3/stock_market/gainers?apikey=${FMP_API_KEY}`
+          const gainersRes = await fetch(gainersUrl)
+          if (gainersRes.ok) {
+            const gainersData = await gainersRes.json()
+            result.gainers = gainersData.slice(0, limit).map((g: Record<string, unknown>) => ({
+              symbol: g.symbol,
+              name: g.name,
+              price: g.price,
+              change: g.changesPercentage ? `${(g.changesPercentage as number).toFixed(2)}%` : null
+            }))
+          }
+        }
+        
+        if (dataType === 'overview' || dataType === 'losers') {
+          // Get top losers
+          const losersUrl = `https://financialmodelingprep.com/api/v3/stock_market/losers?apikey=${FMP_API_KEY}`
+          const losersRes = await fetch(losersUrl)
+          if (losersRes.ok) {
+            const losersData = await losersRes.json()
+            result.losers = losersData.slice(0, limit).map((l: Record<string, unknown>) => ({
+              symbol: l.symbol,
+              name: l.name,
+              price: l.price,
+              change: l.changesPercentage ? `${(l.changesPercentage as number).toFixed(2)}%` : null
+            }))
+          }
+        }
+        
+        if (dataType === 'overview' || dataType === 'actives') {
+          // Get most active
+          const activesUrl = `https://financialmodelingprep.com/api/v3/stock_market/actives?apikey=${FMP_API_KEY}`
+          const activesRes = await fetch(activesUrl)
+          if (activesRes.ok) {
+            const activesData = await activesRes.json()
+            result.most_active = activesData.slice(0, limit).map((a: Record<string, unknown>) => ({
+              symbol: a.symbol,
+              name: a.name,
+              price: a.price,
+              change: a.changesPercentage ? `${(a.changesPercentage as number).toFixed(2)}%` : null,
+              volume: a.volume
+            }))
+          }
+        }
+        
+        return result
+      } catch (error) {
+        return { error: `Failed to fetch market data: ${error}` }
+      }
+    }
+
+    case "get_financial_calendar": {
+      const calendarType = args.calendar_type as string
+      const symbol = args.symbol as string | undefined
+      const daysAhead = Math.min((args.days_ahead as number) || 7, 30)
+      
+      if (!FMP_API_KEY) {
+        return { error: 'FMP API key not configured' }
+      }
+      
+      const today = new Date()
+      const endDate = new Date(today)
+      endDate.setDate(endDate.getDate() + daysAhead)
+      
+      const fromStr = today.toISOString().split('T')[0]
+      const toStr = endDate.toISOString().split('T')[0]
+      
+      const result: Record<string, unknown> = {
+        from: fromStr,
+        to: toStr,
+        calendar_type: calendarType
+      }
+      
+      try {
+        if (calendarType === 'earnings' || calendarType === 'both') {
+          let earningsUrl: string
+          if (symbol) {
+            // Get specific company earnings
+            earningsUrl = `https://financialmodelingprep.com/api/v3/historical/earning_calendar/${symbol.toUpperCase()}?apikey=${FMP_API_KEY}`
+          } else {
+            // Get all upcoming earnings
+            earningsUrl = `https://financialmodelingprep.com/api/v3/earning_calendar?from=${fromStr}&to=${toStr}&apikey=${FMP_API_KEY}`
+          }
+          
+          const earningsRes = await fetch(earningsUrl)
+          if (earningsRes.ok) {
+            const earningsData = await earningsRes.json()
+            result.earnings = earningsData.slice(0, 20).map((e: Record<string, unknown>) => ({
+              symbol: e.symbol,
+              date: e.date,
+              time: e.time || 'TBD',
+              eps_estimate: e.epsEstimated,
+              revenue_estimate: e.revenueEstimated
+            }))
+          }
+        }
+        
+        if (calendarType === 'economic' || calendarType === 'both') {
+          // Get economic calendar
+          const econUrl = `https://financialmodelingprep.com/api/v3/economic_calendar?from=${fromStr}&to=${toStr}&apikey=${FMP_API_KEY}`
+          const econRes = await fetch(econUrl)
+          if (econRes.ok) {
+            const econData = await econRes.json()
+            // Filter to major events
+            const majorEvents = econData.filter((e: Record<string, unknown>) => 
+              e.impact === 'High' || e.impact === 'Medium' ||
+              (e.event as string)?.includes('CPI') ||
+              (e.event as string)?.includes('Fed') ||
+              (e.event as string)?.includes('GDP') ||
+              (e.event as string)?.includes('Employment') ||
+              (e.event as string)?.includes('Payroll')
+            )
+            result.economic_events = majorEvents.slice(0, 15).map((e: Record<string, unknown>) => ({
+              date: e.date,
+              event: e.event,
+              country: e.country,
+              impact: e.impact,
+              previous: e.previous,
+              estimate: e.estimate
+            }))
+          }
+        }
+        
+        return result
+      } catch (error) {
+        return { error: `Failed to fetch calendar data: ${error}` }
+      }
+    }
+
     default:
       return { error: `Unknown function: ${name}` }
   }
@@ -835,44 +1049,38 @@ async function executeFunctionCall(
 function buildSystemPrompt(): string {
   const today = new Date().toISOString().split('T')[0]
   
-  return `You are **Stratos Brain**, an autonomous Chief Investment Officer AI assistant. You help users analyze markets, screen for investment opportunities, and build investment theses.
+  return `You are **Stratos Brain**, an autonomous financial research engine.
+**Mission:** Answer the user's question accurately, concisely, and with data.
+**Role:** You are a "High-Speed Research Desk," not a "Portfolio Manager." Do not offer unsolicited advice or macro lectures unless the user explicitly asks for an opinion/thesis.
 
-## Your Capabilities
-You have access to powerful tools:
-- **screen_assets**: Filter the entire universe of stocks and crypto by any criteria
-- **search_assets**: Find specific companies or cryptocurrencies
+## Tool Routing Logic (Follow Strictly)
+1. **Fact Lookup:** If asked for a price, ratio, or metric ("What is AAPL's P/E?") -> Use \`get_asset_fundamentals\` or \`get_price_history\`. Give the number immediately.
+2. **Broad Discovery:** If asked for ideas ("Find me cheap tech stocks") -> Use \`screen_assets\`.
+3. **Deep Analysis:** If asked for a thesis ("Should I buy NVDA?") -> THEN use \`get_macro_context\` and \`get_institutional_flows\` to build a case.
+4. **Current Events:** If asked "Why is the market down?" or "How is the market today?" -> Use \`get_market_pulse\` or \`web_search\`.
+5. **Calendar Events:** If asked "When does X report earnings?" or "What economic data is coming?" -> Use \`get_financial_calendar\`.
+
+## Available Tools
+- **screen_assets**: Filter stocks/crypto by fundamentals, technicals, AI scores
+- **search_assets**: Find specific companies or cryptocurrencies by name
 - **get_asset_fundamentals**: Deep dive into any company's financials
 - **get_price_history**: Historical price data for charting and analysis
 - **get_technical_indicators**: RSI, MACD, moving averages, and more
-- **get_macro_context**: Current market regime, rates, inflation, sector rotation
+- **get_macro_context**: Market regime, rates, inflation, sector rotation
 - **get_institutional_flows**: 13F data showing what smart money is doing
+- **get_market_pulse**: Today's market action - gainers, losers, sector performance
+- **get_financial_calendar**: Earnings dates, economic calendar events
 - **web_search**: Current news and research from the web
 - **execute_python**: Run calculations and data analysis
 - **generate_dynamic_ui**: Create tables and charts for visualization
 
-## Core Principles
+## Constraints
+- **Date Awareness:** Today is ${today}.
+- **Data First:** Never hallucinate numbers. Use \`execute_python\` for math.
+- **Visuals:** Use \`generate_dynamic_ui\` for any list > 3 items.
 
-### 1. MACRO FIRST
-Before recommending ANY investment, ALWAYS check the macro environment using \`get_macro_context\`. You cannot recommend a stock without knowing if the market environment supports it.
-
-### 2. FOLLOW THE SMART MONEY
-For any stock recommendation, check institutional flows using \`get_institutional_flows\`. Avoid value traps where fundamentals look good but institutions are selling.
-
-### 3. DATA-DRIVEN RESPONSES
-Always use your tools to fetch real data. Never make up numbers. If you don't have data, say so.
-
-### 4. VISUAL PRESENTATION
-Use \`generate_dynamic_ui\` to present data in tables and charts. Don't use markdown tables - use the DataTable component instead.
-
-## Today's Date
-${today}
-
-## Response Style
-- Be direct and actionable
-- Lead with the key insight
-- Support with data
-- Acknowledge risks and uncertainties
-- Use visualizations for complex data`
+## Tone
+Professional, objective, data-rich. No fluff. Lead with the answer, then provide supporting data.`
 }
 
 // ============================================================================
