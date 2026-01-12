@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
   Users, TrendingUp, Search, Plus, ArrowLeft, 
   BarChart3, BrainCircuit, Activity, RefreshCw, Trash2, X,
@@ -151,7 +150,7 @@ const getActionBadge = (action: string) => {
 
 export default function InvestorWatchlist() {
   const { user } = useAuth();
-  const navigate = useNavigate();
+
   const [activeView, setActiveView] = useState<'overview' | 'detail'>('overview');
   const [selectedInvestor, setSelectedInvestor] = useState<Investor | null>(null);
   const [showSearchModal, setShowSearchModal] = useState(false);
@@ -186,7 +185,7 @@ export default function InvestorWatchlist() {
   // Navigate to asset detail page
   const handleTickerClick = (assetId: number | null | undefined, symbol: string) => {
     if (assetId) {
-      navigate(`/asset/${assetId}`);
+      window.location.href = `/asset/${assetId}`;
     } else {
       // If no asset_id, try to look it up
       fetch(`/api/investor-api/asset/${symbol}`, {
@@ -195,7 +194,7 @@ export default function InvestorWatchlist() {
         .then(res => res.json())
         .then(data => {
           if (data.asset_id) {
-            navigate(`/asset/${data.asset_id}`);
+            window.location.href = `/asset/${data.asset_id}`;
           } else {
             toast.error(`Asset ${symbol} not found in Stratos database`);
           }
