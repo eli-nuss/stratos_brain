@@ -5,6 +5,7 @@ import {
   ChevronRight, DollarSign, Percent, Target, ExternalLink
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
+import AssetDetail from '@/components/AssetDetail';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -158,6 +159,9 @@ export default function InvestorWatchlist() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
+  
+  // Asset detail modal state
+  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
 
   // Fetch investors list
   const { data: investors, error: investorsError, isLoading: investorsLoading } = useSWR<Investor[]>(
@@ -182,10 +186,10 @@ export default function InvestorWatchlist() {
   const investorList = Array.isArray(investors) ? investors : [];
   const consensusList = Array.isArray(consensusStocks) ? consensusStocks : [];
 
-  // Navigate to asset detail page
-  const handleTickerClick = (assetId: number | null | undefined, symbol: string) => {
+  // Open asset detail modal
+  const handleRowClick = (assetId: number | null | undefined, symbol: string) => {
     if (assetId) {
-      window.location.href = `/asset/${assetId}`;
+      setSelectedAssetId(assetId.toString());
     } else {
       // If no asset_id, try to look it up
       fetch(`/api/investor-api/asset/${symbol}`, {
@@ -194,7 +198,7 @@ export default function InvestorWatchlist() {
         .then(res => res.json())
         .then(data => {
           if (data.asset_id) {
-            window.location.href = `/asset/${data.asset_id}`;
+            setSelectedAssetId(data.asset_id.toString());
           } else {
             toast.error(`Asset ${symbol} not found in Stratos database`);
           }
@@ -203,6 +207,11 @@ export default function InvestorWatchlist() {
           toast.error(`Could not find asset ${symbol}`);
         });
     }
+  };
+
+  // Close asset detail modal
+  const handleCloseAssetDetail = () => {
+    setSelectedAssetId(null);
   };
 
   // Search for investors
@@ -307,23 +316,6 @@ export default function InvestorWatchlist() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Clickable ticker component
-  const TickerLink = ({ symbol, assetId, className = '' }: { symbol: string; assetId?: number | null; className?: string }) => (
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        handleTickerClick(assetId, symbol);
-      }}
-      className={cn(
-        "font-medium text-white hover:text-indigo-400 transition-colors cursor-pointer flex items-center gap-1 group",
-        className
-      )}
-    >
-      {symbol}
-      <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-    </button>
-  );
-
   return (
     <DashboardLayout>
       <div className="flex h-[calc(100vh-6rem)] flex-col p-6 space-y-6 overflow-auto">
@@ -382,9 +374,16 @@ export default function InvestorWatchlist() {
                         {consensusList.slice(0, 15).map((stock) => {
                           const dirBadge = getDirectionBadge(stock.stratos_ai_direction, stock.stratos_ai_score);
                           return (
-                            <tr key={stock.symbol} className="hover:bg-slate-800/50 transition-colors">
+                            <tr 
+                              key={stock.symbol} 
+                              className="hover:bg-slate-800/50 transition-colors cursor-pointer"
+                              onClick={() => handleRowClick(stock.asset_id, stock.symbol)}
+                            >
                               <td className="px-3 py-3">
-                                <TickerLink symbol={stock.symbol} assetId={stock.asset_id} />
+                                <span className="font-medium text-white hover:text-indigo-400 transition-colors flex items-center gap-1 group">
+                                  {stock.symbol}
+                                  <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </span>
                               </td>
                               <td className="px-3 py-3 text-center">
                                 <span className="text-indigo-400 font-bold">{stock.guru_count}</span>
@@ -618,7 +617,7 @@ export default function InvestorWatchlist() {
                   Portfolio X-Ray
                 </h3>
                 <div className="text-xs text-slate-500">
-                  Holdings from 13F (Lagged) • Live Stratos AI Scores • Click ticker to view details
+                  Holdings from 13F (Lagged) • Live Stratos AI Scores • Click row to view details
                 </div>
               </div>
               
@@ -647,9 +646,16 @@ export default function InvestorWatchlist() {
                       {holdings.map((holding) => {
                         const dirBadge = getDirectionBadge(holding.stratos_ai_direction, holding.stratos_ai_score);
                         return (
-                          <tr key={holding.id} className="hover:bg-slate-800/50 transition-colors">
+                          <tr 
+                            key={holding.id} 
+                            className="hover:bg-slate-800/50 transition-colors cursor-pointer"
+                            onClick={() => handleRowClick(holding.asset_id, holding.symbol)}
+                          >
                             <td className="px-4 py-3">
-                              <TickerLink symbol={holding.symbol} assetId={holding.asset_id} />
+                              <span className="font-medium text-white hover:text-indigo-400 transition-colors flex items-center gap-1 group">
+                                {holding.symbol}
+                                <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </span>
                             </td>
                             <td className="px-4 py-3 text-slate-400 max-w-[200px] truncate">{holding.company_name}</td>
                             <td className="px-4 py-3 text-right font-mono">{(holding.percent_portfolio ?? 0).toFixed(2)}%</td>
@@ -752,6 +758,18 @@ export default function InvestorWatchlist() {
                   )}
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Asset Detail Modal */}
+        {selectedAssetId && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-6xl h-[90vh] shadow-2xl overflow-hidden">
+              <AssetDetail 
+                assetId={selectedAssetId} 
+                onClose={handleCloseAssetDetail} 
+              />
             </div>
           </div>
         )}
