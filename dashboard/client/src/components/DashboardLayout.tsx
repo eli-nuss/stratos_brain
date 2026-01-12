@@ -2,7 +2,7 @@ import { ReactNode, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import useSWR from "swr";
-import { Activity, MessageSquare, FileText, BookOpen, CheckSquare, Settings, Brain } from "lucide-react";
+import { Activity, MessageSquare, FileText, BookOpen, CheckSquare, Settings, Brain, Users } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
 import { MobileNav } from "@/components/MobileNav";
 import { CommandBar } from "@/components/CommandBar";
@@ -31,6 +31,7 @@ interface DashboardLayoutProps {
 const navLinks = [
   { href: '/chat', label: 'Research', icon: MessageSquare },
   { href: '/brain', label: 'Stratos Brain', icon: Brain },
+  { href: '/gurus', label: 'Guru Tracker', icon: Users },
   { href: '/memos', label: 'Memos', icon: FileText },
   { href: '/docs', label: 'Docs', icon: BookOpen },
   { href: '/todo', label: 'To-Do', icon: CheckSquare },
