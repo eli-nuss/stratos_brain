@@ -917,15 +917,6 @@ Deno.serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders })
   }
 
-  // Verify API key
-  const stratosKey = req.headers.get('x-stratos-key')
-  if (stratosKey !== 'stratos_brain_api_key_2024') {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
-  }
-
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
   const url = new URL(req.url)
   const path = url.pathname.replace(/^\/global-chat-api/, '') || '/'
