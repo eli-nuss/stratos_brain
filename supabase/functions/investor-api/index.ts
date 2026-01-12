@@ -8,6 +8,7 @@
 // - GET /investors - List all tracked investors
 // - DELETE /investors/:investorId - Remove investor from tracking
 // - POST /refresh/:investorId - Refresh holdings for an investor
+// - GET /asset/:symbol - Get asset details for a symbol (for linking to dashboard)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
@@ -157,191 +158,120 @@ const KNOWN_INVESTORS: { cik: string; name: string; aliases: string[] }[] = [
   { cik: '0000315066', name: 'Jennison Associates LLC', aliases: ['jennison'] },
   { cik: '0001364742', name: 'BlackRock Inc.', aliases: ['blackrock'] },
   { cik: '0000102909', name: 'Vanguard Group Inc', aliases: ['vanguard'] },
-  { cik: '0000093751', name: 'State Street Corp', aliases: ['state street'] },
-  { cik: '0000315066', name: 'Fidelity Management & Research Company', aliases: ['fidelity'] },
-  { cik: '0000886982', name: 'Goldman Sachs Group Inc', aliases: ['goldman sachs', 'goldman'] },
-  { cik: '0000895421', name: 'Morgan Stanley', aliases: ['morgan stanley'] },
-  { cik: '0000019617', name: 'JPMorgan Chase & Co', aliases: ['jpmorgan', 'jp morgan'] },
-  
-  // ===== ADDITIONAL GROWTH/TECH =====
-  { cik: '0001214717', name: 'Geode Capital Management, LLC', aliases: ['geode capital'] },
-  { cik: '0001446194', name: 'Susquehanna International Group, LLP', aliases: ['susquehanna', 'sig'] },
-  { cik: '0001571949', name: 'Virtu Financial LLC', aliases: ['virtu'] },
+  { cik: '0000093751', name: 'State Street Corporation', aliases: ['state street'] },
+  { cik: '0000034791', name: 'Fidelity Management & Research Company LLC', aliases: ['fidelity', 'fmr'] },
 ]
 
-// Helper: Determine action based on share change
+// Helper function to determine action based on share changes
 function determineAction(prevShares: number | null, currentShares: number): string {
-  if (prevShares === null) {
-    return 'NEW'
-  }
-  
-  if (currentShares === 0) {
-    return 'SOLD'
-  }
-  
-  if (currentShares > prevShares) {
-    return 'ADD'
-  }
-  
-  if (currentShares < prevShares) {
-    return 'REDUCE'
-  }
-  
+  if (prevShares === null) return 'NEW'
+  if (currentShares === 0) return 'SOLD'
+  if (currentShares > prevShares) return 'ADD'
+  if (currentShares < prevShares) return 'REDUCE'
   return 'HOLD'
 }
 
-// Helper: Format quarter from date
-function getQuarter(dateStr: string): string {
-  const date = new Date(dateStr)
-  const quarter = Math.floor(date.getMonth() / 3) + 1
-  return `Q${quarter} ${date.getFullYear()}`
+// Helper function to get enriched asset data from Stratos database
+async function getEnrichedAssetData(supabase: any, symbols: string[]): Promise<Map<string, any>> {
+  // Use raw SQL query to get latest data with proper joins
+  const { data, error } = await supabase.rpc('get_enriched_asset_data', { symbol_list: symbols })
+  
+  if (error) {
+    console.error('Error fetching enriched data via RPC:', error)
+    // Fallback to simple query
+    const { data: fallbackData } = await supabase
+      .from('assets')
+      .select('asset_id, symbol, name, sector')
+      .in('symbol', symbols)
+    
+    return new Map((fallbackData || []).map((a: any) => [a.symbol, a]))
+  }
+  
+  return new Map((data || []).map((a: any) => [a.symbol, a]))
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    // Get FMP API key from environment
+    // Verify API key
+    const apiKey = req.headers.get('x-stratos-key')
+    if (apiKey !== 'stratos_brain_api_key_2024') {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const supabase = createClient(supabaseUrl, supabaseKey)
+
+    // Get FMP API key
     const FMP_API_KEY = Deno.env.get('FMP_API_KEY')
     if (!FMP_API_KEY) {
       throw new Error('FMP_API_KEY not configured')
     }
 
-    // Create Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const supabase = createClient(supabaseUrl, supabaseKey)
-
+    // Parse URL and path
     const url = new URL(req.url)
     const path = url.pathname.replace('/investor-api', '')
 
-    console.log(`[investor-api] ${req.method} ${path}`)
-
     // Route handling
     switch (true) {
-      // GET /search?query=buffett - Search for investors by name
+      // GET /search - Search for investors
       case req.method === 'GET' && path === '/search': {
-        const query = url.searchParams.get('query')
-        if (!query) {
-          return new Response(JSON.stringify({ error: 'Query parameter required' }), {
-            status: 400,
+        const query = url.searchParams.get('query')?.toLowerCase() || ''
+        
+        if (!query || query.length < 2) {
+          return new Response(JSON.stringify([]), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
         }
 
-        const searchResults: SearchResult[] = []
-        const seenCiks = new Set<string>()
-        const queryLower = query.toLowerCase()
+        // Search local list first
+        const localMatches = KNOWN_INVESTORS.filter(inv => 
+          inv.name.toLowerCase().includes(query) ||
+          inv.aliases.some(alias => alias.includes(query))
+        ).map(inv => ({
+          cik: inv.cik,
+          name: inv.name,
+          date: null
+        }))
 
-        // Strategy 0: Check curated list of well-known investors first
-        for (const investor of KNOWN_INVESTORS) {
-          const matches = investor.aliases.some(alias => alias.includes(queryLower) || queryLower.includes(alias))
-          if (matches && !seenCiks.has(investor.cik)) {
-            // Verify they have filings
-            const datesUrl = `${FMP_BASE_URL}/institutional-ownership/dates?cik=${investor.cik}&apikey=${FMP_API_KEY}`
-            const datesResp = await fetch(datesUrl)
-            
-            if (datesResp.ok) {
-              const dates = await datesResp.json()
-              if (Array.isArray(dates) && dates.length > 0) {
-                seenCiks.add(investor.cik)
-                searchResults.push({
-                  cik: investor.cik,
-                  name: investor.name,
-                  date: dates[0]?.date
-                })
-              }
-            }
-          }
+        // If we have local matches, return them
+        if (localMatches.length > 0) {
+          return new Response(JSON.stringify(localMatches.slice(0, 20)), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
         }
 
-        // Strategy 1: Search public companies by name and check if they file 13F
-        const searchUrl = `${FMP_BASE_URL}/search-name?query=${encodeURIComponent(query)}&limit=20&apikey=${FMP_API_KEY}`
+        // Otherwise, search FMP API
+        const searchUrl = `${FMP_BASE_URL}/institutional-ownership/search-name?name=${encodeURIComponent(query)}&apikey=${FMP_API_KEY}`
         const searchResp = await fetch(searchUrl)
         
-        if (searchResp.ok) {
-          const companies = await searchResp.json()
-          
-          if (Array.isArray(companies)) {
-            const seenSymbols = new Set<string>()
-            
-            for (const company of companies) {
-              if (!company.symbol || seenSymbols.has(company.symbol)) continue
-              if (company.exchange && !['NYSE', 'NASDAQ', 'AMEX'].includes(company.exchange)) continue
-              seenSymbols.add(company.symbol)
-              
-              const profileUrl = `${FMP_BASE_URL}/profile?symbol=${company.symbol}&apikey=${FMP_API_KEY}`
-              const profileResp = await fetch(profileUrl)
-              
-              if (!profileResp.ok) continue
-              
-              const profiles = await profileResp.json()
-              if (!Array.isArray(profiles) || profiles.length === 0 || !profiles[0].cik) continue
-              
-              const cik = profiles[0].cik
-              if (seenCiks.has(cik)) continue
-              seenCiks.add(cik)
-              
-              const datesUrl = `${FMP_BASE_URL}/institutional-ownership/dates?cik=${cik}&apikey=${FMP_API_KEY}`
-              const datesResp = await fetch(datesUrl)
-              
-              if (datesResp.ok) {
-                const dates = await datesResp.json()
-                if (Array.isArray(dates) && dates.length > 0) {
-                  searchResults.push({
-                    cik: cik,
-                    name: profiles[0].companyName || company.name,
-                    date: dates[0]?.date
-                  })
-                  
-                  if (searchResults.length >= 10) break
-                }
-              }
-            }
-          }
+        if (!searchResp.ok) {
+          throw new Error(`FMP API error: ${searchResp.status}`)
         }
 
-        // Strategy 2: Search through recent 13F filers (for private funds like Scion, Pershing Square)
-        // This catches hedge funds that aren't publicly traded companies
-        if (searchResults.length < 10) {
-          // Search through multiple pages of recent filings
-          for (let page = 0; page < 20 && searchResults.length < 10; page++) {
-            const filingsUrl = `${FMP_BASE_URL}/institutional-ownership/latest?page=${page}&limit=100&apikey=${FMP_API_KEY}`
-            const filingsResp = await fetch(filingsUrl)
-            
-            if (!filingsResp.ok) break
-            
-            const filings = await filingsResp.json()
-            if (!Array.isArray(filings) || filings.length === 0) break
-            
-            for (const filing of filings) {
-              if (!filing.name || !filing.cik) continue
-              if (seenCiks.has(filing.cik)) continue
-              
-              // Check if the filer name matches the search query
-              if (filing.name.toLowerCase().includes(queryLower)) {
-                seenCiks.add(filing.cik)
-                searchResults.push({
-                  cik: filing.cik,
-                  name: filing.name,
-                  date: filing.date
-                })
-                
-                if (searchResults.length >= 10) break
-              }
-            }
-          }
-        }
+        const searchData = await searchResp.json()
         
-        return new Response(JSON.stringify(searchResults), {
+        const results: SearchResult[] = (searchData || []).slice(0, 20).map((item: any) => ({
+          cik: item.cik,
+          name: item.name,
+          date: item.date
+        }))
+
+        return new Response(JSON.stringify(results), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
 
-      // POST /track - Add investor and fetch holdings
+      // POST /track - Track a new investor
       case req.method === 'POST' && path === '/track': {
         const body: TrackRequest = await req.json()
         const { cik, name } = body
@@ -353,33 +283,35 @@ serve(async (req) => {
           })
         }
 
-        // Check if investor already exists
+        // Check if already tracked
         const { data: existing } = await supabase
           .from('tracked_investors')
-          .select('id, last_filing_date')
+          .select('id')
           .eq('cik', cik)
           .single()
 
-        let investorId: number
-
         if (existing) {
-          // Already tracked, just refresh holdings
-          investorId = existing.id
-          console.log(`Investor ${name} (${cik}) already tracked, refreshing...`)
-        } else {
-          // Insert new investor
-          const { data: investor, error: insertError } = await supabase
-            .from('tracked_investors')
-            .insert({ name, cik })
-            .select()
-            .single()
-
-          if (insertError) throw insertError
-          investorId = investor.id
-          console.log(`Added new investor: ${name} (${cik})`)
+          return new Response(JSON.stringify({ 
+            error: 'Investor already tracked',
+            investorId: existing.id 
+          }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
         }
 
-        // Get available filing dates for this investor
+        // Insert new investor
+        const { data: newInvestor, error: insertError } = await supabase
+          .from('tracked_investors')
+          .insert({ cik, name })
+          .select('id')
+          .single()
+
+        if (insertError) throw insertError
+
+        const investorId = newInvestor.id
+
+        // Fetch available filing dates
         const datesUrl = `${FMP_BASE_URL}/institutional-ownership/dates?cik=${cik}&apikey=${FMP_API_KEY}`
         const datesResp = await fetch(datesUrl)
         
@@ -523,32 +455,93 @@ serve(async (req) => {
 
         if (error) throw error
 
-        // If enriched, join with Stratos dashboard data
+        // If enriched, join with Stratos data from multiple tables
         if (enriched && holdings && holdings.length > 0) {
-          const symbols = holdings.map(h => h.symbol).filter(s => s && s !== 'UNKNOWN')
+          const symbols = holdings.map((h: any) => h.symbol).filter((s: string) => s && s !== 'UNKNOWN')
           
-          // Fetch live Stratos data for these tickers
-          const { data: assetData } = await supabase
-            .from('v_dashboard_all_assets')
-            .select('symbol, price, change_1d, ai_score, ai_direction, rsi_14, sector')
+          // Query to get latest asset data with AI scores and features
+          // First get asset_ids for symbols
+          const { data: assetLookup } = await supabase
+            .from('assets')
+            .select('asset_id, symbol, name, sector')
             .in('symbol', symbols)
-
-          // Create lookup map
-          const assetMap = new Map(
-            (assetData || []).map(a => [a.symbol, a])
-          )
+            .eq('asset_type', 'equity')
+          
+          const assetMap = new Map((assetLookup || []).map((a: any) => [a.symbol, a]))
+          const assetIds = (assetLookup || []).map((a: any) => a.asset_id)
+          
+          // Get latest AI reviews for these assets
+          const { data: aiReviews } = await supabase
+            .from('asset_ai_reviews')
+            .select('asset_id, direction, ai_direction_score, confidence')
+            .in('asset_id', assetIds.map(String))
+            .order('as_of_date', { ascending: false })
+          
+          // Get latest features (RSI, returns)
+          const { data: features } = await supabase
+            .from('daily_features')
+            .select('asset_id, close, return_1d, return_21d, return_252d, rsi_14')
+            .in('asset_id', assetIds)
+            .order('date', { ascending: false })
+          
+          // Get market cap from equity_metadata
+          const { data: metadata } = await supabase
+            .from('equity_metadata')
+            .select('asset_id, market_cap')
+            .in('asset_id', assetIds)
+          
+          // Create lookup maps (take first/latest entry per asset)
+          const aiMap = new Map<number, any>()
+          for (const r of (aiReviews || [])) {
+            const aid = parseInt(r.asset_id)
+            if (!aiMap.has(aid)) aiMap.set(aid, r)
+          }
+          
+          const featuresMap = new Map<number, any>()
+          for (const f of (features || [])) {
+            if (!featuresMap.has(f.asset_id)) featuresMap.set(f.asset_id, f)
+          }
+          
+          const metaMap = new Map<number, any>()
+          for (const m of (metadata || [])) {
+            metaMap.set(m.asset_id, m)
+          }
 
           // Merge data
-          const enrichedHoldings = holdings.map(h => {
-            const live = assetMap.get(h.symbol) || {}
+          const enrichedHoldings = holdings.map((h: any) => {
+            const asset = assetMap.get(h.symbol)
+            if (!asset) {
+              return {
+                ...h,
+                asset_id: null,
+                current_price: null,
+                day_change: null,
+                stratos_ai_score: null,
+                stratos_ai_direction: null,
+                stratos_rsi: null,
+                sector: null,
+                market_cap: null,
+                change_30d: null,
+                change_365d: null
+              }
+            }
+            
+            const ai = aiMap.get(asset.asset_id) || {}
+            const feat = featuresMap.get(asset.asset_id) || {}
+            const meta = metaMap.get(asset.asset_id) || {}
+            
             return {
               ...h,
-              current_price: live.price || null,
-              day_change: live.change_1d || null,
-              stratos_ai_score: live.ai_score || null,
-              stratos_ai_direction: live.ai_direction || null,
-              stratos_rsi: live.rsi_14 || null,
-              sector: live.sector || null
+              asset_id: asset.asset_id,
+              current_price: feat.close ? parseFloat(feat.close) : null,
+              day_change: feat.return_1d ? feat.return_1d * 100 : null,
+              change_30d: feat.return_21d ? feat.return_21d * 100 : null,
+              change_365d: feat.return_252d ? feat.return_252d * 100 : null,
+              stratos_ai_score: ai.ai_direction_score || null,
+              stratos_ai_direction: ai.direction || null,
+              stratos_rsi: feat.rsi_14 || null,
+              sector: asset.sector || null,
+              market_cap: meta.market_cap || null
             }
           })
 
@@ -579,20 +572,59 @@ serve(async (req) => {
 
         // Enrich with Stratos AI data + market cap + performance
         if (consensus && consensus.length > 0) {
-          const symbols = consensus.map(c => c.symbol).filter(s => s && s !== 'UNKNOWN')
+          const symbols = consensus.map((c: any) => c.symbol).filter((s: string) => s && s !== 'UNKNOWN')
           
-          // Get Stratos AI data from dashboard view
-          const { data: assetData } = await supabase
-            .from('v_dashboard_all_assets')
-            .select('symbol, price, change_1d, change_30d, change_365d, ai_score, ai_direction, rsi_14, sector, market_cap')
+          // Get asset info
+          const { data: assetLookup } = await supabase
+            .from('assets')
+            .select('asset_id, symbol, name, sector')
             .in('symbol', symbols)
-
-          const assetMap = new Map(
-            (assetData || []).map(a => [a.symbol, a])
-          )
+            .eq('asset_type', 'equity')
+          
+          const assetMap = new Map((assetLookup || []).map((a: any) => [a.symbol, a]))
+          const assetIds = (assetLookup || []).map((a: any) => a.asset_id)
+          
+          // Get latest AI reviews
+          const { data: aiReviews } = await supabase
+            .from('asset_ai_reviews')
+            .select('asset_id, direction, ai_direction_score, confidence')
+            .in('asset_id', assetIds.map(String))
+            .order('as_of_date', { ascending: false })
+          
+          // Get latest features
+          const { data: features } = await supabase
+            .from('daily_features')
+            .select('asset_id, close, return_1d, return_21d, return_252d, rsi_14')
+            .in('asset_id', assetIds)
+            .order('date', { ascending: false })
+          
+          // Get market cap
+          const { data: metadata } = await supabase
+            .from('equity_metadata')
+            .select('asset_id, market_cap')
+            .in('asset_id', assetIds)
+          
+          // Create lookup maps
+          const aiMap = new Map<number, any>()
+          for (const r of (aiReviews || [])) {
+            const aid = parseInt(r.asset_id)
+            if (!aiMap.has(aid)) aiMap.set(aid, r)
+          }
+          
+          const featuresMap = new Map<number, any>()
+          for (const f of (features || [])) {
+            if (!featuresMap.has(f.asset_id)) featuresMap.set(f.asset_id, f)
+          }
+          
+          const metaMap = new Map<number, any>()
+          for (const m of (metadata || [])) {
+            metaMap.set(m.asset_id, m)
+          }
 
           // For symbols not in Stratos, try to get market cap from FMP
-          const missingSymbols = symbols.filter(s => !assetMap.has(s))
+          const missingSymbols = symbols.filter((s: string) => !assetMap.has(s))
+          const fmpDataMap = new Map<string, any>()
+          
           if (missingSymbols.length > 0 && FMP_API_KEY) {
             try {
               const profileUrl = `${FMP_BASE_URL}/profile?symbol=${missingSymbols.join(',')}&apikey=${FMP_API_KEY}`
@@ -601,8 +633,7 @@ serve(async (req) => {
                 const profiles = await profileResp.json()
                 for (const p of profiles) {
                   if (p.symbol) {
-                    assetMap.set(p.symbol, {
-                      symbol: p.symbol,
+                    fmpDataMap.set(p.symbol, {
                       price: p.price,
                       market_cap: p.mktCap,
                       change_1d: p.changes ? (p.changes / p.price * 100) : null,
@@ -616,19 +647,43 @@ serve(async (req) => {
             }
           }
 
-          const enrichedConsensus = consensus.map(c => {
-            const live = assetMap.get(c.symbol) || {} as any
+          const enrichedConsensus = consensus.map((c: any) => {
+            const asset = assetMap.get(c.symbol)
+            
+            if (!asset) {
+              // Use FMP data if available
+              const fmpData = fmpDataMap.get(c.symbol) || {}
+              return {
+                ...c,
+                asset_id: null,
+                current_price: fmpData.price || null,
+                market_cap: fmpData.market_cap || null,
+                day_change: fmpData.change_1d || null,
+                change_30d: null,
+                change_365d: null,
+                stratos_ai_score: null,
+                stratos_ai_direction: null,
+                stratos_rsi: null,
+                sector: fmpData.sector || null
+              }
+            }
+            
+            const ai = aiMap.get(asset.asset_id) || {}
+            const feat = featuresMap.get(asset.asset_id) || {}
+            const meta = metaMap.get(asset.asset_id) || {}
+            
             return {
               ...c,
-              current_price: live.price || null,
-              market_cap: live.market_cap || null,
-              day_change: live.change_1d || null,
-              change_30d: live.change_30d || null,
-              change_365d: live.change_365d || null,
-              stratos_ai_score: live.ai_score || null,
-              stratos_ai_direction: live.ai_direction || null,
-              stratos_rsi: live.rsi_14 || null,
-              sector: live.sector || null
+              asset_id: asset.asset_id,
+              current_price: feat.close ? parseFloat(feat.close) : null,
+              market_cap: meta.market_cap || null,
+              day_change: feat.return_1d ? feat.return_1d * 100 : null,
+              change_30d: feat.return_21d ? feat.return_21d * 100 : null,
+              change_365d: feat.return_252d ? feat.return_252d * 100 : null,
+              stratos_ai_score: ai.ai_direction_score || null,
+              stratos_ai_direction: ai.direction || null,
+              stratos_rsi: feat.rsi_14 || null,
+              sector: asset.sector || null
             }
           })
 
@@ -638,6 +693,40 @@ serve(async (req) => {
         }
 
         return new Response(JSON.stringify(consensus || []), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /asset/:symbol - Get asset details for linking to dashboard
+      case req.method === 'GET' && path.startsWith('/asset/'): {
+        const symbol = path.split('/')[2]?.toUpperCase()
+        
+        if (!symbol) {
+          return new Response(JSON.stringify({ error: 'Symbol required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Look up asset_id for the symbol
+        const { data: asset, error } = await supabase
+          .from('assets')
+          .select('asset_id, symbol, name, sector, asset_type')
+          .eq('symbol', symbol)
+          .eq('asset_type', 'equity')
+          .single()
+        
+        if (error || !asset) {
+          return new Response(JSON.stringify({ 
+            error: 'Asset not found',
+            symbol 
+          }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(asset), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
@@ -724,7 +813,7 @@ serve(async (req) => {
           .eq('investor_id', investorId)
         
         const prevHoldingsMap = new Map(
-          (prevHoldings || []).map(h => [h.symbol, h.shares])
+          (prevHoldings || []).map((h: any) => [h.symbol, h.shares])
         )
 
         // Calculate total portfolio value

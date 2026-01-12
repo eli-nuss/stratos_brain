@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Users, TrendingUp, Search, Plus, ArrowLeft, 
   BarChart3, BrainCircuit, Activity, RefreshCw, Trash2, X,
-  ChevronRight, DollarSign, Percent, Target
+  ChevronRight, DollarSign, Percent, Target, ExternalLink
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -46,12 +47,16 @@ interface EnrichedHolding {
   date_reported: string;
   quarter: string;
   // Stratos AI enrichment
+  asset_id?: number;
   current_price?: number;
   day_change?: number;
+  change_30d?: number;
+  change_365d?: number;
   stratos_ai_score?: number;
   stratos_ai_direction?: string;
   stratos_rsi?: number;
   sector?: string;
+  market_cap?: number;
 }
 
 interface ConsensusStock {
@@ -63,6 +68,7 @@ interface ConsensusStock {
   avg_conviction: number;
   latest_filing_date: string;
   // Stratos AI enrichment
+  asset_id?: number;
   current_price?: number;
   market_cap?: number;
   day_change?: number;
@@ -115,9 +121,21 @@ const getInitials = (name: string): string => {
 
 const getScoreColor = (score: number | null | undefined): string => {
   if (score === null || score === undefined) return 'text-slate-500';
-  if (score >= 70) return 'text-emerald-400';
-  if (score >= 40) return 'text-amber-400';
+  if (score >= 50) return 'text-emerald-400';
+  if (score >= 0) return 'text-amber-400';
   return 'text-red-400';
+};
+
+const getDirectionBadge = (direction: string | null | undefined, score: number | null | undefined) => {
+  if (!direction) return { bg: 'bg-slate-500/20', text: 'text-slate-400', border: 'border-slate-500/30' };
+  
+  const dir = direction.toLowerCase();
+  if (dir === 'bullish') {
+    return { bg: 'bg-emerald-500/20', text: 'text-emerald-400', border: 'border-emerald-500/30' };
+  } else if (dir === 'bearish') {
+    return { bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500/30' };
+  }
+  return { bg: 'bg-amber-500/20', text: 'text-amber-400', border: 'border-amber-500/30' };
 };
 
 const getActionBadge = (action: string) => {
@@ -133,6 +151,7 @@ const getActionBadge = (action: string) => {
 
 export default function InvestorWatchlist() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [activeView, setActiveView] = useState<'overview' | 'detail'>('overview');
   const [selectedInvestor, setSelectedInvestor] = useState<Investor | null>(null);
   const [showSearchModal, setShowSearchModal] = useState(false);
@@ -163,6 +182,29 @@ export default function InvestorWatchlist() {
 
   const investorList = Array.isArray(investors) ? investors : [];
   const consensusList = Array.isArray(consensusStocks) ? consensusStocks : [];
+
+  // Navigate to asset detail page
+  const handleTickerClick = (assetId: number | null | undefined, symbol: string) => {
+    if (assetId) {
+      navigate(`/asset/${assetId}`);
+    } else {
+      // If no asset_id, try to look it up
+      fetch(`/api/investor-api/asset/${symbol}`, {
+        headers: { 'x-stratos-key': 'stratos_brain_api_key_2024' }
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.asset_id) {
+            navigate(`/asset/${data.asset_id}`);
+          } else {
+            toast.error(`Asset ${symbol} not found in Stratos database`);
+          }
+        })
+        .catch(() => {
+          toast.error(`Could not find asset ${symbol}`);
+        });
+    }
+  };
 
   // Search for investors
   const handleSearch = async (query: string) => {
@@ -266,6 +308,23 @@ export default function InvestorWatchlist() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // Clickable ticker component
+  const TickerLink = ({ symbol, assetId, className = '' }: { symbol: string; assetId?: number | null; className?: string }) => (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        handleTickerClick(assetId, symbol);
+      }}
+      className={cn(
+        "font-medium text-white hover:text-indigo-400 transition-colors cursor-pointer flex items-center gap-1 group",
+        className
+      )}
+    >
+      {symbol}
+      <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+    </button>
+  );
+
   return (
     <DashboardLayout>
       <div className="flex h-[calc(100vh-6rem)] flex-col p-6 space-y-6 overflow-auto">
@@ -321,49 +380,52 @@ export default function InvestorWatchlist() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800 bg-slate-900/30">
-                        {consensusList.slice(0, 10).map((stock) => (
-                          <tr key={stock.symbol} className="hover:bg-slate-800/50 transition-colors">
-                            <td className="px-3 py-3 font-medium text-white">{stock.symbol}</td>
-                            <td className="px-3 py-3 text-center">
-                              <span className="text-indigo-400 font-bold">{stock.guru_count}</span>
-                            </td>
-                            <td className="px-3 py-3 text-right font-mono">{(stock.avg_conviction ?? 0).toFixed(1)}%</td>
-                            <td className="px-3 py-3 text-right font-mono">{formatCurrency(stock.total_guru_invested)}</td>
-                            <td className="px-3 py-3 text-right font-mono text-slate-400">{formatCurrency(stock.market_cap)}</td>
-                            <td className="px-3 py-3 text-center">
-                              {stock.stratos_ai_direction ? (
-                                <span className={cn(
-                                  "px-2 py-0.5 rounded text-xs font-medium",
-                                  stock.stratos_ai_direction === 'BULLISH' ? 'bg-emerald-500/20 text-emerald-400' :
-                                  stock.stratos_ai_direction === 'BEARISH' ? 'bg-red-500/20 text-red-400' :
-                                  'bg-slate-500/20 text-slate-400'
-                                )}>
-                                  {stock.stratos_ai_score ?? '-'}
-                                </span>
-                              ) : (
-                                <span className="text-slate-500">-</span>
-                              )}
-                            </td>
-                            <td className={cn(
-                              "px-3 py-3 text-right font-mono",
-                              (stock.day_change ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
-                            )}>
-                              {stock.day_change != null ? `${stock.day_change >= 0 ? '+' : ''}${stock.day_change.toFixed(2)}%` : '-'}
-                            </td>
-                            <td className={cn(
-                              "px-3 py-3 text-right font-mono",
-                              (stock.change_30d ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
-                            )}>
-                              {stock.change_30d != null ? `${stock.change_30d >= 0 ? '+' : ''}${stock.change_30d.toFixed(1)}%` : '-'}
-                            </td>
-                            <td className={cn(
-                              "px-3 py-3 text-right font-mono",
-                              (stock.change_365d ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
-                            )}>
-                              {stock.change_365d != null ? `${stock.change_365d >= 0 ? '+' : ''}${stock.change_365d.toFixed(1)}%` : '-'}
-                            </td>
-                          </tr>
-                        ))}
+                        {consensusList.slice(0, 15).map((stock) => {
+                          const dirBadge = getDirectionBadge(stock.stratos_ai_direction, stock.stratos_ai_score);
+                          return (
+                            <tr key={stock.symbol} className="hover:bg-slate-800/50 transition-colors">
+                              <td className="px-3 py-3">
+                                <TickerLink symbol={stock.symbol} assetId={stock.asset_id} />
+                              </td>
+                              <td className="px-3 py-3 text-center">
+                                <span className="text-indigo-400 font-bold">{stock.guru_count}</span>
+                              </td>
+                              <td className="px-3 py-3 text-right font-mono">{(stock.avg_conviction ?? 0).toFixed(1)}%</td>
+                              <td className="px-3 py-3 text-right font-mono">{formatCurrency(stock.total_guru_invested)}</td>
+                              <td className="px-3 py-3 text-right font-mono text-slate-400">{formatCurrency(stock.market_cap)}</td>
+                              <td className="px-3 py-3 text-center">
+                                {stock.stratos_ai_direction ? (
+                                  <span className={cn(
+                                    "px-2 py-0.5 rounded text-xs font-medium border",
+                                    dirBadge.bg, dirBadge.text, dirBadge.border
+                                  )}>
+                                    {stock.stratos_ai_score ?? '-'}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-500">-</span>
+                                )}
+                              </td>
+                              <td className={cn(
+                                "px-3 py-3 text-right font-mono",
+                                (stock.day_change ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
+                              )}>
+                                {stock.day_change != null ? `${stock.day_change >= 0 ? '+' : ''}${stock.day_change.toFixed(2)}%` : '-'}
+                              </td>
+                              <td className={cn(
+                                "px-3 py-3 text-right font-mono",
+                                (stock.change_30d ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
+                              )}>
+                                {stock.change_30d != null ? `${stock.change_30d >= 0 ? '+' : ''}${stock.change_30d.toFixed(1)}%` : '-'}
+                              </td>
+                              <td className={cn(
+                                "px-3 py-3 text-right font-mono",
+                                (stock.change_365d ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
+                              )}>
+                                {stock.change_365d != null ? `${stock.change_365d >= 0 ? '+' : ''}${stock.change_365d.toFixed(1)}%` : '-'}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -449,39 +511,44 @@ export default function InvestorWatchlist() {
                           <button 
                             onClick={(e) => { e.stopPropagation(); handleDelete(investor.investor_id, investor.investor_name); }}
                             className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors"
-                            title="Remove"
+                            title="Remove investor"
                           >
                             <Trash2 className="w-4 h-4 text-slate-400" />
                           </button>
                         </div>
                       </div>
 
-                      {/* Card Body */}
-                      <h4 className="text-base font-bold text-white mb-1 line-clamp-1">{investor.investor_name}</h4>
-                      <p className="text-sm text-slate-500 mb-4">
-                        {investor.total_positions} positions • {investor.last_filing_date || 'No filings'}
-                      </p>
+                      {/* Fund Name */}
+                      <h4 className="font-semibold text-white mb-1 line-clamp-2 text-sm leading-tight">
+                        {investor.investor_name}
+                      </h4>
                       
-                      {/* Stats Grid */}
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div className="bg-slate-950 p-2 rounded border border-slate-800/50">
-                          <div className="text-slate-500 text-xs">AUM</div>
-                          <div className="text-white font-mono">{formatCurrency(investor.total_portfolio_value)}</div>
+                      {/* Stats */}
+                      <div className="mt-3 space-y-2 text-xs">
+                        <div className="flex justify-between text-slate-400">
+                          <span>AUM</span>
+                          <span className="text-white font-mono">{formatCurrency(investor.total_portfolio_value)}</span>
                         </div>
-                        <div className="bg-slate-950 p-2 rounded border border-slate-800/50">
-                          <div className="text-slate-500 text-xs">New</div>
-                          <div className="text-emerald-400 font-mono">{investor.new_positions}</div>
+                        <div className="flex justify-between text-slate-400">
+                          <span>Positions</span>
+                          <span className="text-white font-mono">{investor.total_positions}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-400">
+                          <span>Last Filing</span>
+                          <span className="text-white">{investor.last_filing_date || 'N/A'}</span>
                         </div>
                       </div>
 
                       {/* Top Holdings Preview */}
                       {investor.top_holdings && investor.top_holdings.length > 0 && (
                         <div className="mt-3 pt-3 border-t border-slate-800">
-                          <div className="text-xs text-slate-500 mb-1">Top Holdings</div>
                           <div className="flex flex-wrap gap-1">
-                            {investor.top_holdings.slice(0, 5).map((symbol) => (
-                              <span key={symbol} className="px-1.5 py-0.5 bg-slate-800 rounded text-xs text-slate-300">
-                                {symbol}
+                            {investor.top_holdings.slice(0, 5).filter(h => h !== 'UNKNOWN').map((ticker) => (
+                              <span 
+                                key={ticker} 
+                                className="px-1.5 py-0.5 bg-slate-800 rounded text-xs text-slate-400"
+                              >
+                                {ticker}
                               </span>
                             ))}
                             {investor.top_holdings.length > 5 && (
@@ -493,8 +560,10 @@ export default function InvestorWatchlist() {
                         </div>
                       )}
 
-                      {/* Hover Arrow */}
-                      <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      {/* View Details Arrow */}
+                      <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <ChevronRight className="w-5 h-5 text-indigo-400" />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -550,7 +619,7 @@ export default function InvestorWatchlist() {
                   Portfolio X-Ray
                 </h3>
                 <div className="text-xs text-slate-500">
-                  Holdings from 13F (Lagged) • Live Stratos AI Scores
+                  Holdings from 13F (Lagged) • Live Stratos AI Scores • Click ticker to view details
                 </div>
               </div>
               
@@ -569,33 +638,59 @@ export default function InvestorWatchlist() {
                         <th className="px-4 py-3 text-right">Value</th>
                         <th className="px-4 py-3 text-right">Shares</th>
                         <th className="px-4 py-3 text-center">Action</th>
-                        <th className="px-4 py-3 text-center">Stratos Score</th>
+                        <th className="px-4 py-3 text-center">AI Score</th>
                         <th className="px-4 py-3 text-center">RSI</th>
-                        <th className="px-4 py-3">Sector</th>
+                        <th className="px-4 py-3 text-right">24h%</th>
+                        <th className="px-4 py-3 text-right">30d%</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800">
-                      {holdings.map((holding) => (
-                        <tr key={holding.id} className="hover:bg-slate-800/50 transition-colors">
-                          <td className="px-4 py-3 font-medium text-white">{holding.symbol}</td>
-                          <td className="px-4 py-3 text-slate-400 max-w-[200px] truncate">{holding.company_name}</td>
-                          <td className="px-4 py-3 text-right font-mono">{(holding.percent_portfolio ?? 0).toFixed(2)}%</td>
-                          <td className="px-4 py-3 text-right font-mono">{formatCurrency(holding.value)}</td>
-                          <td className="px-4 py-3 text-right font-mono">{formatNumber(holding.shares)}</td>
-                          <td className="px-4 py-3 text-center">
-                            <span className={cn("px-2 py-0.5 rounded text-xs border", getActionBadge(holding.action))}>
-                              {holding.action}
-                            </span>
-                          </td>
-                          <td className={cn("px-4 py-3 text-center font-bold", getScoreColor(holding.stratos_ai_score))}>
-                            {holding.stratos_ai_score ?? '-'}
-                          </td>
-                          <td className="px-4 py-3 text-center font-mono text-slate-400">
-                            {holding.stratos_rsi?.toFixed(0) ?? '-'}
-                          </td>
-                          <td className="px-4 py-3 text-slate-500 text-xs">{holding.sector || '-'}</td>
-                        </tr>
-                      ))}
+                      {holdings.map((holding) => {
+                        const dirBadge = getDirectionBadge(holding.stratos_ai_direction, holding.stratos_ai_score);
+                        return (
+                          <tr key={holding.id} className="hover:bg-slate-800/50 transition-colors">
+                            <td className="px-4 py-3">
+                              <TickerLink symbol={holding.symbol} assetId={holding.asset_id} />
+                            </td>
+                            <td className="px-4 py-3 text-slate-400 max-w-[200px] truncate">{holding.company_name}</td>
+                            <td className="px-4 py-3 text-right font-mono">{(holding.percent_portfolio ?? 0).toFixed(2)}%</td>
+                            <td className="px-4 py-3 text-right font-mono">{formatCurrency(holding.value)}</td>
+                            <td className="px-4 py-3 text-right font-mono">{formatNumber(holding.shares)}</td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={cn("px-2 py-0.5 rounded text-xs border", getActionBadge(holding.action))}>
+                                {holding.action}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {holding.stratos_ai_direction ? (
+                                <span className={cn(
+                                  "px-2 py-0.5 rounded text-xs font-medium border",
+                                  dirBadge.bg, dirBadge.text, dirBadge.border
+                                )}>
+                                  {holding.stratos_ai_score ?? '-'}
+                                </span>
+                              ) : (
+                                <span className="text-slate-500">-</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-center font-mono text-slate-400">
+                              {holding.stratos_rsi?.toFixed(0) ?? '-'}
+                            </td>
+                            <td className={cn(
+                              "px-4 py-3 text-right font-mono",
+                              (holding.day_change ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
+                            )}>
+                              {holding.day_change != null ? `${holding.day_change >= 0 ? '+' : ''}${holding.day_change.toFixed(2)}%` : '-'}
+                            </td>
+                            <td className={cn(
+                              "px-4 py-3 text-right font-mono",
+                              (holding.change_30d ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
+                            )}>
+                              {holding.change_30d != null ? `${holding.change_30d >= 0 ? '+' : ''}${holding.change_30d.toFixed(1)}%` : '-'}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 )}
