@@ -47,6 +47,29 @@ interface TrackRequest {
   name: string
 }
 
+// Curated list of well-known institutional investors (hedge funds, family offices)
+// These are private funds that file 13F but aren't publicly traded companies
+const KNOWN_INVESTORS: { cik: string; name: string; aliases: string[] }[] = [
+  { cik: '0001649339', name: 'Scion Asset Management, LLC', aliases: ['scion', 'michael burry', 'burry'] },
+  { cik: '0001336528', name: 'Pershing Square Capital Management', aliases: ['pershing', 'bill ackman', 'ackman'] },
+  { cik: '0001350694', name: 'Bridgewater Associates', aliases: ['bridgewater', 'ray dalio', 'dalio'] },
+  { cik: '0001037389', name: 'Renaissance Technologies LLC', aliases: ['renaissance', 'jim simons', 'simons', 'medallion'] },
+  { cik: '0001061768', name: 'Citadel Advisors LLC', aliases: ['citadel', 'ken griffin', 'griffin'] },
+  { cik: '0001364742', name: 'Elliott Investment Management', aliases: ['elliott', 'paul singer', 'singer'] },
+  { cik: '0001029160', name: 'Third Point LLC', aliases: ['third point', 'dan loeb', 'loeb'] },
+  { cik: '0001167483', name: 'Icahn Capital LP', aliases: ['icahn', 'carl icahn'] },
+  { cik: '0001159159', name: 'Greenlight Capital', aliases: ['greenlight', 'david einhorn', 'einhorn'] },
+  { cik: '0001103804', name: 'ValueAct Capital', aliases: ['valueact'] },
+  { cik: '0001040273', name: 'Tiger Global Management', aliases: ['tiger global', 'tiger'] },
+  { cik: '0001079114', name: 'Baupost Group LLC', aliases: ['baupost', 'seth klarman', 'klarman'] },
+  { cik: '0001056831', name: 'Appaloosa Management', aliases: ['appaloosa', 'david tepper', 'tepper'] },
+  { cik: '0001510387', name: 'Coatue Management', aliases: ['coatue', 'philippe laffont'] },
+  { cik: '0001336326', name: 'Lone Pine Capital', aliases: ['lone pine', 'steve mandel'] },
+  { cik: '0001273087', name: 'Viking Global Investors', aliases: ['viking', 'andreas halvorsen'] },
+  { cik: '0001484148', name: 'Dragoneer Investment Group', aliases: ['dragoneer'] },
+  { cik: '0001067983', name: 'Berkshire Hathaway Inc.', aliases: ['berkshire', 'warren buffett', 'buffett'] },
+]
+
 // Helper: Determine action based on share change
 function determineAction(prevShares: number | null, currentShares: number): string {
   if (prevShares === null) {
@@ -110,60 +133,106 @@ serve(async (req) => {
           })
         }
 
-        // Search for companies by name using FMP's search endpoint
+        const searchResults: SearchResult[] = []
+        const seenCiks = new Set<string>()
+        const queryLower = query.toLowerCase()
+
+        // Strategy 0: Check curated list of well-known investors first
+        for (const investor of KNOWN_INVESTORS) {
+          const matches = investor.aliases.some(alias => alias.includes(queryLower) || queryLower.includes(alias))
+          if (matches && !seenCiks.has(investor.cik)) {
+            // Verify they have filings
+            const datesUrl = `${FMP_BASE_URL}/institutional-ownership/dates?cik=${investor.cik}&apikey=${FMP_API_KEY}`
+            const datesResp = await fetch(datesUrl)
+            
+            if (datesResp.ok) {
+              const dates = await datesResp.json()
+              if (Array.isArray(dates) && dates.length > 0) {
+                seenCiks.add(investor.cik)
+                searchResults.push({
+                  cik: investor.cik,
+                  name: investor.name,
+                  date: dates[0]?.date
+                })
+              }
+            }
+          }
+        }
+
+        // Strategy 1: Search public companies by name and check if they file 13F
         const searchUrl = `${FMP_BASE_URL}/search-name?query=${encodeURIComponent(query)}&limit=20&apikey=${FMP_API_KEY}`
         const searchResp = await fetch(searchUrl)
         
-        if (!searchResp.ok) {
-          throw new Error(`FMP API error: ${searchResp.status}`)
-        }
-
-        const companies = await searchResp.json()
-        
-        if (!Array.isArray(companies) || companies.length === 0) {
-          return new Response(JSON.stringify([]), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-        }
-
-        // Get CIK from company profile and verify they have 13F filings
-        const searchResults: SearchResult[] = []
-        const seenCiks = new Set<string>()
-        const seenSymbols = new Set<string>()
-        
-        for (const company of companies) {
-          // Skip if we've seen this symbol or if it's not a US exchange
-          if (!company.symbol || seenSymbols.has(company.symbol)) continue
-          if (company.exchange && !['NYSE', 'NASDAQ', 'AMEX'].includes(company.exchange)) continue
-          seenSymbols.add(company.symbol)
+        if (searchResp.ok) {
+          const companies = await searchResp.json()
           
-          // Get company profile to get CIK
-          const profileUrl = `${FMP_BASE_URL}/profile?symbol=${company.symbol}&apikey=${FMP_API_KEY}`
-          const profileResp = await fetch(profileUrl)
-          
-          if (!profileResp.ok) continue
-          
-          const profiles = await profileResp.json()
-          if (!Array.isArray(profiles) || profiles.length === 0 || !profiles[0].cik) continue
-          
-          const cik = profiles[0].cik
-          if (seenCiks.has(cik)) continue
-          seenCiks.add(cik)
-          
-          // Check if this CIK has 13F filings
-          const datesUrl = `${FMP_BASE_URL}/institutional-ownership/dates?cik=${cik}&apikey=${FMP_API_KEY}`
-          const datesResp = await fetch(datesUrl)
-          
-          if (datesResp.ok) {
-            const dates = await datesResp.json()
-            if (Array.isArray(dates) && dates.length > 0) {
-              searchResults.push({
-                cik: cik,
-                name: profiles[0].companyName || company.name,
-                date: dates[0]?.date
-              })
+          if (Array.isArray(companies)) {
+            const seenSymbols = new Set<string>()
+            
+            for (const company of companies) {
+              if (!company.symbol || seenSymbols.has(company.symbol)) continue
+              if (company.exchange && !['NYSE', 'NASDAQ', 'AMEX'].includes(company.exchange)) continue
+              seenSymbols.add(company.symbol)
               
-              if (searchResults.length >= 10) break
+              const profileUrl = `${FMP_BASE_URL}/profile?symbol=${company.symbol}&apikey=${FMP_API_KEY}`
+              const profileResp = await fetch(profileUrl)
+              
+              if (!profileResp.ok) continue
+              
+              const profiles = await profileResp.json()
+              if (!Array.isArray(profiles) || profiles.length === 0 || !profiles[0].cik) continue
+              
+              const cik = profiles[0].cik
+              if (seenCiks.has(cik)) continue
+              seenCiks.add(cik)
+              
+              const datesUrl = `${FMP_BASE_URL}/institutional-ownership/dates?cik=${cik}&apikey=${FMP_API_KEY}`
+              const datesResp = await fetch(datesUrl)
+              
+              if (datesResp.ok) {
+                const dates = await datesResp.json()
+                if (Array.isArray(dates) && dates.length > 0) {
+                  searchResults.push({
+                    cik: cik,
+                    name: profiles[0].companyName || company.name,
+                    date: dates[0]?.date
+                  })
+                  
+                  if (searchResults.length >= 10) break
+                }
+              }
+            }
+          }
+        }
+
+        // Strategy 2: Search through recent 13F filers (for private funds like Scion, Pershing Square)
+        // This catches hedge funds that aren't publicly traded companies
+        if (searchResults.length < 10) {
+          // Search through multiple pages of recent filings
+          for (let page = 0; page < 20 && searchResults.length < 10; page++) {
+            const filingsUrl = `${FMP_BASE_URL}/institutional-ownership/latest?page=${page}&limit=100&apikey=${FMP_API_KEY}`
+            const filingsResp = await fetch(filingsUrl)
+            
+            if (!filingsResp.ok) break
+            
+            const filings = await filingsResp.json()
+            if (!Array.isArray(filings) || filings.length === 0) break
+            
+            for (const filing of filings) {
+              if (!filing.name || !filing.cik) continue
+              if (seenCiks.has(filing.cik)) continue
+              
+              // Check if the filer name matches the search query
+              if (filing.name.toLowerCase().includes(queryLower)) {
+                seenCiks.add(filing.cik)
+                searchResults.push({
+                  cik: filing.cik,
+                  name: filing.name,
+                  date: filing.date
+                })
+                
+                if (searchResults.length >= 10) break
+              }
             }
           }
         }
