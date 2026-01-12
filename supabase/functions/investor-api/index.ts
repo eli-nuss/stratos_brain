@@ -423,21 +423,42 @@ serve(async (req) => {
           })
         }
 
+        // Aggregate holdings by symbol (some stocks have multiple entries for different share classes or options)
+        const aggregatedHoldings = new Map<string, { symbol: string, nameOfIssuer: string, shares: number, value: number, date: string }>()
+        
+        for (const h of holdings) {
+          const symbol = h.symbol || 'UNKNOWN'
+          const existing = aggregatedHoldings.get(symbol)
+          
+          if (existing) {
+            existing.shares += h.shares || 0
+            existing.value += h.value || 0
+          } else {
+            aggregatedHoldings.set(symbol, {
+              symbol,
+              nameOfIssuer: h.nameOfIssuer || 'Unknown',
+              shares: h.shares || 0,
+              value: h.value || 0,
+              date: h.date || latestDate.date
+            })
+          }
+        }
+
         // Calculate total portfolio value
-        const totalValue = holdings.reduce((sum, h) => sum + (h.value || 0), 0)
+        const totalValue = Array.from(aggregatedHoldings.values()).reduce((sum, h) => sum + h.value, 0)
 
         // Map holdings to our schema
-        const rows = holdings.map(h => ({
+        const rows = Array.from(aggregatedHoldings.values()).map(h => ({
           investor_id: investorId,
-          symbol: h.symbol || 'UNKNOWN',
-          company_name: h.nameOfIssuer || 'Unknown',
-          shares: h.shares || 0,
-          value: h.value || 0,
-          percent_portfolio: totalValue > 0 ? ((h.value || 0) / totalValue) * 100 : 0,
+          symbol: h.symbol,
+          company_name: h.nameOfIssuer,
+          shares: h.shares,
+          value: h.value,
+          percent_portfolio: totalValue > 0 ? (h.value / totalValue) * 100 : 0,
           change_shares: 0, // Will be calculated on subsequent refreshes
           change_percent: 0,
           action: 'NEW',
-          date_reported: h.date || latestDate.date,
+          date_reported: h.date,
           quarter: `Q${quarter} ${year}`
         }))
 
