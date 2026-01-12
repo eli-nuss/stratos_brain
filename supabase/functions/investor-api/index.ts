@@ -68,6 +68,9 @@ const KNOWN_INVESTORS: { cik: string; name: string; aliases: string[] }[] = [
   { cik: '0001273087', name: 'Viking Global Investors', aliases: ['viking', 'andreas halvorsen'] },
   { cik: '0001484148', name: 'Dragoneer Investment Group', aliases: ['dragoneer'] },
   { cik: '0001067983', name: 'Berkshire Hathaway Inc.', aliases: ['berkshire', 'warren buffett', 'buffett'] },
+  { cik: '0001508097', name: 'Sanders Capital, LLC', aliases: ['sanders', 'sanders capital'] },
+  { cik: '0001777813', name: 'Atreides Management, LP', aliases: ['atreides', 'gavin baker'] },
+  { cik: '0002045724', name: 'Situational Awareness LP', aliases: ['situational', 'situational awareness', 'leopold aschenbrenner'] },
 ]
 
 // Helper: Determine action based on share change
