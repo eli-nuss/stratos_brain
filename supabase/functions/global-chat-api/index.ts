@@ -230,21 +230,9 @@ const unifiedFunctionDeclarations = [
       required: ["symbol"]
     }
   },
-  // Web search
-  {
-    name: "web_search",
-    description: "Search the web for current news, research, and information. Use this for recent events, news, or information not in the database.",
-    parameters: {
-      type: "object",
-      properties: {
-        query: {
-          type: "string",
-          description: "The search query"
-        }
-      },
-      required: ["query"]
-    }
-  },
+  // NOTE: web_search removed - using native Gemini Google Search grounding instead
+  // The model will automatically search the web when needed and return citations
+  
   // Execute Python code
   {
     name: "execute_python",
@@ -860,9 +848,7 @@ async function executeFunctionCall(
       }
     }
 
-    case "web_search": {
-      return await executeWebSearch(args.query as string)
-    }
+    // web_search case removed - using native Gemini Google Search grounding
 
     case "execute_python": {
       return { execution_result: await executePythonCode(args.code as string, args.purpose as string) }
@@ -1057,7 +1043,7 @@ function buildSystemPrompt(): string {
 1. **Fact Lookup:** If asked for a price, ratio, or metric ("What is AAPL's P/E?") -> Use \`get_asset_fundamentals\` or \`get_price_history\`. Give the number immediately.
 2. **Broad Discovery:** If asked for ideas ("Find me cheap tech stocks") -> Use \`screen_assets\`.
 3. **Deep Analysis:** If asked for a thesis ("Should I buy NVDA?") -> THEN use \`get_macro_context\` and \`get_institutional_flows\` to build a case.
-4. **Current Events:** If asked "Why is the market down?" or "How is the market today?" -> Use \`get_market_pulse\` or \`web_search\`.
+4. **Current Events:** If asked "Why is the market down?" or "How is the market today?" -> Use \`get_market_pulse\` or search the web for news.
 5. **Calendar Events:** If asked "When does X report earnings?" or "What economic data is coming?" -> Use \`get_financial_calendar\`.
 
 ## Available Tools
@@ -1070,7 +1056,7 @@ function buildSystemPrompt(): string {
 - **get_institutional_flows**: 13F data showing what smart money is doing
 - **get_market_pulse**: Today's market action - gainers, losers, sector performance
 - **get_financial_calendar**: Earnings dates, economic calendar events
-- **web_search**: Current news and research from the web
+- **Google Search**: Native web search for current news and research (automatic with citations)
 - **execute_python**: Run calculations and data analysis
 - **generate_dynamic_ui**: Create tables and charts for visualization
 
@@ -1096,14 +1082,19 @@ async function callGeminiWithTools(
   response: string;
   toolCalls: unknown[];
   codeExecutions: unknown[];
+  groundingMetadata: unknown | null;
 }> {
   const toolCalls: unknown[] = []
   const codeExecutions: unknown[] = []
+  let groundingMetadata: unknown | null = null
   
   const requestBody = {
     contents: messages,
     systemInstruction: { parts: [{ text: systemInstruction }] },
-    tools: [{ functionDeclarations: unifiedFunctionDeclarations }],
+    tools: [
+      { functionDeclarations: unifiedFunctionDeclarations },
+      { googleSearch: {} }  // Enable native Gemini Google Search grounding
+    ],
     generationConfig: {
       temperature: 0.7,
       maxOutputTokens: 8192,
@@ -1127,6 +1118,11 @@ async function callGeminiWithTools(
   
   let data = await response.json()
   let candidate = data.candidates?.[0]
+  
+  // Capture grounding metadata from the first response (citations from Google Search)
+  if (candidate?.groundingMetadata) {
+    groundingMetadata = candidate.groundingMetadata
+  }
   
   const maxIterations = 10
   let iteration = 0
@@ -1187,10 +1183,16 @@ async function callGeminiWithTools(
   const textParts = candidate?.content?.parts?.filter((p: { text?: string }) => p.text) || []
   const responseText = textParts.map((p: { text: string }) => p.text).join('\n')
   
+  // Also capture grounding metadata from final response if not already captured
+  if (!groundingMetadata && candidate?.groundingMetadata) {
+    groundingMetadata = candidate.groundingMetadata
+  }
+  
   return {
     response: responseText || 'I apologize, but I was unable to generate a response.',
     toolCalls,
-    codeExecutions
+    codeExecutions,
+    groundingMetadata
   }
 }
 
@@ -1444,6 +1446,7 @@ Deno.serve(async (req: Request) => {
               role: 'assistant',
               content: geminiResult.response,
               tool_calls: geminiResult.toolCalls.length > 0 ? geminiResult.toolCalls : null,
+              grounding_metadata: geminiResult.groundingMetadata,
               model: GEMINI_MODEL,
               latency_ms: latencyMs
             })
