@@ -22,6 +22,8 @@ interface Investor {
   top_sector?: string;
   turnover_rate?: string;
   performance_1y?: number;
+  performance_3y?: number;
+  performance_5y?: number;
   performance_ytd?: number;
   total_positions: number;
   total_portfolio_value: number;
@@ -536,6 +538,45 @@ export default function InvestorWatchlist() {
                           <span className="text-white">{investor.last_filing_date || 'N/A'}</span>
                         </div>
                       </div>
+
+                      {/* Performance Section */}
+                      {(investor.performance_1y !== null || investor.performance_3y !== null || investor.performance_5y !== null) && (
+                        <div className="mt-3 pt-3 border-t border-slate-800">
+                          <div className="text-xs text-slate-500 mb-2">Performance</div>
+                          <div className="grid grid-cols-3 gap-2 text-xs">
+                            <div className="text-center">
+                              <div className="text-slate-500">1Y</div>
+                              <div className={cn(
+                                "font-mono font-medium",
+                                investor.performance_1y && investor.performance_1y > 0 ? "text-emerald-400" : 
+                                investor.performance_1y && investor.performance_1y < 0 ? "text-red-400" : "text-slate-400"
+                              )}>
+                                {investor.performance_1y != null ? `${investor.performance_1y > 0 ? '+' : ''}${investor.performance_1y.toFixed(1)}%` : '-'}
+                              </div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-slate-500">3Y</div>
+                              <div className={cn(
+                                "font-mono font-medium",
+                                investor.performance_3y && investor.performance_3y > 0 ? "text-emerald-400" : 
+                                investor.performance_3y && investor.performance_3y < 0 ? "text-red-400" : "text-slate-400"
+                              )}>
+                                {investor.performance_3y != null ? `${investor.performance_3y > 0 ? '+' : ''}${investor.performance_3y.toFixed(1)}%` : '-'}
+                              </div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-slate-500">5Y</div>
+                              <div className={cn(
+                                "font-mono font-medium",
+                                investor.performance_5y && investor.performance_5y > 0 ? "text-emerald-400" : 
+                                investor.performance_5y && investor.performance_5y < 0 ? "text-red-400" : "text-slate-400"
+                              )}>
+                                {investor.performance_5y != null ? `${investor.performance_5y > 0 ? '+' : ''}${investor.performance_5y.toFixed(1)}%` : '-'}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Top Holdings Preview */}
                       {investor.top_holdings && investor.top_holdings.length > 0 && (
