@@ -1,8 +1,8 @@
-// Supabase Edge Function: Guru Tracker API
-// Handles search, tracking, and retrieval of super-investor portfolios via FMP API
+// Supabase Edge Function: Investor Watchlist API
+// Handles search, tracking, and retrieval of institutional investor portfolios via FMP API
 // 
 // Endpoints:
-// - GET /search?query=buffett - Search for investors by name
+// - GET /search?query=buffett - Search for investors by name (from latest filings)
 // - POST /track - Add investor to tracking list and fetch holdings
 // - GET /holdings/:investorId - Get holdings for a tracked investor
 // - GET /investors - List all tracked investors
@@ -14,25 +14,32 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-stratos-key',
   'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
 }
+
+// FMP API base URL - using stable endpoints
+const FMP_BASE_URL = 'https://financialmodelingprep.com/stable'
 
 interface SearchResult {
   cik: string
   name: string
-  entityType?: string
+  date?: string
 }
 
 interface FMPHolding {
   symbol: string
-  securityName: string
+  nameOfIssuer: string
   shares: number
   value: number
-  weightPercentage: number
-  changeInSharesNumberPercentage?: number
-  changeInSharesNumber?: number
+  date: string
   filingDate: string
+}
+
+interface FMPFilingDate {
+  date: string
+  year: number
+  quarter: number
 }
 
 interface TrackRequest {
@@ -41,29 +48,21 @@ interface TrackRequest {
 }
 
 // Helper: Determine action based on share change
-function determineAction(changeShares: number | null, shares: number): string {
-  if (changeShares === null || changeShares === 0) {
-    return 'HOLD'
-  }
-  
-  // If current shares are equal to change, it's a new position
-  if (shares === changeShares) {
+function determineAction(prevShares: number | null, currentShares: number): string {
+  if (prevShares === null) {
     return 'NEW'
   }
   
-  // If change is positive, they added
-  if (changeShares > 0) {
+  if (currentShares === 0) {
+    return 'SOLD'
+  }
+  
+  if (currentShares > prevShares) {
     return 'ADD'
   }
   
-  // If change is negative but still holding, they reduced
-  if (changeShares < 0 && shares > 0) {
+  if (currentShares < prevShares) {
     return 'REDUCE'
-  }
-  
-  // If shares are 0, they sold
-  if (shares === 0) {
-    return 'SOLD'
   }
   
   return 'HOLD'
@@ -95,11 +94,13 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey)
 
     const url = new URL(req.url)
-    const path = url.pathname.replace('/guru-api', '')
+    const path = url.pathname.replace('/investor-api', '')
+
+    console.log(`[investor-api] ${req.method} ${path}`)
 
     // Route handling
     switch (true) {
-      // GET /search?query=buffett
+      // GET /search?query=buffett - Search for investors by name
       case req.method === 'GET' && path === '/search': {
         const query = url.searchParams.get('query')
         if (!query) {
@@ -109,17 +110,65 @@ serve(async (req) => {
           })
         }
 
-        // Search for CIK using FMP API
-        const searchUrl = `https://financialmodelingprep.com/api/v3/cik-search/${encodeURIComponent(query)}?apikey=${FMP_API_KEY}`
+        // Search for companies by name using FMP's search endpoint
+        const searchUrl = `${FMP_BASE_URL}/search-name?query=${encodeURIComponent(query)}&limit=20&apikey=${FMP_API_KEY}`
         const searchResp = await fetch(searchUrl)
         
         if (!searchResp.ok) {
           throw new Error(`FMP API error: ${searchResp.status}`)
         }
 
-        const results: SearchResult[] = await searchResp.json()
+        const companies = await searchResp.json()
         
-        return new Response(JSON.stringify(results), {
+        if (!Array.isArray(companies) || companies.length === 0) {
+          return new Response(JSON.stringify([]), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+
+        // Get CIK from company profile and verify they have 13F filings
+        const searchResults: SearchResult[] = []
+        const seenCiks = new Set<string>()
+        const seenSymbols = new Set<string>()
+        
+        for (const company of companies) {
+          // Skip if we've seen this symbol or if it's not a US exchange
+          if (!company.symbol || seenSymbols.has(company.symbol)) continue
+          if (company.exchange && !['NYSE', 'NASDAQ', 'AMEX'].includes(company.exchange)) continue
+          seenSymbols.add(company.symbol)
+          
+          // Get company profile to get CIK
+          const profileUrl = `${FMP_BASE_URL}/profile?symbol=${company.symbol}&apikey=${FMP_API_KEY}`
+          const profileResp = await fetch(profileUrl)
+          
+          if (!profileResp.ok) continue
+          
+          const profiles = await profileResp.json()
+          if (!Array.isArray(profiles) || profiles.length === 0 || !profiles[0].cik) continue
+          
+          const cik = profiles[0].cik
+          if (seenCiks.has(cik)) continue
+          seenCiks.add(cik)
+          
+          // Check if this CIK has 13F filings
+          const datesUrl = `${FMP_BASE_URL}/institutional-ownership/dates?cik=${cik}&apikey=${FMP_API_KEY}`
+          const datesResp = await fetch(datesUrl)
+          
+          if (datesResp.ok) {
+            const dates = await datesResp.json()
+            if (Array.isArray(dates) && dates.length > 0) {
+              searchResults.push({
+                cik: cik,
+                name: profiles[0].companyName || company.name,
+                date: dates[0]?.date
+              })
+              
+              if (searchResults.length >= 10) break
+            }
+          }
+        }
+        
+        return new Response(JSON.stringify(searchResults), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
@@ -162,9 +211,32 @@ serve(async (req) => {
           console.log(`Added new investor: ${name} (${cik})`)
         }
 
-        // Fetch latest 13F holdings from FMP
-        // Using v4 endpoint which provides better data
-        const holdingsUrl = `https://financialmodelingprep.com/api/v4/institutional-ownership/portfolio-holdings?cik=${cik}&apikey=${FMP_API_KEY}`
+        // Get available filing dates for this investor
+        const datesUrl = `${FMP_BASE_URL}/institutional-ownership/dates?cik=${cik}&apikey=${FMP_API_KEY}`
+        const datesResp = await fetch(datesUrl)
+        
+        if (!datesResp.ok) {
+          throw new Error(`FMP API error fetching dates: ${datesResp.status}`)
+        }
+
+        const dates: FMPFilingDate[] = await datesResp.json()
+        
+        if (!dates || dates.length === 0) {
+          return new Response(JSON.stringify({ 
+            error: 'No filing dates found for this investor',
+            investorId 
+          }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+
+        // Get the most recent filing
+        const latestDate = dates[0]
+        const { year, quarter } = latestDate
+
+        // Fetch holdings for the latest quarter
+        const holdingsUrl = `${FMP_BASE_URL}/institutional-ownership/extract?cik=${cik}&year=${year}&quarter=${quarter}&apikey=${FMP_API_KEY}`
         const holdingsResp = await fetch(holdingsUrl)
         
         if (!holdingsResp.ok) {
@@ -183,23 +255,22 @@ serve(async (req) => {
           })
         }
 
-        // Get the filing date from first holding
-        const filingDate = holdings[0].filingDate
-        const quarter = getQuarter(filingDate)
+        // Calculate total portfolio value
+        const totalValue = holdings.reduce((sum, h) => sum + (h.value || 0), 0)
 
         // Map holdings to our schema
         const rows = holdings.map(h => ({
           investor_id: investorId,
-          symbol: h.symbol,
-          company_name: h.securityName,
-          shares: h.shares,
-          value: h.value,
-          percent_portfolio: h.weightPercentage,
-          change_shares: h.changeInSharesNumber || 0,
-          change_percent: h.changeInSharesNumberPercentage || 0,
-          action: determineAction(h.changeInSharesNumber || null, h.shares),
-          date_reported: filingDate,
-          quarter: quarter
+          symbol: h.symbol || 'UNKNOWN',
+          company_name: h.nameOfIssuer || 'Unknown',
+          shares: h.shares || 0,
+          value: h.value || 0,
+          percent_portfolio: totalValue > 0 ? ((h.value || 0) / totalValue) * 100 : 0,
+          change_shares: 0, // Will be calculated on subsequent refreshes
+          change_percent: 0,
+          action: 'NEW',
+          date_reported: h.date || latestDate.date,
+          quarter: `Q${quarter} ${year}`
         }))
 
         // Insert holdings (upsert to handle refreshes)
@@ -216,7 +287,7 @@ serve(async (req) => {
         await supabase
           .from('tracked_investors')
           .update({ 
-            last_filing_date: filingDate,
+            last_filing_date: latestDate.date,
             last_updated: new Date().toISOString()
           })
           .eq('id', investorId)
@@ -227,8 +298,8 @@ serve(async (req) => {
           success: true,
           investorId,
           holdingsCount: rows.length,
-          filingDate,
-          quarter
+          filingDate: latestDate.date,
+          quarter: `Q${quarter} ${year}`
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
@@ -243,7 +314,7 @@ serve(async (req) => {
 
         if (error) throw error
 
-        return new Response(JSON.stringify(data), {
+        return new Response(JSON.stringify(data || []), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
@@ -260,7 +331,7 @@ serve(async (req) => {
 
         if (error) throw error
 
-        return new Response(JSON.stringify(data), {
+        return new Response(JSON.stringify(data || []), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
@@ -283,8 +354,31 @@ serve(async (req) => {
           })
         }
 
-        // Fetch latest holdings from FMP
-        const holdingsUrl = `https://financialmodelingprep.com/api/v4/institutional-ownership/portfolio-holdings?cik=${investor.cik}&apikey=${FMP_API_KEY}`
+        // Get available filing dates
+        const datesUrl = `${FMP_BASE_URL}/institutional-ownership/dates?cik=${investor.cik}&apikey=${FMP_API_KEY}`
+        const datesResp = await fetch(datesUrl)
+        
+        if (!datesResp.ok) {
+          throw new Error(`FMP API error: ${datesResp.status}`)
+        }
+
+        const dates: FMPFilingDate[] = await datesResp.json()
+        
+        if (!dates || dates.length === 0) {
+          return new Response(JSON.stringify({ 
+            error: 'No filing dates found',
+            investorId 
+          }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+
+        const latestDate = dates[0]
+        const { year, quarter } = latestDate
+
+        // Fetch latest holdings
+        const holdingsUrl = `${FMP_BASE_URL}/institutional-ownership/extract?cik=${investor.cik}&year=${year}&quarter=${quarter}&apikey=${FMP_API_KEY}`
         const holdingsResp = await fetch(holdingsUrl)
         
         if (!holdingsResp.ok) {
@@ -303,22 +397,38 @@ serve(async (req) => {
           })
         }
 
-        const filingDate = holdings[0].filingDate
-        const quarter = getQuarter(filingDate)
+        // Get previous holdings to calculate changes
+        const { data: prevHoldings } = await supabase
+          .from('investor_holdings')
+          .select('symbol, shares')
+          .eq('investor_id', investorId)
+        
+        const prevHoldingsMap = new Map(
+          (prevHoldings || []).map(h => [h.symbol, h.shares])
+        )
 
-        const rows = holdings.map(h => ({
-          investor_id: parseInt(investorId),
-          symbol: h.symbol,
-          company_name: h.securityName,
-          shares: h.shares,
-          value: h.value,
-          percent_portfolio: h.weightPercentage,
-          change_shares: h.changeInSharesNumber || 0,
-          change_percent: h.changeInSharesNumberPercentage || 0,
-          action: determineAction(h.changeInSharesNumber || null, h.shares),
-          date_reported: filingDate,
-          quarter: quarter
-        }))
+        // Calculate total portfolio value
+        const totalValue = holdings.reduce((sum, h) => sum + (h.value || 0), 0)
+
+        const rows = holdings.map(h => {
+          const prevShares = prevHoldingsMap.get(h.symbol) || null
+          const changeShares = prevShares !== null ? (h.shares || 0) - prevShares : 0
+          const changePercent = prevShares && prevShares > 0 ? (changeShares / prevShares) * 100 : 0
+          
+          return {
+            investor_id: parseInt(investorId),
+            symbol: h.symbol || 'UNKNOWN',
+            company_name: h.nameOfIssuer || 'Unknown',
+            shares: h.shares || 0,
+            value: h.value || 0,
+            percent_portfolio: totalValue > 0 ? ((h.value || 0) / totalValue) * 100 : 0,
+            change_shares: changeShares,
+            change_percent: changePercent,
+            action: determineAction(prevShares, h.shares || 0),
+            date_reported: h.date || latestDate.date,
+            quarter: `Q${quarter} ${year}`
+          }
+        })
 
         const { error: holdingsError } = await supabase
           .from('investor_holdings')
@@ -332,7 +442,7 @@ serve(async (req) => {
         await supabase
           .from('tracked_investors')
           .update({ 
-            last_filing_date: filingDate,
+            last_filing_date: latestDate.date,
             last_updated: new Date().toISOString()
           })
           .eq('id', investorId)
@@ -340,8 +450,8 @@ serve(async (req) => {
         return new Response(JSON.stringify({ 
           success: true,
           holdingsCount: rows.length,
-          filingDate,
-          quarter
+          filingDate: latestDate.date,
+          quarter: `Q${quarter} ${year}`
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
@@ -371,7 +481,7 @@ serve(async (req) => {
     }
 
   } catch (error) {
-    console.error('Guru API error:', error)
+    console.error('Investor API error:', error)
     return new Response(JSON.stringify({ 
       error: error.message || 'Internal server error' 
     }), {
