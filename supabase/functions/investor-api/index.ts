@@ -848,11 +848,81 @@ serve(async (req: Request) => {
 
         if (holdingsError) throw holdingsError
 
+        // Fetch holder performance summary from FMP (5 years of quarterly data)
+        let performance_1y: number | null = null
+        let performance_3y: number | null = null
+        let performance_5y: number | null = null
+        let performance_ytd: number | null = null
+
+        try {
+          // Fetch multiple pages of performance data to get 5 years (20 quarters)
+          const allPerformanceData: any[] = []
+          for (let page = 0; page < 5; page++) {
+            const perfUrl = `${FMP_BASE_URL}/institutional-ownership/holder-performance-summary?cik=${investor.cik}&page=${page}&apikey=${FMP_API_KEY}`
+            const perfResp = await fetch(perfUrl)
+            if (perfResp.ok) {
+              const perfData = await perfResp.json()
+              if (Array.isArray(perfData) && perfData.length > 0) {
+                allPerformanceData.push(...perfData)
+              } else {
+                break // No more data
+              }
+            } else {
+              break
+            }
+          }
+
+          if (allPerformanceData.length > 0) {
+            // Sort by date descending
+            allPerformanceData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+            // Calculate cumulative returns
+            // Each record has changeInMarketValuePercentage (quarterly change)
+            const calculateCumulativeReturn = (quarters: number): number | null => {
+              const relevantData = allPerformanceData.slice(0, quarters)
+              if (relevantData.length === 0) return null
+              
+              // Compound the quarterly returns: (1 + r1) * (1 + r2) * ... - 1
+              let cumulative = 1
+              for (const record of relevantData) {
+                const quarterlyReturn = record.changeInMarketValuePercentage || 0
+                cumulative *= (1 + quarterlyReturn / 100)
+              }
+              return (cumulative - 1) * 100 // Convert back to percentage
+            }
+
+            // Calculate YTD (quarters in current year)
+            const currentYear = new Date().getFullYear()
+            const ytdData = allPerformanceData.filter(d => new Date(d.date).getFullYear() === currentYear)
+            if (ytdData.length > 0) {
+              let cumulative = 1
+              for (const record of ytdData) {
+                cumulative *= (1 + (record.changeInMarketValuePercentage || 0) / 100)
+              }
+              performance_ytd = (cumulative - 1) * 100
+            }
+
+            // 1 year = 4 quarters
+            performance_1y = calculateCumulativeReturn(4)
+            // 3 years = 12 quarters
+            performance_3y = calculateCumulativeReturn(12)
+            // 5 years = 20 quarters
+            performance_5y = calculateCumulativeReturn(20)
+          }
+        } catch (perfError) {
+          console.error('Error fetching performance data:', perfError)
+          // Continue without performance data
+        }
+
         await supabase
           .from('tracked_investors')
           .update({ 
             last_filing_date: latestDate.date,
-            last_updated: new Date().toISOString()
+            last_updated: new Date().toISOString(),
+            performance_1y,
+            performance_3y,
+            performance_5y,
+            performance_ytd
           })
           .eq('id', investorId)
 
@@ -860,7 +930,8 @@ serve(async (req: Request) => {
           success: true,
           holdingsCount: rows.length,
           filingDate: latestDate.date,
-          quarter: `Q${quarter} ${year}`
+          quarter: `Q${quarter} ${year}`,
+          performance: { performance_1y, performance_3y, performance_5y, performance_ytd }
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
