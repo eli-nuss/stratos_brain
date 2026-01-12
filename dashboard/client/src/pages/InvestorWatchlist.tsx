@@ -156,14 +156,16 @@ export default function InvestorWatchlist() {
     }
   };
 
-  const formatCurrency = (value: number) => {
+  const formatCurrency = (value: number | null | undefined) => {
+    if (value == null) return '$0';
     if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
     if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
     if (value >= 1e3) return `$${(value / 1e3).toFixed(2)}K`;
     return `$${value.toFixed(0)}`;
   };
 
-  const formatNumber = (value: number) => {
+  const formatNumber = (value: number | null | undefined) => {
+    if (value == null) return '0';
     if (value >= 1e9) return `${(value / 1e9).toFixed(2)}B`;
     if (value >= 1e6) return `${(value / 1e6).toFixed(2)}M`;
     if (value >= 1e3) return `${(value / 1e3).toFixed(2)}K`;
@@ -370,13 +372,13 @@ export default function InvestorWatchlist() {
                               <TableCell className="font-medium">{holding.symbol}</TableCell>
                               <TableCell className="max-w-[200px] truncate">{holding.company_name}</TableCell>
                               <TableCell className="text-right font-medium">
-                                {holding.percent_portfolio?.toFixed(2)}%
+                                {(holding.percent_portfolio ?? 0).toFixed(2)}%
                               </TableCell>
                               <TableCell className="text-right">{formatCurrency(holding.value)}</TableCell>
                               <TableCell className="text-right">{formatNumber(holding.shares)}</TableCell>
                               <TableCell className="text-right">
-                                <span className={holding.change_percent > 0 ? "text-green-600" : holding.change_percent < 0 ? "text-red-600" : ""}>
-                                  {holding.change_percent > 0 ? "+" : ""}{holding.change_percent?.toFixed(1)}%
+                                <span className={(holding.change_percent ?? 0) > 0 ? "text-green-600" : (holding.change_percent ?? 0) < 0 ? "text-red-600" : ""}>
+                                  {(holding.change_percent ?? 0) > 0 ? "+" : ""}{(holding.change_percent ?? 0).toFixed(1)}%
                                 </span>
                               </TableCell>
                               <TableCell>{getActionBadge(holding.action)}</TableCell>
