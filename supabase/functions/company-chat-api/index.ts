@@ -413,7 +413,7 @@ const unifiedFunctionDeclarations = [
   // Institutional Flows Tool - tracks "Smart Money" positioning
   {
     name: "get_institutional_flows",
-    description: "Tracks institutional investor (hedge funds, mutual funds) positioning in a stock via 13F filings. Shows whether 'Smart Money' is accumulating (bullish) or distributing (bearish). CRITICAL for avoiding 'value traps' where fundamentals look good but institutions are selling. Use this when analyzing ANY stock to detect institutional accumulation/distribution trends.",
+    description: "Returns the TOP 10 INSTITUTIONAL HOLDERS by name (e.g., Vanguard, BlackRock, Citadel) and their share counts from 13F filings. Also tracks whether 'Smart Money' is accumulating (bullish) or distributing (bearish). USE THIS TOOL when user asks about: institutional holders, who owns the stock, top shareholders, 13F data, hedge fund positions, or institutional ownership. CRITICAL for avoiding 'value traps' where fundamentals look good but institutions are selling.",
     parameters: {
       type: "object",
       properties: {
