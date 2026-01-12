@@ -230,16 +230,16 @@ const unifiedFunctionDeclarations = [
       required: ["symbol"]
     }
   },
-  // Web search
+  // Grounded Research - uses native Gemini Google Search for deep research
   {
-    name: "web_search",
-    description: "Search the web for current news, research, and information. Use this for recent events, news, or information not in the database.",
+    name: "perform_grounded_research",
+    description: "Perform deep, native Google Research on a topic. Use this for 'Why' questions, current events, news, or any query requiring up-to-date web information. This uses Google's native grounding engine to read multiple full web pages and synthesize an answer with citations. Much more powerful than simple search.",
     parameters: {
       type: "object",
       properties: {
         query: {
           type: "string",
-          description: "The search query"
+          description: "The specific question or topic to research thoroughly"
         }
       },
       required: ["query"]
@@ -342,48 +342,61 @@ const unifiedFunctionDeclarations = [
 // TOOL IMPLEMENTATIONS
 // ============================================================================
 
-// Web search using Google Custom Search API
-async function executeWebSearch(query: string): Promise<unknown> {
-  if (!GOOGLE_SEARCH_API_KEY || !GOOGLE_SEARCH_CX) {
-    return {
-      query,
-      error: 'Web search not configured',
-      timestamp: new Date().toISOString()
-    }
-  }
-
+// Grounded Research using native Gemini Google Search (Tool-ception pattern)
+// This spins up a separate Gemini instance with ONLY googleSearch enabled
+// to get high-quality synthesized answers with citations
+async function executeGroundedSearch(query: string): Promise<string> {
   try {
-    const searchUrl = new URL('https://www.googleapis.com/customsearch/v1')
-    searchUrl.searchParams.set('key', GOOGLE_SEARCH_API_KEY)
-    searchUrl.searchParams.set('cx', GOOGLE_SEARCH_CX)
-    searchUrl.searchParams.set('q', query)
-    searchUrl.searchParams.set('num', '10')
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ 
+            role: 'user', 
+            parts: [{ text: `Research this topic thoroughly and provide a concise, factual summary. Focus on the most recent and relevant information: ${query}` }] 
+          }],
+          tools: [{ googleSearch: {} }], // EXCLUSIVE MODE: Grounding ONLY - no function calling
+          generationConfig: { 
+            temperature: 0.7,
+            maxOutputTokens: 2048
+          }
+        })
+      }
+    );
 
-    const response = await fetch(searchUrl.toString())
     if (!response.ok) {
-      return { query, error: `Search API error: ${response.status}`, timestamp: new Date().toISOString() }
+      const errorText = await response.text();
+      return `Research Error: ${response.status} - ${errorText}`;
     }
 
-    const data = await response.json()
-    const results = (data.items || []).map((item: { title: string; link: string; snippet: string; displayLink?: string }) => ({
-      title: item.title,
-      url: item.link,
-      snippet: item.snippet,
-      source: item.displayLink || new URL(item.link).hostname
-    }))
+    const data = await response.json();
+    const candidate = data.candidates?.[0];
+    const text = candidate?.content?.parts?.map((p: { text?: string }) => p.text).join('') || "No results found.";
+    
+    // Extract Grounding Metadata (Citations) and append to text
+    const metadata = candidate?.groundingMetadata;
+    let citationText = "";
+    
+    if (metadata?.groundingChunks && metadata.groundingChunks.length > 0) {
+      citationText = "\n\n**Sources:**\n" + metadata.groundingChunks
+        .slice(0, 10) // Limit to top 10 sources
+        .map((c: { web?: { title?: string; uri?: string } }, i: number) => 
+          `[${i+1}] ${c.web?.title || 'Source'} - ${c.web?.uri || ''}`
+        )
+        .join('\n');
+    }
+    
+    // Also include search queries used if available
+    if (metadata?.webSearchQueries && metadata.webSearchQueries.length > 0) {
+      citationText += "\n\n**Search queries used:** " + metadata.webSearchQueries.join(', ');
+    }
 
-    return {
-      query,
-      total_results: data.searchInformation?.totalResults || results.length,
-      results,
-      timestamp: new Date().toISOString()
-    }
-  } catch (error) {
-    return {
-      query,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString()
-    }
+    return text + citationText;
+
+  } catch (e) {
+    return `Research failed: ${e instanceof Error ? e.message : 'Unknown error'}`;
   }
 }
 
@@ -860,8 +873,9 @@ async function executeFunctionCall(
       }
     }
 
-    case "web_search": {
-      return await executeWebSearch(args.query as string)
+    case "perform_grounded_research": {
+      const result = await executeGroundedSearch(args.query as string);
+      return { research_summary: result };
     }
 
     case "execute_python": {
@@ -1057,7 +1071,7 @@ function buildSystemPrompt(): string {
 1. **Fact Lookup:** If asked for a price, ratio, or metric ("What is AAPL's P/E?") -> Use \`get_asset_fundamentals\` or \`get_price_history\`. Give the number immediately.
 2. **Broad Discovery:** If asked for ideas ("Find me cheap tech stocks") -> Use \`screen_assets\`.
 3. **Deep Analysis:** If asked for a thesis ("Should I buy NVDA?") -> THEN use \`get_macro_context\` and \`get_institutional_flows\` to build a case.
-4. **Current Events:** If asked "Why is the market down?" or "How is the market today?" -> Use \`get_market_pulse\` or \`web_search\`.
+4. **Current Events & News:** If asked "Why is X moving?", "Latest news on Y", or any 'why' question -> Use \`perform_grounded_research\`. This gives you access to Google's full native search with synthesized answers and citations.
 5. **Calendar Events:** If asked "When does X report earnings?" or "What economic data is coming?" -> Use \`get_financial_calendar\`.
 
 ## Available Tools
@@ -1070,7 +1084,7 @@ function buildSystemPrompt(): string {
 - **get_institutional_flows**: 13F data showing what smart money is doing
 - **get_market_pulse**: Today's market action - gainers, losers, sector performance
 - **get_financial_calendar**: Earnings dates, economic calendar events
-- **web_search**: Search the web for current news and research
+- **perform_grounded_research**: Deep Google research with full page reading and citations (use for 'why' questions, news, current events)
 - **execute_python**: Run calculations and data analysis
 - **generate_dynamic_ui**: Create tables and charts for visualization
 
