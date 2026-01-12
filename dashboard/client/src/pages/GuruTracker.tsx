@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Search, Plus, RefreshCw, Trash2, TrendingUp, TrendingDown, Minus, DollarSign, Users } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import useSWR from "swr";
 
 const API_BASE = "/api/guru-api";
@@ -49,7 +49,7 @@ interface SearchResult {
 }
 
 export default function GuruTracker() {
-  const { toast } = useToast();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
