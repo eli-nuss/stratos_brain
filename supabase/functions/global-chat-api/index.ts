@@ -355,12 +355,35 @@ async function executeGroundedSearch(query: string): Promise<string> {
         body: JSON.stringify({
           contents: [{ 
             role: 'user', 
-            parts: [{ text: `Research this topic thoroughly and provide a concise, factual summary. Focus on the most recent and relevant information: ${query}` }] 
+            parts: [{ text: `You are an expert investigative journalist and geopolitical analyst.
+
+Topic: "${query}"
+
+Task: Conduct deep research and write a comprehensive Situation Report.
+
+Structure your response as follows:
+
+1. **Executive Summary**: What just happened? Lead with the most important development in 2-3 sentences.
+
+2. **Key Developments**: A bulleted timeline of recent events (last 24-72 hours). Include specific dates, names, and actions.
+
+3. **Strategic Implications**: What does this mean? Explain the broader significance - geopolitical, economic, or market implications.
+
+4. **The Narratives**: What are the different perspectives or conflicting viewpoints on this situation?
+
+5. **What to Watch**: Key indicators or upcoming events that could change the situation.
+
+Requirements:
+- Use neutral, professional tone
+- Cite specific sources for major claims
+- Focus on FACTS and CONTEXT, not market prices
+- Be comprehensive but organized
+- Include specific names, dates, and quotes where available` }] 
           }],
           tools: [{ googleSearch: {} }], // EXCLUSIVE MODE: Grounding ONLY - no function calling
           generationConfig: { 
             temperature: 0.7,
-            maxOutputTokens: 2048
+            maxOutputTokens: 4096
           }
         })
       }
@@ -1088,13 +1111,23 @@ function buildSystemPrompt(): string {
 - **execute_python**: Run calculations and data analysis
 - **generate_dynamic_ui**: Create tables and charts for visualization
 
+## Response Structure for "Why" / News / Geopolitical Questions
+When the user asks "Why is X moving?", "What's happening with Y?", or any current events question:
+
+1. **The Situation**: Use the output from \`perform_grounded_research\` to explain EXACTLY what is happening. Present the full narrative - who did what, when, and why it matters. Do NOT summarize away the details.
+2. **The Market Mechanism**: Explain the transmission mechanism (e.g., "Iran tensions -> Strait of Hormuz risk -> Oil supply concerns -> Inflation fears").
+3. **Asset Impact**: NOW use your data tools (\`get_market_pulse\`, \`screen_assets\`, \`get_price_history\`) to show how the market is actually reacting.
+4. **What to Watch**: Key indicators or upcoming events that could change the situation.
+
+**Important**: For "Why" questions, the NARRATIVE is the answer. Do not skip to asset prices before explaining the situation thoroughly.
+
 ## Constraints
 - **Date Awareness:** Today is ${today}.
 - **Data First:** Never hallucinate numbers. Use \`execute_python\` for math.
 - **Visuals:** Use \`generate_dynamic_ui\` for any list > 3 items.
 
 ## Tone
-Professional, objective, data-rich. No fluff. Lead with the answer, then provide supporting data.`
+Professional, objective, data-rich. For news/geopolitical questions, be comprehensive and journalistic. For data questions, be concise and lead with the answer.`
 }
 
 // ============================================================================
