@@ -371,7 +371,7 @@ export function BrainChatInterface({ chat, onRefresh }: BrainChatInterfaceProps)
     setSummaryResult(null);
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/global-chat-api/chats/${chat.chat_id}/summarize`, {
+      const response = await fetch(`/api/global-chat-api/chats/${chat.chat_id}/summarize`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

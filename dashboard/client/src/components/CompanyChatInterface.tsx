@@ -549,7 +549,7 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
     setSummaryResult(null);
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/company-chat-api/chats/${chat.chat_id}/summarize`, {
+      const response = await fetch(`/api/company-chat-api/chats/${chat.chat_id}/summarize`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
