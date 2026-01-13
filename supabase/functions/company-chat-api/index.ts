@@ -2200,8 +2200,69 @@ async function fetchChatConfig(supabase: ReturnType<typeof createClient>): Promi
   return config
 }
 
+
+// Fetch latest AI-generated documents for an asset (Deep Research, Memo, One Pager)
+async function fetchLatestDocuments(supabase: ReturnType<typeof createClient>, assetId: number): Promise<{
+  deepResearch: string | null;
+  memo: string | null;
+  onePager: string | null;
+}> {
+  try {
+    const { data: files } = await supabase
+      .from('asset_files')
+      .select('file_type, file_path, description, created_at')
+      .eq('asset_id', assetId)
+      .in('file_type', ['deep_research', 'memo', 'one_pager'])
+      .order('created_at', { ascending: false })
+    
+    if (!files || files.length === 0) {
+      return { deepResearch: null, memo: null, onePager: null }
+    }
+    
+    // Get the latest of each type
+    const latestByType: Record<string, { file_path: string; description?: string }> = {}
+    for (const file of files) {
+      if (!latestByType[file.file_type]) {
+        latestByType[file.file_type] = { file_path: file.file_path, description: file.description }
+      }
+    }
+    
+    // Fetch content from each document URL
+    const fetchContent = async (fileInfo: { file_path: string; description?: string } | undefined): Promise<string | null> => {
+      if (!fileInfo) return null
+      try {
+        const response = await fetch(fileInfo.file_path)
+        if (!response.ok) return null
+        const text = await response.text()
+        // Limit to ~30k chars to avoid context overflow (roughly 7500 tokens)
+        return text.length > 30000 ? text.substring(0, 30000) + '\n\n[Document truncated for context limits...]' : text
+      } catch (e) {
+        console.error('Error fetching document:', e)
+        return null
+      }
+    }
+    
+    const [deepResearch, memo, onePager] = await Promise.all([
+      fetchContent(latestByType['deep_research']),
+      fetchContent(latestByType['memo']),
+      fetchContent(latestByType['one_pager'])
+    ])
+    
+    return { deepResearch, memo, onePager }
+  } catch (error) {
+    console.error('Error fetching latest documents:', error)
+    return { deepResearch: null, memo: null, onePager: null }
+  }
+}
+
+
 // Build system prompt for a company chat - Universal Analyst Protocol
-function buildSystemPrompt(asset: Record<string, unknown>, contextSnapshot: Record<string, unknown> | null, chatConfig: ChatConfig = {}): string {
+function buildSystemPrompt(
+  asset: Record<string, unknown>, 
+  contextSnapshot: Record<string, unknown> | null, 
+  chatConfig: ChatConfig = {},
+  preloadedDocs: { deepResearch: string | null; memo: string | null; onePager: string | null } = { deepResearch: null, memo: null, onePager: null }
+): string {
   const today = new Date().toISOString().split('T')[0];
   
   // Universal Analyst system prompt - prioritizes source documents and accurate calculations
@@ -2354,6 +2415,26 @@ ${roleDescription}
 - **Industry**: ${asset.industry || 'N/A'}
 - **Asset ID**: ${asset.asset_id} (use this for database queries)
 - **Today's Date**: ${today}
+
+${preloadedDocs.deepResearch ? `## 📚 DEEP RESEARCH REPORT (PRE-LOADED - USE THIS FIRST!)
+**This comprehensive analysis has already been generated. Reference it directly instead of calling get_deep_research_report.**
+
+${preloadedDocs.deepResearch}
+
+---
+` : ''}
+
+${preloadedDocs.memo ? `## 📋 INVESTMENT MEMO (PRE-LOADED)
+${preloadedDocs.memo}
+
+---
+` : ''}
+
+${preloadedDocs.onePager ? `## 📄 ONE PAGER SNAPSHOT (PRE-LOADED)
+${preloadedDocs.onePager}
+
+---
+` : ''}
 
 ${contextSnapshot ? `## Latest Context Snapshot (REAL-TIME DATA)
 ${JSON.stringify(contextSnapshot, null, 2)}` : ''}
@@ -2919,8 +3000,16 @@ serve(async (req: Request) => {
               }
             }
             
-            // Build system prompt
-            const systemPrompt = buildSystemPrompt(asset, chat.context_snapshot, chatConfig)
+            // Fetch pre-loaded documents for context
+            const preloadedDocs = await fetchLatestDocuments(supabase, parseInt(chat.asset_id))
+            console.log('Pre-loaded docs:', { 
+              hasDeepResearch: !!preloadedDocs.deepResearch, 
+              hasMemo: !!preloadedDocs.memo, 
+              hasOnePager: !!preloadedDocs.onePager 
+            })
+            
+            // Build system prompt with pre-loaded documents
+            const systemPrompt = buildSystemPrompt(asset, chat.context_snapshot, chatConfig, preloadedDocs)
             
             // Call Gemini with tools - NO TIMEOUT WRAPPER!
             // Let it run for as long as needed (up to edge function max)
@@ -3112,8 +3201,16 @@ serve(async (req: Request) => {
           }
         }
         
-        // Build system prompt with config
-        const systemPrompt = buildSystemPrompt(asset, chat.context_snapshot, chatConfig)
+        // Fetch pre-loaded documents for context
+        const preloadedDocs = await fetchLatestDocuments(supabase, parseInt(chat.asset_id))
+        console.log('Pre-loaded docs:', { 
+          hasDeepResearch: !!preloadedDocs.deepResearch, 
+          hasMemo: !!preloadedDocs.memo, 
+          hasOnePager: !!preloadedDocs.onePager 
+        })
+        
+        // Build system prompt with pre-loaded documents
+        const systemPrompt = buildSystemPrompt(asset, chat.context_snapshot, chatConfig, preloadedDocs)
         
         // Call Gemini with tools and config (using safe wrapper with timeout)
         const startTime = Date.now()
