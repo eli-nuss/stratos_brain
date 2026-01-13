@@ -1174,10 +1174,10 @@ serve(async (req) => {
     const url = new URL(req.url)
     const path = url.pathname.replace('/generate-document', '')
     
-    // POST / - Generate a document
+    // POST / - Generate a document (ASYNC with job tracking)
     if (req.method === 'POST' && (path === '' || path === '/')) {
       const body = await req.json()
-      const { symbol, asset_id, asset_type, document_type } = body
+      const { symbol, asset_id, asset_type, document_type, user_id } = body
       
       if (!symbol) {
         return new Response(JSON.stringify({ error: 'Symbol is required' }), {
@@ -1190,7 +1190,43 @@ serve(async (req) => {
       const validTypes = ['one_pager', 'memo', 'deep_research', 'all']
       const docType = validTypes.includes(document_type) ? document_type : 'one_pager'
       
-      console.log(`Generating ${docType} for ${symbol} (asset_type: ${asset_type || 'not specified'})...`)
+      console.log(`Creating async job for ${docType} generation for ${symbol}...`)
+      
+      // Create job record immediately
+      const { data: job, error: jobError } = await supabase
+        .from('document_jobs')
+        .insert({
+          symbol,
+          asset_id: asset_id || null,
+          user_id: user_id || null,
+          job_type: docType,
+          status: 'pending',
+          progress: 'Job created, starting generation...'
+        })
+        .select()
+        .single()
+      
+      if (jobError) {
+        console.error('Failed to create job:', jobError)
+        return new Response(JSON.stringify({ error: 'Failed to create job', details: jobError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+      
+      console.log(`Job created: ${job.id}`)
+      
+      // Start background processing using EdgeRuntime.waitUntil
+      // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
+      EdgeRuntime.waitUntil((async () => {
+        try {
+          // Update job to processing
+          await supabase.from('document_jobs').update({ 
+            status: 'processing',
+            progress: 'Fetching asset data...'
+          }).eq('id', job.id)
+          
+          console.log(`Starting background generation for job ${job.id}...`)
       // ==================== CASCADE GENERATION (document_type: 'all') ====================
       if (document_type === 'all') {
         console.log(`Starting Cascade Generation for ${symbol}...`)
@@ -1349,6 +1385,9 @@ ${DEEP_RESEARCH_TEMPLATE}
         }
         
         console.log('Phase 1 complete. Deep Research Report saved.')
+        await supabase.from('document_jobs').update({ 
+          progress: 'Phase 1/3: Deep Research complete. Synthesizing Memo...'
+        }).eq('id', job.id)
         
         // --- PHASE 2: THE SYNTHESIS (Memo) ---
         console.log('Phase 2: Synthesizing Investment Memo (no search)...')
@@ -1408,6 +1447,9 @@ Generate the complete Investment Memo following the template structure. Use only
         }
         
         console.log('Phase 2 complete. Investment Memo saved.')
+        await supabase.from('document_jobs').update({ 
+          progress: 'Phase 2/3: Memo complete. Synthesizing One Pager...'
+        }).eq('id', job.id)
         
         // --- PHASE 3: THE SNAPSHOT (One Pager) ---
         console.log('Phase 3: Synthesizing One Pager (no search)...')
@@ -1471,19 +1513,27 @@ Generate the complete One Pager following the template structure. Use only infor
         const totalTime = (Date.now() - startTime) / 1000
         console.log(`Cascade generation complete in ${totalTime}s`)
         
-        return new Response(JSON.stringify({
-          success: true,
-          document_type: 'all',
-          files: results,
-          generation_time_seconds: totalTime,
-          sources_cited: sources.length
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
+        // Update job as completed
+        await supabase.from('document_jobs').update({
+          status: 'completed',
+          progress: 'All documents generated successfully',
+          result: {
+            files: results,
+            generation_time_seconds: totalTime,
+            sources_cited: sources.length
+          },
+          completed_at: new Date().toISOString()
+        }).eq('id', job.id)
+        
+        console.log(`Job ${job.id} completed successfully`)
       }
       
       // ==================== SINGLE DOCUMENT GENERATION ====================
-
+      else {
+        // Update progress for single document
+        await supabase.from('document_jobs').update({ 
+          progress: `Generating ${docType}...`
+        }).eq('id', job.id)
       
       // Step 1: Fetch asset data from control-api
       // Include asset_type if provided to disambiguate symbols like COMP (Compass equity vs Compound crypto)
@@ -1742,16 +1792,44 @@ ${template}
         }
       }
       
+      // Update job as completed
+        await supabase.from('document_jobs').update({
+          status: 'completed',
+          progress: 'Document generated successfully',
+          result: {
+            document_type: docType,
+            file_name: fileName,
+            file_url: urlData.publicUrl,
+            storage_path: storagePath,
+            generation_time_seconds: generationTime,
+            sources_cited: sources.length,
+            content_length: documentContent.length
+          },
+          completed_at: new Date().toISOString()
+        }).eq('id', job.id)
+        
+        console.log(`Job ${job.id} completed successfully`)
+      } // end single document else block
+      
+        } catch (bgError) {
+          // Background job failed
+          console.error(`Job ${job.id} failed:`, bgError)
+          await supabase.from('document_jobs').update({
+            status: 'failed',
+            error: bgError.message || 'Unknown error during generation',
+            completed_at: new Date().toISOString()
+          }).eq('id', job.id)
+        }
+      })()) // End EdgeRuntime.waitUntil
+      
+      // Return job ID immediately (202 Accepted)
       return new Response(JSON.stringify({
         success: true,
-        document_type: docType,
-        file_name: fileName,
-        file_url: urlData.publicUrl,
-        storage_path: storagePath,
-        generation_time_seconds: generationTime,
-        sources_cited: sources.length,
-        content_length: documentContent.length
+        message: 'Document generation started',
+        job_id: job.id,
+        job_type: docType
       }), {
+        status: 202,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }

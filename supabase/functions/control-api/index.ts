@@ -2133,10 +2133,11 @@ If asked about something not in the data, acknowledge the limitation.`
         })
       }
 
-      // POST /dashboard/create-document - Create one pager or memo via Gemini AI with Google Search
+      // POST /dashboard/create-document - Create documents via async job system
+      // All document types now go through generate-document edge function with async processing
       case req.method === 'POST' && path === '/dashboard/create-document': {
         const body = await req.json()
-        const { symbol, asset_id, asset_type, document_type } = body
+        const { symbol, asset_id, asset_type, document_type, user_id } = body
         
         if (!symbol) {
           return new Response(JSON.stringify({ error: 'Symbol is required' }), {
@@ -2145,279 +2146,52 @@ If asked about something not in the data, acknowledge the limitation.`
           })
         }
         
-        // For deep_research and 'all' (cascade), forward to generate-document edge function
-        if (document_type === 'deep_research' || document_type === 'all') {
-          console.log(`Forwarding ${document_type} request to generate-document edge function...`)
-          const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-          const generateDocUrl = `${supabaseUrl}/functions/v1/generate-document`
-          
-          const forwardResponse = await fetch(generateDocUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': req.headers.get('Authorization') || ''
-            },
-            body: JSON.stringify({ symbol, asset_id, asset_type, document_type })
-          })
-          
-          const forwardData = await forwardResponse.json()
-          return new Response(JSON.stringify(forwardData), {
-            status: forwardResponse.status,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-        }
-        
-        // Validate document type for local handling (one_pager, memo)
-        const validTypes = ['one_pager', 'memo']
-        const docType = validTypes.includes(document_type) ? document_type : 'one_pager'
-        
-        console.log(`Generating ${docType} for ${symbol} (asset_type: ${asset_type || 'not specified'}) using Gemini...`)
-        const startTime = Date.now()
-        
-        // Gemini API configuration
-        const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || 'AIzaSyAHg70im-BbB9HYZm7TOzr3cKRQp7RWY1Q'
-        
-        // Step 1: Fetch asset data from the same API
-        // Include asset_type if provided to disambiguate symbols like COMP (Compass equity vs Compound crypto)
+        // Forward ALL document types to generate-document edge function (async job system)
+        console.log(`Forwarding ${document_type || 'one_pager'} request to generate-document edge function...`)
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-        let assetDataUrl = `${supabaseUrl}/functions/v1/control-api/dashboard/asset?symbol=${symbol}`
-        if (asset_type) {
-          assetDataUrl += `&asset_type=${asset_type}`
-        }
-        console.log(`Fetching asset data from: ${assetDataUrl}`)
+        const generateDocUrl = `${supabaseUrl}/functions/v1/generate-document`
         
-        const assetResponse = await fetch(assetDataUrl)
-        if (!assetResponse.ok) {
-          const errorText = await assetResponse.text()
-          return new Response(JSON.stringify({ error: 'Failed to fetch asset data', details: errorText }), {
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-        }
-        
-        const assetData: AssetData = await assetResponse.json()
-        const companyName = assetData.asset?.name || symbol
-        const todayDate = new Date().toISOString().split('T')[0]
-        
-        // Step 2: Fetch templates from database (with fallback to hardcoded)
-        let systemPrompt = SYSTEM_PROMPT
-        let template = docType === 'memo' ? MEMO_TEMPLATE : ONE_PAGER_TEMPLATE
-        
-        try {
-          // Fetch system prompt from database
-          const { data: systemPromptData } = await supabase
-            .from('document_templates')
-            .select('template_content')
-            .eq('template_key', 'system_prompt')
-            .single()
-          
-          if (systemPromptData?.template_content) {
-            systemPrompt = systemPromptData.template_content
-            console.log('Using system prompt from database')
-          }
-          
-          // Fetch document template from database
-          const templateKey = docType === 'memo' ? 'memo_template' : 'one_pager_template'
-          const { data: templateData } = await supabase
-            .from('document_templates')
-            .select('template_content')
-            .eq('template_key', templateKey)
-            .single()
-          
-          if (templateData?.template_content) {
-            template = templateData.template_content
-            console.log(`Using ${templateKey} from database`)
-          }
-        } catch (templateError) {
-          console.log('Using hardcoded templates (database fetch failed):', templateError)
-        }
-        
-        // Prepare the prompt
-        const databaseContext = formatDatabaseContext(assetData)
-        
-        const geminiPrompt = `
-# TASK: Generate Investment ${docType === 'memo' ? 'Memo' : 'One Pager'} for ${symbol}
-
-## INPUT DATA
-
-### Asset: ${symbol} (${companyName})
-### Date: ${todayDate}
-
-### DATABASE DATA (Use these exact numbers where applicable):
-\`\`\`json
-${databaseContext}
-\`\`\`
-
-### TEMPLATE (Follow this structure exactly):
-\`\`\`markdown
-${template}
-\`\`\`
-
-## INSTRUCTIONS
-
-1. **First**, analyze the DATABASE DATA above. Note what quantitative data is available.
-
-2. **Second**, use Google Search to research the following for ${symbol}:
-   - Latest news and developments (last 2-4 weeks)
-   - Recent earnings call highlights or guidance
-   - Management commentary and strategic updates
-   - Competitive landscape changes
-   - Analyst ratings and price target changes
-   - Any regulatory or macro risks
-
-3. **Third**, generate the complete ${docType === 'memo' ? 'memo' : 'one pager'} following the TEMPLATE structure exactly:
-   - Fill in all database-driven sections with the exact numbers from DATABASE DATA
-   - Fill in all research-driven sections with findings from your Google Search
-   - Cite all external sources with links
-   - Be decisive in your investment stance based on the combined evidence
-
-4. **Output**: Return ONLY the completed document in clean Markdown format.
-`
-        
-        // Step 3: Call Gemini with Google Search grounding
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GEMINI_API_KEY}`
-        
-        const geminiRequestBody = {
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: geminiPrompt }]
-            }
-          ],
-          systemInstruction: {
-            parts: [{ text: systemPrompt }]
-          },
-          tools: [
-            {
-              googleSearch: {}
-            }
-          ],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 16384,
-          }
-        }
-        
-        console.log('Calling Gemini API with Google Search grounding...')
-        
-        const geminiResponse = await fetch(geminiUrl, {
+        const forwardResponse = await fetch(generateDocUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': req.headers.get('Authorization') || ''
           },
-          body: JSON.stringify(geminiRequestBody)
+          body: JSON.stringify({ symbol, asset_id, asset_type, document_type: document_type || 'one_pager', user_id })
         })
         
-        if (!geminiResponse.ok) {
-          const errorText = await geminiResponse.text()
-          console.error('Gemini API error:', errorText)
-          return new Response(JSON.stringify({ error: 'Failed to generate document', details: errorText }), {
-            status: 500,
+        const forwardData = await forwardResponse.json()
+        return new Response(JSON.stringify(forwardData), {
+          status: forwardResponse.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /dashboard/job-status/:job_id - Poll for async job status
+      case req.method === 'GET' && path.startsWith('/dashboard/job-status/'): {
+        const jobId = path.split('/').pop()
+        
+        if (!jobId) {
+          return new Response(JSON.stringify({ error: 'Job ID is required' }), {
+            status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
         }
         
-        const geminiResult = await geminiResponse.json()
+        const { data: job, error } = await supabase
+          .from('document_jobs')
+          .select('*')
+          .eq('id', jobId)
+          .single()
         
-        // Extract text and sources from response
-        let documentContent = ''
-        let sourcesCited = 0
-        
-        if (geminiResult.candidates && geminiResult.candidates.length > 0) {
-          const candidate = geminiResult.candidates[0]
-          
-          // Extract text
-          if (candidate.content?.parts) {
-            for (const part of candidate.content.parts) {
-              if (part.text) {
-                documentContent += part.text
-              }
-            }
-          }
-          
-          // Count grounding sources
-          if (candidate.groundingMetadata?.groundingChunks) {
-            sourcesCited = candidate.groundingMetadata.groundingChunks.length
-          }
-        }
-        
-        if (!documentContent || documentContent.trim() === '') {
-          return new Response(JSON.stringify({ error: 'Gemini returned empty response' }), {
-            status: 500,
+        if (error || !job) {
+          return new Response(JSON.stringify({ error: 'Job not found' }), {
+            status: 404,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
         }
         
-        const generationTime = (Date.now() - startTime) / 1000
-        console.log(`Document generated in ${generationTime}s with ${sourcesCited} sources`)
-        
-        // Step 4: Save to Supabase Storage
-        const fileName = docType === 'one_pager'
-          ? `${symbol}_One_Pager_${todayDate}.md`
-          : `${symbol}_Investment_Memo_${todayDate}.md`
-        
-        const storagePath = `${docType}s/${asset_id || symbol}/${fileName}`
-        
-        const { error: uploadError } = await supabase.storage
-          .from('asset-files')
-          .upload(storagePath, documentContent, {
-            contentType: 'text/markdown',
-            upsert: true
-          })
-        
-        if (uploadError) {
-          console.error('Storage upload error:', uploadError)
-          return new Response(JSON.stringify({ error: 'Failed to upload to storage', details: uploadError.message }), {
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-        }
-        
-        // Get public URL
-        const { data: urlData } = supabase.storage
-          .from('asset-files')
-          .getPublicUrl(storagePath)
-        
-        console.log(`File uploaded to: ${urlData.publicUrl}`)
-        
-        // Step 5: Save record to asset_files table
-        if (asset_id) {
-          // Delete any existing placeholder entries
-          await supabase
-            .from('asset_files')
-            .delete()
-            .eq('asset_id', asset_id)
-            .eq('file_type', docType)
-            .like('description', '%Generating%')
-          
-          // Insert new record
-          const { error: insertError } = await supabase
-            .from('asset_files')
-            .insert({
-              asset_id,
-              file_name: fileName,
-              file_path: urlData.publicUrl,
-              file_type: docType,
-              file_size: documentContent.length,
-              description: `Generated by Gemini AI (${sourcesCited} sources cited)`
-            })
-          
-          if (insertError) {
-            console.error('Database insert error:', insertError)
-            // Don't fail the request, file is already uploaded
-          }
-        }
-        
-        return new Response(JSON.stringify({
-          success: true,
-          document_type: docType,
-          file_name: fileName,
-          file_url: urlData.publicUrl,
-          storage_path: storagePath,
-          generation_time_seconds: generationTime,
-          sources_cited: sourcesCited,
-          content_length: documentContent.length
-        }), {
+        return new Response(JSON.stringify(job), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }

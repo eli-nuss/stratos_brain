@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FileText, Sparkles, ChevronDown, ChevronUp, ExternalLink, Loader2, Clock, CheckCircle, BookOpen, MessageSquare, Zap } from 'lucide-react';
 
 interface AssetFile {
@@ -16,19 +16,38 @@ interface DocumentsSectionProps {
   symbol: string;
   companyName?: string;
   assetType?: 'equity' | 'crypto';
-  onOpenChat?: () => void; // Callback to open company chat with deep research context
+  onOpenChat?: () => void;
 }
 
 interface GenerationStatus {
   isGenerating: boolean;
   progress?: string;
   error?: string;
+  jobId?: string;
 }
 
 interface CascadeStatus {
   isGenerating: boolean;
   currentPhase: 'idle' | 'deep_research' | 'memo' | 'one_pager' | 'complete';
   progress?: string;
+  error?: string;
+  jobId?: string;
+}
+
+interface JobStatus {
+  id: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  progress?: string;
+  result?: {
+    files?: {
+      deep_research?: string;
+      memo?: string;
+      one_pager?: string;
+    };
+    file_url?: string;
+    generation_time_seconds?: number;
+    sources_cited?: number;
+  };
   error?: string;
 }
 
@@ -45,6 +64,18 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
   const [memoStatus, setMemoStatus] = useState<GenerationStatus>({ isGenerating: false });
   const [deepResearchStatus, setDeepResearchStatus] = useState<GenerationStatus>({ isGenerating: false });
   const [cascadeStatus, setCascadeStatus] = useState<CascadeStatus>({ isGenerating: false, currentPhase: 'idle' });
+  
+  // Refs for polling intervals
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, []);
 
   // Fetch documents on mount and when assetId changes
   useEffect(() => {
@@ -57,7 +88,6 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
       const data = await response.json();
       const files: AssetFile[] = data.files || [];
       
-      // Separate by type and sort by date (newest first)
       const onePagerFiles = files
         .filter(f => f.file_type === 'one_pager')
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -78,12 +108,45 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
     }
   };
 
-  // Generate all documents using cascade workflow
+  // Poll for job status
+  const pollJobStatus = async (jobId: string, onUpdate: (job: JobStatus) => void, onComplete: (job: JobStatus) => void) => {
+    const poll = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/control-api/dashboard/job-status/${jobId}`);
+        const job: JobStatus = await response.json();
+        
+        if (job.status === 'completed') {
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+          onComplete(job);
+        } else if (job.status === 'failed') {
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+          onUpdate(job);
+        } else {
+          // Still processing - update progress
+          onUpdate(job);
+        }
+      } catch (error) {
+        console.error('Error polling job status:', error);
+      }
+    };
+
+    // Poll immediately, then every 3 seconds
+    await poll();
+    pollingIntervalRef.current = setInterval(poll, 3000);
+  };
+
+  // Generate all documents using cascade workflow (async)
   const generateAllDocuments = async () => {
     setCascadeStatus({ 
       isGenerating: true, 
       currentPhase: 'deep_research',
-      progress: 'Phase 1/3: Researching & Writing Deep Report...'
+      progress: 'Starting cascade generation...'
     });
 
     try {
@@ -94,56 +157,84 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
           symbol,
           asset_id: assetId,
           asset_type: assetType,
-          document_type: 'all' // Cascade generation
+          document_type: 'all'
         })
       });
 
       const data = await response.json();
       
-      if (data.success) {
-        setCascadeStatus({ 
-          isGenerating: false, 
-          currentPhase: 'complete',
-          progress: `All documents generated in ${data.generation_time_seconds?.toFixed(1)}s with ${data.sources_cited} sources` 
-        });
-        
-        // Refresh documents to show all new files
-        await fetchDocuments();
-        
-        // Open the deep research document in a new tab
-        if (data.files?.deep_research) {
-          window.open(data.files.deep_research, '_blank');
-        }
-        
-        // Clear the success message after 10 seconds
-        setTimeout(() => {
-          setCascadeStatus({ isGenerating: false, currentPhase: 'idle' });
-        }, 10000);
-      } else {
+      if (data.job_id) {
+        // Start polling for job status
+        setCascadeStatus(prev => ({ 
+          ...prev, 
+          jobId: data.job_id,
+          progress: 'Phase 1/3: Researching & Writing Deep Report...'
+        }));
+
+        pollJobStatus(
+          data.job_id,
+          // onUpdate - progress updates
+          (job) => {
+            if (job.status === 'failed') {
+              setCascadeStatus({ 
+                isGenerating: false, 
+                currentPhase: 'idle',
+                error: job.error || 'Generation failed'
+              });
+              setTimeout(() => setCascadeStatus({ isGenerating: false, currentPhase: 'idle' }), 10000);
+            } else {
+              // Update progress message based on job progress
+              let phase: CascadeStatus['currentPhase'] = 'deep_research';
+              if (job.progress?.includes('Phase 2') || job.progress?.includes('Memo')) {
+                phase = 'memo';
+              } else if (job.progress?.includes('Phase 3') || job.progress?.includes('One Pager')) {
+                phase = 'one_pager';
+              }
+              setCascadeStatus(prev => ({ 
+                ...prev, 
+                currentPhase: phase,
+                progress: job.progress || prev.progress
+              }));
+            }
+          },
+          // onComplete - job finished
+          async (job) => {
+            setCascadeStatus({ 
+              isGenerating: false, 
+              currentPhase: 'complete',
+              progress: `All documents generated in ${job.result?.generation_time_seconds?.toFixed(1) || '?'}s with ${job.result?.sources_cited || 0} sources`
+            });
+            
+            await fetchDocuments();
+            
+            // Open the deep research document
+            if (job.result?.files?.deep_research) {
+              window.open(job.result.files.deep_research, '_blank');
+            }
+            
+            setTimeout(() => setCascadeStatus({ isGenerating: false, currentPhase: 'idle' }), 10000);
+          }
+        );
+      } else if (data.error) {
         setCascadeStatus({ 
           isGenerating: false, 
           currentPhase: 'idle',
-          error: data.error || 'Failed to generate documents' 
+          error: data.error
         });
-        
-        setTimeout(() => {
-          setCascadeStatus({ isGenerating: false, currentPhase: 'idle' });
-        }, 10000);
+        setTimeout(() => setCascadeStatus({ isGenerating: false, currentPhase: 'idle' }), 10000);
       }
     } catch (error) {
       console.error('Error generating documents:', error);
       setCascadeStatus({ 
         isGenerating: false, 
         currentPhase: 'idle',
-        error: 'Network error. Please try again.' 
+        error: 'Network error. Please try again.'
       });
-      
-      setTimeout(() => {
-        setCascadeStatus({ isGenerating: false, currentPhase: 'idle' });
-      }, 10000);
+      setTimeout(() => setCascadeStatus({ isGenerating: false, currentPhase: 'idle' }), 10000);
     }
   };
 
+  // Generate single document (async)
   const generateDocument = async (docType: 'one_pager' | 'memo' | 'deep_research') => {
     const setStatus = docType === 'one_pager' 
       ? setOnePagerStatus 
@@ -158,7 +249,6 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
     setStatus({ isGenerating: true, progress: progressMessage });
 
     try {
-      // Call the Gemini-based create-document endpoint in control-api
       const response = await fetch(`${API_BASE}/control-api/dashboard/create-document`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -172,45 +262,57 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
 
       const data = await response.json();
       
-      if (data.success) {
+      if (data.job_id) {
+        // Start polling for job status
+        setStatus(prev => ({ ...prev, jobId: data.job_id }));
+
+        pollJobStatus(
+          data.job_id,
+          // onUpdate
+          (job) => {
+            if (job.status === 'failed') {
+              setStatus({ 
+                isGenerating: false, 
+                error: job.error || 'Generation failed'
+              });
+              setTimeout(() => setStatus({ isGenerating: false }), 10000);
+            } else {
+              setStatus(prev => ({ 
+                ...prev, 
+                progress: job.progress || prev.progress
+              }));
+            }
+          },
+          // onComplete
+          async (job) => {
+            setStatus({ 
+              isGenerating: false, 
+              progress: `Generated in ${job.result?.generation_time_seconds?.toFixed(1) || '?'}s with ${job.result?.sources_cited || 0} sources`
+            });
+            
+            await fetchDocuments();
+            
+            if (job.result?.file_url) {
+              window.open(job.result.file_url, '_blank');
+            }
+            
+            setTimeout(() => setStatus({ isGenerating: false }), 5000);
+          }
+        );
+      } else if (data.error) {
         setStatus({ 
           isGenerating: false, 
-          progress: `Generated in ${data.generation_time_seconds?.toFixed(1)}s with ${data.sources_cited} sources` 
+          error: data.error
         });
-        
-        // Refresh documents to show the new file
-        await fetchDocuments();
-        
-        // Open the generated document in a new tab
-        if (data.file_url) {
-          window.open(data.file_url, '_blank');
-        }
-        
-        // Clear the success message after 5 seconds
-        setTimeout(() => {
-          setStatus({ isGenerating: false });
-        }, 5000);
-      } else {
-        setStatus({ 
-          isGenerating: false, 
-          error: data.error || 'Failed to generate document' 
-        });
-        
-        // Clear error after 10 seconds
-        setTimeout(() => {
-          setStatus({ isGenerating: false });
-        }, 10000);
+        setTimeout(() => setStatus({ isGenerating: false }), 10000);
       }
     } catch (error) {
       console.error('Error generating document:', error);
       setStatus({ 
         isGenerating: false, 
-        error: 'Network error. Please try again.' 
+        error: 'Network error. Please try again.'
       });
-      
-      setTimeout(() => {
-        setStatus({ isGenerating: false });
-      }, 10000);
+      setTimeout(() => setStatus({ isGenerating: false }), 10000);
     }
   };
 
@@ -286,7 +388,7 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
           </div>
         )}
 
-        {/* Generating indicator */}
+        {/* Generating indicator with progress */}
         {status.isGenerating && (
           <div className={`mb-2 p-3 rounded-lg border ${
             isDeepResearch 
@@ -294,110 +396,94 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
               : 'bg-blue-900/20 border-blue-800/50'
           }`}>
             <div className={`flex items-center gap-2 text-sm ${
-              isDeepResearch ? 'text-purple-400' : 'text-blue-400'
+              isDeepResearch ? 'text-purple-300' : 'text-blue-300'
             }`}>
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span>{isDeepResearch ? 'Deep Research in Progress...' : 'Generating with Gemini AI...'}</span>
+              <span className="font-medium">
+                {isDeepResearch ? 'Deep Research in Progress...' : 'Generating...'}
+              </span>
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              {isDeepResearch 
+            <p className="text-xs text-gray-400 mt-1">
+              {status.progress || (isDeepResearch 
                 ? 'Analyzing business model, extracting financials, and identifying key metrics. This comprehensive research takes 3-5 minutes.'
-                : 'Researching latest news and analyzing data. This may take 1-2 minutes.'}
+                : 'This typically takes 30-60 seconds.'
+              )}
             </p>
           </div>
         )}
 
+        {/* Latest document */}
         {latestDoc ? (
-          <div className="space-y-2">
-            {/* Latest document */}
+          <div className={`p-3 rounded-lg border ${
+            isDeepResearch 
+              ? 'bg-purple-900/10 border-purple-800/30' 
+              : 'bg-gray-800/50 border-gray-700'
+          }`}>
             <a
               href={latestDoc.file_path}
               target="_blank"
               rel="noopener noreferrer"
-              className={`block p-3 rounded-lg border transition-colors ${
-                isDeepResearch
-                  ? 'bg-purple-900/20 border-purple-700 hover:border-purple-500/50 hover:bg-purple-900/30'
-                  : 'bg-gray-800/50 border-gray-700 hover:border-emerald-500/50 hover:bg-gray-800'
-              }`}
+              className="flex items-start gap-2 hover:text-blue-400 transition-colors"
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-white truncate">
-                    {latestDoc.file_name}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {formatDate(latestDoc.created_at)}
-                  </p>
-                  {latestDoc.description && (
-                    <p className="text-xs text-gray-500 mt-1 truncate">
-                      {latestDoc.description}
-                    </p>
-                  )}
-                </div>
-                <ExternalLink className="w-4 h-4 text-gray-400 flex-shrink-0" />
-              </div>
+              <span className="truncate text-sm font-medium">{latestDoc.file_name}</span>
+              <ExternalLink className="w-3 h-3 flex-shrink-0 mt-1" />
             </a>
-
-            {/* Chat button for deep research */}
-            {isDeepResearch && latestDoc && onOpenChat && (
-              <button
-                onClick={onOpenChat}
-                className="w-full flex items-center justify-center gap-2 p-2 text-xs bg-purple-600/20 hover:bg-purple-600/30 border border-purple-700/50 rounded-lg text-purple-300 transition-colors"
-              >
-                <MessageSquare className="w-3 h-3" />
-                Ask follow-up questions in Company Chat
-              </button>
+            <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+              <Clock className="w-3 h-3" />
+              {formatDate(latestDoc.created_at)}
+            </div>
+            {latestDoc.description && (
+              <p className="text-xs text-gray-500 mt-1 truncate">{latestDoc.description}</p>
             )}
-
-            {/* History toggle */}
-            {hasHistory && (
-              <button
-                onClick={() => setShowHistory(!showHistory)}
-                className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-300 transition-colors"
-              >
-                {showHistory ? (
-                  <>
-                    <ChevronUp className="w-3 h-3" />
-                    Hide history ({historyDocs.length})
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="w-3 h-3" />
-                    Show history ({historyDocs.length})
-                  </>
-                )}
-              </button>
-            )}
-
-            {/* History documents */}
-            {showHistory && historyDocs.map((doc) => (
-              <a
-                key={doc.file_id}
-                href={doc.file_path}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block p-2 bg-gray-900/50 rounded border border-gray-800 hover:border-gray-700 transition-colors"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs text-gray-400 truncate">{doc.file_name}</p>
-                  <p className="text-xs text-gray-500 flex-shrink-0">{formatDate(doc.created_at)}</p>
-                </div>
-              </a>
-            ))}
           </div>
         ) : (
-          <div className={`p-4 rounded-lg border text-center ${
+          <div className={`p-4 rounded-lg border border-dashed text-center ${
             isDeepResearch 
-              ? 'bg-purple-900/10 border-purple-700/50' 
-              : 'bg-gray-800/30 border-gray-700/50'
+              ? 'border-purple-800/50 bg-purple-900/10' 
+              : 'border-gray-700 bg-gray-800/30'
           }`}>
-            <p className="text-sm text-gray-500">No {title.toLowerCase()} yet</p>
+            <p className="text-sm text-gray-500">
+              {isDeepResearch ? 'No deep research report yet' : `No ${title.toLowerCase()} yet`}
+            </p>
             <p className="text-xs text-gray-600 mt-1">
               {isDeepResearch 
                 ? 'Generate a comprehensive research report to analyze this company'
-                : 'Click Generate to create one'}
+                : 'Click Generate to create one'
+              }
             </p>
+          </div>
+        )}
+
+        {/* History toggle */}
+        {hasHistory && (
+          <div className="mt-2">
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+            >
+              {showHistory ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              {historyDocs.length} older version{historyDocs.length > 1 ? 's' : ''}
+            </button>
+            
+            {showHistory && (
+              <div className="mt-2 space-y-2">
+                {historyDocs.map(doc => (
+                  <a
+                    key={doc.file_id}
+                    href={doc.file_path}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block p-2 bg-gray-800/30 rounded border border-gray-700/50 hover:border-gray-600 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs truncate text-gray-400">{doc.file_name}</span>
+                      <ExternalLink className="w-3 h-3 flex-shrink-0 text-gray-500" />
+                    </div>
+                    <div className="text-xs text-gray-600 mt-0.5">{formatDate(doc.created_at)}</div>
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -405,76 +491,99 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
   };
 
   return (
-    <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-800">
+    <div className="bg-gray-900/50 rounded-lg border border-gray-800 p-4">
+      {/* Header with Generate All button */}
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base font-semibold text-white flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-emerald-400" />
-          AI Documents
-          <span className="text-xs text-gray-500 font-normal ml-2">Powered by Gemini</span>
-        </h3>
+        <div className="flex items-center gap-2">
+          <Sparkles className="w-5 h-5 text-purple-400" />
+          <h3 className="text-lg font-semibold">AI Documents</h3>
+          <span className="text-xs text-gray-500">Powered by Gemini</span>
+        </div>
         
-        {/* Generate All Button */}
         <button
           onClick={generateAllDocuments}
           disabled={cascadeStatus.isGenerating || onePagerStatus.isGenerating || memoStatus.isGenerating || deepResearchStatus.isGenerating}
-          className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gradient-to-r from-purple-600 to-emerald-600 hover:from-purple-500 hover:to-emerald-500 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-emerald-600 hover:from-purple-500 hover:to-emerald-500 disabled:from-gray-600 disabled:to-gray-600 rounded-lg font-medium text-sm transition-all disabled:cursor-not-allowed"
         >
-          <Zap className="w-4 h-4" />
-          Generate All Documents
+          {cascadeStatus.isGenerating ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Generating...
+            </>
+          ) : (
+            <>
+              <Zap className="w-4 h-4" />
+              Generate All Documents
+            </>
+          )}
         </button>
       </div>
 
-      {/* Cascade Generation Status */}
+      {/* Cascade status indicator */}
       {cascadeStatus.isGenerating && (
-        <div className="mb-4 p-4 rounded-lg bg-gradient-to-r from-purple-900/30 to-emerald-900/30 border border-purple-700/50">
+        <div className="mb-4 p-4 bg-gradient-to-r from-purple-900/30 to-emerald-900/30 rounded-lg border border-purple-800/50">
           <div className="flex items-center gap-3 mb-2">
             <Loader2 className="w-5 h-5 animate-spin text-purple-400" />
-            <span className="text-sm font-medium text-white">Cascade Document Generation</span>
+            <span className="font-medium text-purple-300">Cascade Generation in Progress</span>
           </div>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${cascadeStatus.currentPhase === 'deep_research' ? 'bg-purple-400 animate-pulse' : cascadeStatus.currentPhase !== 'idle' ? 'bg-emerald-400' : 'bg-gray-600'}`} />
-              <span className={`text-xs ${cascadeStatus.currentPhase === 'deep_research' ? 'text-purple-300' : 'text-gray-400'}`}>
-                Phase 1: Deep Research Report (with Google Search)
-              </span>
+          <p className="text-sm text-gray-400">{cascadeStatus.progress}</p>
+          
+          {/* Phase indicators */}
+          <div className="flex items-center gap-2 mt-3">
+            <div className={`flex items-center gap-1 px-2 py-1 rounded text-xs ${
+              cascadeStatus.currentPhase === 'deep_research' 
+                ? 'bg-purple-600 text-white' 
+                : cascadeStatus.currentPhase === 'memo' || cascadeStatus.currentPhase === 'one_pager' || cascadeStatus.currentPhase === 'complete'
+                  ? 'bg-green-600 text-white'
+                  : 'bg-gray-700 text-gray-400'
+            }`}>
+              {cascadeStatus.currentPhase === 'deep_research' ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
+              Deep Research
             </div>
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${cascadeStatus.currentPhase === 'memo' ? 'bg-purple-400 animate-pulse' : ['one_pager', 'complete'].includes(cascadeStatus.currentPhase) ? 'bg-emerald-400' : 'bg-gray-600'}`} />
-              <span className={`text-xs ${cascadeStatus.currentPhase === 'memo' ? 'text-purple-300' : 'text-gray-400'}`}>
-                Phase 2: Investment Memo (synthesized from research)
-              </span>
+            <div className={`flex items-center gap-1 px-2 py-1 rounded text-xs ${
+              cascadeStatus.currentPhase === 'memo' 
+                ? 'bg-purple-600 text-white' 
+                : cascadeStatus.currentPhase === 'one_pager' || cascadeStatus.currentPhase === 'complete'
+                  ? 'bg-green-600 text-white'
+                  : 'bg-gray-700 text-gray-400'
+            }`}>
+              {cascadeStatus.currentPhase === 'memo' ? <Loader2 className="w-3 h-3 animate-spin" /> : cascadeStatus.currentPhase === 'one_pager' || cascadeStatus.currentPhase === 'complete' ? <CheckCircle className="w-3 h-3" /> : null}
+              Memo
             </div>
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${cascadeStatus.currentPhase === 'one_pager' ? 'bg-purple-400 animate-pulse' : cascadeStatus.currentPhase === 'complete' ? 'bg-emerald-400' : 'bg-gray-600'}`} />
-              <span className={`text-xs ${cascadeStatus.currentPhase === 'one_pager' ? 'text-purple-300' : 'text-gray-400'}`}>
-                Phase 3: One Pager (synthesized from research)
-              </span>
+            <div className={`flex items-center gap-1 px-2 py-1 rounded text-xs ${
+              cascadeStatus.currentPhase === 'one_pager' 
+                ? 'bg-purple-600 text-white' 
+                : cascadeStatus.currentPhase === 'complete'
+                  ? 'bg-green-600 text-white'
+                  : 'bg-gray-700 text-gray-400'
+            }`}>
+              {cascadeStatus.currentPhase === 'one_pager' ? <Loader2 className="w-3 h-3 animate-spin" /> : cascadeStatus.currentPhase === 'complete' ? <CheckCircle className="w-3 h-3" /> : null}
+              One Pager
             </div>
           </div>
-          <p className="text-xs text-gray-500 mt-3">
-            Deep Research does the heavy lifting with Google Search. Memo and One Pager are synthesized from the research for perfect consistency.
-          </p>
         </div>
       )}
 
-      {/* Cascade Success/Error Status */}
-      {!cascadeStatus.isGenerating && cascadeStatus.currentPhase === 'complete' && cascadeStatus.progress && (
-        <div className="mb-4 p-3 rounded-lg bg-emerald-900/30 border border-emerald-700/50">
-          <div className="flex items-center gap-2 text-emerald-400">
-            <CheckCircle className="w-4 h-4" />
-            <span className="text-sm">{cascadeStatus.progress}</span>
+      {/* Cascade completion/error message */}
+      {!cascadeStatus.isGenerating && (cascadeStatus.progress || cascadeStatus.error) && cascadeStatus.currentPhase !== 'idle' && (
+        <div className={`mb-4 p-3 rounded-lg border ${
+          cascadeStatus.error 
+            ? 'bg-red-900/30 border-red-800 text-red-400' 
+            : 'bg-emerald-900/30 border-emerald-800 text-emerald-400'
+        }`}>
+          <div className="flex items-center gap-2">
+            {cascadeStatus.error ? null : <CheckCircle className="w-4 h-4" />}
+            <span className="text-sm">{cascadeStatus.error || cascadeStatus.progress}</span>
           </div>
         </div>
       )}
 
-      {cascadeStatus.error && (
-        <div className="mb-4 p-3 rounded-lg bg-red-900/30 border border-red-700/50">
-          <span className="text-sm text-red-400">{cascadeStatus.error}</span>
-        </div>
-      )}
-      
-      {/* Deep Research Report - Full Width at Top */}
-      <div className="mb-4 pb-4 border-b border-gray-700">
+      {/* Deep Research Section */}
+      <div className="mb-6">
+        <h4 className="text-sm font-medium text-purple-400 mb-3 flex items-center gap-2">
+          <BookOpen className="w-4 h-4" />
+          Deep Research Report
+        </h4>
         {renderDocumentColumn(
           'Deep Research Report',
           deepResearch,
@@ -484,10 +593,21 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
           deepResearchStatus,
           true
         )}
+        
+        {/* Chat with Deep Research button */}
+        {deepResearch.length > 0 && onOpenChat && (
+          <button
+            onClick={onOpenChat}
+            className="mt-3 flex items-center gap-2 px-3 py-2 bg-purple-900/30 hover:bg-purple-900/50 border border-purple-800/50 rounded-lg text-sm text-purple-300 transition-colors w-full justify-center"
+          >
+            <MessageSquare className="w-4 h-4" />
+            Ask follow-up questions in Company Chat
+          </button>
+        )}
       </div>
-      
-      {/* One Pagers and Memos - Side by Side */}
-      <div className="flex gap-4">
+
+      {/* One Pagers and Memos side by side */}
+      <div className="flex gap-6">
         {renderDocumentColumn(
           'One Pagers',
           onePagers,
@@ -496,8 +616,6 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
           setShowOnePagerHistory,
           onePagerStatus
         )}
-        
-        <div className="w-px bg-gray-700" />
         
         {renderDocumentColumn(
           'Memos',
