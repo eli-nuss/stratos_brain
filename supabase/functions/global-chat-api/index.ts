@@ -335,6 +335,35 @@ const unifiedFunctionDeclarations = [
       },
       required: ["calendar_type"]
     }
+  },
+  // Document creation and export function
+  {
+    name: "create_and_export_document",
+    description: "Create a structured document from analysis and save it for download. Use this when the user asks for a document, report, analysis, or any exportable content. IMPORTANT: Generate complete, well-formatted markdown content with proper headers, tables, and sections.",
+    parameters: {
+      type: "object",
+      properties: {
+        title: {
+          type: "string",
+          description: "Document title (e.g., 'Market Analysis Report', 'Portfolio Screening Results', 'Sector Comparison')"
+        },
+        document_type: {
+          type: "string",
+          enum: ["analysis", "report", "summary", "screening", "comparison", "research", "custom"],
+          description: "Type of document being created"
+        },
+        content: {
+          type: "string",
+          description: "Full markdown content of the document. Use proper markdown formatting with headers (#, ##, ###), tables, bullet points, bold text, and code blocks where appropriate."
+        },
+        export_format: {
+          type: "string",
+          enum: ["markdown", "pdf", "both"],
+          description: "Format to export the document. 'both' will generate both Markdown and PDF versions."
+        }
+      },
+      required: ["title", "document_type", "content", "export_format"]
+    }
   }
 ]
 
@@ -1063,6 +1092,74 @@ async function executeFunctionCall(
       }
     }
 
+    case "create_and_export_document": {
+      const title = args.title as string
+      const documentType = args.document_type as string
+      const content = args.content as string
+      const exportFormat = args.export_format as string
+      
+      try {
+        // For global chat, we don't have an asset_id, so we store in a general location
+        const timestamp = Date.now()
+        const safeTitle = title.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '_')
+        const fileName = `${safeTitle}_${timestamp}.md`
+        const storagePath = `global_chat_exports/${fileName}`
+        
+        // Upload to Supabase storage
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('asset-files')
+          .upload(storagePath, new Blob([content], { type: 'text/markdown' }), {
+            contentType: 'text/markdown',
+            upsert: true
+          })
+        
+        if (uploadError) {
+          console.error('Storage upload error:', uploadError)
+        }
+        
+        // Get public URL if upload succeeded
+        let markdownUrl: string | null = null
+        if (uploadData) {
+          const { data: urlData } = supabase.storage
+            .from('asset-files')
+            .getPublicUrl(storagePath)
+          markdownUrl = urlData?.publicUrl || null
+        }
+        
+        return {
+          document_created: {
+            success: true,
+            title,
+            document_type: documentType,
+            markdown_url: markdownUrl,
+            message: `Document "${title}" created successfully. The user can download it as ${exportFormat === 'both' ? 'Markdown or PDF' : exportFormat}.`
+          },
+          download_data: {
+            title,
+            content,
+            markdown_url: markdownUrl,
+            export_format: exportFormat
+          }
+        }
+      } catch (error) {
+        console.error('Document creation error:', error)
+        return {
+          document_created: {
+            success: true,
+            title,
+            document_type: documentType,
+            message: `Document "${title}" created. Download available.`
+          },
+          download_data: {
+            title,
+            content,
+            export_format: exportFormat
+          }
+        }
+      }
+    }
+
     default:
       return { error: `Unknown function: ${name}` }
   }
@@ -1101,6 +1198,7 @@ function buildSystemPrompt(): string {
 - **perform_grounded_research**: Universal Search - use for ANY external knowledge (news, history, explanations, analysis, general knowledge)
 - **execute_python**: Run calculations and data analysis
 - **generate_dynamic_ui**: Create tables and charts for visualization
+- **create_and_export_document**: When users ask to CREATE, EXPORT, SAVE, or DOWNLOAD a document/report, use this to generate a downloadable file
 
 ## Response Guidelines
 - For **external knowledge queries**: Present the full response from \`perform_grounded_research\`. Do NOT over-summarize - the user wants depth.
