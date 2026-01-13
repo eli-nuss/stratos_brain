@@ -1,0 +1,57 @@
+name: FVS Weekly Update (E2B)
+
+on:
+  # Run every Sunday at 6 AM UTC
+  schedule:
+    - cron: '0 6 * * 0'
+  
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      timeout_hours:
+        description: 'Sandbox timeout in hours (max 24)'
+        required: false
+        type: string
+        default: '8'
+
+jobs:
+  fvs-weekly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30  # GitHub Action timeout (just for setup)
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install E2B SDK
+        run: pip install e2b-code-interpreter
+      
+      - name: Run FVS Weekly Update in E2B Sandbox
+        env:
+          E2B_API_KEY: ${{ secrets.E2B_API_KEY }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          SUPABASE_URL: https://wfogbaipiqootjrsprde.supabase.co
+        run: |
+          # Weekly update: process all unscored equities (no limit )
+          # The script automatically skips recently scored symbols
+          TIMEOUT="${{ inputs.timeout_hours }}"
+          if [ -z "$TIMEOUT" ]; then
+            TIMEOUT="8"
+          fi
+          
+          echo "Running weekly FVS update (all unscored equities)"
+          python scripts/e2b_fvs_runner.py --timeout-hours $TIMEOUT
+      
+      - name: Summary
+        if: always()
+        run: |
+          echo "## FVS Weekly Update Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Mode**: Process all unscored equities" >> $GITHUB_STEP_SUMMARY
+          echo "- **Timeout**: ${{ inputs.timeout_hours || '8' }} hours" >> $GITHUB_STEP_SUMMARY
