@@ -627,19 +627,38 @@ export default function InvestorWatchlist() {
                               </div>
                             </div>
                             
-                            {/* Performance */}
-                            <div className="text-right flex-shrink-0">
-                              {investor.performance_1y != null ? (
+                            {/* Performance - 1Y, 3Y, 5Y */}
+                            <div className="flex gap-3 flex-shrink-0">
+                              <div className="text-center">
                                 <div className={cn(
-                                  "text-xs font-mono font-medium",
-                                  investor.performance_1y > 0 ? "text-emerald-400" : "text-red-400"
+                                  "text-[11px] font-mono font-medium",
+                                  investor.performance_1y != null && investor.performance_1y > 0 ? "text-emerald-400" : 
+                                  investor.performance_1y != null && investor.performance_1y < 0 ? "text-red-400" : "text-slate-600"
                                 )}>
-                                  {investor.performance_1y > 0 ? '+' : ''}{investor.performance_1y.toFixed(1)}%
+                                  {investor.performance_1y != null ? `${investor.performance_1y > 0 ? '+' : ''}${investor.performance_1y.toFixed(1)}%` : '-'}
                                 </div>
-                              ) : (
-                                <div className="text-[10px] text-slate-600">-</div>
-                              )}
-                              <div className="text-[10px] text-slate-600">1Y</div>
+                                <div className="text-[9px] text-slate-600">1Y</div>
+                              </div>
+                              <div className="text-center">
+                                <div className={cn(
+                                  "text-[11px] font-mono font-medium",
+                                  investor.performance_3y != null && investor.performance_3y > 0 ? "text-emerald-400" : 
+                                  investor.performance_3y != null && investor.performance_3y < 0 ? "text-red-400" : "text-slate-600"
+                                )}>
+                                  {investor.performance_3y != null ? `${investor.performance_3y > 0 ? '+' : ''}${investor.performance_3y.toFixed(1)}%` : '-'}
+                                </div>
+                                <div className="text-[9px] text-slate-600">3Y</div>
+                              </div>
+                              <div className="text-center">
+                                <div className={cn(
+                                  "text-[11px] font-mono font-medium",
+                                  investor.performance_5y != null && investor.performance_5y > 0 ? "text-emerald-400" : 
+                                  investor.performance_5y != null && investor.performance_5y < 0 ? "text-red-400" : "text-slate-600"
+                                )}>
+                                  {investor.performance_5y != null ? `${investor.performance_5y > 0 ? '+' : ''}${investor.performance_5y.toFixed(1)}%` : '-'}
+                                </div>
+                                <div className="text-[9px] text-slate-600">5Y</div>
+                              </div>
                             </div>
                             
                             {/* Actions */}
