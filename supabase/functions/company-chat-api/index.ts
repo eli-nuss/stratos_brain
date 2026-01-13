@@ -3751,6 +3751,135 @@ serve(async (req: Request) => {
         })
       }
 
+      // POST /chats/:chatId/summarize - Summarize entire chat into a document
+      case req.method === 'POST' && /^\/chats\/[a-f0-9-]+\/summarize$/.test(path): {
+        const chatIdMatch = path.match(/^\/chats\/([a-f0-9-]+)\/summarize$/)
+        if (!chatIdMatch) {
+          return new Response(JSON.stringify({ error: 'Invalid chat ID' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        const chatId = chatIdMatch[1]
+        
+        // Get chat info for asset context
+        const { data: chat, error: chatError } = await supabase
+          .from('company_chats')
+          .select('*')
+          .eq('chat_id', chatId)
+          .single()
+        
+        if (chatError || !chat) {
+          return new Response(JSON.stringify({ error: 'Chat not found' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Get all messages from the chat
+        const { data: messages, error: messagesError } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .eq('chat_id', chatId)
+          .order('sequence_num', { ascending: true })
+        
+        if (messagesError) throw messagesError
+        
+        if (!messages || messages.length === 0) {
+          return new Response(JSON.stringify({ error: 'No messages to summarize' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Build conversation transcript
+        const transcript = messages.map(m => {
+          const role = m.role === 'user' ? 'User' : 'Stratos Brain'
+          return `**${role}:** ${m.content}`
+        }).join('\n\n---\n\n')
+        
+        // Call Gemini to summarize
+        const summarizePrompt = `You are a financial research assistant. Below is a conversation between a user and Stratos Brain (an AI financial analyst) about ${chat.display_name || 'a company'}.
+
+Your task is to create a comprehensive, well-structured document that summarizes ALL the key information, insights, analysis, and conclusions from this conversation.
+
+**Requirements:**
+1. Create a professional document with clear sections and headers
+2. Include ALL important data points, numbers, and metrics discussed
+3. Preserve any tables, charts descriptions, or structured data
+4. Include key insights and recommendations
+5. Add a brief executive summary at the top
+6. Format in clean Markdown
+7. Title the document: "${chat.display_name || 'Company'} Research Summary"
+
+**Conversation Transcript:**
+
+${transcript}
+
+---
+
+Now create the comprehensive summary document:`
+
+        const geminiResponse = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ role: 'user', parts: [{ text: summarizePrompt }] }],
+              generationConfig: {
+                temperature: 0.3,
+                maxOutputTokens: 8192
+              }
+            })
+          }
+        )
+        
+        if (!geminiResponse.ok) {
+          throw new Error(`Gemini API error: ${geminiResponse.status}`)
+        }
+        
+        const geminiData = await geminiResponse.json()
+        const summaryContent = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || 'Failed to generate summary'
+        
+        // Extract title from the summary (first heading or first line)
+        const titleMatch = summaryContent.match(/^#\s+(.+)$/m) || summaryContent.match(/^\*\*(.+?)\*\*/m)
+        const title = titleMatch ? titleMatch[1].replace(/[#*]/g, '').trim() : `${chat.display_name || 'Company'} Research Summary`
+        
+        // Save to storage
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+        const fileName = `chat_summary_${timestamp}.md`
+        const storagePath = `chat_exports/${chat.asset_id}/${fileName}`
+        
+        const { error: uploadError } = await supabase.storage
+          .from('asset-files')
+          .upload(storagePath, new Blob([summaryContent], { type: 'text/markdown' }), {
+            contentType: 'text/markdown',
+            upsert: true
+          })
+        
+        if (uploadError) {
+          console.error('Storage upload error:', uploadError)
+        }
+        
+        // Get public URL
+        const { data: urlData } = supabase.storage
+          .from('asset-files')
+          .getPublicUrl(storagePath)
+        
+        return new Response(JSON.stringify({
+          success: true,
+          title,
+          content: summaryContent,
+          storage_path: storagePath,
+          public_url: urlData?.publicUrl,
+          asset_id: chat.asset_id,
+          display_name: chat.display_name
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
       default:
         return new Response(JSON.stringify({ error: 'Not found' }), {
           status: 404,

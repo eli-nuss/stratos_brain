@@ -296,6 +296,8 @@ export function BrainChatInterface({ chat, onRefresh }: BrainChatInterfaceProps)
   const { messages, isLoading: messagesLoading, refresh: refreshMessages } = useBrainMessages(chat.chat_id);
   const [input, setInput] = useState('');
   const [isClearingChat, setIsClearingChat] = useState(false);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [summaryResult, setSummaryResult] = useState<{ title: string; content: string; public_url?: string } | null>(null);
   // Optimistic user message - shown immediately while waiting for job to complete
   const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -362,6 +364,80 @@ export function BrainChatInterface({ chat, onRefresh }: BrainChatInterfaceProps)
     }
   };
 
+  const handleSummarizeChat = async () => {
+    if (messages.length === 0) return;
+    
+    setIsSummarizing(true);
+    setSummaryResult(null);
+    
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/global-chat-api/chats/${chat.chat_id}/summarize`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': userId || '',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to summarize chat');
+      }
+      
+      const data = await response.json();
+      setSummaryResult(data);
+    } catch (err) {
+      console.error('Failed to summarize chat:', err);
+      alert('Failed to generate summary. Please try again.');
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
+
+  const handleDownloadSummaryMarkdown = () => {
+    if (!summaryResult) return;
+    const blob = new Blob([summaryResult.content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${summaryResult.title.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '_')}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadSummaryPdf = () => {
+    if (!summaryResult) return;
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>${summaryResult.title}</title>
+            <style>
+              body { font-family: system-ui, -apple-system, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; line-height: 1.6; }
+              h1, h2, h3 { margin-top: 1.5em; }
+              table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+              th { background: #f5f5f5; }
+              pre { background: #f5f5f5; padding: 1em; overflow-x: auto; }
+              code { background: #f5f5f5; padding: 0.2em 0.4em; border-radius: 3px; }
+            </style>
+          </head>
+          <body>
+            <div id="content"></div>
+            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"><\/script>
+            <script>
+              document.getElementById('content').innerHTML = marked.parse(${JSON.stringify(summaryResult.content)});
+              setTimeout(() => window.print(), 500);
+            <\/script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -392,6 +468,15 @@ export function BrainChatInterface({ chat, onRefresh }: BrainChatInterfaceProps)
           </div>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
+          <button
+            onClick={handleSummarizeChat}
+            disabled={isSummarizing || messages.length === 0}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-muted-foreground hover:text-purple-500 hover:bg-purple-500/10 rounded-md transition-colors disabled:opacity-50 disabled:hover:text-muted-foreground disabled:hover:bg-transparent"
+            title="Summarize chat to document"
+          >
+            <FileDown className={cn('w-3.5 h-3.5', isSummarizing && 'animate-pulse')} />
+            <span className="hidden sm:inline">{isSummarizing ? 'Summarizing...' : 'Summarize'}</span>
+          </button>
           <button
             onClick={handleClearChat}
             disabled={isClearingChat || messages.length === 0}
@@ -516,6 +601,54 @@ export function BrainChatInterface({ chat, onRefresh }: BrainChatInterfaceProps)
         {error && (
           <div className="bg-destructive/10 border border-destructive/20 rounded-xl px-4 py-3">
             <p className="text-sm text-destructive">{error}</p>
+          </div>
+        )}
+
+        {/* Summary Result Card */}
+        {summaryResult && (
+          <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-xl p-4 max-w-2xl">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-purple-500" />
+                <div>
+                  <h4 className="font-medium text-foreground text-sm">{summaryResult.title}</h4>
+                  <p className="text-xs text-muted-foreground">Chat summary generated</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSummaryResult(null)}
+                className="text-muted-foreground hover:text-foreground p-1"
+              >
+                <XCircle className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={handleDownloadSummaryMarkdown}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-lg transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Download Markdown
+              </button>
+              <button
+                onClick={handleDownloadSummaryPdf}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-pink-500/20 hover:bg-pink-500/30 text-pink-400 rounded-lg transition-colors"
+              >
+                <FileDown className="w-3.5 h-3.5" />
+                Export as PDF
+              </button>
+              {summaryResult.public_url && (
+                <a
+                  href={summaryResult.public_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-muted hover:bg-muted/80 text-muted-foreground rounded-lg transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  View
+                </a>
+              )}
+            </div>
           </div>
         )}
 
