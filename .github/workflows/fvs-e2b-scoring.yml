@@ -1,0 +1,95 @@
+name: FVS Scoring (E2B)
+
+on:
+  # Run monthly on the 2nd at 8 AM UTC
+  schedule:
+    - cron: '0 8 2 * *'
+  
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Maximum number of equities to process (leave empty for all)'
+        required: false
+        type: string
+      symbols:
+        description: 'Specific symbols to process (space-separated)'
+        required: false
+        type: string
+      include_recent:
+        description: 'Include recently scored symbols'
+        required: false
+        type: boolean
+        default: false
+      refresh:
+        description: 'Force refresh all scores'
+        required: false
+        type: boolean
+        default: false
+      timeout_hours:
+        description: 'Sandbox timeout in hours (max 24)'
+        required: false
+        type: string
+        default: '12'
+
+jobs:
+  fvs-scoring:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30  # GitHub Action timeout (just for setup, E2B handles the long run)
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install E2B SDK
+        run: pip install e2b-code-interpreter
+      
+      - name: Run FVS Scoring in E2B Sandbox
+        env:
+          E2B_API_KEY: ${{ secrets.E2B_API_KEY }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          SUPABASE_URL: https://wfogbaipiqootjrsprde.supabase.co
+        run: |
+          # Build command arguments
+          ARGS=""
+          
+          if [ -n "${{ inputs.limit }}" ]; then
+            ARGS="$ARGS --limit ${{ inputs.limit }}"
+          fi
+          
+          if [ -n "${{ inputs.symbols }}" ]; then
+            ARGS="$ARGS --symbols '${{ inputs.symbols }}'"
+          fi
+          
+          if [ "${{ inputs.include_recent }}" = "true" ]; then
+            ARGS="$ARGS --include-recent"
+          fi
+          
+          if [ "${{ inputs.refresh }}" = "true" ]; then
+            ARGS="$ARGS --refresh"
+          fi
+          
+          TIMEOUT="${{ inputs.timeout_hours }}"
+          if [ -z "$TIMEOUT" ]; then
+            TIMEOUT="12"
+          fi
+          ARGS="$ARGS --timeout-hours $TIMEOUT"
+          
+          echo "Running E2B FVS Runner with args: $ARGS"
+          python scripts/e2b_fvs_runner.py $ARGS
+      
+      - name: Summary
+        if: always( )
+        run: |
+          echo "## FVS Scoring Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Limit**: ${{ inputs.limit || 'All equities' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Symbols**: ${{ inputs.symbols || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Include Recent**: ${{ inputs.include_recent || 'false' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Refresh**: ${{ inputs.refresh || 'false' }}" >> $GITHUB_STEP_SUMMARY
