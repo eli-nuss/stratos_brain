@@ -2441,7 +2441,8 @@ function buildSystemPrompt(
 2. **Document Library (get_company_docs)**: Read FULL SEC filings (10-K, 10-Q) and earnings transcripts. Use this for deep dives, risk analysis, finding management quotes, or understanding business strategy.
 3. **Database Functions**: Query real-time financial data, price history, technical indicators, signals, and AI reviews.
 4. **Python Sandbox (execute_python)**: Execute Python code for accurate calculations, statistical analysis, forecasts, and data processing. NumPy, Pandas, and Matplotlib are available.
-5. **Web Search**: Search for current news and real-time information not in the database.`
+5. **Web Search**: Search for current news and real-time information not in the database.
+6. **Document Export (create_and_export_document)**: When users ask you to CREATE, EXPORT, SAVE, or DOWNLOAD a document (DCF, analysis, report, summary), use this tool to save it as a downloadable file. The user will see download buttons for Markdown and PDF.`
   
   const guidelines = chatConfig.guidelines
     ? chatConfig.guidelines.replace(/{asset_id}/g, String(asset.asset_id))
@@ -2455,6 +2456,7 @@ function buildSystemPrompt(
 6. **Verify Claims**: If your memory conflicts with database/document data, ALWAYS trust the source data.
 7. **Transparency**: Be clear about data limitations and uncertainty. Cite your sources.
 8. **Actionable Insights**: End with clear takeaways or action items when appropriate.
+9. **Document Export**: When users explicitly ask to CREATE, EXPORT, SAVE, or DOWNLOAD a document, report, or analysis, use \`create_and_export_document\` to save it. This gives them download buttons for Markdown and PDF. Keywords that trigger this: "create a document", "export this", "save as PDF", "download", "make a report I can save".
 
 ## MEMORY CONSTRAINT STRATEGY (CRITICAL)
 You are running in a memory-constrained serverless environment. For complex multi-step queries:
