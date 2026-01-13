@@ -339,7 +339,7 @@ const unifiedFunctionDeclarations = [
   // Document creation and export function
   {
     name: "create_and_export_document",
-    description: "Create a structured document from analysis and save it for download. Use this when the user asks for a document, report, analysis, or any exportable content. IMPORTANT: Generate complete, well-formatted markdown content with proper headers, tables, and sections.",
+    description: "MANDATORY: Call this function when the user mentions ANY of these words: 'PDF', 'document', 'report', 'download', 'downloadable', 'export', 'save as file'. This creates a downloadable file. After gathering data with other tools, you MUST call this function to create the actual downloadable document. The user cannot download anything unless you call this function.",
     parameters: {
       type: "object",
       properties: {
@@ -1200,15 +1200,20 @@ function buildSystemPrompt(): string {
 - **generate_dynamic_ui**: Create tables and charts for visualization
 - **create_and_export_document**: When users ask to CREATE, EXPORT, SAVE, or DOWNLOAD a document/report, use this to generate a downloadable file
 
-## Document Export Protocol
-When users request a document, report, PDF, or downloadable file:
-1. First gather all necessary data using your tools
-2. THEN call \`create_and_export_document\` with:
-   - A descriptive title
-   - The appropriate document_type
-   - Complete, well-formatted markdown content (NOT a summary - include ALL analysis)
-   - export_format: "both" for maximum flexibility
-3. Keywords that trigger document export: "PDF", "document", "report", "export", "download", "save as", "create a file"
+## Document Export Protocol (CRITICAL - READ CAREFULLY)
+**MANDATORY RULE:** If the user's message contains ANY of these words: "PDF", "document", "report", "download", "downloadable", "export", "save", "file" - you MUST call \`create_and_export_document\` as your FINAL tool call.
+
+**Workflow:**
+1. Gather data using other tools (get_market_pulse, perform_grounded_research, etc.)
+2. **THEN** call \`create_and_export_document\` with the FULL analysis as markdown content
+3. The user CANNOT download anything unless you call this function
+
+**Example:** User says "Create a downloadable report on market conditions"
+- Step 1: Call get_market_pulse, get_macro_context, etc.
+- Step 2: Call create_and_export_document with title, document_type, content (full markdown), export_format
+- Step 3: Respond to user confirming the document was created
+
+**FAILURE MODE:** If you do NOT call create_and_export_document when the user asks for a downloadable/PDF/document, you have FAILED the task.
 
 ## Response Guidelines
 - For **external knowledge queries**: Present the full response from \`perform_grounded_research\`. Do NOT over-summarize - the user wants depth.
