@@ -461,10 +461,10 @@ export default function InvestorWatchlist() {
                 {consensusList.length > 0 ? (
                   <div className="overflow-x-auto rounded-lg border border-slate-800">
                     <table className="w-full text-sm text-left text-slate-300">
-                      <thead className="bg-slate-950 text-slate-400 uppercase text-xs">
+                      <thead className="bg-slate-950 text-slate-500 uppercase text-xs font-medium tracking-wider">
                         <tr>
                           <th className="px-3 py-3">Ticker</th>
-                          <th className="px-3 py-3 text-center">Investors</th>
+                          <th className="px-3 py-3 text-center align-middle">Investors</th>
                           <th className="px-3 py-3 text-right">Avg Weight</th>
                           <th className="px-3 py-3 text-right">Total Invested</th>
                           <th className="px-3 py-3 text-right">MC</th>
@@ -509,7 +509,7 @@ export default function InvestorWatchlist() {
                                   <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                                 </span>
                               </td>
-                              <td className="px-3 py-3 text-center relative">
+                              <td className="px-3 py-3 text-center align-middle relative">
                                 <div 
                                   className="inline-block relative"
                                   onMouseEnter={() => setTooltipVisible(stock.symbol)}
