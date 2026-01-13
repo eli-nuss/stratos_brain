@@ -341,7 +341,8 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
           )}
 
           {/* Optimistic User Message - shown immediately while waiting for response */}
-          {pendingUserMessage && (isSending || isProcessing) && (
+          {/* Only show if the message hasn't been saved to DB yet (not in messages array) */}
+          {pendingUserMessage && (isSending || isProcessing) && !messages.some(m => m.role === 'user' && m.content === pendingUserMessage) && (
             <div className="flex gap-3 flex-row-reverse animate-in fade-in slide-in-from-bottom-2 duration-200">
               {/* Avatar */}
               <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center">
