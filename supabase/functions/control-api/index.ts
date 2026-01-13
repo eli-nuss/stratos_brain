@@ -1064,53 +1064,40 @@ ${markdownToHtml(markdown)}
           ? (await supabase.rpc('resolve_latest_date', { asset_type_param: 'crypto' })).data
           : (await supabase.rpc('resolve_latest_date', { asset_type_param: 'equity' })).data)
         
-        // Get enriched asset data from view (category, description, market_cap)
+        // Get enriched asset data from view (sector, industry, FVS scores, market metrics)
         const { data: enrichedAsset } = await supabase
           .from('v_dashboard_all_assets')
           .select(`
-            category, short_description, market_cap,
-            pe_ratio, forward_pe, peg_ratio,
-            price_to_sales_ttm, forward_ps, psg,
-            revenue_ttm, revenue_growth_yoy,
-            profit_margin, operating_margin, roe, roa,
-            earnings_growth_yoy, beta,
-            week_52_high, week_52_low,
-            dividend_yield, ev_to_ebitda, ev_to_revenue,
-            price_to_book, eps, analyst_target_price
+            sector, industry, market_cap,
+            pe_ratio, dividend_yield, beta,
+            fvs_score, fvs_profitability, fvs_solvency, fvs_growth, fvs_moat,
+            fvs_confidence, fvs_reasoning, fvs_altman_z, piotroski_f_score
           `)
           .eq('asset_id', assetId)
-          .eq('as_of_date', targetDate)
+          .eq('price_date', targetDate)
           .limit(1)
-          .single()
+          .maybeSingle()
         
         // Merge enriched data into asset
         if (enrichedAsset) {
-          asset.category = enrichedAsset.category
-          asset.short_description = enrichedAsset.short_description
+          // Sector and industry from view
+          asset.sector = enrichedAsset.sector
+          asset.industry = enrichedAsset.industry
           asset.market_cap = enrichedAsset.market_cap
-          // Fundamental metrics
+          // Market metrics from view
           asset.pe_ratio = enrichedAsset.pe_ratio
-          asset.forward_pe = enrichedAsset.forward_pe
-          asset.peg_ratio = enrichedAsset.peg_ratio
-          asset.price_to_sales_ttm = enrichedAsset.price_to_sales_ttm
-          asset.forward_ps = enrichedAsset.forward_ps
-          asset.psg = enrichedAsset.psg
-          asset.revenue_ttm = enrichedAsset.revenue_ttm
-          asset.revenue_growth_yoy = enrichedAsset.revenue_growth_yoy
-          asset.profit_margin = enrichedAsset.profit_margin
-          asset.operating_margin = enrichedAsset.operating_margin
-          asset.roe = enrichedAsset.roe
-          asset.roa = enrichedAsset.roa
-          asset.earnings_growth_yoy = enrichedAsset.earnings_growth_yoy
-          asset.beta = enrichedAsset.beta
-          asset.week_52_high = enrichedAsset.week_52_high
-          asset.week_52_low = enrichedAsset.week_52_low
           asset.dividend_yield = enrichedAsset.dividend_yield
-          asset.ev_to_ebitda = enrichedAsset.ev_to_ebitda
-          asset.ev_to_revenue = enrichedAsset.ev_to_revenue
-          asset.price_to_book = enrichedAsset.price_to_book
-          asset.eps = enrichedAsset.eps
-          asset.analyst_target_price = enrichedAsset.analyst_target_price
+          asset.beta = enrichedAsset.beta
+          // FVS (Fundamental Vigor Score) fields
+          asset.fvs_score = enrichedAsset.fvs_score
+          asset.fvs_profitability = enrichedAsset.fvs_profitability
+          asset.fvs_solvency = enrichedAsset.fvs_solvency
+          asset.fvs_growth = enrichedAsset.fvs_growth
+          asset.fvs_moat = enrichedAsset.fvs_moat
+          asset.fvs_confidence = enrichedAsset.fvs_confidence
+          asset.fvs_reasoning = enrichedAsset.fvs_reasoning
+          asset.fvs_altman_z = enrichedAsset.fvs_altman_z
+          asset.piotroski_f_score = enrichedAsset.piotroski_f_score
         }
         
         // Get OHLCV (365 bars)
