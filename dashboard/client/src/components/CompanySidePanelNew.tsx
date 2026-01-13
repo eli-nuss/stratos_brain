@@ -5,6 +5,7 @@ import {
   Users, Building2, TrendingDown
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { FundamentalVigorScore } from './FundamentalVigorScore';
 
 // ============ TYPES ============
 
@@ -427,32 +428,42 @@ function TechnicalsTab({ aiReview, currentPrice }: { aiReview: AIReviewData | nu
   );
 }
 
-function FundamentalsTab({ fundamentals }: { fundamentals: FundamentalsData | null }) {
-  if (!fundamentals) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-zinc-500">
-        <AlertCircle className="w-8 h-8 mb-2" />
-        <span className="text-sm">No fundamental data available</span>
-      </div>
-    );
-  }
-  
+function FundamentalsTab({ fundamentals, assetId, symbol }: { fundamentals: FundamentalsData | null; assetId: number | string; symbol?: string }) {
   return (
     <div className="space-y-4">
-      {/* Valuation Context */}
-      <ValuationSparkline peRatio={fundamentals.pe_ratio} />
+      {/* Fundamental Vigor Score - NEW */}
+      {symbol && (
+        <FundamentalVigorScore 
+          assetId={assetId} 
+          symbol={symbol} 
+        />
+      )}
       
-      {/* Smart Money Flow */}
-      <SmartMoneyFlow />
+      {fundamentals && (
+        <>
+          {/* Valuation Context */}
+          <ValuationSparkline peRatio={fundamentals.pe_ratio} />
+          
+          {/* Smart Money Flow */}
+          <SmartMoneyFlow />
+          
+          {/* Peer Rank */}
+          <PeerRank />
+          
+          {/* Key Metrics */}
+          <div className="space-y-2">
+            <h3 className="text-xs text-zinc-400 uppercase tracking-wide">Key Metrics</h3>
+            <KeyMetrics fundamentals={fundamentals} />
+          </div>
+        </>
+      )}
       
-      {/* Peer Rank */}
-      <PeerRank />
-      
-      {/* Key Metrics */}
-      <div className="space-y-2">
-        <h3 className="text-xs text-zinc-400 uppercase tracking-wide">Key Metrics</h3>
-        <KeyMetrics fundamentals={fundamentals} />
-      </div>
+      {!fundamentals && !symbol && (
+        <div className="flex flex-col items-center justify-center py-12 text-zinc-500">
+          <AlertCircle className="w-8 h-8 mb-2" />
+          <span className="text-sm">No fundamental data available</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -552,7 +563,7 @@ export function CompanySidePanel({ assetId, assetType, className }: CompanySideP
         {activeTab === 'technicals' ? (
           <TechnicalsTab aiReview={aiReview} currentPrice={fundamentals?.current_price} />
         ) : (
-          <FundamentalsTab fundamentals={fundamentals} />
+          <FundamentalsTab fundamentals={fundamentals} assetId={assetId} symbol={fundamentals?.symbol} />
         )}
       </div>
     </div>

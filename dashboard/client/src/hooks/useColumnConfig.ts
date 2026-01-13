@@ -22,6 +22,7 @@ export const ALL_COLUMNS: ColumnDef[] = [
   { id: "asset", label: "Asset", tooltip: "Asset name and symbol", sortField: "symbol", minWidth: "120px", align: "left", sticky: true, stickyOffset: "64px", required: true },
   { id: "direction", label: "Dir", tooltip: "AI directional conviction (-100 to +100)", sortField: "ai_direction_score", minWidth: "70px", align: "center" },
   { id: "quality", label: "Quality", tooltip: "AI setup quality score (0-100)", sortField: "ai_setup_quality_score", minWidth: "70px", align: "center" },
+  { id: "fvs_score", label: "FVS", tooltip: "Fundamental Vigor Score (0-100) - AI-powered fundamental health assessment", sortField: "fvs_score", minWidth: "70px", align: "center", appliesTo: ["equity", "watchlist", "stocklist"] },
   { id: "market_cap", label: "Mkt Cap", tooltip: "Market capitalization", sortField: "market_cap", minWidth: "90px", align: "right" },
   { id: "price", label: "Price", tooltip: "Latest closing price", sortField: "close", minWidth: "80px", align: "right" },
   { id: "return_1d", label: "24h", tooltip: "24-hour price change", sortField: "return_1d", minWidth: "70px", align: "right" },
@@ -45,9 +46,9 @@ export const ALL_COLUMNS: ColumnDef[] = [
 // Default visible columns for each table type
 export const DEFAULT_VISIBLE_COLUMNS: Record<string, string[]> = {
   crypto: ["actions", "asset", "direction", "quality", "market_cap", "price", "return_1d", "return_7d", "return_30d", "return_365d", "volume_7d", "volume_30d", "category", "description", "notes"],
-  equity: ["actions", "asset", "direction", "quality", "market_cap", "price", "return_1d", "return_7d", "return_30d", "return_365d", "volume_7d", "volume_30d", "pe_ratio", "forward_pe", "peg_ratio", "price_to_sales", "forward_ps", "psg", "revenue_growth_yoy", "category", "description", "notes"],
-  watchlist: ["actions", "asset", "direction", "quality", "market_cap", "price", "return_1d", "return_7d", "return_30d", "return_365d", "volume_7d", "volume_30d", "pe_ratio", "forward_pe", "peg_ratio", "price_to_sales", "forward_ps", "psg", "revenue_growth_yoy", "category", "description", "notes"],
-  stocklist: ["actions", "asset", "direction", "quality", "market_cap", "price", "return_1d", "return_7d", "return_30d", "return_365d", "volume_7d", "volume_30d", "pe_ratio", "forward_pe", "peg_ratio", "price_to_sales", "forward_ps", "psg", "revenue_growth_yoy", "category", "description", "notes"],
+  equity: ["actions", "asset", "direction", "quality", "fvs_score", "market_cap", "price", "return_1d", "return_7d", "return_30d", "return_365d", "volume_7d", "volume_30d", "pe_ratio", "forward_pe", "peg_ratio", "price_to_sales", "forward_ps", "psg", "revenue_growth_yoy", "category", "description", "notes"],
+  watchlist: ["actions", "asset", "direction", "quality", "fvs_score", "market_cap", "price", "return_1d", "return_7d", "return_30d", "return_365d", "volume_7d", "volume_30d", "pe_ratio", "forward_pe", "peg_ratio", "price_to_sales", "forward_ps", "psg", "revenue_growth_yoy", "category", "description", "notes"],
+  stocklist: ["actions", "asset", "direction", "quality", "fvs_score", "market_cap", "price", "return_1d", "return_7d", "return_30d", "return_365d", "volume_7d", "volume_30d", "pe_ratio", "forward_pe", "peg_ratio", "price_to_sales", "forward_ps", "psg", "revenue_growth_yoy", "category", "description", "notes"],
 };
 
 // Default column order (same as ALL_COLUMNS order)

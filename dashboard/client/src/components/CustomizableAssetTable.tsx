@@ -609,6 +609,17 @@ export default function CustomizableAssetTable({
             {row.ai_setup_quality_score ?? "-"}
           </span>
         );
+      case "fvs_score":
+        return (
+          <span className={`font-mono text-xs ${
+            row.fvs_score >= 80 ? "text-emerald-400" :
+            row.fvs_score >= 60 ? "text-blue-400" :
+            row.fvs_score >= 40 ? "text-yellow-400" :
+            row.fvs_score >= 20 ? "text-orange-400" : "text-red-400"
+          }`}>
+            {row.fvs_score != null ? row.fvs_score.toFixed(0) : "-"}
+          </span>
+        );
       case "market_cap":
         return <span className="font-mono text-xs">{formatMarketCap(row.market_cap)}</span>;
       case "price":
