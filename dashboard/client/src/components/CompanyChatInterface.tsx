@@ -126,6 +126,8 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
   const [isRefreshingContext, setIsRefreshingContext] = useState(false);
   const [isClearingChat, setIsClearingChat] = useState(false);
   const [showFundamentals, setShowFundamentals] = useState(false);
+  // Optimistic user message - shown immediately while waiting for API response
+  const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -151,10 +153,10 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  // Scroll to bottom when new messages arrive or tool calls update
+  // Scroll to bottom when new messages arrive, tool calls update, or pending message appears
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, toolCalls]);
+  }, [messages, toolCalls, pendingUserMessage]);
 
   // Refresh messages when job completes
   useEffect(() => {
@@ -162,6 +164,8 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
       refreshMessages();
       onRefresh?.();
       resetSendState();
+      // Clear the pending message since it's now in the actual messages
+      setPendingUserMessage(null);
     }
   }, [isComplete, refreshMessages, onRefresh, resetSendState]);
 
@@ -175,6 +179,9 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
 
     const userMessage = input.trim();
     setInput('');
+    
+    // Show user message immediately (optimistic update)
+    setPendingUserMessage(userMessage);
 
     await sendMessage(userMessage);
   };
@@ -331,6 +338,25 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
             messages.map((msg) => (
               <MessageBubble key={msg.message_id} message={msg} />
             ))
+          )}
+
+          {/* Optimistic User Message - shown immediately while waiting for response */}
+          {pendingUserMessage && (isSending || isProcessing) && (
+            <div className="flex gap-3 flex-row-reverse animate-in fade-in slide-in-from-bottom-2 duration-200">
+              {/* Avatar */}
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                <User className="w-4 h-4 text-primary-foreground" />
+              </div>
+              {/* Content */}
+              <div className="flex-1 max-w-[85%] min-w-0 overflow-hidden text-right">
+                <div className="inline-block rounded-2xl px-4 py-3 text-left bg-primary text-primary-foreground rounded-br-sm">
+                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{pendingUserMessage}</p>
+                </div>
+                <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground justify-end">
+                  <span>Just now</span>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* AI Thinking Indicator with Real-time Tool Progress */}
