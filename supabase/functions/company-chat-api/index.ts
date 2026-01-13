@@ -3795,8 +3795,10 @@ serve(async (req: Request) => {
         // Build conversation transcript
         const transcript = messages.map(m => {
           const role = m.role === 'user' ? 'User' : 'Stratos Brain'
-          return `**${role}:** ${m.content}`
+          return `**${role}:** ${m.content || '[No content]'}`
         }).join('\n\n---\n\n')
+        
+        console.log(`Summarizing chat ${chatId} with ${messages.length} messages, transcript length: ${transcript.length}`)
         
         // Call Gemini to summarize
         const summarizePrompt = `You are a financial research assistant. Below is a conversation between a user and Stratos Brain (an AI financial analyst) about ${chat.display_name || 'a company'}.
@@ -3836,11 +3838,20 @@ Now create the comprehensive summary document:`
         )
         
         if (!geminiResponse.ok) {
-          throw new Error(`Gemini API error: ${geminiResponse.status}`)
+          const errorText = await geminiResponse.text()
+          console.error('Gemini API error:', geminiResponse.status, errorText)
+          throw new Error(`Gemini API error: ${geminiResponse.status} - ${errorText.substring(0, 200)}`)
         }
         
         const geminiData = await geminiResponse.json()
-        const summaryContent = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || 'Failed to generate summary'
+        console.log('Gemini response:', JSON.stringify(geminiData).substring(0, 500))
+        
+        if (!geminiData.candidates?.[0]?.content?.parts?.[0]?.text) {
+          console.error('No content in Gemini response:', geminiData)
+          throw new Error('Gemini returned empty response')
+        }
+        
+        const summaryContent = geminiData.candidates[0].content.parts[0].text
         
         // Extract title from the summary (first heading or first line)
         const titleMatch = summaryContent.match(/^#\s+(.+)$/m) || summaryContent.match(/^\*\*(.+?)\*\*/m)
