@@ -289,6 +289,8 @@
                                                                                             | `fundamental_snapshot` | Monthly pre-calculated fundamentals | `asset_id`, `snapshot_date`, `pe_ratio`, `pb_ratio` |
                                                                                             | `fundamental_score_history` | Historical score tracking | `asset_id`, `score_date`, `composite_score` |
                                                                                             | `daily_macro_metrics` | Macro-economic indicators | `date`, `vix`, `dxy`, `treasury_yields` |
+| `fundamental_vigor_scores` | AI-powered FVS scores | `asset_id`, `as_of_date`, `final_score`, `profitability_score`, `solvency_score`, `growth_score`, `moat_score` |
+| `fvs_calculation_inputs` | FVS calculation audit trail | `asset_id`, `as_of_date`, `quantitative_metrics` |
                                                                                          
                                                                                             ### 5.6 Signal & Engine Tables
                                                                                          
