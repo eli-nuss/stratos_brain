@@ -46,6 +46,14 @@ DB_PORT = os.environ.get('DB_PORT', '5432')
 # FVS API
 SUPABASE_URL = os.environ.get('SUPABASE_URL', 'https://wfogbaipiqootjrsprde.supabase.co')
 FVS_API_URL = os.environ.get('FVS_API_URL', f'{SUPABASE_URL}/functions/v1/fvs-api')
+SUPABASE_ANON_KEY = os.environ.get('SUPABASE_ANON_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indmb2diYWlwaXFvb3RqcnNwcmRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxOTQ4NDQsImV4cCI6MjA4MTc3MDg0NH0.DWjb0nVian7a9njxbGR9VjAsWQuWuHI375PgEHH1TRw')
+
+# API Headers for authentication
+API_HEADERS = {
+    'Authorization': f'Bearer {SUPABASE_ANON_KEY}',
+    'apikey': SUPABASE_ANON_KEY,
+    'Content-Type': 'application/json'
+}
 
 # Rate limiting
 BATCH_SIZE = 3  # Process 3 symbols at a time (Edge Function limit is 5)
@@ -165,7 +173,7 @@ def call_fvs_api(symbols: List[str], refresh: bool = False) -> Dict[str, Any]:
     
     for attempt in range(MAX_RETRIES):
         try:
-            response = requests.get(url, timeout=120)
+            response = requests.get(url, headers=API_HEADERS, timeout=120)
             
             if response.status_code == 200:
                 return response.json()
@@ -192,7 +200,7 @@ def call_fvs_api(symbols: List[str], refresh: bool = False) -> Dict[str, Any]:
 def check_api_health() -> bool:
     """Check if the FVS API is healthy."""
     try:
-        response = requests.get(f"{FVS_API_URL}/health", timeout=10)
+        response = requests.get(f"{FVS_API_URL}/health", headers=API_HEADERS, timeout=10)
         if response.status_code == 200:
             health = response.json()
             logger.info(f"FVS API healthy: {health}")
