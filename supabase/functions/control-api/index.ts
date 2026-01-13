@@ -1065,6 +1065,7 @@ ${markdownToHtml(markdown)}
           : (await supabase.rpc('resolve_latest_date', { asset_type_param: 'equity' })).data)
         
         // Get enriched asset data from view (sector, industry, FVS scores, market metrics)
+        // Use latest available date for FVS data (no date filter) to ensure we get the most recent scores
         const { data: enrichedAsset } = await supabase
           .from('v_dashboard_all_assets')
           .select(`
@@ -1074,7 +1075,7 @@ ${markdownToHtml(markdown)}
             fvs_confidence, fvs_reasoning, fvs_altman_z, piotroski_f_score
           `)
           .eq('asset_id', assetId)
-          .eq('price_date', targetDate)
+          .order('price_date', { ascending: false })
           .limit(1)
           .maybeSingle()
         
