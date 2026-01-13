@@ -146,21 +146,30 @@ export interface JobCreatedResponse {
 
 // Hook to list all company chats for the current user
 export function useCompanyChats() {
-  const { user, session } = useAuth();
+  const { user, session, loading: authLoading } = useAuth();
   const userId = user?.id || null;
   const accessToken = session?.access_token || null;
   
+  // IMPORTANT: Don't fetch until auth is loaded to prevent showing public chats briefly
+  // When userId is null during auth loading, the API returns legacy/public chats
+  // We only want to fetch when we have a valid userId OR auth has finished loading (user is not logged in)
+  const shouldFetch = !authLoading && userId !== null;
+  
   const { data, error, isLoading, mutate } = useSWR<{ chats: CompanyChat[] }>(
-    '/api/company-chat-api/chats',
+    // Only create the SWR key when we should fetch - null key means no fetch
+    shouldFetch ? `/api/company-chat-api/chats?user=${userId}` : null,
     createFetcher(userId, accessToken),
     {
       refreshInterval: 30000, // Refresh every 30 seconds
+      revalidateOnFocus: true,
+      dedupingInterval: 2000, // Prevent duplicate requests within 2 seconds
     }
   );
 
   return {
     chats: data?.chats || [],
-    isLoading,
+    // Show loading if auth is still loading OR if we're fetching chats
+    isLoading: authLoading || isLoading,
     error,
     refresh: mutate,
   };
@@ -168,18 +177,21 @@ export function useCompanyChats() {
 
 // Hook to get a single chat's details
 export function useCompanyChat(chatId: string | null) {
-  const { user, session } = useAuth();
+  const { user, session, loading: authLoading } = useAuth();
   const userId = user?.id || null;
   const accessToken = session?.access_token || null;
   
+  // Wait for auth to load before fetching
+  const shouldFetch = !authLoading && chatId !== null;
+  
   const { data, error, isLoading, mutate } = useSWR<CompanyChat>(
-    chatId ? `/api/company-chat-api/chats/${chatId}` : null,
+    shouldFetch ? `/api/company-chat-api/chats/${chatId}` : null,
     createFetcher(userId, accessToken)
   );
 
   return {
     chat: data,
-    isLoading,
+    isLoading: authLoading || isLoading,
     error,
     refresh: mutate,
   };
@@ -187,16 +199,19 @@ export function useCompanyChat(chatId: string | null) {
 
 // Hook to get messages for a chat
 export function useChatMessages(chatId: string | null, limit = 50) {
-  const { user, session } = useAuth();
+  const { user, session, loading: authLoading } = useAuth();
   const userId = user?.id || null;
   const accessToken = session?.access_token || null;
+  
+  // Wait for auth to load before fetching
+  const shouldFetch = !authLoading && chatId !== null;
   
   const { data, error, isLoading, mutate } = useSWR<{
     messages: ChatMessage[];
     total: number;
     has_more: boolean;
   }>(
-    chatId ? `/api/company-chat-api/chats/${chatId}/messages?limit=${limit}` : null,
+    shouldFetch ? `/api/company-chat-api/chats/${chatId}/messages?limit=${limit}` : null,
     createFetcher(userId, accessToken),
     {
       refreshInterval: 0, // Don't auto-refresh, we'll manually update
