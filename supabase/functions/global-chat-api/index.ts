@@ -1200,6 +1200,16 @@ function buildSystemPrompt(): string {
 - **generate_dynamic_ui**: Create tables and charts for visualization
 - **create_and_export_document**: When users ask to CREATE, EXPORT, SAVE, or DOWNLOAD a document/report, use this to generate a downloadable file
 
+## Document Export Protocol
+When users request a document, report, PDF, or downloadable file:
+1. First gather all necessary data using your tools
+2. THEN call \`create_and_export_document\` with:
+   - A descriptive title
+   - The appropriate document_type
+   - Complete, well-formatted markdown content (NOT a summary - include ALL analysis)
+   - export_format: "both" for maximum flexibility
+3. Keywords that trigger document export: "PDF", "document", "report", "export", "download", "save as", "create a file"
+
 ## Response Guidelines
 - For **external knowledge queries**: Present the full response from \`perform_grounded_research\`. Do NOT over-summarize - the user wants depth.
 - For **hybrid queries** (news + market impact): First explain the situation thoroughly, THEN layer on market data.
