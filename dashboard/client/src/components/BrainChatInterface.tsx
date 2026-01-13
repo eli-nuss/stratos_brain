@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Brain, RefreshCw, ChevronRight, Bot, User, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { Send, Loader2, Brain, RefreshCw, ChevronRight, ChevronDown, Bot, User, Trash2, CheckCircle, XCircle, Search, Code, Database, Globe, FileText, Wrench, Download, FileDown, ExternalLink } from 'lucide-react';
 import {
   useBrainMessages,
   useSendBrainMessage,
@@ -16,6 +16,69 @@ import { cn } from '@/lib/utils';
 interface BrainChatInterfaceProps {
   chat: BrainChat;
   onRefresh?: () => void;
+}
+
+// Expandable tool call component for real-time progress
+function ExpandableToolCall({ toolCall }: { toolCall: { tool_name: string; status: 'started' | 'completed' | 'failed'; timestamp: string; data?: unknown } }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const hasData = toolCall.data && Object.keys(toolCall.data as object).length > 0;
+  
+  // Get icon based on tool name
+  const getToolIcon = (name: string) => {
+    if (name.includes('search') || name.includes('google') || name.includes('screen')) return <Search className="w-3 h-3" />;
+    if (name.includes('python') || name.includes('code') || name.includes('execute')) return <Code className="w-3 h-3" />;
+    if (name.includes('database') || name.includes('query') || name.includes('get_') || name.includes('fundamentals')) return <Database className="w-3 h-3" />;
+    if (name.includes('web') || name.includes('browse') || name.includes('grounded')) return <Globe className="w-3 h-3" />;
+    if (name.includes('document') || name.includes('export')) return <FileText className="w-3 h-3" />;
+    return <Wrench className="w-3 h-3" />;
+  };
+  
+  // Format tool name for display
+  const formatToolName = (name: string) => {
+    return name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+  
+  // Get status icon
+  const getStatusDisplay = () => {
+    switch (toolCall.status) {
+      case 'started':
+        return <Loader2 className="w-3 h-3 animate-spin text-purple-500" />;
+      case 'completed':
+        return <CheckCircle className="w-3 h-3 text-green-500" />;
+      case 'failed':
+        return <XCircle className="w-3 h-3 text-red-500" />;
+    }
+  };
+  
+  return (
+    <div className="border-l-2 border-purple-500/30 pl-2 py-1">
+      <button
+        onClick={() => hasData && setIsExpanded(!isExpanded)}
+        className={cn(
+          "flex items-center gap-2 w-full text-left",
+          hasData && "cursor-pointer hover:bg-muted/50 rounded px-1 -mx-1"
+        )}
+        disabled={!hasData}
+      >
+        <span className="text-muted-foreground">{getToolIcon(toolCall.tool_name)}</span>
+        <span className="text-xs text-foreground/80 flex-1 truncate">
+          {formatToolName(toolCall.tool_name)}
+        </span>
+        {getStatusDisplay()}
+        {hasData && (
+          isExpanded ? <ChevronDown className="w-3 h-3 text-muted-foreground" /> : <ChevronRight className="w-3 h-3 text-muted-foreground" />
+        )}
+      </button>
+      
+      {isExpanded && hasData && (
+        <div className="mt-1.5 ml-5 p-2 bg-muted/30 rounded text-xs">
+          <pre className="whitespace-pre-wrap text-muted-foreground overflow-x-auto">
+            {JSON.stringify(toolCall.data, null, 2)}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // Individual message component
@@ -65,6 +128,118 @@ function MessageBubble({ message }: { message: BrainMessage }) {
               return (
                 <div key={`ui-${idx}`} className="w-full max-w-2xl mb-3">
                   <GenerativeUIRenderer toolCall={result.ui_component as { componentType: string; title: string; data: unknown; insight?: string }} />
+                </div>
+              );
+            }
+          }
+          // Document Export Card - shown when AI creates a document
+          if (tool.name === 'create_and_export_document' && tool.result) {
+            const result = tool.result as {
+              document_created?: {
+                success: boolean;
+                title: string;
+                document_type: string;
+                markdown_url?: string;
+                message: string;
+              };
+              download_data?: {
+                title: string;
+                content: string;
+                markdown_url?: string;
+                export_format: string;
+              };
+            };
+            if (result.document_created?.success && result.download_data) {
+              const { title, content, markdown_url, export_format } = result.download_data;
+              
+              const handleDownloadMarkdown = () => {
+                const blob = new Blob([content], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${title.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '_')}.md`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+              };
+              
+              const handleDownloadPdf = async () => {
+                // Use browser print to PDF as a simple solution
+                const printWindow = window.open('', '_blank');
+                if (printWindow) {
+                  printWindow.document.write(`
+                    <html>
+                      <head>
+                        <title>${title}</title>
+                        <style>
+                          body { font-family: system-ui, -apple-system, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; line-height: 1.6; }
+                          h1, h2, h3 { margin-top: 1.5em; }
+                          table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+                          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                          th { background: #f5f5f5; }
+                          pre { background: #f5f5f5; padding: 1em; overflow-x: auto; }
+                          code { background: #f5f5f5; padding: 2px 4px; }
+                        </style>
+                      </head>
+                      <body>
+                        <div id="content"></div>
+                        <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+                        <script>
+                          document.getElementById('content').innerHTML = marked.parse(${JSON.stringify(content)});
+                          setTimeout(() => window.print(), 500);
+                        </script>
+                      </body>
+                    </html>
+                  `);
+                  printWindow.document.close();
+                }
+              };
+              
+              return (
+                <div key={`doc-${idx}`} className="w-full max-w-md mb-3">
+                  <div className="bg-gradient-to-br from-purple-500/5 to-pink-500/10 border border-purple-500/20 rounded-xl p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-purple-500/10 rounded-lg">
+                        <FileText className="w-5 h-5 text-purple-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-sm text-foreground truncate">{title}</h4>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {result.document_created.document_type.charAt(0).toUpperCase() + result.document_created.document_type.slice(1)} • Ready to download
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 mt-3">
+                      <button
+                        onClick={handleDownloadMarkdown}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-background hover:bg-muted border border-border rounded-lg transition-colors"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        Markdown
+                      </button>
+                      {(export_format === 'pdf' || export_format === 'both') && (
+                        <button
+                          onClick={handleDownloadPdf}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-background hover:bg-muted border border-border rounded-lg transition-colors"
+                        >
+                          <FileDown className="w-3.5 h-3.5" />
+                          PDF
+                        </button>
+                      )}
+                      {markdown_url && (
+                        <a
+                          href={markdown_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-500 hover:bg-purple-500/10 rounded-lg transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          View
+                        </a>
+                      )}
+                    </div>
+                  </div>
                 </div>
               );
             }
@@ -121,6 +296,8 @@ export function BrainChatInterface({ chat, onRefresh }: BrainChatInterfaceProps)
   const { messages, isLoading: messagesLoading, refresh: refreshMessages } = useBrainMessages(chat.chat_id);
   const [input, setInput] = useState('');
   const [isClearingChat, setIsClearingChat] = useState(false);
+  // Optimistic user message - shown immediately while waiting for job to complete
+  const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -135,10 +312,10 @@ export function BrainChatInterface({ chat, onRefresh }: BrainChatInterfaceProps)
     isRecovering,
   } = useSendBrainMessage(chat.chat_id);
 
-  // Scroll to bottom when new messages arrive or tool calls update
+  // Scroll to bottom when new messages arrive, tool calls update, or optimistic message appears
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, toolCalls]);
+  }, [messages, toolCalls, pendingUserMessage]);
 
   // Refresh messages when job completes
   useEffect(() => {
@@ -146,6 +323,8 @@ export function BrainChatInterface({ chat, onRefresh }: BrainChatInterfaceProps)
       refreshMessages();
       onRefresh?.();
       resetSendState();
+      // Clear optimistic message when job completes
+      setPendingUserMessage(null);
     }
   }, [isComplete, refreshMessages, onRefresh, resetSendState]);
 
@@ -159,6 +338,9 @@ export function BrainChatInterface({ chat, onRefresh }: BrainChatInterfaceProps)
 
     const userMessage = input.trim();
     setInput('');
+    
+    // Show optimistic user message immediately
+    setPendingUserMessage(userMessage);
 
     await sendMessage(userMessage);
   };
@@ -272,6 +454,25 @@ export function BrainChatInterface({ chat, onRefresh }: BrainChatInterfaceProps)
           ))
         )}
 
+        {/* Optimistic User Message - shown immediately while waiting for job */}
+        {pendingUserMessage && (isSending || isProcessing) && (
+          <div className="flex gap-3 flex-row-reverse animate-in fade-in slide-in-from-bottom-2 duration-200">
+            {/* Avatar */}
+            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+              <User className="w-4 h-4 text-primary-foreground" />
+            </div>
+            {/* Content */}
+            <div className="flex-1 max-w-[85%] min-w-0 overflow-hidden text-right">
+              <div className="inline-block rounded-2xl px-4 py-3 text-left bg-primary text-primary-foreground rounded-br-sm">
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">{pendingUserMessage}</p>
+              </div>
+              <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground justify-end">
+                <span>Just now</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* AI Thinking Indicator with Real-time Tool Progress */}
         {(isSending || isProcessing) && (
           <div className="flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -289,25 +490,22 @@ export function BrainChatInterface({ chat, onRefresh }: BrainChatInterfaceProps)
                   {isRecovering ? 'Reconnecting...' : isProcessing ? 'Analyzing...' : 'Starting...'}
                 </span>
               </div>
-              {/* Real-time tool execution progress */}
+              {/* Real-time tool execution progress - expandable */}
               {toolCalls && toolCalls.length > 0 && (
                 <div className="space-y-1.5 border-t border-border/50 pt-2 mt-2">
-                  {toolCalls.map((tc, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-xs">
-                      {tc.status === 'started' && (
-                        <Loader2 className="w-3 h-3 animate-spin text-purple-500" />
-                      )}
-                      {tc.status === 'completed' && (
-                        <CheckCircle className="w-3 h-3 text-green-500" />
-                      )}
-                      {tc.status === 'failed' && (
-                        <XCircle className="w-3 h-3 text-destructive" />
-                      )}
-                      <span className="text-muted-foreground">
-                        {tc.tool_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </span>
-                    </div>
-                  ))}
+                  {/* Consolidate tool calls by name - show only the latest status for each tool */}
+                  {(() => {
+                    const consolidated = new Map<string, typeof toolCalls[0]>();
+                    toolCalls.forEach((tc) => {
+                      const existing = consolidated.get(tc.tool_name);
+                      if (!existing || new Date(tc.timestamp) > new Date(existing.timestamp)) {
+                        consolidated.set(tc.tool_name, tc);
+                      }
+                    });
+                    return Array.from(consolidated.values()).map((tc, idx) => (
+                      <ExpandableToolCall key={`${tc.tool_name}-${idx}`} toolCall={tc} />
+                    ));
+                  })()}
                 </div>
               )}
             </div>
