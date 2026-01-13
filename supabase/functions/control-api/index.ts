@@ -1290,26 +1290,16 @@ ${markdownToHtml(markdown)}
         const maxMarketCap = url.searchParams.get('max_market_cap')
         const industry = url.searchParams.get('industry')
         
+        // Use materialized view for fast queries (v_dashboard_all_assets times out)
+        // Note: mv_dashboard_all_assets doesn't have as_of_date, universe_id, or config_id columns
         let query = supabase
-          .from('v_dashboard_all_assets')
+          .from('mv_dashboard_all_assets')
           .select('*', { count: 'exact' })
           .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1)
-          
-        if (asOfDate) {
-          query = query.eq('as_of_date', asOfDate)
-        }
         
-        if (universeId) {
-          query = query.eq('universe_id', universeId)
-        }
-        
-        // Filter by asset type (equity or crypto)
+        // Filter by asset type (equity or crypto) - this is the main filter
         if (assetType) {
           query = query.eq('asset_type', assetType)
-        }
-        
-        if (configId) {
-          query = query.eq('config_id', configId)
         }
         
         // Optional search by symbol
