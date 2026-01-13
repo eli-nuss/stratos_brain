@@ -704,6 +704,11 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
               <th className="px-2 py-2 font-medium text-center">
                 <SortHeader field="ai_setup_quality_score" tooltip="AI setup quality score (0-100)">Quality</SortHeader>
               </th>
+              {assetType === "equity" && (
+                <th className="px-2 py-2 font-medium text-center">
+                  <SortHeader field="fvs_score" tooltip="Fundamental Vigor Score (0-100) - AI-powered analysis of profitability, solvency, growth, and moat">FVS</SortHeader>
+                </th>
+              )}
               <th className="px-2 py-2 font-medium text-center">
                 <SortHeader field="market_cap" tooltip="Market capitalization">Mkt Cap</SortHeader>
               </th>
@@ -768,9 +773,9 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={assetType === "equity" ? (showWatchlistColumn ? 22 : 21) : (showWatchlistColumn ? 16 : 15)} className="px-2 py-4 text-center text-muted-foreground">Loading...</td></tr>
+              <tr><td colSpan={assetType === "equity" ? (showWatchlistColumn ? 23 : 22) : (showWatchlistColumn ? 16 : 15)} className="px-2 py-4 text-center text-muted-foreground">Loading...</td></tr>
             ) : filteredData.length === 0 ? (
-              <tr><td colSpan={assetType === "equity" ? (showWatchlistColumn ? 22 : 21) : (showWatchlistColumn ? 16 : 15)} className="px-2 py-4 text-center text-muted-foreground">No assets match your filters</td></tr>
+              <tr><td colSpan={assetType === "equity" ? (showWatchlistColumn ? 23 : 22) : (showWatchlistColumn ? 16 : 15)} className="px-2 py-4 text-center text-muted-foreground">No assets match your filters</td></tr>
             ) : (
               filteredData.map((row) => (
                 <tr key={row.asset_id} className="border-b border-border hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => onAssetClick(row.asset_id)}>
@@ -807,6 +812,17 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
                       {row.ai_setup_quality_score ?? "-"}
                     </span>
                   </td>
+                  {assetType === "equity" && (
+                    <td className="px-2 py-2 text-center">
+                      <span className={`font-mono text-xs ${
+                        row.fvs_score >= 80 ? "text-signal-bullish" :
+                        row.fvs_score >= 60 ? "text-yellow-400" :
+                        row.fvs_score >= 40 ? "text-orange-400" : "text-muted-foreground"
+                      }`}>
+                        {row.fvs_score != null ? row.fvs_score.toFixed(0) : "-"}
+                      </span>
+                    </td>
+                  )}
                   <td className="px-2 py-2 text-right font-mono text-xs">
                     {formatMarketCap(row.market_cap)}
                   </td>
