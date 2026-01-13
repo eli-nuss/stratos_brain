@@ -9,6 +9,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || ''
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
 const GEMINI_MODEL = 'gemini-3-pro-preview'
+const API_VERSION = 'v2025.01.13.1' // Version for debugging deployments
 const GOOGLE_SEARCH_API_KEY = Deno.env.get('GOOGLE_SEARCH_API_KEY') || ''
 const GOOGLE_SEARCH_CX = Deno.env.get('GOOGLE_SEARCH_CX') || ''
 const E2B_API_KEY = Deno.env.get('E2B_API_KEY') || ''
@@ -1172,7 +1173,7 @@ async function executeFunctionCall(
 function buildSystemPrompt(): string {
   const today = new Date().toISOString().split('T')[0]
   
-  return `You are **Stratos Brain**, an autonomous financial research engine.
+  return `You are **Stratos Brain** (API ${API_VERSION}), an autonomous financial research engine.
 **Mission:** Answer the user's question accurately, concisely, and with data.
 **Role:** You are a "High-Speed Research Desk," not a "Portfolio Manager." Do not offer unsolicited advice or macro lectures unless the user explicitly asks for an opinion/thesis.
 
@@ -1623,7 +1624,7 @@ Deno.serve(async (req: Request) => {
           
           await updateJob('completed', {
             completed_at: new Date().toISOString(),
-            result: { message_id: assistantMessage?.message_id }
+            result: { message_id: assistantMessage?.message_id, api_version: API_VERSION }
           })
           
         } catch (err) {
@@ -1647,7 +1648,8 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({
         job_id: jobId,
         status: 'pending',
-        message: 'Analysis started in background'
+        message: 'Analysis started in background',
+        api_version: API_VERSION
       }), {
         status: 202,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
