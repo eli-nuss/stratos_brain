@@ -443,6 +443,39 @@ const unifiedFunctionDeclarations = [
       },
       required: ["symbol"]
     }
+  },
+  // Document creation and export function - allows AI to create and save documents from chat
+  {
+    name: "create_and_export_document",
+    description: "Create a structured document from analysis and save it to the asset's files. Use this when the user asks for a document, report, analysis, DCF, valuation, or any exportable content. The document will be saved to the asset's document library and can be downloaded as Markdown or PDF. IMPORTANT: Generate complete, well-formatted markdown content with proper headers, tables, and sections. The asset_id is automatically injected - you don't need to provide it.",
+    parameters: {
+      type: "object",
+      properties: {
+        asset_id: {
+          type: "number",
+          description: "The asset ID to save the document to. This is automatically injected from the chat context."
+        },
+        title: {
+          type: "string",
+          description: "Document title (e.g., 'DCF Analysis - AAPL', 'Risk Assessment Report', 'Competitive Analysis')"
+        },
+        document_type: {
+          type: "string",
+          enum: ["analysis", "report", "summary", "dcf", "valuation", "comparison", "research", "custom"],
+          description: "Type of document being created"
+        },
+        content: {
+          type: "string",
+          description: "Full markdown content of the document. Use proper markdown formatting with headers (#, ##, ###), tables, bullet points, bold text, and code blocks where appropriate. Include all analysis, calculations, and conclusions."
+        },
+        export_format: {
+          type: "string",
+          enum: ["markdown", "pdf", "both"],
+          description: "Format to export the document. 'both' will generate both Markdown and PDF versions."
+        }
+      },
+      required: ["title", "document_type", "content", "export_format"]
+    }
   }
 ]
 
@@ -2157,6 +2190,124 @@ print(f"✅ Data loaded: {len(df)} rows, columns: {list(df.columns)}")
       }
     }
     
+    case "create_and_export_document": {
+      const title = args.title as string
+      const documentType = args.document_type as string
+      const content = args.content as string
+      const exportFormat = args.export_format as string
+      
+      try {
+        // Get asset_id from context (passed via args or extracted from chat context)
+        const assetId = args.asset_id as number
+        
+        if (!assetId) {
+          return {
+            error: 'Asset ID is required to save document',
+            message: 'Please provide the asset_id to associate this document with.'
+          }
+        }
+        
+        // Get asset info for file naming
+        const { data: asset } = await supabase
+          .from('assets')
+          .select('symbol, name')
+          .eq('asset_id', assetId)
+          .single()
+        
+        const symbol = asset?.symbol || 'UNKNOWN'
+        const todayDate = new Date().toISOString().split('T')[0]
+        const sanitizedTitle = title.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '_')
+        const fileName = `${symbol}_${sanitizedTitle}_${todayDate}.md`
+        const storagePath = `chat_exports/${assetId}/${fileName}`
+        
+        const results: {
+          success: boolean
+          title: string
+          document_type: string
+          markdown_url?: string
+          pdf_url?: string
+          file_id?: number
+          message: string
+        } = {
+          success: false,
+          title,
+          document_type: documentType,
+          message: ''
+        }
+        
+        // Upload markdown to storage
+        const { error: uploadError } = await supabase.storage
+          .from('asset-files')
+          .upload(storagePath, content, {
+            contentType: 'text/markdown',
+            upsert: true
+          })
+        
+        if (uploadError) {
+          console.error('Error uploading document:', uploadError)
+          return {
+            error: 'Failed to upload document',
+            message: uploadError.message
+          }
+        }
+        
+        // Get public URL
+        const { data: urlData } = supabase.storage
+          .from('asset-files')
+          .getPublicUrl(storagePath)
+        
+        results.markdown_url = urlData.publicUrl
+        
+        // Save to asset_files table
+        const { data: fileRecord, error: dbError } = await supabase
+          .from('asset_files')
+          .insert({
+            asset_id: assetId,
+            file_name: fileName,
+            file_path: urlData.publicUrl,
+            file_type: `chat_${documentType}`,
+            file_size: content.length,
+            description: `${title} - Generated from Company Chat`
+          })
+          .select('file_id')
+          .single()
+        
+        if (dbError) {
+          console.error('Error saving to asset_files:', dbError)
+          // Document was uploaded but not recorded - still return success
+          results.success = true
+          results.message = `Document uploaded but database record failed: ${dbError.message}`
+        } else {
+          results.file_id = fileRecord.file_id
+          results.success = true
+          results.message = `Document "${title}" has been saved to the asset's document library.`
+        }
+        
+        // If PDF requested, note that PDF generation would require additional processing
+        if (exportFormat === 'pdf' || exportFormat === 'both') {
+          results.message += ' PDF export is available via the download button in the UI.'
+        }
+        
+        return {
+          document_created: results,
+          render_instruction: 'SHOW_DOCUMENT_EXPORT',
+          download_data: {
+            title,
+            content,
+            markdown_url: results.markdown_url,
+            export_format: exportFormat
+          }
+        }
+        
+      } catch (error) {
+        console.error('Error in create_and_export_document:', error)
+        return {
+          error: 'Internal error creating document',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        }
+      }
+    }
+    
     default:
       return { error: `Unknown function: ${name}` }
   }
@@ -2452,7 +2603,8 @@ async function callGeminiWithTools(
   systemInstruction: string,
   supabase: ReturnType<typeof createClient>,
   chatConfig: ChatConfig = {},
-  logTool?: (toolName: string, status: 'started' | 'completed' | 'failed', data?: Record<string, unknown>) => Promise<void>
+  logTool?: (toolName: string, status: 'started' | 'completed' | 'failed', data?: Record<string, unknown>) => Promise<void>,
+  assetId?: number
 ): Promise<{
   response: string;
   toolCalls: unknown[];
@@ -2526,6 +2678,11 @@ async function callGeminiWithTools(
     for (const part of functionCallParts) {
       const fc = part.functionCall as { name: string; args: Record<string, unknown> }
       console.log(`Executing function: ${fc.name}`)
+      
+      // Inject asset_id for document creation function
+      if (fc.name === 'create_and_export_document' && assetId && !fc.args.asset_id) {
+        fc.args.asset_id = assetId
+      }
       
       // Log tool start for real-time UI updates with args
       if (logTool) {
@@ -3064,7 +3221,8 @@ serve(async (req: Request) => {
               systemPrompt, 
               supabase, 
               chatConfig,
-              logTool // Pass the tool logger for real-time updates
+              logTool, // Pass the tool logger for real-time updates
+              asset.asset_id // Pass asset_id for document creation
             )
             const latencyMs = Date.now() - startTime
             

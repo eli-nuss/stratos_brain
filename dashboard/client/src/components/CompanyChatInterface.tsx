@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Sparkles, RefreshCw, ChevronRight, ChevronDown, Bot, User, PanelRightClose, PanelRightOpen, Trash2, MessageSquare, Wrench, CheckCircle, XCircle, Search, Code, Database, Globe, FileText } from 'lucide-react';
+import { Send, Loader2, Sparkles, RefreshCw, ChevronRight, ChevronDown, Bot, User, PanelRightClose, PanelRightOpen, Trash2, MessageSquare, Wrench, CheckCircle, XCircle, Search, Code, Database, Globe, FileText, Download, FileDown, ExternalLink } from 'lucide-react';
 import {
   useChatMessages,
   useSendMessage,
@@ -281,6 +281,118 @@ function MessageBubble({ message }: { message: ChatMessage }) {
               return (
                 <div key={`ui-${idx}`} className="w-full max-w-2xl mb-3">
                   <GenerativeUIRenderer toolCall={result.ui_component as any} />
+                </div>
+              );
+            }
+          }
+          // Document Export Card - shown when AI creates a document
+          if (tool.name === 'create_and_export_document' && tool.result) {
+            const result = tool.result as {
+              document_created?: {
+                success: boolean;
+                title: string;
+                document_type: string;
+                markdown_url?: string;
+                message: string;
+              };
+              download_data?: {
+                title: string;
+                content: string;
+                markdown_url?: string;
+                export_format: string;
+              };
+            };
+            if (result.document_created?.success && result.download_data) {
+              const { title, content, markdown_url, export_format } = result.download_data;
+              
+              const handleDownloadMarkdown = () => {
+                const blob = new Blob([content], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${title.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '_')}.md`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+              };
+              
+              const handleDownloadPdf = async () => {
+                // Use browser print to PDF as a simple solution
+                const printWindow = window.open('', '_blank');
+                if (printWindow) {
+                  printWindow.document.write(`
+                    <html>
+                      <head>
+                        <title>${title}</title>
+                        <style>
+                          body { font-family: system-ui, -apple-system, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; line-height: 1.6; }
+                          h1, h2, h3 { margin-top: 1.5em; }
+                          table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+                          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                          th { background: #f5f5f5; }
+                          pre { background: #f5f5f5; padding: 1em; overflow-x: auto; }
+                          code { background: #f5f5f5; padding: 2px 4px; }
+                        </style>
+                      </head>
+                      <body>
+                        <div id="content"></div>
+                        <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+                        <script>
+                          document.getElementById('content').innerHTML = marked.parse(${JSON.stringify(content)});
+                          setTimeout(() => window.print(), 500);
+                        </script>
+                      </body>
+                    </html>
+                  `);
+                  printWindow.document.close();
+                }
+              };
+              
+              return (
+                <div key={`doc-${idx}`} className="w-full max-w-md mb-3">
+                  <div className="bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20 rounded-xl p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-primary/10 rounded-lg">
+                        <FileText className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-sm text-foreground truncate">{title}</h4>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {result.document_created.document_type.charAt(0).toUpperCase() + result.document_created.document_type.slice(1)} • Saved to documents
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 mt-3">
+                      <button
+                        onClick={handleDownloadMarkdown}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-background hover:bg-muted border border-border rounded-lg transition-colors"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        Markdown
+                      </button>
+                      {(export_format === 'pdf' || export_format === 'both') && (
+                        <button
+                          onClick={handleDownloadPdf}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-background hover:bg-muted border border-border rounded-lg transition-colors"
+                        >
+                          <FileDown className="w-3.5 h-3.5" />
+                          PDF
+                        </button>
+                      )}
+                      {markdown_url && (
+                        <a
+                          href={markdown_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          View
+                        </a>
+                      )}
+                    </div>
+                  </div>
                 </div>
               );
             }
