@@ -36,7 +36,7 @@ function Router() {
       <Route path={"/chat"} component={CompanyChat} />
       <Route path={"/chat/:chatId"} component={CompanyChat} />
       <Route path={"/brain"} component={StratosBrain} />
-      <Route path={"/gurus"} component={InvestorWatchlist} />
+      <Route path={"/smart-money"} component={InvestorWatchlist} />
       <Route path={"/todo"} component={TodoList} />
       <Route path={"/auth/callback"} component={AuthCallback} />
       <Route path={"/404"} component={NotFound} />
