@@ -19,13 +19,6 @@ interface DocumentsSectionProps {
   onOpenChat?: () => void;
 }
 
-interface GenerationStatus {
-  isGenerating: boolean;
-  progress?: string;
-  error?: string;
-  jobId?: string;
-}
-
 interface CascadeStatus {
   isGenerating: boolean;
   currentPhase: 'idle' | 'deep_research' | 'memo' | 'one_pager' | 'complete';
@@ -60,15 +53,10 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
   const [showOnePagerHistory, setShowOnePagerHistory] = useState(false);
   const [showMemoHistory, setShowMemoHistory] = useState(false);
   const [showDeepResearchHistory, setShowDeepResearchHistory] = useState(false);
-  const [onePagerStatus, setOnePagerStatus] = useState<GenerationStatus>({ isGenerating: false });
-  const [memoStatus, setMemoStatus] = useState<GenerationStatus>({ isGenerating: false });
-  const [deepResearchStatus, setDeepResearchStatus] = useState<GenerationStatus>({ isGenerating: false });
   const [cascadeStatus, setCascadeStatus] = useState<CascadeStatus>({ isGenerating: false, currentPhase: 'idle' });
   
-  // Refs for polling intervals
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Cleanup polling on unmount
   useEffect(() => {
     return () => {
       if (pollingIntervalRef.current) {
@@ -77,7 +65,6 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
     };
   }, []);
 
-  // Fetch documents on mount and when assetId changes
   useEffect(() => {
     fetchDocuments();
   }, [assetId]);
@@ -108,7 +95,6 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
     }
   };
 
-  // Poll for job status
   const pollJobStatus = async (jobId: string, onUpdate: (job: JobStatus) => void, onComplete: (job: JobStatus) => void) => {
     const poll = async () => {
       try {
@@ -128,7 +114,6 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
           }
           onUpdate(job);
         } else {
-          // Still processing - update progress
           onUpdate(job);
         }
       } catch (error) {
@@ -136,12 +121,10 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
       }
     };
 
-    // Poll immediately, then every 3 seconds
     await poll();
     pollingIntervalRef.current = setInterval(poll, 3000);
   };
 
-  // Generate all documents using cascade workflow (async)
   const generateAllDocuments = async () => {
     setCascadeStatus({ 
       isGenerating: true, 
@@ -164,7 +147,6 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
       const data = await response.json();
       
       if (data.job_id) {
-        // Start polling for job status
         setCascadeStatus(prev => ({ 
           ...prev, 
           jobId: data.job_id,
@@ -173,7 +155,6 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
 
         pollJobStatus(
           data.job_id,
-          // onUpdate - progress updates
           (job) => {
             if (job.status === 'failed') {
               setCascadeStatus({ 
@@ -183,7 +164,6 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
               });
               setTimeout(() => setCascadeStatus({ isGenerating: false, currentPhase: 'idle' }), 10000);
             } else {
-              // Update progress message based on job progress
               let phase: CascadeStatus['currentPhase'] = 'deep_research';
               if (job.progress?.includes('Phase 2') || job.progress?.includes('Memo')) {
                 phase = 'memo';
@@ -197,7 +177,6 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
               }));
             }
           },
-          // onComplete - job finished
           async (job) => {
             setCascadeStatus({ 
               isGenerating: false, 
@@ -207,7 +186,6 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
             
             await fetchDocuments();
             
-            // Open the deep research document
             if (job.result?.files?.deep_research) {
               window.open(job.result.files.deep_research, '_blank');
             }
@@ -234,88 +212,6 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
     }
   };
 
-  // Generate single document (async)
-  const generateDocument = async (docType: 'one_pager' | 'memo' | 'deep_research') => {
-    const setStatus = docType === 'one_pager' 
-      ? setOnePagerStatus 
-      : docType === 'memo' 
-        ? setMemoStatus 
-        : setDeepResearchStatus;
-    
-    const progressMessage = docType === 'deep_research' 
-      ? 'Starting deep research... This may take 3-5 minutes.'
-      : 'Starting generation...';
-    
-    setStatus({ isGenerating: true, progress: progressMessage });
-
-    try {
-      const response = await fetch(`${API_BASE}/control-api/dashboard/create-document`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          symbol,
-          asset_id: assetId,
-          asset_type: assetType,
-          document_type: docType
-        })
-      });
-
-      const data = await response.json();
-      
-      if (data.job_id) {
-        // Start polling for job status
-        setStatus(prev => ({ ...prev, jobId: data.job_id }));
-
-        pollJobStatus(
-          data.job_id,
-          // onUpdate
-          (job) => {
-            if (job.status === 'failed') {
-              setStatus({ 
-                isGenerating: false, 
-                error: job.error || 'Generation failed'
-              });
-              setTimeout(() => setStatus({ isGenerating: false }), 10000);
-            } else {
-              setStatus(prev => ({ 
-                ...prev, 
-                progress: job.progress || prev.progress
-              }));
-            }
-          },
-          // onComplete
-          async (job) => {
-            setStatus({ 
-              isGenerating: false, 
-              progress: `Generated in ${job.result?.generation_time_seconds?.toFixed(1) || '?'}s with ${job.result?.sources_cited || 0} sources`
-            });
-            
-            await fetchDocuments();
-            
-            if (job.result?.file_url) {
-              window.open(job.result.file_url, '_blank');
-            }
-            
-            setTimeout(() => setStatus({ isGenerating: false }), 5000);
-          }
-        );
-      } else if (data.error) {
-        setStatus({ 
-          isGenerating: false, 
-          error: data.error
-        });
-        setTimeout(() => setStatus({ isGenerating: false }), 10000);
-      }
-    } catch (error) {
-      console.error('Error generating document:', error);
-      setStatus({ 
-        isGenerating: false, 
-        error: 'Network error. Please try again.'
-      });
-      setTimeout(() => setStatus({ isGenerating: false }), 10000);
-    }
-  };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
@@ -324,101 +220,47 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
     });
   };
 
-  const renderDocumentColumn = (
+  const renderDocumentList = (
     title: string,
+    icon: React.ReactNode,
     documents: AssetFile[],
-    docType: 'one_pager' | 'memo' | 'deep_research',
     showHistory: boolean,
     setShowHistory: (show: boolean) => void,
-    status: GenerationStatus,
-    isDeepResearch: boolean = false
+    accentColor: 'purple' | 'emerald' | 'blue' = 'emerald'
   ) => {
     const latestDoc = documents[0];
     const historyDocs = documents.slice(1);
     const hasHistory = historyDocs.length > 0;
-    const isCascadeGenerating = cascadeStatus.isGenerating;
+
+    const colorClasses = {
+      purple: {
+        bg: 'bg-purple-900/10',
+        border: 'border-purple-800/30',
+        text: 'text-purple-400'
+      },
+      emerald: {
+        bg: 'bg-gray-800/50',
+        border: 'border-gray-700',
+        text: 'text-gray-300'
+      },
+      blue: {
+        bg: 'bg-gray-800/50',
+        border: 'border-gray-700',
+        text: 'text-gray-300'
+      }
+    };
+
+    const colors = colorClasses[accentColor];
 
     return (
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
-            {isDeepResearch ? <BookOpen className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
-            {title}
-          </h4>
-          <button
-            onClick={() => generateDocument(docType)}
-            disabled={status.isGenerating || isCascadeGenerating}
-            className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
-              isDeepResearch 
-                ? 'bg-purple-600 hover:bg-purple-500 disabled:bg-gray-600' 
-                : 'bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-600'
-            } disabled:cursor-not-allowed`}
-          >
-            {status.isGenerating ? (
-              <>
-                <Loader2 className="w-3 h-3 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-3 h-3" />
-                Generate
-              </>
-            )}
-          </button>
-        </div>
+        <h4 className={`text-sm font-medium mb-3 flex items-center gap-2 ${colors.text}`}>
+          {icon}
+          {title}
+        </h4>
 
-        {/* Status message */}
-        {(status.progress || status.error) && !status.isGenerating && (
-          <div className={`mb-2 p-2 rounded text-xs flex items-center gap-2 ${
-            status.error 
-              ? 'bg-red-900/30 text-red-400 border border-red-800' 
-              : isDeepResearch
-                ? 'bg-purple-900/30 text-purple-400 border border-purple-800'
-                : 'bg-emerald-900/30 text-emerald-400 border border-emerald-800'
-          }`}>
-            {status.error ? (
-              <span>{status.error}</span>
-            ) : (
-              <>
-                <CheckCircle className="w-3 h-3" />
-                <span>{status.progress}</span>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Generating indicator with progress */}
-        {status.isGenerating && (
-          <div className={`mb-2 p-3 rounded-lg border ${
-            isDeepResearch 
-              ? 'bg-purple-900/20 border-purple-800/50' 
-              : 'bg-blue-900/20 border-blue-800/50'
-          }`}>
-            <div className={`flex items-center gap-2 text-sm ${
-              isDeepResearch ? 'text-purple-300' : 'text-blue-300'
-            }`}>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="font-medium">
-                {isDeepResearch ? 'Deep Research in Progress...' : 'Generating...'}
-              </span>
-            </div>
-            <p className="text-xs text-gray-400 mt-1">
-              {status.progress || (isDeepResearch 
-                ? 'Analyzing business model, extracting financials, and identifying key metrics. This comprehensive research takes 3-5 minutes.'
-                : 'This typically takes 30-60 seconds.'
-              )}
-            </p>
-          </div>
-        )}
-
-        {/* Latest document */}
         {latestDoc ? (
-          <div className={`p-3 rounded-lg border ${
-            isDeepResearch 
-              ? 'bg-purple-900/10 border-purple-800/30' 
-              : 'bg-gray-800/50 border-gray-700'
-          }`}>
+          <div className={`p-3 rounded-lg border ${colors.bg} ${colors.border}`}>
             <a
               href={latestDoc.file_path}
               target="_blank"
@@ -437,24 +279,12 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
             )}
           </div>
         ) : (
-          <div className={`p-4 rounded-lg border border-dashed text-center ${
-            isDeepResearch 
-              ? 'border-purple-800/50 bg-purple-900/10' 
-              : 'border-gray-700 bg-gray-800/30'
-          }`}>
-            <p className="text-sm text-gray-500">
-              {isDeepResearch ? 'No deep research report yet' : `No ${title.toLowerCase()} yet`}
-            </p>
-            <p className="text-xs text-gray-600 mt-1">
-              {isDeepResearch 
-                ? 'Generate a comprehensive research report to analyze this company'
-                : 'Click Generate to create one'
-              }
-            </p>
+          <div className={`p-4 rounded-lg border border-dashed text-center ${colors.border} ${colors.bg}`}>
+            <p className="text-sm text-gray-500">No {title.toLowerCase()} yet</p>
+            <p className="text-xs text-gray-600 mt-1">Click "Generate All Documents" to create</p>
           </div>
         )}
 
-        {/* History toggle */}
         {hasHistory && (
           <div className="mt-2">
             <button
@@ -502,7 +332,7 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
         
         <button
           onClick={generateAllDocuments}
-          disabled={cascadeStatus.isGenerating || onePagerStatus.isGenerating || memoStatus.isGenerating || deepResearchStatus.isGenerating}
+          disabled={cascadeStatus.isGenerating}
           className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-emerald-600 hover:from-purple-500 hover:to-emerald-500 disabled:from-gray-600 disabled:to-gray-600 rounded-lg font-medium text-sm transition-all disabled:cursor-not-allowed"
         >
           {cascadeStatus.isGenerating ? (
@@ -580,18 +410,13 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
 
       {/* Deep Research Section */}
       <div className="mb-6">
-        <h4 className="text-sm font-medium text-purple-400 mb-3 flex items-center gap-2">
-          <BookOpen className="w-4 h-4" />
-          Deep Research Report
-        </h4>
-        {renderDocumentColumn(
+        {renderDocumentList(
           'Deep Research Report',
+          <BookOpen className="w-4 h-4" />,
           deepResearch,
-          'deep_research',
           showDeepResearchHistory,
           setShowDeepResearchHistory,
-          deepResearchStatus,
-          true
+          'purple'
         )}
         
         {/* Chat with Deep Research button */}
@@ -608,22 +433,20 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
 
       {/* One Pagers and Memos side by side */}
       <div className="flex gap-6">
-        {renderDocumentColumn(
+        {renderDocumentList(
           'One Pagers',
+          <FileText className="w-4 h-4" />,
           onePagers,
-          'one_pager',
           showOnePagerHistory,
-          setShowOnePagerHistory,
-          onePagerStatus
+          setShowOnePagerHistory
         )}
         
-        {renderDocumentColumn(
+        {renderDocumentList(
           'Memos',
+          <FileText className="w-4 h-4" />,
           memos,
-          'memo',
           showMemoHistory,
-          setShowMemoHistory,
-          memoStatus
+          setShowMemoHistory
         )}
       </div>
     </div>
