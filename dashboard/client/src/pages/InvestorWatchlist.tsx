@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { 
   Users, TrendingUp, Search, Plus, ArrowLeft, 
   BarChart3, BrainCircuit, Activity, RefreshCw, Trash2, X,
-  ChevronRight, DollarSign, Percent, Target, ExternalLink
+  ChevronRight, DollarSign, Percent, Target, ExternalLink, Info
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import AssetDetail from '@/components/AssetDetail';
@@ -151,6 +151,97 @@ const getActionBadge = (action: string) => {
   return styles[action] || styles.HOLD;
 };
 
+// Mini sparkline component for 30D trend visualization
+const Sparkline = ({ value, className }: { value: number | null | undefined; className?: string }) => {
+  if (value === null || value === undefined) return <span className="text-slate-500">-</span>;
+  
+  const isPositive = value >= 0;
+  const magnitude = Math.min(Math.abs(value), 50) / 50;
+  const id = `spark-${Math.random().toString(36).substr(2, 9)}`;
+  
+  return (
+    <div className={cn("flex items-center gap-1.5", className)}>
+      <svg width="40" height="16" className="flex-shrink-0">
+        <defs>
+          <linearGradient id={id} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor={isPositive ? '#10b981' : '#ef4444'} stopOpacity="0.2" />
+            <stop offset="100%" stopColor={isPositive ? '#10b981' : '#ef4444'} stopOpacity="0.8" />
+          </linearGradient>
+        </defs>
+        <path
+          d={isPositive 
+            ? `M0,12 Q10,${12 - magnitude * 8} 20,${10 - magnitude * 6} T40,${4 + (1 - magnitude) * 4}`
+            : `M0,4 Q10,${4 + magnitude * 8} 20,${6 + magnitude * 6} T40,${12 - (1 - magnitude) * 4}`
+          }
+          fill="none"
+          stroke={`url(#${id})`}
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+      </svg>
+      <span className={cn(
+        "font-mono text-xs",
+        isPositive ? 'text-emerald-400' : 'text-red-400'
+      )}>
+        {value >= 0 ? '+' : ''}{value.toFixed(1)}%
+      </span>
+    </div>
+  );
+};
+
+// AI Direction progress bar component
+const AIDirectionBar = ({ score, direction }: { score: number | null | undefined; direction: string | null | undefined }) => {
+  if (!direction || score === null || score === undefined) return <span className="text-slate-500">-</span>;
+  
+  const dir = direction.toLowerCase();
+  const isPositive = dir === 'bullish';
+  const normalizedScore = Math.min(Math.abs(score), 100) / 100;
+  
+  return (
+    <div className="relative flex items-center justify-center min-w-[60px]">
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="w-full h-5 bg-slate-800/50 rounded overflow-hidden">
+          <div 
+            className={cn(
+              "h-full transition-all duration-300",
+              isPositive ? "bg-emerald-500/30" : "bg-red-500/30"
+            )}
+            style={{ width: `${normalizedScore * 100}%` }}
+          />
+        </div>
+      </div>
+      <span className={cn(
+        "relative z-10 px-2 py-0.5 rounded text-xs font-bold",
+        isPositive ? "text-emerald-400" : "text-red-400"
+      )}>
+        {score}
+      </span>
+    </div>
+  );
+};
+
+// Investor tooltip component
+const InvestorTooltip = ({ names, visible }: { names: string[]; visible: boolean }) => {
+  if (!visible || names.length === 0) return null;
+  
+  return (
+    <div className="absolute z-50 left-full ml-2 top-1/2 -translate-y-1/2 bg-slate-800 border border-slate-700 rounded-lg p-3 shadow-xl min-w-[200px] animate-in fade-in slide-in-from-left-2 duration-150">
+      <div className="text-xs text-slate-400 mb-2">Held by:</div>
+      <div className="space-y-1">
+        {names.map((name, i) => (
+          <div key={i} className="text-sm text-white flex items-center gap-2">
+            <div className="w-6 h-6 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400 text-xs font-bold">
+              {name.split(' ').map(w => w[0]).join('').slice(0, 2)}
+            </div>
+            <span className="truncate">{name}</span>
+          </div>
+        ))}
+      </div>
+      <div className="absolute left-0 top-1/2 -translate-x-1 -translate-y-1/2 w-2 h-2 bg-slate-800 border-l border-b border-slate-700 rotate-45" />
+    </div>
+  );
+};
+
 export default function InvestorWatchlist() {
   const { user } = useAuth();
 
@@ -164,6 +255,13 @@ export default function InvestorWatchlist() {
   
   // Asset detail modal state
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
+  
+  // Cross-filtering state
+  const [hoveredSymbol, setHoveredSymbol] = useState<string | null>(null);
+  const [selectedFundFilter, setSelectedFundFilter] = useState<number | null>(null);
+  
+  // Tooltip state for investor hover
+  const [tooltipVisible, setTooltipVisible] = useState<string | null>(null);
 
   // Fetch investors list
   const { data: investors, error: investorsError, isLoading: investorsLoading } = useSWR<Investor[]>(
@@ -325,17 +423,19 @@ export default function InvestorWatchlist() {
         {/* Header */}
         <div className="flex items-center justify-between flex-shrink-0">
           <div>
-            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-              <Users className="w-6 h-6 text-indigo-400" />
+            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+              <div className="p-2 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-xl">
+                <Users className="w-7 h-7 text-indigo-400" />
+              </div>
               Smart Money Tracker
             </h1>
-            <p className="text-slate-400">
+            <p className="text-slate-400 mt-1 ml-14">
               Analyze institutional portfolios with Stratos AI overlays
             </p>
           </div>
           <button 
             onClick={() => setShowSearchModal(true)}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg transition-all"
+            className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white px-5 py-2.5 rounded-lg transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30"
           >
             <Plus className="w-4 h-4" /> Add Investor
           </button>
@@ -349,11 +449,13 @@ export default function InvestorWatchlist() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               
               {/* Consensus Ideas */}
-              <div className="lg:col-span-2 bg-slate-900/50 border border-slate-800 rounded-xl p-5">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <BrainCircuit className="w-5 h-5 text-emerald-400" />
+              <div className="lg:col-span-2 bg-gradient-to-br from-slate-900/80 via-slate-900/50 to-slate-950/80 border border-slate-800 rounded-xl p-5 backdrop-blur-sm">
+                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                  <div className="p-1.5 bg-emerald-500/10 rounded-lg">
+                    <BrainCircuit className="w-5 h-5 text-emerald-400" />
+                  </div>
                   High Conviction Consensus
-                  <span className="text-xs font-normal text-slate-500 ml-2">(Owned by 2+ Investors)</span>
+                  <span className="text-xs font-normal text-slate-500 ml-2 bg-slate-800/50 px-2 py-0.5 rounded-full">(Owned by 2+ Investors)</span>
                 </h3>
                 
                 {consensusList.length > 0 ? (
@@ -366,20 +468,40 @@ export default function InvestorWatchlist() {
                           <th className="px-3 py-3 text-right">Avg Weight</th>
                           <th className="px-3 py-3 text-right">Total Invested</th>
                           <th className="px-3 py-3 text-right">MC</th>
-                          <th className="px-3 py-3 text-center">AI Direction</th>
+                          <th className="px-3 py-3 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              AI Direction
+                              <div className="group relative">
+                                <Info className="w-3 h-3 text-slate-500 cursor-help" />
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs normal-case font-normal text-slate-300 w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 shadow-xl">
+                                  <div className="font-medium text-white mb-1">Stratos AI Score</div>
+                                  <div>Proprietary confidence score (0-100) indicating bullish or bearish sentiment based on technical and fundamental analysis.</div>
+                                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1 w-2 h-2 bg-slate-800 border-r border-b border-slate-700 rotate-45" />
+                                </div>
+                              </div>
+                            </div>
+                          </th>
                           <th className="px-3 py-3 text-right">24h%</th>
-                          <th className="px-3 py-3 text-right">30d%</th>
+                          <th className="px-3 py-3 text-center">30D Trend</th>
                           <th className="px-3 py-3 text-right">365d%</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800 bg-slate-900/30">
-                        {consensusList.slice(0, 15).map((stock) => {
-                          const dirBadge = getDirectionBadge(stock.stratos_ai_direction, stock.stratos_ai_score);
+                        {consensusList
+                          .filter(stock => !selectedFundFilter || stock.guru_names?.some(name => 
+                            investorList.find(i => i.investor_id === selectedFundFilter)?.investor_name === name
+                          ))
+                          .slice(0, 15).map((stock) => {
                           return (
                             <tr 
                               key={stock.symbol} 
-                              className="hover:bg-slate-800/50 transition-colors cursor-pointer"
+                              className={cn(
+                                "hover:bg-slate-800/50 transition-colors cursor-pointer",
+                                hoveredSymbol === stock.symbol && "bg-indigo-500/10"
+                              )}
                               onClick={() => handleRowClick(stock.asset_id, stock.symbol)}
+                              onMouseEnter={() => setHoveredSymbol(stock.symbol)}
+                              onMouseLeave={() => setHoveredSymbol(null)}
                             >
                               <td className="px-3 py-3">
                                 <span className="font-medium text-white hover:text-indigo-400 transition-colors flex items-center gap-1 group">
@@ -387,23 +509,24 @@ export default function InvestorWatchlist() {
                                   <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                                 </span>
                               </td>
-                              <td className="px-3 py-3 text-center">
-                                <span className="text-indigo-400 font-bold">{stock.guru_count}</span>
+                              <td className="px-3 py-3 text-center relative">
+                                <div 
+                                  className="inline-block relative"
+                                  onMouseEnter={() => setTooltipVisible(stock.symbol)}
+                                  onMouseLeave={() => setTooltipVisible(null)}
+                                >
+                                  <span className="text-indigo-400 font-bold cursor-help hover:underline">{stock.guru_count}</span>
+                                  <InvestorTooltip 
+                                    names={stock.guru_names || []} 
+                                    visible={tooltipVisible === stock.symbol} 
+                                  />
+                                </div>
                               </td>
                               <td className="px-3 py-3 text-right font-mono">{(stock.avg_conviction ?? 0).toFixed(1)}%</td>
                               <td className="px-3 py-3 text-right font-mono">{formatCurrency(stock.total_guru_invested)}</td>
                               <td className="px-3 py-3 text-right font-mono text-slate-400">{formatCurrency(stock.market_cap)}</td>
-                              <td className="px-3 py-3 text-center">
-                                {stock.stratos_ai_direction ? (
-                                  <span className={cn(
-                                    "px-2 py-0.5 rounded text-xs font-medium border",
-                                    dirBadge.bg, dirBadge.text, dirBadge.border
-                                  )}>
-                                    {stock.stratos_ai_score ?? '-'}
-                                  </span>
-                                ) : (
-                                  <span className="text-slate-500">-</span>
-                                )}
+                              <td className="px-3 py-3">
+                                <AIDirectionBar score={stock.stratos_ai_score} direction={stock.stratos_ai_direction} />
                               </td>
                               <td className={cn(
                                 "px-3 py-3 text-right font-mono",
@@ -411,11 +534,8 @@ export default function InvestorWatchlist() {
                               )}>
                                 {stock.day_change != null ? `${stock.day_change >= 0 ? '+' : ''}${stock.day_change.toFixed(2)}%` : '-'}
                               </td>
-                              <td className={cn(
-                                "px-3 py-3 text-right font-mono",
-                                (stock.change_30d ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
-                              )}>
-                                {stock.change_30d != null ? `${stock.change_30d >= 0 ? '+' : ''}${stock.change_30d.toFixed(1)}%` : '-'}
+                              <td className="px-3 py-3">
+                                <Sparkline value={stock.change_30d} />
                               </td>
                               <td className={cn(
                                 "px-3 py-3 text-right font-mono",
@@ -437,34 +557,42 @@ export default function InvestorWatchlist() {
               </div>
 
               {/* Quick Stats */}
-              <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-5">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-indigo-400" />
+              <div className="bg-gradient-to-br from-slate-900/80 via-slate-900/50 to-slate-950/80 border border-slate-800 rounded-xl p-5 backdrop-blur-sm">
+                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                  <div className="p-1.5 bg-indigo-500/10 rounded-lg">
+                    <TrendingUp className="w-5 h-5 text-indigo-400" />
+                  </div>
                   Portfolio Stats
                 </h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-slate-950 rounded-lg border border-slate-800/50">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-gradient-to-r from-slate-950 to-slate-900 rounded-lg border border-slate-800/50">
                     <div className="flex items-center gap-3">
-                      <Users className="w-5 h-5 text-indigo-400" />
+                      <div className="p-1.5 bg-indigo-500/10 rounded-lg">
+                        <Users className="w-4 h-4 text-indigo-400" />
+                      </div>
                       <span className="text-slate-400">Tracked Investors</span>
                     </div>
-                    <span className="text-white font-mono text-lg">{investorList.length}</span>
+                    <span className="text-white font-mono text-xl font-bold">{investorList.length}</span>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-slate-950 rounded-lg border border-slate-800/50">
+                  <div className="flex items-center justify-between p-3 bg-gradient-to-r from-slate-950 to-slate-900 rounded-lg border border-slate-800/50">
                     <div className="flex items-center gap-3">
-                      <DollarSign className="w-5 h-5 text-emerald-400" />
+                      <div className="p-1.5 bg-emerald-500/10 rounded-lg">
+                        <DollarSign className="w-4 h-4 text-emerald-400" />
+                      </div>
                       <span className="text-slate-400">Total AUM</span>
                     </div>
-                    <span className="text-white font-mono text-lg">
+                    <span className="text-white font-mono text-xl font-bold">
                       {formatCurrency(investorList.reduce((sum, i) => sum + (i.total_portfolio_value || 0), 0))}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-slate-950 rounded-lg border border-slate-800/50">
+                  <div className="flex items-center justify-between p-3 bg-gradient-to-r from-slate-950 to-slate-900 rounded-lg border border-slate-800/50">
                     <div className="flex items-center gap-3">
-                      <Target className="w-5 h-5 text-amber-400" />
+                      <div className="p-1.5 bg-amber-500/10 rounded-lg">
+                        <Target className="w-4 h-4 text-amber-400" />
+                      </div>
                       <span className="text-slate-400">Consensus Picks</span>
                     </div>
-                    <span className="text-white font-mono text-lg">{consensusList.length}</span>
+                    <span className="text-white font-mono text-xl font-bold">{consensusList.length}</span>
                   </div>
                 </div>
               </div>
@@ -472,7 +600,17 @@ export default function InvestorWatchlist() {
 
             {/* Investor Cards Grid */}
             <div>
-              <h3 className="text-lg font-semibold text-white mb-4">Your Tracked Funds</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-white">Your Tracked Funds</h3>
+                {selectedFundFilter && (
+                  <button
+                    onClick={() => setSelectedFundFilter(null)}
+                    className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                  >
+                    <X className="w-3 h-3" /> Clear filter
+                  </button>
+                )}
+              </div>
               
               {investorsLoading ? (
                 <div className="text-center py-12 text-slate-500">Loading investors...</div>
@@ -489,11 +627,30 @@ export default function InvestorWatchlist() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {investorList.map((investor) => (
+                  {investorList.map((investor) => {
+                    // Check if this fund holds the hovered symbol
+                    const holdsHoveredSymbol = hoveredSymbol && investor.top_holdings?.includes(hoveredSymbol);
+                    const isFiltered = selectedFundFilter === investor.investor_id;
+                    
+                    return (
                     <div 
                       key={investor.investor_id}
-                      className="group relative bg-slate-900 border border-slate-800 hover:border-indigo-500/50 rounded-xl p-5 cursor-pointer transition-all hover:shadow-lg hover:shadow-indigo-500/10"
-                      onClick={() => handleSelectInvestor(investor)}
+                      className={cn(
+                        "group relative rounded-xl p-5 cursor-pointer transition-all hover:shadow-lg",
+                        "bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950",
+                        "border hover:border-indigo-500/50 hover:shadow-indigo-500/10",
+                        holdsHoveredSymbol ? "border-amber-500/50 ring-1 ring-amber-500/30" : "border-slate-800",
+                        isFiltered && "border-indigo-500 ring-2 ring-indigo-500/30"
+                      )}
+                      onClick={(e) => {
+                        if (e.shiftKey) {
+                          // Shift+click to filter table by this fund
+                          e.stopPropagation();
+                          setSelectedFundFilter(isFiltered ? null : investor.investor_id);
+                        } else {
+                          handleSelectInvestor(investor);
+                        }
+                      }}
                     >
                       {/* Card Header */}
                       <div className="flex justify-between items-start mb-4">
@@ -540,9 +697,9 @@ export default function InvestorWatchlist() {
                       </div>
 
                       {/* Performance Section */}
-                      {(investor.performance_1y !== null || investor.performance_3y !== null || investor.performance_5y !== null) && (
-                        <div className="mt-3 pt-3 border-t border-slate-800">
-                          <div className="text-xs text-slate-500 mb-2">Performance</div>
+                      <div className="mt-3 pt-3 border-t border-slate-800">
+                        <div className="text-xs text-slate-500 mb-2">Performance</div>
+                        {(investor.performance_1y != null || investor.performance_3y != null || investor.performance_5y != null) ? (
                           <div className="grid grid-cols-3 gap-2 text-xs">
                             <div className="text-center">
                               <div className="text-slate-500">1Y</div>
@@ -575,23 +732,36 @@ export default function InvestorWatchlist() {
                               </div>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        ) : (
+                          <div className="text-xs text-slate-600 italic text-center py-2">
+                            Performance data pending next filing
+                          </div>
+                        )}
+                      </div>
 
-                      {/* Top Holdings Preview */}
+                      {/* Top Holdings Preview with Weight Bars */}
                       {investor.top_holdings && investor.top_holdings.length > 0 && (
                         <div className="mt-3 pt-3 border-t border-slate-800">
-                          <div className="flex flex-wrap gap-1">
-                            {investor.top_holdings.slice(0, 5).filter(h => h !== 'UNKNOWN').map((ticker) => (
-                              <span 
-                                key={ticker} 
-                                className="px-1.5 py-0.5 bg-slate-800 rounded text-xs text-slate-400"
-                              >
-                                {ticker}
-                              </span>
-                            ))}
+                          <div className="text-xs text-slate-500 mb-2">Top Holdings</div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {investor.top_holdings.slice(0, 5).filter(h => h !== 'UNKNOWN').map((ticker, idx) => {
+                              // Simulate weight based on position (first = highest weight)
+                              const weight = Math.max(20 - idx * 4, 5);
+                              return (
+                                <div key={ticker} className="relative">
+                                  <span className="px-2 py-1 bg-slate-800 rounded text-xs text-slate-300 font-medium relative z-10 block">
+                                    {ticker}
+                                  </span>
+                                  {/* Weight indicator bar */}
+                                  <div 
+                                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500/50 rounded-b"
+                                    style={{ width: `${weight * 5}%` }}
+                                  />
+                                </div>
+                              );
+                            })}
                             {investor.top_holdings.length > 5 && (
-                              <span className="px-1.5 py-0.5 text-xs text-slate-500">
+                              <span className="px-2 py-1 text-xs text-slate-500">
                                 +{investor.top_holdings.length - 5}
                               </span>
                             )}
@@ -603,8 +773,13 @@ export default function InvestorWatchlist() {
                       <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
                         <ChevronRight className="w-5 h-5 text-indigo-400" />
                       </div>
+                      
+                      {/* Shift-click hint */}
+                      <div className="absolute top-2 right-2 text-[10px] text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                        Shift+click to filter
+                      </div>
                     </div>
-                  ))}
+                  );})}
                 </div>
               )}
             </div>
