@@ -1260,20 +1260,12 @@ ${markdownToHtml(markdown)}
         const industry = url.searchParams.get('industry')
         
         let query = supabase
-          .from('v_dashboard_all_assets')
+          .from('mv_dashboard_all_assets')
           .select('*', { count: 'exact' })
           .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1)
           
-        if (asOfDate) {
-          query = query.eq('as_of_date', asOfDate)
-        }
-        
         if (assetType) {
           query = query.eq('asset_type', assetType)
-        }
-        
-        if (configId) {
-          query = query.eq('config_id', configId)
         }
         
         // Optional search by symbol
