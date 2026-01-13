@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { FileText, ExternalLink, Loader2, ChevronDown, ChevronUp, Sparkles, Download } from 'lucide-react';
+import { FileText, ExternalLink, Loader2, ChevronDown, ChevronUp, Sparkles, Download, BookOpen } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -18,7 +18,7 @@ interface InlineDocumentViewerProps {
   symbol: string;
 }
 
-type DocumentType = 'one_pager' | 'memo';
+type DocumentType = 'one_pager' | 'memo' | 'deep_research';
 
 const API_BASE = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/control-api';
 
@@ -26,17 +26,19 @@ export function InlineOnePager({ assetId, symbol }: InlineDocumentViewerProps) {
   const [activeTab, setActiveTab] = useState<DocumentType>('one_pager');
   const [onePager, setOnePager] = useState<AssetFile | null>(null);
   const [memo, setMemo] = useState<AssetFile | null>(null);
+  const [deepResearch, setDeepResearch] = useState<AssetFile | null>(null);
   const [onePagerContent, setOnePagerContent] = useState<string | null>(null);
   const [memoContent, setMemoContent] = useState<string | null>(null);
+  const [deepResearchContent, setDeepResearchContent] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isExpanded, setIsExpanded] = useState(true);
-  const [contentError, setContentError] = useState<{ one_pager: boolean; memo: boolean }>({ one_pager: false, memo: false });
+  const [contentError, setContentError] = useState<{ one_pager: boolean; memo: boolean; deep_research: boolean }>({ one_pager: false, memo: false, deep_research: false });
   const [isExporting, setIsExporting] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Get the current document based on active tab
-  const currentDocument = activeTab === 'one_pager' ? onePager : memo;
-  const currentContent = activeTab === 'one_pager' ? onePagerContent : memoContent;
+  const currentDocument = activeTab === 'one_pager' ? onePager : activeTab === 'memo' ? memo : deepResearch;
+  const currentContent = activeTab === 'one_pager' ? onePagerContent : activeTab === 'memo' ? memoContent : deepResearchContent;
   const currentError = contentError[activeTab];
 
   // Export to PDF function using browser print
@@ -47,7 +49,7 @@ export function InlineOnePager({ assetId, symbol }: InlineDocumentViewerProps) {
     try {
       // Get the content HTML
       const contentHtml = contentRef.current.innerHTML;
-      const title = `${symbol} ${activeTab === 'one_pager' ? 'One Pager' : 'Investment Memo'}`;
+      const title = `${symbol} ${activeTab === 'one_pager' ? 'One Pager' : activeTab === 'memo' ? 'Investment Memo' : 'Deep Research Report'}`;
       
       // Create a new window for printing
       const printWindow = window.open('', '_blank', 'width=800,height=600');
@@ -143,6 +145,11 @@ export function InlineOnePager({ assetId, symbol }: InlineDocumentViewerProps) {
         .filter(f => f.file_type === 'memo' && !f.file_path.includes('manus.im'))
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       
+      // Find the most recent deep_research that has actual content
+      const deepResearchFiles = files
+        .filter(f => f.file_type === 'deep_research' && !f.file_path.includes('manus.im'))
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      
       if (onePagers.length > 0) {
         setOnePager(onePagers[0]);
         // Fetch content if markdown
@@ -185,11 +192,34 @@ export function InlineOnePager({ assetId, symbol }: InlineDocumentViewerProps) {
         }
       }
 
-      // Auto-select the tab based on what's available
+      if (deepResearchFiles.length > 0) {
+        setDeepResearch(deepResearchFiles[0]);
+        // Fetch content if markdown
+        if (deepResearchFiles[0].file_name.endsWith('.md')) {
+          try {
+            const contentResponse = await fetch(deepResearchFiles[0].file_path);
+            if (contentResponse.ok) {
+              const text = await contentResponse.text();
+              setDeepResearchContent(text);
+            } else {
+              setContentError(prev => ({ ...prev, deep_research: true }));
+            }
+          } catch (err) {
+            console.error('Error fetching deep research content:', err);
+            setContentError(prev => ({ ...prev, deep_research: true }));
+          }
+        } else {
+          setContentError(prev => ({ ...prev, deep_research: true }));
+        }
+      }
+
+      // Auto-select the tab based on what's available (prefer one_pager first)
       if (onePagers.length > 0) {
         setActiveTab('one_pager');
       } else if (memos.length > 0) {
         setActiveTab('memo');
+      } else if (deepResearchFiles.length > 0) {
+        setActiveTab('deep_research');
       }
     } catch (error) {
       console.error('Error fetching documents:', error);
@@ -208,7 +238,7 @@ export function InlineOnePager({ assetId, symbol }: InlineDocumentViewerProps) {
     const handleDocumentCompleted = (e: CustomEvent) => {
       const { assetId: completedAssetId, documentType } = e.detail;
       // Refresh if a document was completed for this asset
-      if (completedAssetId === assetId && (documentType === 'one_pager' || documentType === 'memo')) {
+      if (completedAssetId === assetId && (documentType === 'one_pager' || documentType === 'memo' || documentType === 'deep_research')) {
         console.log('[InlineDocumentViewer] New document completed, refreshing...');
         fetchDocuments();
         // Switch to the newly completed document type
@@ -223,7 +253,7 @@ export function InlineOnePager({ assetId, symbol }: InlineDocumentViewerProps) {
   }, [assetId]);
 
   // Don't render anything if no documents exist
-  if (!isLoading && !onePager && !memo) {
+  if (!isLoading && !onePager && !memo && !deepResearch) {
     return null;
   }
 
@@ -266,6 +296,18 @@ export function InlineOnePager({ assetId, symbol }: InlineDocumentViewerProps) {
                 disabled={!memo}
               >
                 Memo
+              </button>
+              <button
+                onClick={() => setActiveTab('deep_research')}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-all flex items-center gap-1 ${
+                  activeTab === 'deep_research'
+                    ? 'bg-purple-600 text-white shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                } ${!deepResearch ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={!deepResearch}
+              >
+                <BookOpen className="w-3 h-3" />
+                Deep Dive
               </button>
             </div>
 
@@ -322,7 +364,7 @@ export function InlineOnePager({ assetId, symbol }: InlineDocumentViewerProps) {
 
       {/* Content */}
       {isExpanded && (
-        <div className="p-5 max-h-[600px] overflow-y-auto">
+        <div className={`p-5 overflow-y-auto ${activeTab === 'deep_research' ? 'max-h-[800px]' : 'max-h-[600px]'}`}>
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -480,7 +522,7 @@ export function InlineOnePager({ assetId, symbol }: InlineDocumentViewerProps) {
             </div>
           ) : !currentDocument ? (
             <p className="text-sm text-muted-foreground text-center py-4">
-              No {activeTab === 'one_pager' ? 'one pager' : 'memo'} available yet.
+              No {activeTab === 'one_pager' ? 'one pager' : activeTab === 'memo' ? 'memo' : 'deep research report'} available yet.
               <br />
               <span className="text-xs">Generate one from the AI Documents panel.</span>
             </p>
