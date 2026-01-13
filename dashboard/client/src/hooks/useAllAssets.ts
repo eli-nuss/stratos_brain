@@ -45,7 +45,7 @@ export function useAllAssets({
   const params = new URLSearchParams({
     limit: limit.toString(),
     offset: offset.toString(),
-    universe_id: assetType === "crypto" ? "crypto_all" : "equity_all",
+    asset_type: assetType, // Use asset_type filter instead of universe_id
     sort_by: sortBy || "ai_setup_quality_score", // Default to AI score
     sort_order: sortOrder,
   });

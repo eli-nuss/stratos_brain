@@ -390,6 +390,11 @@ serve(async (req) => {
           query = query.eq('universe_id', universeId)
         }
         
+        // Filter by asset type (equity or crypto)
+        if (assetType) {
+          query = query.eq('asset_type', assetType)
+        }
+        
         if (configId) {
           query = query.eq('config_id', configId)
         }
@@ -438,6 +443,11 @@ serve(async (req) => {
           query = query.eq('universe_id', universeId)
         }
         
+        // Filter by asset type (equity or crypto)
+        if (assetType) {
+          query = query.eq('asset_type', assetType)
+        }
+        
         if (configId) {
           query = query.eq('config_id', configId)
         }
@@ -472,6 +482,11 @@ serve(async (req) => {
         
         if (universeId) {
           query = query.eq('universe_id', universeId)
+        }
+        
+        // Filter by asset type (equity or crypto)
+        if (assetType) {
+          query = query.eq('asset_type', assetType)
         }
         
         if (configId) {
@@ -537,6 +552,11 @@ serve(async (req) => {
         
         if (universeId) {
           query = query.eq('universe_id', universeId)
+        }
+        
+        // Filter by asset type (equity or crypto)
+        if (assetType) {
+          query = query.eq('asset_type', assetType)
         }
         
         if (configId) {
@@ -1249,6 +1269,7 @@ ${markdownToHtml(markdown)}
         const asOfDate = url.searchParams.get('as_of_date')
         const universeId = url.searchParams.get('universe_id')
         const configId = url.searchParams.get('config_id')
+        const assetType = url.searchParams.get('asset_type') // equity or crypto
         const sortBy = url.searchParams.get('sort_by') || 'weighted_score'
         const sortOrder = url.searchParams.get('sort_order') || 'desc'
         const secondarySortBy = url.searchParams.get('secondary_sort_by')
@@ -1269,6 +1290,11 @@ ${markdownToHtml(markdown)}
         
         if (universeId) {
           query = query.eq('universe_id', universeId)
+        }
+        
+        // Filter by asset type (equity or crypto)
+        if (assetType) {
+          query = query.eq('asset_type', assetType)
         }
         
         if (configId) {
