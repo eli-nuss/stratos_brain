@@ -345,7 +345,10 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                       {/* FVS Pillar Scores */}
                       <div className="grid grid-cols-4 gap-3">
                         <div className="text-center">
-                          <div className="text-[10px] text-muted-foreground mb-1">Profitability</div>
+                          <div className="text-[10px] text-muted-foreground mb-1 flex items-center justify-center gap-1">
+                            <span>Profitability</span>
+                            <InfoTooltip content="Measures the company's ability to generate profits. Evaluates gross margin, operating margin, net margin, ROE, and ROA. Higher scores indicate stronger profit generation and efficient use of capital." />
+                          </div>
                           <div className={`text-sm font-semibold ${
                             (asset.fvs_profitability || 0) >= 70 ? 'text-emerald-400' :
                             (asset.fvs_profitability || 0) >= 50 ? 'text-blue-400' :
@@ -353,7 +356,10 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                           }`}>{asset.fvs_profitability || '-'}</div>
                         </div>
                         <div className="text-center">
-                          <div className="text-[10px] text-muted-foreground mb-1">Solvency</div>
+                          <div className="text-[10px] text-muted-foreground mb-1 flex items-center justify-center gap-1">
+                            <span>Solvency</span>
+                            <InfoTooltip content="Assesses financial stability and ability to meet obligations. Analyzes current ratio, debt-to-equity, interest coverage, and Altman Z-Score. Higher scores indicate lower bankruptcy risk and stronger balance sheet." />
+                          </div>
                           <div className={`text-sm font-semibold ${
                             (asset.fvs_solvency || 0) >= 70 ? 'text-emerald-400' :
                             (asset.fvs_solvency || 0) >= 50 ? 'text-blue-400' :
@@ -361,7 +367,10 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                           }`}>{asset.fvs_solvency || '-'}</div>
                         </div>
                         <div className="text-center">
-                          <div className="text-[10px] text-muted-foreground mb-1">Growth</div>
+                          <div className="text-[10px] text-muted-foreground mb-1 flex items-center justify-center gap-1">
+                            <span>Growth</span>
+                            <InfoTooltip content="Evaluates revenue and earnings expansion. Measures revenue CAGR, earnings growth, and recent acceleration trends. Higher scores indicate stronger growth trajectory and momentum." />
+                          </div>
                           <div className={`text-sm font-semibold ${
                             (asset.fvs_growth || 0) >= 70 ? 'text-emerald-400' :
                             (asset.fvs_growth || 0) >= 50 ? 'text-blue-400' :
@@ -369,7 +378,10 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                           }`}>{asset.fvs_growth || '-'}</div>
                         </div>
                         <div className="text-center">
-                          <div className="text-[10px] text-muted-foreground mb-1">Moat</div>
+                          <div className="text-[10px] text-muted-foreground mb-1 flex items-center justify-center gap-1">
+                            <span>Moat</span>
+                            <InfoTooltip content="Measures competitive advantage durability. Analyzes FCF/Net Income ratio (cash conversion quality) and Piotroski F-Score (financial strength). Higher scores suggest sustainable competitive positioning." />
+                          </div>
                           <div className={`text-sm font-semibold ${
                             (asset.fvs_moat || 0) >= 70 ? 'text-emerald-400' :
                             (asset.fvs_moat || 0) >= 50 ? 'text-blue-400' :
