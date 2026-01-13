@@ -556,232 +556,133 @@ export default function InvestorWatchlist() {
                 )}
               </div>
 
-              {/* Quick Stats */}
-              <div className="bg-gradient-to-br from-slate-900/80 via-slate-900/50 to-slate-950/80 border border-slate-800 rounded-xl p-5 backdrop-blur-sm">
-                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                  <div className="p-1.5 bg-indigo-500/10 rounded-lg">
-                    <TrendingUp className="w-5 h-5 text-indigo-400" />
-                  </div>
-                  Portfolio Stats
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-gradient-to-r from-slate-950 to-slate-900 rounded-lg border border-slate-800/50">
-                    <div className="flex items-center gap-3">
-                      <div className="p-1.5 bg-indigo-500/10 rounded-lg">
-                        <Users className="w-4 h-4 text-indigo-400" />
-                      </div>
-                      <span className="text-slate-400">Tracked Investors</span>
-                    </div>
-                    <span className="text-white font-mono text-xl font-bold">{investorList.length}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-gradient-to-r from-slate-950 to-slate-900 rounded-lg border border-slate-800/50">
-                    <div className="flex items-center gap-3">
-                      <div className="p-1.5 bg-emerald-500/10 rounded-lg">
-                        <DollarSign className="w-4 h-4 text-emerald-400" />
-                      </div>
-                      <span className="text-slate-400">Total AUM</span>
-                    </div>
-                    <span className="text-white font-mono text-xl font-bold">
-                      {formatCurrency(investorList.reduce((sum, i) => sum + (i.total_portfolio_value || 0), 0))}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-gradient-to-r from-slate-950 to-slate-900 rounded-lg border border-slate-800/50">
-                    <div className="flex items-center gap-3">
-                      <div className="p-1.5 bg-amber-500/10 rounded-lg">
-                        <Target className="w-4 h-4 text-amber-400" />
-                      </div>
-                      <span className="text-slate-400">Consensus Picks</span>
-                    </div>
-                    <span className="text-white font-mono text-xl font-bold">{consensusList.length}</span>
-                  </div>
+              {/* Tracked Funds - Compact Grid */}
+              <div className="bg-gradient-to-br from-slate-900/80 via-slate-900/50 to-slate-950/80 border border-slate-800 rounded-xl p-4 backdrop-blur-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Users className="w-4 h-4 text-indigo-400" />
+                    Tracked Funds
+                  </h3>
+                  {selectedFundFilter && (
+                    <button
+                      onClick={() => setSelectedFundFilter(null)}
+                      className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                    >
+                      <X className="w-3 h-3" /> Clear
+                    </button>
+                  )}
                 </div>
-              </div>
-            </div>
-
-            {/* Investor Cards Grid */}
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-white">Your Tracked Funds</h3>
-                {selectedFundFilter && (
-                  <button
-                    onClick={() => setSelectedFundFilter(null)}
-                    className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
-                  >
-                    <X className="w-3 h-3" /> Clear filter
-                  </button>
+                
+                {investorsLoading ? (
+                  <div className="text-center py-6 text-slate-500 text-xs">Loading...</div>
+                ) : investorList.length === 0 ? (
+                  <div className="text-center py-6">
+                    <p className="text-slate-500 text-xs mb-2">No investors tracked</p>
+                    <button 
+                      onClick={() => setShowSearchModal(true)}
+                      className="text-indigo-400 hover:text-indigo-300 text-xs"
+                    >
+                      + Add investor
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+                    {investorList.map((investor) => {
+                      const holdsHoveredSymbol = hoveredSymbol && investor.top_holdings?.includes(hoveredSymbol);
+                      const isFiltered = selectedFundFilter === investor.investor_id;
+                      
+                      return (
+                        <div 
+                          key={investor.investor_id}
+                          className={cn(
+                            "group relative rounded-lg p-3 cursor-pointer transition-all",
+                            "bg-slate-950/50 hover:bg-slate-800/50",
+                            "border hover:border-indigo-500/50",
+                            holdsHoveredSymbol ? "border-amber-500/50 bg-amber-500/5" : "border-slate-800/50",
+                            isFiltered && "border-indigo-500 bg-indigo-500/10"
+                          )}
+                          onClick={(e) => {
+                            if (e.shiftKey) {
+                              e.stopPropagation();
+                              setSelectedFundFilter(isFiltered ? null : investor.investor_id);
+                            } else {
+                              handleSelectInvestor(investor);
+                            }
+                          }}
+                        >
+                          <div className="flex items-center gap-3">
+                            {/* Initials */}
+                            <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 font-bold text-xs flex-shrink-0">
+                              {getInitials(investor.investor_name)}
+                            </div>
+                            
+                            {/* Info */}
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-medium text-white text-xs truncate">
+                                {investor.investor_name}
+                              </h4>
+                              <div className="flex items-center gap-3 text-[10px] text-slate-500 mt-0.5">
+                                <span>{formatCurrency(investor.total_portfolio_value)}</span>
+                                <span>{investor.total_positions} pos</span>
+                              </div>
+                            </div>
+                            
+                            {/* Performance */}
+                            <div className="text-right flex-shrink-0">
+                              {investor.performance_1y != null ? (
+                                <div className={cn(
+                                  "text-xs font-mono font-medium",
+                                  investor.performance_1y > 0 ? "text-emerald-400" : "text-red-400"
+                                )}>
+                                  {investor.performance_1y > 0 ? '+' : ''}{investor.performance_1y.toFixed(1)}%
+                                </div>
+                              ) : (
+                                <div className="text-[10px] text-slate-600">-</div>
+                              )}
+                              <div className="text-[10px] text-slate-600">1Y</div>
+                            </div>
+                            
+                            {/* Actions */}
+                            <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleRefresh(investor.investor_id); }}
+                                className="p-1 hover:bg-slate-700 rounded transition-colors"
+                                title="Refresh"
+                              >
+                                <RefreshCw className="w-3 h-3 text-slate-400" />
+                              </button>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleDelete(investor.investor_id, investor.investor_name); }}
+                                className="p-1 hover:bg-slate-700 rounded transition-colors"
+                                title="Remove"
+                              >
+                                <Trash2 className="w-3 h-3 text-slate-400" />
+                              </button>
+                            </div>
+                          </div>
+                          
+                          {/* Top Holdings - inline */}
+                          {investor.top_holdings && investor.top_holdings.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2 pl-11">
+                              {investor.top_holdings.slice(0, 4).filter(h => h !== 'UNKNOWN').map((ticker) => (
+                                <span 
+                                  key={ticker} 
+                                  className="px-1.5 py-0.5 bg-slate-800/50 rounded text-[10px] text-slate-400"
+                                >
+                                  {ticker}
+                                </span>
+                              ))}
+                              {investor.top_holdings.length > 4 && (
+                                <span className="text-[10px] text-slate-600">+{investor.top_holdings.length - 4}</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
-              
-              {investorsLoading ? (
-                <div className="text-center py-12 text-slate-500">Loading investors...</div>
-              ) : investorList.length === 0 ? (
-                <div className="text-center py-12 bg-slate-900/50 border border-slate-800 rounded-xl">
-                  <Users className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-                  <p className="text-slate-400 mb-4">No investors tracked yet</p>
-                  <button 
-                    onClick={() => setShowSearchModal(true)}
-                    className="text-indigo-400 hover:text-indigo-300"
-                  >
-                    + Add your first investor
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {investorList.map((investor) => {
-                    // Check if this fund holds the hovered symbol
-                    const holdsHoveredSymbol = hoveredSymbol && investor.top_holdings?.includes(hoveredSymbol);
-                    const isFiltered = selectedFundFilter === investor.investor_id;
-                    
-                    return (
-                    <div 
-                      key={investor.investor_id}
-                      className={cn(
-                        "group relative rounded-xl p-5 cursor-pointer transition-all hover:shadow-lg",
-                        "bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950",
-                        "border hover:border-indigo-500/50 hover:shadow-indigo-500/10",
-                        holdsHoveredSymbol ? "border-amber-500/50 ring-1 ring-amber-500/30" : "border-slate-800",
-                        isFiltered && "border-indigo-500 ring-2 ring-indigo-500/30"
-                      )}
-                      onClick={(e) => {
-                        if (e.shiftKey) {
-                          // Shift+click to filter table by this fund
-                          e.stopPropagation();
-                          setSelectedFundFilter(isFiltered ? null : investor.investor_id);
-                        } else {
-                          handleSelectInvestor(investor);
-                        }
-                      }}
-                    >
-                      {/* Card Header */}
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 font-bold text-sm">
-                          {getInitials(investor.investor_name)}
-                        </div>
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); handleRefresh(investor.investor_id); }}
-                            className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors"
-                            title="Refresh holdings"
-                          >
-                            <RefreshCw className="w-4 h-4 text-slate-400" />
-                          </button>
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); handleDelete(investor.investor_id, investor.investor_name); }}
-                            className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors"
-                            title="Remove investor"
-                          >
-                            <Trash2 className="w-4 h-4 text-slate-400" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Fund Name */}
-                      <h4 className="font-semibold text-white mb-1 line-clamp-2 text-sm leading-tight">
-                        {investor.investor_name}
-                      </h4>
-                      
-                      {/* Stats */}
-                      <div className="mt-3 space-y-2 text-xs">
-                        <div className="flex justify-between text-slate-400">
-                          <span>AUM</span>
-                          <span className="text-white font-mono">{formatCurrency(investor.total_portfolio_value)}</span>
-                        </div>
-                        <div className="flex justify-between text-slate-400">
-                          <span>Positions</span>
-                          <span className="text-white font-mono">{investor.total_positions}</span>
-                        </div>
-                        <div className="flex justify-between text-slate-400">
-                          <span>Last Filing</span>
-                          <span className="text-white">{investor.last_filing_date || 'N/A'}</span>
-                        </div>
-                      </div>
-
-                      {/* Performance Section */}
-                      <div className="mt-3 pt-3 border-t border-slate-800">
-                        <div className="text-xs text-slate-500 mb-2">Performance</div>
-                        {(investor.performance_1y != null || investor.performance_3y != null || investor.performance_5y != null) ? (
-                          <div className="grid grid-cols-3 gap-2 text-xs">
-                            <div className="text-center">
-                              <div className="text-slate-500">1Y</div>
-                              <div className={cn(
-                                "font-mono font-medium",
-                                investor.performance_1y && investor.performance_1y > 0 ? "text-emerald-400" : 
-                                investor.performance_1y && investor.performance_1y < 0 ? "text-red-400" : "text-slate-400"
-                              )}>
-                                {investor.performance_1y != null ? `${investor.performance_1y > 0 ? '+' : ''}${investor.performance_1y.toFixed(1)}%` : '-'}
-                              </div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-slate-500">3Y</div>
-                              <div className={cn(
-                                "font-mono font-medium",
-                                investor.performance_3y && investor.performance_3y > 0 ? "text-emerald-400" : 
-                                investor.performance_3y && investor.performance_3y < 0 ? "text-red-400" : "text-slate-400"
-                              )}>
-                                {investor.performance_3y != null ? `${investor.performance_3y > 0 ? '+' : ''}${investor.performance_3y.toFixed(1)}%` : '-'}
-                              </div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-slate-500">5Y</div>
-                              <div className={cn(
-                                "font-mono font-medium",
-                                investor.performance_5y && investor.performance_5y > 0 ? "text-emerald-400" : 
-                                investor.performance_5y && investor.performance_5y < 0 ? "text-red-400" : "text-slate-400"
-                              )}>
-                                {investor.performance_5y != null ? `${investor.performance_5y > 0 ? '+' : ''}${investor.performance_5y.toFixed(1)}%` : '-'}
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-xs text-slate-600 italic text-center py-2">
-                            Performance data pending next filing
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Top Holdings Preview with Weight Bars */}
-                      {investor.top_holdings && investor.top_holdings.length > 0 && (
-                        <div className="mt-3 pt-3 border-t border-slate-800">
-                          <div className="text-xs text-slate-500 mb-2">Top Holdings</div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {investor.top_holdings.slice(0, 5).filter(h => h !== 'UNKNOWN').map((ticker, idx) => {
-                              // Simulate weight based on position (first = highest weight)
-                              const weight = Math.max(20 - idx * 4, 5);
-                              return (
-                                <div key={ticker} className="relative">
-                                  <span className="px-2 py-1 bg-slate-800 rounded text-xs text-slate-300 font-medium relative z-10 block">
-                                    {ticker}
-                                  </span>
-                                  {/* Weight indicator bar */}
-                                  <div 
-                                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500/50 rounded-b"
-                                    style={{ width: `${weight * 5}%` }}
-                                  />
-                                </div>
-                              );
-                            })}
-                            {investor.top_holdings.length > 5 && (
-                              <span className="px-2 py-1 text-xs text-slate-500">
-                                +{investor.top_holdings.length - 5}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* View Details Arrow */}
-                      <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <ChevronRight className="w-5 h-5 text-indigo-400" />
-                      </div>
-                      
-                      {/* Shift-click hint */}
-                      <div className="absolute top-2 right-2 text-[10px] text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                        Shift+click to filter
-                      </div>
-                    </div>
-                  );})}
-                </div>
-              )}
             </div>
           </div>
         )}
