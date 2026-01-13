@@ -45,4 +45,8 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
-
+      - name: Deploy fundamental-score-api function
+        run: |
+          supabase functions deploy fundamental-score-api --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
