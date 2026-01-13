@@ -2898,7 +2898,10 @@ serve(async (req: Request) => {
     const supabase = createClient(supabaseUrl, supabaseKey)
 
     const url = new URL(req.url)
-    const path = url.pathname.replace('/company-chat-api', '')
+    const rawPath = url.pathname
+    const path = rawPath.replace('/company-chat-api', '').replace('/functions/v1/company-chat-api', '')
+    
+    console.log(`[company-chat-api] Request: ${req.method} ${rawPath} -> path: ${path}`)
     
     // Extract user_id from request header for user-specific chat isolation
     const userId = req.headers.get('x-user-id') || null
