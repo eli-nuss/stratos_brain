@@ -1,0 +1,64 @@
+name: Monthly Fundamental Scoring Refresh
+
+on:
+  # Run on the 1st of each month at 6 AM UTC (after markets have updated)
+  schedule:
+    - cron: '0 6 1 * *'
+
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Maximum number of equities to process (leave empty for all)'
+        required: false
+        default: ''
+      symbols:
+        description: 'Specific symbols to process (space-separated, e.g., "AAPL MSFT NVDA")'
+        required: false
+        default: ''
+
+jobs:
+  monthly-refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360  # 6 hours max for full refresh
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install requests psycopg2-binary
+
+      - name: Run Monthly Fundamental Refresh
+        env:
+          FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          cd scripts
+
+          # Build command with optional arguments
+          CMD="python fundamental_scoring_engine.py --mode monthly"
+
+          if [ -n "${{ github.event.inputs.limit }}" ]; then
+            CMD="$CMD --limit ${{ github.event.inputs.limit }}"
+          fi
+
+          if [ -n "${{ github.event.inputs.symbols }}" ]; then
+            CMD="$CMD --symbols ${{ github.event.inputs.symbols }}"
+          fi
+
+          echo "Running: $CMD"
+          $CMD
+
+      - name: Report Results
+        if: always()
+        run: |
+          echo "Monthly fundamental refresh completed"
+          echo "Check the logs above for detailed results"
