@@ -2145,7 +2145,29 @@ If asked about something not in the data, acknowledge the limitation.`
           })
         }
         
-        // Validate document type
+        // For deep_research and 'all' (cascade), forward to generate-document edge function
+        if (document_type === 'deep_research' || document_type === 'all') {
+          console.log(`Forwarding ${document_type} request to generate-document edge function...`)
+          const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+          const generateDocUrl = `${supabaseUrl}/functions/v1/generate-document`
+          
+          const forwardResponse = await fetch(generateDocUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': req.headers.get('Authorization') || ''
+            },
+            body: JSON.stringify({ symbol, asset_id, asset_type, document_type })
+          })
+          
+          const forwardData = await forwardResponse.json()
+          return new Response(JSON.stringify(forwardData), {
+            status: forwardResponse.status,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Validate document type for local handling (one_pager, memo)
         const validTypes = ['one_pager', 'memo']
         const docType = validTypes.includes(document_type) ? document_type : 'one_pager'
         
