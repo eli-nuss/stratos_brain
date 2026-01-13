@@ -500,7 +500,7 @@ async function callGemini(metrics: QuantitativeMetrics, company: any, asOfDate: 
   const model = genAI.getGenerativeModel({ 
     model: GEMINI_MODEL,
     generationConfig: {
-      temperature: 0,
+      temperature: 0.5,
       responseMimeType: "application/json"
     }
   })
