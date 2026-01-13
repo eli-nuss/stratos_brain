@@ -116,12 +116,20 @@ async function fetchFMP(endpoint: string): Promise<any> {
   const url = `${FMP_BASE_URL}/${endpoint}${endpoint.includes('?') ? '&' : '?'}apikey=${FMP_API_KEY}`
 
   try {
+    console.log(`Fetching FMP: ${endpoint}`)
     const response = await fetch(url)
     if (!response.ok) {
-      console.error(`FMP API error: ${response.status} for ${endpoint}`)
+      const errorText = await response.text()
+      console.error(`FMP API error: ${response.status} for ${endpoint} - ${errorText}`)
       return null
     }
-    return await response.json()
+    const data = await response.json()
+    // Check for FMP error responses (they sometimes return 200 with error message)
+    if (data && typeof data === 'object' && 'Error Message' in data) {
+      console.error(`FMP API returned error: ${data['Error Message']}`)
+      return null
+    }
+    return data
   } catch (error) {
     console.error(`FMP fetch error for ${endpoint}:`, error)
     return null
@@ -566,7 +574,10 @@ serve(async (req) => {
 
       if (!result) {
         return new Response(
-          JSON.stringify({ error: `Could not find data for symbol: ${symbol}` }),
+          JSON.stringify({
+            error: `Could not find data for symbol: ${symbol}`,
+            hint: 'This may be caused by: 1) Invalid symbol, 2) FMP API key issues, 3) FMP rate limits. Check Edge Function logs for details.'
+          }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
