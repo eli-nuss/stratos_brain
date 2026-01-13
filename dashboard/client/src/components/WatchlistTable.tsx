@@ -11,7 +11,7 @@ interface WatchlistTableProps {
   onAssetClick: (assetId: string) => void;
 }
 
-type SortField = "symbol" | "ai_direction_score" | "ai_setup_quality_score" | "market_cap" | "close" | "return_1d" | "return_7d" | "return_30d" | "return_365d" | "dollar_volume_7d" | "dollar_volume_30d" | "pe_ratio" | "forward_pe" | "peg_ratio" | "price_to_sales_ttm" | "forward_ps" | "psg";
+type SortField = "symbol" | "ai_direction_score" | "ai_setup_quality_score" | "fvs_score" | "market_cap" | "close" | "return_1d" | "return_7d" | "return_30d" | "return_365d" | "dollar_volume_7d" | "dollar_volume_30d" | "pe_ratio" | "forward_pe" | "peg_ratio" | "price_to_sales_ttm" | "forward_ps" | "psg";
 type SortOrder = "asc" | "desc";
 
 const PAGE_SIZE = 50;

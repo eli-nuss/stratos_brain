@@ -34,7 +34,7 @@ interface CustomizableWatchlistTableProps {
   onAssetClick: (assetId: string) => void;
 }
 
-type SortField = "symbol" | "ai_direction_score" | "ai_setup_quality_score" | "market_cap" | "close" | "return_1d" | "return_7d" | "return_30d" | "return_365d" | "dollar_volume_7d" | "dollar_volume_30d" | "pe_ratio" | "forward_pe" | "peg_ratio" | "price_to_sales_ttm" | "forward_ps" | "psg";
+type SortField = "symbol" | "ai_direction_score" | "ai_setup_quality_score" | "fvs_score" | "market_cap" | "close" | "return_1d" | "return_7d" | "return_30d" | "return_365d" | "dollar_volume_7d" | "dollar_volume_30d" | "pe_ratio" | "forward_pe" | "peg_ratio" | "price_to_sales_ttm" | "forward_ps" | "psg";
 type SortOrder = "asc" | "desc";
 
 const PAGE_SIZE = 50;
@@ -303,6 +303,17 @@ export default function CustomizableWatchlistTable({ onAssetClick }: Customizabl
             row.ai_setup_quality_score >= 40 ? "text-yellow-400" : "text-muted-foreground"
           }`}>
             {row.ai_setup_quality_score ?? "-"}
+          </span>
+        );
+      case "fvs_score":
+        return (
+          <span className={`font-mono text-xs ${
+            row.fvs_score >= 80 ? "text-emerald-400" :
+            row.fvs_score >= 60 ? "text-blue-400" :
+            row.fvs_score >= 40 ? "text-yellow-400" :
+            row.fvs_score >= 20 ? "text-orange-400" : "text-red-400"
+          }`}>
+            {row.fvs_score != null ? row.fvs_score.toFixed(0) : "-"}
           </span>
         );
       case "market_cap":
