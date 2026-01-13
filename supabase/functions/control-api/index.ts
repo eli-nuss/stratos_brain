@@ -1248,6 +1248,7 @@ ${markdownToHtml(markdown)}
         const offset = url.searchParams.get('offset') || '0'
         const asOfDate = url.searchParams.get('as_of_date')
         const universeId = url.searchParams.get('universe_id')
+        const assetType = url.searchParams.get('asset_type') // equity or crypto
         const configId = url.searchParams.get('config_id')
         const sortBy = url.searchParams.get('sort_by') || 'weighted_score'
         const sortOrder = url.searchParams.get('sort_order') || 'desc'
@@ -1267,8 +1268,8 @@ ${markdownToHtml(markdown)}
           query = query.eq('as_of_date', asOfDate)
         }
         
-        if (universeId) {
-          query = query.eq('universe_id', universeId)
+        if (assetType) {
+          query = query.eq('asset_type', assetType)
         }
         
         if (configId) {
