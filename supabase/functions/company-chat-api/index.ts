@@ -2452,7 +2452,7 @@ async function callGeminiWithTools(
   systemInstruction: string,
   supabase: ReturnType<typeof createClient>,
   chatConfig: ChatConfig = {},
-  logTool?: (toolName: string, status: 'started' | 'completed' | 'failed') => Promise<void>
+  logTool?: (toolName: string, status: 'started' | 'completed' | 'failed', data?: Record<string, unknown>) => Promise<void>
 ): Promise<{
   response: string;
   toolCalls: unknown[];
@@ -2527,16 +2527,61 @@ async function callGeminiWithTools(
       const fc = part.functionCall as { name: string; args: Record<string, unknown> }
       console.log(`Executing function: ${fc.name}`)
       
-      // Log tool start for real-time UI updates
+      // Log tool start for real-time UI updates with args
       if (logTool) {
-        await logTool(fc.name, 'started').catch(e => console.error('Failed to log tool start:', e))
+        // Build tool-specific data for the UI
+        const startData: Record<string, unknown> = { args: fc.args }
+        
+        // For code execution, include the code snippet
+        if (fc.name === 'execute_python' && fc.args.code) {
+          startData.code = String(fc.args.code).slice(0, 500)
+          startData.purpose = fc.args.purpose
+        }
+        
+        // For search/web tools, include the query
+        if (fc.name.includes('search') || fc.name.includes('google')) {
+          startData.queries = fc.args.query ? [fc.args.query] : fc.args.queries || []
+        }
+        
+        await logTool(fc.name, 'started', startData).catch(e => console.error('Failed to log tool start:', e))
       }
       
       const result = await executeFunctionCall(fc, supabase)
       
-      // Log tool completion
+      // Log tool completion with result data
       if (logTool) {
-        await logTool(fc.name, result.error ? 'failed' : 'completed').catch(e => console.error('Failed to log tool completion:', e))
+        const completionData: Record<string, unknown> = {}
+        
+        // For code execution, include output
+        if (fc.name === 'execute_python') {
+          completionData.code = String(fc.args.code || '').slice(0, 300)
+          completionData.output = result.output ? String(result.output).slice(0, 200) : null
+          completionData.error = result.error || null
+        }
+        
+        // For database queries, include result summary
+        if (fc.name.includes('get_') || fc.name.includes('query') || fc.name.includes('fetch')) {
+          completionData.function_name = fc.name
+          completionData.params = fc.args
+          if (Array.isArray(result.data)) {
+            completionData.result_count = result.data.length
+          }
+        }
+        
+        // For search, include sources found
+        if (fc.name.includes('search') || fc.name.includes('google')) {
+          completionData.queries = fc.args.query ? [fc.args.query] : fc.args.queries || []
+          if (result.sources) {
+            completionData.sources = result.sources
+          } else if (result.results && Array.isArray(result.results)) {
+            completionData.sources = result.results.slice(0, 10).map((r: { title?: string; url?: string; link?: string }) => ({
+              title: r.title,
+              url: r.url || r.link
+            }))
+          }
+        }
+        
+        await logTool(fc.name, result.error ? 'failed' : 'completed', completionData).catch(e => console.error('Failed to log tool completion:', e))
       }
       
       // Track tool calls and code executions separately
@@ -2633,7 +2678,7 @@ async function callGeminiWithToolsSafe(
   systemInstruction: string,
   supabase: ReturnType<typeof createClient>,
   chatConfig: ChatConfig = {},
-  logTool?: (toolName: string, status: 'started' | 'completed' | 'failed') => Promise<void>
+  logTool?: (toolName: string, status: 'started' | 'completed' | 'failed', data?: Record<string, unknown>) => Promise<void>
 ): Promise<{
   response: string;
   toolCalls: unknown[];
@@ -2933,7 +2978,7 @@ serve(async (req: Request) => {
         }
         
         // Helper to log tool execution for real-time UI
-        const logTool = async (toolName: string, status: 'started' | 'completed' | 'failed') => {
+        const logTool = async (toolName: string, status: 'started' | 'completed' | 'failed', data?: Record<string, unknown>) => {
           const { data: currentJob } = await supabase
             .from('chat_jobs')
             .select('tool_calls')
@@ -2941,7 +2986,7 @@ serve(async (req: Request) => {
             .single()
           
           const existingCalls = currentJob?.tool_calls || []
-          const toolCall = { tool_name: toolName, status, timestamp: new Date().toISOString() }
+          const toolCall = { tool_name: toolName, status, timestamp: new Date().toISOString(), data: data || null }
           
           await supabase
             .from('chat_jobs')

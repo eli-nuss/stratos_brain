@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Sparkles, RefreshCw, ChevronRight, Bot, User, PanelRightClose, PanelRightOpen, Trash2, MessageSquare, Wrench, CheckCircle, XCircle } from 'lucide-react';
+import { Send, Loader2, Sparkles, RefreshCw, ChevronRight, ChevronDown, Bot, User, PanelRightClose, PanelRightOpen, Trash2, MessageSquare, Wrench, CheckCircle, XCircle, Search, Code, Database, Globe, FileText } from 'lucide-react';
 import {
   useChatMessages,
   useSendMessage,
@@ -18,6 +18,168 @@ import { cn } from '@/lib/utils';
 interface CompanyChatInterfaceProps {
   chat: CompanyChat;
   onRefresh?: () => void;
+}
+
+// Tool call type from the job
+interface JobToolCall {
+  tool_name: string;
+  status: 'started' | 'completed' | 'failed';
+  timestamp: string;
+  data?: unknown;
+}
+
+// Expandable tool call component for real-time progress
+function ExpandableToolCall({ toolCall }: { toolCall: JobToolCall }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const hasData = toolCall.data && Object.keys(toolCall.data as object).length > 0;
+  
+  // Get icon based on tool name
+  const getToolIcon = (name: string) => {
+    if (name.includes('search') || name.includes('google')) return <Search className="w-3 h-3" />;
+    if (name.includes('python') || name.includes('code') || name.includes('execute')) return <Code className="w-3 h-3" />;
+    if (name.includes('database') || name.includes('query') || name.includes('get_')) return <Database className="w-3 h-3" />;
+    if (name.includes('web') || name.includes('browse')) return <Globe className="w-3 h-3" />;
+    return <Wrench className="w-3 h-3" />;
+  };
+  
+  // Format tool name for display
+  const formatToolName = (name: string) => {
+    return name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+  
+  // Render tool-specific details
+  const renderToolDetails = () => {
+    const data = toolCall.data as Record<string, unknown> | undefined;
+    if (!data) return null;
+    
+    // Web search - show queries and sources
+    if (toolCall.tool_name.includes('search') || toolCall.tool_name.includes('google')) {
+      return (
+        <div className="space-y-2">
+          {data.queries && Array.isArray(data.queries) && (
+            <div>
+              <span className="text-[10px] uppercase text-muted-foreground/70 font-medium">Search Queries</span>
+              <div className="mt-1 space-y-1">
+                {(data.queries as string[]).map((q, i) => (
+                  <div key={i} className="flex items-center gap-1.5 text-xs text-foreground/80">
+                    <Search className="w-2.5 h-2.5 text-primary/60" />
+                    <span>"{q}"</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {data.sources && Array.isArray(data.sources) && (
+            <div>
+              <span className="text-[10px] uppercase text-muted-foreground/70 font-medium">Sources Found</span>
+              <div className="mt-1 space-y-1">
+                {(data.sources as Array<{title?: string; url?: string}>).slice(0, 5).map((s, i) => (
+                  <div key={i} className="flex items-center gap-1.5 text-xs">
+                    <Globe className="w-2.5 h-2.5 text-green-500/60" />
+                    <span className="text-foreground/80 truncate" title={s.url}>{s.title || s.url}</span>
+                  </div>
+                ))}
+                {(data.sources as Array<unknown>).length > 5 && (
+                  <span className="text-[10px] text-muted-foreground">+{(data.sources as Array<unknown>).length - 5} more sources</span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+    
+    // Code execution - show code snippet
+    if (toolCall.tool_name.includes('python') || toolCall.tool_name.includes('execute')) {
+      return (
+        <div className="space-y-2">
+          {data.code && (
+            <div>
+              <span className="text-[10px] uppercase text-muted-foreground/70 font-medium">Code</span>
+              <pre className="mt-1 text-[10px] bg-background/50 p-2 rounded overflow-x-auto max-h-24 text-foreground/80">
+                {String(data.code).slice(0, 300)}{String(data.code).length > 300 ? '...' : ''}
+              </pre>
+            </div>
+          )}
+          {data.output && (
+            <div>
+              <span className="text-[10px] uppercase text-muted-foreground/70 font-medium">Output</span>
+              <pre className="mt-1 text-[10px] bg-background/50 p-2 rounded overflow-x-auto max-h-16 text-green-400/80">
+                {String(data.output).slice(0, 200)}{String(data.output).length > 200 ? '...' : ''}
+              </pre>
+            </div>
+          )}
+        </div>
+      );
+    }
+    
+    // Database/function calls - show parameters
+    if (data.params || data.args || data.function_name) {
+      return (
+        <div className="space-y-1">
+          {data.function_name && (
+            <div className="text-xs text-foreground/80">
+              <span className="text-muted-foreground">Function:</span> {String(data.function_name)}
+            </div>
+          )}
+          {(data.params || data.args) && (
+            <div>
+              <span className="text-[10px] uppercase text-muted-foreground/70 font-medium">Parameters</span>
+              <pre className="mt-1 text-[10px] bg-background/50 p-2 rounded overflow-x-auto max-h-20 text-foreground/80">
+                {JSON.stringify(data.params || data.args, null, 2)}
+              </pre>
+            </div>
+          )}
+        </div>
+      );
+    }
+    
+    // Generic fallback - show raw data
+    return (
+      <pre className="text-[10px] bg-background/50 p-2 rounded overflow-x-auto max-h-24 text-foreground/80">
+        {JSON.stringify(data, null, 2)}
+      </pre>
+    );
+  };
+  
+  return (
+    <div className="text-xs">
+      <button
+        onClick={() => hasData && setIsExpanded(!isExpanded)}
+        className={cn(
+          "flex items-center gap-2 w-full text-left",
+          hasData && "cursor-pointer hover:bg-background/30 -mx-1 px-1 rounded transition-colors"
+        )}
+        disabled={!hasData}
+      >
+        {toolCall.status === 'started' && (
+          <Loader2 className="w-3 h-3 animate-spin text-primary flex-shrink-0" />
+        )}
+        {toolCall.status === 'completed' && (
+          <CheckCircle className="w-3 h-3 text-green-500 flex-shrink-0" />
+        )}
+        {toolCall.status === 'failed' && (
+          <XCircle className="w-3 h-3 text-destructive flex-shrink-0" />
+        )}
+        <span className="text-muted-foreground flex-1">
+          {formatToolName(toolCall.tool_name)}
+        </span>
+        {hasData && (
+          <ChevronDown className={cn(
+            "w-3 h-3 text-muted-foreground/50 transition-transform",
+            isExpanded && "rotate-180"
+          )} />
+        )}
+      </button>
+      
+      {/* Expanded details */}
+      {isExpanded && hasData && (
+        <div className="mt-2 ml-5 pl-2 border-l border-border/50 animate-in fade-in slide-in-from-top-1 duration-200">
+          {renderToolDetails()}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // Individual message component
@@ -381,20 +543,7 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
                 {toolCalls && toolCalls.length > 0 && (
                   <div className="space-y-1.5 border-t border-border/50 pt-2 mt-2">
                     {toolCalls.map((tc, idx) => (
-                      <div key={idx} className="flex items-center gap-2 text-xs">
-                        {tc.status === 'started' && (
-                          <Loader2 className="w-3 h-3 animate-spin text-primary" />
-                        )}
-                        {tc.status === 'completed' && (
-                          <CheckCircle className="w-3 h-3 text-green-500" />
-                        )}
-                        {tc.status === 'failed' && (
-                          <XCircle className="w-3 h-3 text-destructive" />
-                        )}
-                        <span className="text-muted-foreground">
-                          {tc.tool_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        </span>
-                      </div>
+                      <ExpandableToolCall key={idx} toolCall={tc} />
                     ))}
                   </div>
                 )}
