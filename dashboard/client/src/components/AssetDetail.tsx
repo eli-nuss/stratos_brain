@@ -313,7 +313,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                   <div className="flex items-center gap-3">
                     {asset.fvs_score != null && (
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">FVS Score:</span>
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">FVS Score:<InfoTooltip content="Fundamental Vigor Score (0-100) is a weighted composite of Profitability (30%), Solvency (25%), Growth (25%), and Moat (20%). Scores ≥80 indicate Quality fundamentals, 60-79 are Quality-leaning, 40-59 are Speculative, and <40 indicate Distressed financials." /></span>
                         <span className={`text-lg font-bold ${
                           asset.fvs_score >= 80 ? 'text-emerald-400' :
                           asset.fvs_score >= 60 ? 'text-blue-400' :
@@ -398,7 +398,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                       {/* Altman Z-Score indicator */}
                       {asset.fvs_altman_z != null && (
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>Altman Z-Score:</span>
+                          <span className="flex items-center gap-1">Altman Z-Score:<InfoTooltip content="The Altman Z-Score predicts bankruptcy probability using 5 financial ratios. Scores >2.99 indicate Safe Zone (low bankruptcy risk), 1.81-2.99 is Grey Zone (moderate risk), and <1.81 is Distress Zone (high bankruptcy risk). Developed by Edward Altman in 1968." /></span>
                           <span className={`font-mono ${
                             asset.fvs_altman_z >= 2.99 ? 'text-emerald-400' :
                             asset.fvs_altman_z >= 1.81 ? 'text-yellow-400' : 'text-red-400'
