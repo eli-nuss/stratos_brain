@@ -52,11 +52,44 @@ function ExpandableToolCall({ toolCall }: { toolCall: JobToolCall }) {
     const data = toolCall.data as Record<string, unknown> | undefined;
     if (!data) return null;
     
-    // Web search - show queries and sources
-    if (toolCall.tool_name.includes('search') || toolCall.tool_name.includes('google')) {
+    // Extract args if present (from started event)
+    const args = data.args as Record<string, unknown> | undefined;
+    
+    // search_company_docs - show query and search type
+    if (toolCall.tool_name === 'search_company_docs') {
+      const query = args?.query || data.query;
+      const searchType = args?.search_type || data.search_type || 'all';
+      const resultCount = data.result_count;
       return (
         <div className="space-y-2">
-          {data.queries && Array.isArray(data.queries) && (
+          {query && (
+            <div>
+              <span className="text-[10px] uppercase text-muted-foreground/70 font-medium">Search Query</span>
+              <div className="mt-1 flex items-center gap-1.5 text-xs text-foreground/80">
+                <Search className="w-2.5 h-2.5 text-primary/60" />
+                <span>"{String(query)}"</span>
+              </div>
+            </div>
+          )}
+          {searchType && (
+            <div className="text-xs text-muted-foreground">
+              Searching: <span className="text-foreground/80">{String(searchType)}</span>
+            </div>
+          )}
+          {resultCount !== undefined && (
+            <div className="text-xs text-green-500/80">
+              Found {resultCount} results
+            </div>
+          )}
+        </div>
+      );
+    }
+    
+    // Web search / Google - show queries and sources
+    if (toolCall.tool_name.includes('google') || toolCall.tool_name.includes('web_search')) {
+      return (
+        <div className="space-y-2">
+          {data.queries && Array.isArray(data.queries) && (data.queries as string[]).length > 0 && (
             <div>
               <span className="text-[10px] uppercase text-muted-foreground/70 font-medium">Search Queries</span>
               <div className="mt-1 space-y-1">
@@ -69,7 +102,7 @@ function ExpandableToolCall({ toolCall }: { toolCall: JobToolCall }) {
               </div>
             </div>
           )}
-          {data.sources && Array.isArray(data.sources) && (
+          {data.sources && Array.isArray(data.sources) && (data.sources as unknown[]).length > 0 && (
             <div>
               <span className="text-[10px] uppercase text-muted-foreground/70 font-medium">Sources Found</span>
               <div className="mt-1 space-y-1">
@@ -113,21 +146,39 @@ function ExpandableToolCall({ toolCall }: { toolCall: JobToolCall }) {
       );
     }
     
-    // Database/function calls - show parameters
-    if (data.params || data.args || data.function_name) {
+    // Database/function calls - show parameters in a cleaner format
+    if (data.params || args) {
+      const params = (data.params || args) as Record<string, unknown>;
+      const resultCount = data.result_count as number | undefined;
+      
+      // Filter out empty/null values and format nicely
+      const cleanParams = Object.entries(params)
+        .filter(([_, v]) => v !== null && v !== undefined && v !== '')
+        .map(([k, v]) => ({ key: k.replace(/_/g, ' '), value: v }));
+      
       return (
-        <div className="space-y-1">
-          {data.function_name && (
-            <div className="text-xs text-foreground/80">
-              <span className="text-muted-foreground">Function:</span> {String(data.function_name)}
-            </div>
-          )}
-          {(data.params || data.args) && (
+        <div className="space-y-2">
+          {cleanParams.length > 0 && (
             <div>
               <span className="text-[10px] uppercase text-muted-foreground/70 font-medium">Parameters</span>
-              <pre className="mt-1 text-[10px] bg-background/50 p-2 rounded overflow-x-auto max-h-20 text-foreground/80">
-                {JSON.stringify(data.params || data.args, null, 2)}
-              </pre>
+              <div className="mt-1 space-y-0.5">
+                {cleanParams.slice(0, 5).map(({ key, value }, i) => (
+                  <div key={i} className="text-xs">
+                    <span className="text-muted-foreground">{key}:</span>{' '}
+                    <span className="text-foreground/80">
+                      {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                    </span>
+                  </div>
+                ))}
+                {cleanParams.length > 5 && (
+                  <span className="text-[10px] text-muted-foreground">+{cleanParams.length - 5} more params</span>
+                )}
+              </div>
+            </div>
+          )}
+          {resultCount !== undefined && (
+            <div className="text-xs text-green-500/80">
+              Returned {resultCount} results
             </div>
           )}
         </div>
@@ -542,9 +593,22 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
                 {/* Real-time tool execution progress */}
                 {toolCalls && toolCalls.length > 0 && (
                   <div className="space-y-1.5 border-t border-border/50 pt-2 mt-2">
-                    {toolCalls.map((tc, idx) => (
-                      <ExpandableToolCall key={idx} toolCall={tc} />
-                    ))}
+                    {/* Consolidate tool calls by name - show only the latest status for each tool */}
+                    {(() => {
+                      const consolidated = new Map<string, JobToolCall>();
+                      toolCalls.forEach((tc) => {
+                        const existing = consolidated.get(tc.tool_name);
+                        // Keep the completed/failed status over started, or the most recent one
+                        if (!existing || tc.status !== 'started' || existing.status === 'started') {
+                          // Merge data from both started and completed calls
+                          const mergedData = { ...(existing?.data as object || {}), ...(tc.data as object || {}) };
+                          consolidated.set(tc.tool_name, { ...tc, data: Object.keys(mergedData).length > 0 ? mergedData : undefined });
+                        }
+                      });
+                      return Array.from(consolidated.values()).map((tc, idx) => (
+                        <ExpandableToolCall key={`${tc.tool_name}-${idx}`} toolCall={tc} />
+                      ));
+                    })()}
                   </div>
                 )}
               </div>
