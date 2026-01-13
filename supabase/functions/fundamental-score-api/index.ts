@@ -532,7 +532,9 @@ serve(async (req) => {
   }
 
   const url = new URL(req.url)
-  const pathParts = url.pathname.split('/').filter(Boolean)
+  // Strip the function name prefix from the path
+  const path = url.pathname.replace('/fundamental-score-api', '').replace(/^\/+/, '')
+  const pathParts = path.split('/').filter(Boolean)
 
   // Initialize Supabase client (optional - for caching)
   let supabase = null
