@@ -390,11 +390,6 @@ serve(async (req) => {
           query = query.eq('universe_id', universeId)
         }
         
-        // Filter by asset type (equity or crypto)
-        if (assetType) {
-          query = query.eq('asset_type', assetType)
-        }
-        
         if (configId) {
           query = query.eq('config_id', configId)
         }
@@ -443,11 +438,6 @@ serve(async (req) => {
           query = query.eq('universe_id', universeId)
         }
         
-        // Filter by asset type (equity or crypto)
-        if (assetType) {
-          query = query.eq('asset_type', assetType)
-        }
-        
         if (configId) {
           query = query.eq('config_id', configId)
         }
@@ -482,11 +472,6 @@ serve(async (req) => {
         
         if (universeId) {
           query = query.eq('universe_id', universeId)
-        }
-        
-        // Filter by asset type (equity or crypto)
-        if (assetType) {
-          query = query.eq('asset_type', assetType)
         }
         
         if (configId) {
@@ -552,11 +537,6 @@ serve(async (req) => {
         
         if (universeId) {
           query = query.eq('universe_id', universeId)
-        }
-        
-        // Filter by asset type (equity or crypto)
-        if (assetType) {
-          query = query.eq('asset_type', assetType)
         }
         
         if (configId) {
@@ -1096,9 +1076,7 @@ ${markdownToHtml(markdown)}
             earnings_growth_yoy, beta,
             week_52_high, week_52_low,
             dividend_yield, ev_to_ebitda, ev_to_revenue,
-            price_to_book, eps, analyst_target_price,
-            fvs_score, fvs_profitability, fvs_solvency, fvs_growth, fvs_moat,
-            fvs_confidence, fvs_reasoning, fvs_altman_z
+            price_to_book, eps, analyst_target_price
           `)
           .eq('asset_id', assetId)
           .eq('as_of_date', targetDate)
@@ -1133,15 +1111,6 @@ ${markdownToHtml(markdown)}
           asset.price_to_book = enrichedAsset.price_to_book
           asset.eps = enrichedAsset.eps
           asset.analyst_target_price = enrichedAsset.analyst_target_price
-          // FVS (Fundamental Vigor Score) fields
-          asset.fvs_score = enrichedAsset.fvs_score
-          asset.fvs_profitability = enrichedAsset.fvs_profitability
-          asset.fvs_solvency = enrichedAsset.fvs_solvency
-          asset.fvs_growth = enrichedAsset.fvs_growth
-          asset.fvs_moat = enrichedAsset.fvs_moat
-          asset.fvs_confidence = enrichedAsset.fvs_confidence
-          asset.fvs_reasoning = enrichedAsset.fvs_reasoning
-          asset.fvs_altman_z = enrichedAsset.fvs_altman_z
         }
         
         // Get OHLCV (365 bars)
@@ -1280,7 +1249,6 @@ ${markdownToHtml(markdown)}
         const asOfDate = url.searchParams.get('as_of_date')
         const universeId = url.searchParams.get('universe_id')
         const configId = url.searchParams.get('config_id')
-        const assetType = url.searchParams.get('asset_type') // equity or crypto
         const sortBy = url.searchParams.get('sort_by') || 'weighted_score'
         const sortOrder = url.searchParams.get('sort_order') || 'desc'
         const secondarySortBy = url.searchParams.get('secondary_sort_by')
@@ -1290,16 +1258,21 @@ ${markdownToHtml(markdown)}
         const maxMarketCap = url.searchParams.get('max_market_cap')
         const industry = url.searchParams.get('industry')
         
-        // Use materialized view for fast queries (v_dashboard_all_assets times out)
-        // Note: mv_dashboard_all_assets doesn't have as_of_date, universe_id, or config_id columns
         let query = supabase
-          .from('mv_dashboard_all_assets')
+          .from('v_dashboard_all_assets')
           .select('*', { count: 'exact' })
           .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1)
+          
+        if (asOfDate) {
+          query = query.eq('as_of_date', asOfDate)
+        }
         
-        // Filter by asset type (equity or crypto) - this is the main filter
-        if (assetType) {
-          query = query.eq('asset_type', assetType)
+        if (universeId) {
+          query = query.eq('universe_id', universeId)
+        }
+        
+        if (configId) {
+          query = query.eq('config_id', configId)
         }
         
         // Optional search by symbol

@@ -45,7 +45,7 @@ export function useAllAssets({
   const params = new URLSearchParams({
     limit: limit.toString(),
     offset: offset.toString(),
-    asset_type: assetType, // Use asset_type filter (mv_dashboard_all_assets doesn't have universe_id)
+    universe_id: assetType === "crypto" ? "crypto_all" : "equity_all",
     sort_by: sortBy || "ai_setup_quality_score", // Default to AI score
     sort_order: sortOrder,
   });
@@ -55,8 +55,9 @@ export function useAllAssets({
     params.append("secondary_sort_order", secondarySortOrder);
   }
 
-  // Note: as_of_date filter removed - mv_dashboard_all_assets doesn't have this column
-  // The materialized view always shows the latest data
+  if (date) {
+    params.append("as_of_date", date);
+  }
 
   if (search) {
     params.append("search", search);
@@ -77,7 +78,7 @@ export function useAllAssets({
   const url = `/api/dashboard/all-assets?${params.toString()}`;
 
   const { data, error, isLoading, mutate } = useSWR<AllAssetsResponse>(
-    url, // Always fetch - mv_dashboard_all_assets shows latest data
+    date ? url : null,
     fetcher,
     {
       refreshInterval: 60000,
