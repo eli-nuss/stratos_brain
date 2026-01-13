@@ -36,7 +36,7 @@ const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
 // Configuration
 const CACHE_DURATION_HOURS = 168 // 7 days for FVS (fundamentals don't change often)
-const GEMINI_MODEL = 'gemini-2.0-flash' // Using flash for speed in edge function
+const GEMINI_MODEL = 'gemini-3-pro-preview' // Using Gemini 3 Pro for better quality analysis
 const PROMPT_VERSION = '1.0'
 
 // Pillar weights
