@@ -1,0 +1,274 @@
+{
+  "type": "object",
+  "properties": {
+    "data_quality_assessment": {
+      "type": "object",
+      "properties": {
+        "years_of_data": {
+          "type": "integer",
+          "description": "Number of years of financial data available (0-4)",
+          "minimum": 0,
+          "maximum": 4
+        },
+        "missing_metrics": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "List of key metrics that were missing or incomplete"
+        },
+        "data_quality_score": {
+          "type": "number",
+          "description": "Overall data quality score (0.0-1.0)",
+          "minimum": 0.0,
+          "maximum": 1.0
+        }
+      },
+      "required": ["years_of_data", "missing_metrics", "data_quality_score"]
+    },
+    "pillar_analyses": {
+      "type": "object",
+      "properties": {
+        "profitability": {
+          "type": "object",
+          "properties": {
+            "score": {
+              "type": "integer",
+              "description": "Profitability & Efficiency score (0-100)",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "key_metrics_cited": {
+              "type": "array",
+              "items": {"type": "string"},
+              "minItems": 3,
+              "maxItems": 6,
+              "description": "Key metrics with values that drove this score, e.g., 'ROIC: 18.5% [FY2025]'"
+            },
+            "qualitative_factors": {
+              "type": "array",
+              "items": {"type": "string"},
+              "minItems": 1,
+              "maxItems": 3,
+              "description": "Qualitative observations about earnings quality"
+            },
+            "reasoning": {
+              "type": "string",
+              "maxLength": 300,
+              "description": "Brief reasoning for the score"
+            }
+          },
+          "required": ["score", "key_metrics_cited", "qualitative_factors", "reasoning"]
+        },
+        "solvency": {
+          "type": "object",
+          "properties": {
+            "score": {
+              "type": "integer",
+              "description": "Solvency & Liquidity score (0-100)",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "key_metrics_cited": {
+              "type": "array",
+              "items": {"type": "string"},
+              "minItems": 3,
+              "maxItems": 6,
+              "description": "Key metrics with values that drove this score"
+            },
+            "qualitative_factors": {
+              "type": "array",
+              "items": {"type": "string"},
+              "minItems": 1,
+              "maxItems": 3,
+              "description": "Qualitative observations about debt structure and liquidity"
+            },
+            "reasoning": {
+              "type": "string",
+              "maxLength": 300,
+              "description": "Brief reasoning for the score"
+            },
+            "altman_z_constraint_applied": {
+              "type": "boolean",
+              "description": "Whether the Altman Z-Score <1.8 constraint was applied"
+            }
+          },
+          "required": ["score", "key_metrics_cited", "qualitative_factors", "reasoning", "altman_z_constraint_applied"]
+        },
+        "growth": {
+          "type": "object",
+          "properties": {
+            "score": {
+              "type": "integer",
+              "description": "Growth & Momentum score (0-100)",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "key_metrics_cited": {
+              "type": "array",
+              "items": {"type": "string"},
+              "minItems": 3,
+              "maxItems": 6,
+              "description": "Key metrics with values that drove this score"
+            },
+            "qualitative_factors": {
+              "type": "array",
+              "items": {"type": "string"},
+              "minItems": 1,
+              "maxItems": 3,
+              "description": "Qualitative observations about growth quality"
+            },
+            "reasoning": {
+              "type": "string",
+              "maxLength": 300,
+              "description": "Brief reasoning for the score"
+            }
+          },
+          "required": ["score", "key_metrics_cited", "qualitative_factors", "reasoning"]
+        },
+        "moat": {
+          "type": "object",
+          "properties": {
+            "score": {
+              "type": "integer",
+              "description": "Quality & Moat score (0-100)",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "key_metrics_cited": {
+              "type": "array",
+              "items": {"type": "string"},
+              "minItems": 3,
+              "maxItems": 6,
+              "description": "Key metrics with values that drove this score"
+            },
+            "moat_type": {
+              "type": "string",
+              "enum": ["wide", "narrow", "none", "negative"],
+              "description": "Classification of economic moat"
+            },
+            "moat_sources": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["switching_costs", "network_effects", "intangible_assets", "cost_advantages", "efficient_scale", "none_identified"]
+              },
+              "description": "Sources of competitive advantage identified"
+            },
+            "qualitative_factors": {
+              "type": "array",
+              "items": {"type": "string"},
+              "minItems": 1,
+              "maxItems": 3,
+              "description": "Qualitative observations about quality and moat"
+            },
+            "reasoning": {
+              "type": "string",
+              "maxLength": 300,
+              "description": "Brief reasoning for the score"
+            },
+            "piotroski_constraint_applied": {
+              "type": "boolean",
+              "description": "Whether the Piotroski F-Score <=3 constraint was applied"
+            }
+          },
+          "required": ["score", "key_metrics_cited", "moat_type", "moat_sources", "qualitative_factors", "reasoning", "piotroski_constraint_applied"]
+        }
+      },
+      "required": ["profitability", "solvency", "growth", "moat"]
+    },
+    "shadow_score_validation": {
+      "type": "object",
+      "properties": {
+        "piotroski_alignment": {
+          "type": "string",
+          "enum": ["aligned", "minor_discrepancy", "major_discrepancy_explained"],
+          "description": "How well the scores align with Piotroski F-Score"
+        },
+        "altman_alignment": {
+          "type": "string",
+          "enum": ["aligned", "minor_discrepancy", "major_discrepancy_explained"],
+          "description": "How well the scores align with Altman Z-Score"
+        },
+        "discrepancy_explanation": {
+          "type": ["string", "null"],
+          "maxLength": 200,
+          "description": "Explanation if there are major discrepancies"
+        }
+      },
+      "required": ["piotroski_alignment", "altman_alignment"]
+    },
+    "sub_scores": {
+      "type": "object",
+      "properties": {
+        "profitability": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "solvency": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "growth": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "moat": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        }
+      },
+      "required": ["profitability", "solvency", "growth", "moat"],
+      "description": "Final sub-scores for each pillar (duplicated from pillar_analyses for easy access)"
+    },
+    "confidence_level": {
+      "type": "string",
+      "enum": ["HIGH", "MEDIUM", "LOW"],
+      "description": "Confidence in the overall assessment based on data quality and clarity of signals"
+    },
+    "reasoning_scratchpad": {
+      "type": "string",
+      "maxLength": 2000,
+      "description": "Internal chain-of-thought reasoning (not shown to end users)"
+    },
+    "final_reasoning_paragraph": {
+      "type": "string",
+      "minLength": 400,
+      "maxLength": 1000,
+      "description": "User-facing summary paragraph (100-200 words) with specific citations to data points. Must reference at least 3 specific metrics with values."
+    },
+    "key_strengths": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 2,
+      "maxItems": 4,
+      "description": "Top 2-4 fundamental strengths"
+    },
+    "key_risks": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 2,
+      "maxItems": 4,
+      "description": "Top 2-4 fundamental risks or concerns"
+    },
+    "comparable_quality_tier": {
+      "type": "string",
+      "enum": ["fortress", "quality", "average", "speculative", "distressed"],
+      "description": "Qualitative tier classification for the company"
+    }
+  },
+  "required": [
+    "data_quality_assessment",
+    "pillar_analyses",
+    "shadow_score_validation",
+    "sub_scores",
+    "confidence_level",
+    "reasoning_scratchpad",
+    "final_reasoning_paragraph",
+    "key_strengths",
+    "key_risks",
+    "comparable_quality_tier"
+  ]
+}
