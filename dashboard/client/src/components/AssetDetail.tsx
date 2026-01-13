@@ -303,63 +303,109 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
 
             {/* AI Analysis - Different content based on view */}
             {chartView === 'financials' && asset.asset_type === 'equity' ? (
-              /* AI Thesis for Fundamentals View */
+              /* Fundamental Vigor Score (FVS) Thesis for Fundamentals View */
               <div className="bg-muted/10 border border-border rounded-lg overflow-hidden">
-                <div className="bg-muted/30 px-4 py-2.5 border-b border-border flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-primary" />
-                  <h3 className="font-semibold text-sm">AI Thesis</h3>
-                  {review?.as_of_date && (
-                    <span className="text-[10px] text-muted-foreground/70 font-mono ml-auto">
-                      {review.model_id || "gemini-2.0-flash"} • {review.as_of_date}
+                <div className="bg-muted/30 px-4 py-2.5 border-b border-border flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-primary" />
+                    <h3 className="font-semibold text-sm">Fundamental Analysis</h3>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {asset.fvs_score != null && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">FVS Score:</span>
+                        <span className={`text-lg font-bold ${
+                          asset.fvs_score >= 80 ? 'text-emerald-400' :
+                          asset.fvs_score >= 60 ? 'text-blue-400' :
+                          asset.fvs_score >= 40 ? 'text-yellow-400' :
+                          'text-red-400'
+                        }`}>
+                          {asset.fvs_score.toFixed(0)}
+                        </span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                          asset.fvs_score >= 80 ? 'bg-emerald-500/20 text-emerald-400' :
+                          asset.fvs_score >= 60 ? 'bg-blue-500/20 text-blue-400' :
+                          asset.fvs_score >= 40 ? 'bg-yellow-500/20 text-yellow-400' :
+                          'bg-red-500/20 text-red-400'
+                        }`}>
+                          {asset.fvs_score >= 80 ? 'QUALITY' :
+                           asset.fvs_score >= 60 ? 'QUALITY' :
+                           asset.fvs_score >= 40 ? 'SPECULATIVE' : 'DISTRESSED'}
+                        </span>
+                      </div>
+                    )}
+                    <span className="text-[10px] text-muted-foreground/70 font-mono">
+                      gemini-2.0-flash
                     </span>
-                  )}
+                  </div>
                 </div>
                 <div className="p-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Bull Case */}
-                    <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <TrendingUp className="w-4 h-4 text-emerald-400" />
-                        <span className="text-sm font-semibold text-emerald-400">Bull Case</span>
+                  {asset.fvs_reasoning ? (
+                    <div className="space-y-4">
+                      {/* FVS Pillar Scores */}
+                      <div className="grid grid-cols-4 gap-3">
+                        <div className="text-center">
+                          <div className="text-[10px] text-muted-foreground mb-1">Profitability</div>
+                          <div className={`text-sm font-semibold ${
+                            (asset.fvs_profitability || 0) >= 70 ? 'text-emerald-400' :
+                            (asset.fvs_profitability || 0) >= 50 ? 'text-blue-400' :
+                            (asset.fvs_profitability || 0) >= 30 ? 'text-yellow-400' : 'text-red-400'
+                          }`}>{asset.fvs_profitability || '-'}</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-[10px] text-muted-foreground mb-1">Solvency</div>
+                          <div className={`text-sm font-semibold ${
+                            (asset.fvs_solvency || 0) >= 70 ? 'text-emerald-400' :
+                            (asset.fvs_solvency || 0) >= 50 ? 'text-blue-400' :
+                            (asset.fvs_solvency || 0) >= 30 ? 'text-yellow-400' : 'text-red-400'
+                          }`}>{asset.fvs_solvency || '-'}</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-[10px] text-muted-foreground mb-1">Growth</div>
+                          <div className={`text-sm font-semibold ${
+                            (asset.fvs_growth || 0) >= 70 ? 'text-emerald-400' :
+                            (asset.fvs_growth || 0) >= 50 ? 'text-blue-400' :
+                            (asset.fvs_growth || 0) >= 30 ? 'text-yellow-400' : 'text-red-400'
+                          }`}>{asset.fvs_growth || '-'}</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-[10px] text-muted-foreground mb-1">Moat</div>
+                          <div className={`text-sm font-semibold ${
+                            (asset.fvs_moat || 0) >= 70 ? 'text-emerald-400' :
+                            (asset.fvs_moat || 0) >= 50 ? 'text-blue-400' :
+                            (asset.fvs_moat || 0) >= 30 ? 'text-yellow-400' : 'text-red-400'
+                          }`}>{asset.fvs_moat || '-'}</div>
+                        </div>
                       </div>
-                      {review?.bull_case || review?.thesis?.bull_case ? (
-                        <ul className="space-y-1.5">
-                          {(Array.isArray(review.bull_case) ? review.bull_case : 
-                            Array.isArray(review.thesis?.bull_case) ? review.thesis.bull_case : 
-                            [review.bull_case || review.thesis?.bull_case]).filter(Boolean).slice(0, 3).map((point: string, idx: number) => (
-                            <li key={idx} className="text-xs text-foreground/80 flex items-start gap-2">
-                              <span className="mt-1.5 w-1 h-1 rounded-full bg-emerald-400 flex-shrink-0" />
-                              <span className="line-clamp-2">{point}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="text-xs text-muted-foreground/60 italic">Run AI analysis to generate</p>
+                      {/* FVS Summary/Thesis */}
+                      <div className="bg-muted/20 rounded-lg p-3">
+                        <p className="text-sm text-foreground/90 leading-relaxed">
+                          {asset.fvs_reasoning}
+                        </p>
+                      </div>
+                      {/* Altman Z-Score indicator */}
+                      {asset.fvs_altman_z != null && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>Altman Z-Score:</span>
+                          <span className={`font-mono ${
+                            asset.fvs_altman_z >= 2.99 ? 'text-emerald-400' :
+                            asset.fvs_altman_z >= 1.81 ? 'text-yellow-400' : 'text-red-400'
+                          }`}>
+                            {asset.fvs_altman_z.toFixed(2)}
+                          </span>
+                          <span className="text-muted-foreground/60">
+                            ({asset.fvs_altman_z >= 2.99 ? 'Safe Zone' :
+                              asset.fvs_altman_z >= 1.81 ? 'Grey Zone' : 'Distress Zone'})
+                          </span>
+                        </div>
                       )}
                     </div>
-                    
-                    {/* Bear Case */}
-                    <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <TrendingDown className="w-4 h-4 text-red-400" />
-                        <span className="text-sm font-semibold text-red-400">Bear Case</span>
-                      </div>
-                      {review?.bear_case || review?.thesis?.bear_case ? (
-                        <ul className="space-y-1.5">
-                          {(Array.isArray(review.bear_case) ? review.bear_case : 
-                            Array.isArray(review.thesis?.bear_case) ? review.thesis.bear_case : 
-                            [review.bear_case || review.thesis?.bear_case]).filter(Boolean).slice(0, 3).map((point: string, idx: number) => (
-                            <li key={idx} className="text-xs text-foreground/80 flex items-start gap-2">
-                              <span className="mt-1.5 w-1 h-1 rounded-full bg-red-400 flex-shrink-0" />
-                              <span className="line-clamp-2">{point}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="text-xs text-muted-foreground/60 italic">Run AI analysis to generate</p>
-                      )}
+                  ) : (
+                    <div className="text-center py-6">
+                      <p className="text-sm text-muted-foreground/60 italic">Fundamental analysis not yet available for this equity</p>
+                      <p className="text-xs text-muted-foreground/40 mt-1">FVS scores are generated during scheduled analysis runs</p>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             ) : (

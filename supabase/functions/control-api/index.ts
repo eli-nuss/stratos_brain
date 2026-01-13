@@ -1096,7 +1096,9 @@ ${markdownToHtml(markdown)}
             earnings_growth_yoy, beta,
             week_52_high, week_52_low,
             dividend_yield, ev_to_ebitda, ev_to_revenue,
-            price_to_book, eps, analyst_target_price
+            price_to_book, eps, analyst_target_price,
+            fvs_score, fvs_profitability, fvs_solvency, fvs_growth, fvs_moat,
+            fvs_confidence, fvs_reasoning, fvs_altman_z
           `)
           .eq('asset_id', assetId)
           .eq('as_of_date', targetDate)
@@ -1131,6 +1133,15 @@ ${markdownToHtml(markdown)}
           asset.price_to_book = enrichedAsset.price_to_book
           asset.eps = enrichedAsset.eps
           asset.analyst_target_price = enrichedAsset.analyst_target_price
+          // FVS (Fundamental Vigor Score) fields
+          asset.fvs_score = enrichedAsset.fvs_score
+          asset.fvs_profitability = enrichedAsset.fvs_profitability
+          asset.fvs_solvency = enrichedAsset.fvs_solvency
+          asset.fvs_growth = enrichedAsset.fvs_growth
+          asset.fvs_moat = enrichedAsset.fvs_moat
+          asset.fvs_confidence = enrichedAsset.fvs_confidence
+          asset.fvs_reasoning = enrichedAsset.fvs_reasoning
+          asset.fvs_altman_z = enrichedAsset.fvs_altman_z
         }
         
         // Get OHLCV (365 bars)
