@@ -266,6 +266,105 @@
                                                                                             | `v_active_signals` | Currently active signals |
                                                                                             | `v_leaders` | Top performing assets |
                                                                                             | `v_risks` | Assets showing risk signals |
+                                                                                            | `v_dashboard_risk` | Assets with risk indicators |
+                                                                                            | `v_dashboard_trends` | Trending assets |
+                                                                                            | `v_screener_leaders` | Top momentum leaders |
+                                                                                            | `v_screener_movers` | Biggest price movers |
+                                                                                            | `v_screener_risks` | High risk assets |
+                                                                                            | `v_guru_consensus` | Guru agreement on holdings |
+                                                                                            | `v_guru_latest_holdings` | Most recent guru positions |
+                                                                                            | `v_fundamental_leaders` | Top fundamental scores |
+                                                                                            | `v_growth_leaders` | Top growth stocks |
+                                                                                            | `v_value_leaders` | Top value stocks |
+                                                                                            | `v_equity_fundamentals` | Complete equity fundamental data |
+                                                                                         
+                                                                                            ### 5.5 Fundamental Data Tables
+                                                                                         
+                                                                                            | Table | Purpose | Key Columns |
+                                                                                            |-------|---------|-------------|
+                                                                                            | `equity_metadata` | Company information | `asset_id`, `company_name`, `sector`, `industry` |
+                                                                                            | `equity_annual_fundamentals` | Annual financial data | `asset_id`, `fiscal_year`, `revenue`, `net_income` |
+                                                                                            | `equity_quarterly_fundamentals` | Quarterly financial data | `asset_id`, `fiscal_quarter`, `revenue`, `eps` |
+                                                                                            | `fundamental_scores` | Calculated fundamental scores | `asset_id`, `value_score`, `growth_score`, `quality_score` |
+                                                                                            | `fundamental_snapshot` | Monthly pre-calculated fundamentals | `asset_id`, `snapshot_date`, `pe_ratio`, `pb_ratio` |
+                                                                                            | `fundamental_score_history` | Historical score tracking | `asset_id`, `score_date`, `composite_score` |
+                                                                                            | `daily_macro_metrics` | Macro-economic indicators | `date`, `vix`, `dxy`, `treasury_yields` |
+                                                                                         
+                                                                                            ### 5.6 Signal & Engine Tables
+                                                                                         
+                                                                                            | Table | Purpose | Key Columns |
+                                                                                            |-------|---------|-------------|
+                                                                                            | `signal_ai_annotations` | AI annotations on signals | `signal_id`, `annotation`, `confidence` |
+                                                                                            | `signal_state_history` | Signal state transitions | `signal_id`, `state`, `transitioned_at` |
+                                                                                            | `signal_validation_stats` | Signal performance metrics | `template_name`, `accuracy`, `precision` |
+                                                                                            | `engine_configs` | Engine configuration | `config_name`, `parameters`, `is_active` |
+                                                                                            | `engine_jobs` | Engine job queue | `job_id`, `job_type`, `status`, `created_at` |
+                                                                                            | `daily_signals_v2` | V2 signal data | `asset_id`, `signal_date`, `signals_json` |
+                                                                                         
+                                                                                            ### 5.7 Brain & Chat System Tables
+                                                                                         
+                                                                                            | Table | Purpose | Key Columns |
+                                                                                            |-------|---------|-------------|
+                                                                                            | `brain_chats` | Global Brain chat sessions | `chat_id`, `user_id`, `title`, `created_at` |
+                                                                                            | `brain_jobs` | Brain async job queue | `job_id`, `chat_id`, `status` |
+                                                                                            | `brain_messages` | Brain conversation history | `message_id`, `chat_id`, `role`, `content` |
+                                                                                            | `chat_config` | Chat system configuration | `config_key`, `config_value` |
+                                                                                            | `chat_jobs` | Chat async jobs | `job_id`, `chat_id`, `job_type`, `status` |
+                                                                                            | `chat_tool_executions` | Tool execution logs | `execution_id`, `message_id`, `tool_name`, `result` |
+                                                                                            | `content_knowledge_base` | Knowledge base content | `content_id`, `title`, `content`, `embedding` |
+                                                                                         
+                                                                                            ### 5.8 Portfolio Management Tables
+                                                                                         
+                                                                                            | Table | Purpose | Key Columns |
+                                                                                            |-------|---------|-------------|
+                                                                                            | `core_portfolio_holdings` | Core portfolio positions | `holding_id`, `asset_id`, `shares`, `cost_basis` |
+                                                                                            | `core_portfolio_items` | Portfolio configuration | `item_id`, `portfolio_name` |
+                                                                                            | `model_portfolio_holdings` | Model portfolio positions | `holding_id`, `asset_id`, `target_weight` |
+                                                                                            | `model_portfolio_items` | Model portfolio config | `item_id`, `portfolio_name` |
+                                                                                            | `watchlist` | User watchlists | `user_id`, `asset_id`, `added_at` |
+                                                                                         
+                                                                                            ### 5.9 User & Activity Tables
+                                                                                         
+                                                                                            | Table | Purpose | Key Columns |
+                                                                                            |-------|---------|-------------|
+                                                                                            | `user_profiles` | User profile data | `user_id`, `email`, `display_name` |
+                                                                                            | `user_preferences` | User settings | `user_id`, `preference_key`, `preference_value` |
+                                                                                            | `user_activity` | Activity tracking | `activity_id`, `user_id`, `action`, `timestamp` |
+                                                                                            | `feedback_items` | User feedback | `feedback_id`, `user_id`, `feedback_type`, `content` |
+                                                                                         
+                                                                                            ### 5.10 Utility & System Tables
+                                                                                         
+                                                                                            | Table | Purpose | Key Columns |
+                                                                                            |-------|---------|-------------|
+                                                                                            | `pipeline_runs` | Pipeline execution audit | `run_id`, `pipeline_name`, `status`, `started_at` |
+                                                                                            | `latest_dates` | Data freshness tracking | `data_type`, `latest_date` |
+                                                                                            | `metrics` | System metrics | `metric_name`, `metric_value`, `recorded_at` |
+                                                                                            | `sources` | Data source references | `source_id`, `source_name` |
+                                                                                            | `document_jobs` | Document processing jobs | `job_id`, `document_id`, `status` |
+                                                                                            | `document_templates` | Document templates | `template_id`, `template_name`, `content` |
+                                                                                            | `document_ingestion_log` | Document ingestion audit | `log_id`, `document_id`, `ingested_at` |
+                                                                                         
+                                                                                            ### 5.11 Asset Annotation Tables
+                                                                                         
+                                                                                            | Table | Purpose | Key Columns |
+                                                                                            |-------|---------|-------------|
+                                                                                            | `asset_files` | Asset-related files | `file_id`, `asset_id`, `file_type`, `url` |
+                                                                                            | `asset_notes` | User notes on assets | `note_id`, `asset_id`, `user_id`, `content` |
+                                                                                            | `asset_tags` | Asset tagging | `tag_id`, `asset_id`, `tag_name` |
+                                                                                            | `asset_reviewed` | Review tracking | `asset_id`, `reviewed_at` |
+                                                                                            | `stock_lists` | Custom stock lists | `list_id`, `list_name`, `user_id` |
+                                                                                            | `stock_list_items` | Stock list membership | `list_id`, `asset_id` |
+                                                                                         
+                                                                                            ### 5.12 Token & Crypto Tables
+                                                                                         
+                                                                                            | Table | Purpose | Key Columns |
+                                                                                            |-------|---------|-------------|
+                                                                                            | `tokens` | Cryptocurrency tokens | `token_id`, `symbol`, `name`, `coingecko_id` |
+                                                                                            | `token_metadata` | Token metadata | `token_id`, `market_cap`, `total_supply` |
+                                                                                            | `tracked_investors` | Super-investor profiles | `investor_id`, `name`, `cik`, `fund_name` |
+                                                                                            | `investor_holdings` | Historical investor snapshots | `holding_id`, `investor_id`, `asset_id`, `shares` |
+                                                                                            | `guru_performance_history` | Guru performance tracking | `guru_id`, `period`, `return_pct` |
+                                                                                            
 
                                                                                             ---
 
