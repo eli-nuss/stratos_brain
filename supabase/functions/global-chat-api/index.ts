@@ -1,5 +1,6 @@
-// Stratos Brain - Global Chat API
+// Global Chat API - Stratos Brain
 // General-purpose AI assistant for market analysis, not tied to any specific asset
+// Deployment trigger: 2025-01-13-v1
 // Forked from company-chat-api with general-purpose tools
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
