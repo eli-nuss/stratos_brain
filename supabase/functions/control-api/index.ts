@@ -2085,35 +2085,18 @@ If asked about something not in the data, acknowledge the limitation.`
         
         const assetIds = watchlistItems.map(w => w.asset_id)
         
-        // Get the latest dates for each asset type
-        const { data: latestDates } = await supabase
-          .from('latest_dates')
-          .select('asset_type, latest_date')
+        // Get assets from materialized view (no date filtering needed)
+        const { data: assets, error: assetsError } = await supabase
+          .from('mv_dashboard_all_assets')
+          .select('*')
+          .in('asset_id', assetIds)
         
-        const dateMap: Record<string, string> = {}
-        latestDates?.forEach(d => { dateMap[d.asset_type] = d.latest_date })
-        
-        // Get assets from dashboard view filtered by latest dates
-        // We need to query separately for crypto and equity since they have different latest dates
-        const cryptoDate = dateMap['crypto'] || new Date().toISOString().split('T')[0]
-        const equityDate = dateMap['equity'] || new Date().toISOString().split('T')[0]
-        
-        const [cryptoResult, equityResult] = await Promise.all([
-          supabase
-            .from('v_dashboard_all_assets')
-            .select('*')
-            .in('asset_id', assetIds)
-            .eq('as_of_date', cryptoDate)
-            .eq('universe_id', 'crypto_all'),
-          supabase
-            .from('v_dashboard_all_assets')
-            .select('*')
-            .in('asset_id', assetIds)
-            .eq('as_of_date', equityDate)
-            .eq('universe_id', 'equity_all')
-        ])
-        
-        const assets = [...(cryptoResult.data || []), ...(equityResult.data || [])]
+        if (assetsError) {
+          return new Response(JSON.stringify({ error: assetsError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
         
         // Add in_watchlist flag
         const enrichedAssets = assets.map(asset => ({
@@ -2291,36 +2274,41 @@ If asked about something not in the data, acknowledge the limitation.`
       case req.method === 'GET' && /^\/dashboard\/stock-lists\/\d+\/assets$/.test(path): {
         const listId = parseInt(path.split('/')[3])
         
-        // Get the latest dates for each asset type
-        const { data: latestDates } = await supabase
-          .from('latest_dates')
-          .select('asset_type, latest_date')
+        // Get asset IDs from the stock list
+        const { data: listItems, error: listError } = await supabase
+          .from('stock_list_items')
+          .select('asset_id')
+          .eq('list_id', listId)
         
-        const dateMap: Record<string, string> = {}
-        latestDates?.forEach(d => { dateMap[d.asset_type] = d.latest_date })
+        if (listError) {
+          return new Response(JSON.stringify({ error: listError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
         
-        const cryptoDate = dateMap['crypto'] || new Date().toISOString().split('T')[0]
-        const equityDate = dateMap['equity'] || new Date().toISOString().split('T')[0]
+        if (!listItems || listItems.length === 0) {
+          return new Response(JSON.stringify([]), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
         
-        // Get assets from the stock list view
-        const [cryptoResult, equityResult] = await Promise.all([
-          supabase
-            .from('v_stock_list_assets')
-            .select('*')
-            .eq('list_id', listId)
-            .eq('as_of_date', cryptoDate)
-            .eq('universe_id', 'crypto_all'),
-          supabase
-            .from('v_stock_list_assets')
-            .select('*')
-            .eq('list_id', listId)
-            .eq('as_of_date', equityDate)
-            .or('universe_id.eq.equity_all,universe_id.eq.equities_all')
-        ])
+        const assetIds = listItems.map(item => item.asset_id)
         
-        const assets = [...(cryptoResult.data || []), ...(equityResult.data || [])]
+        // Get assets from materialized view
+        const { data: assets, error: assetsError } = await supabase
+          .from('mv_dashboard_all_assets')
+          .select('*')
+          .in('asset_id', assetIds)
         
-        return new Response(JSON.stringify(assets), {
+        if (assetsError) {
+          return new Response(JSON.stringify({ error: assetsError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(assets || []), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
