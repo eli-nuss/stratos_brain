@@ -699,7 +699,7 @@ async function saveFVSResult(supabase: any, assetId: number, result: FVSResult, 
         model_name: result.modelName,
         prompt_version: result.promptVersion
       }, {
-        onConflict: 'asset_id,as_of_date,prompt_version'
+        onConflict: 'asset_id,as_of_date'
       })
     
     console.log(`Saved FVS for ${result.symbol}`)
