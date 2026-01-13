@@ -335,7 +335,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                       </div>
                     )}
                     <span className="text-[10px] text-muted-foreground/70 font-mono">
-                      gemini-2.0-flash
+                      gemini-3-pro-preview
                     </span>
                   </div>
                 </div>
@@ -430,7 +430,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                       <span className="text-xs font-medium text-muted-foreground">AI Summary</span>
                     </div>
                     <span className="text-[10px] text-muted-foreground/70 font-mono">
-                      {review.model_id || "gemini-2.0-flash"}
+                      {review.model_id || "gemini-3-pro-preview"}
                       {review.as_of_date && ` • ${review.as_of_date}`}
                     </span>
                   </div>
