@@ -211,16 +211,16 @@ const unifiedFunctionDeclarations = [
       required: ["ticker", "search_query"]
     }
   },
-  // Web search function wrapper
+  // Grounded Research using native Gemini Google Search (Tool-ception pattern)
   {
-    name: "web_search",
-    description: "Search the web for current information about a company, news, market conditions, or any topic. Use this for real-time information not in the database.",
+    name: "perform_grounded_research",
+    description: "Search the web using Google Search and get a synthesized, comprehensive answer with citations. Use this for ANY external knowledge: current news, company developments, market events, explanations, historical context, or any information not in the database. This is your 'General Knowledge' module - if you don't know something, use this tool.",
     parameters: {
       type: "object",
       properties: {
         query: { 
           type: "string", 
-          description: "The search query to find information about" 
+          description: "The research query - be specific and detailed for best results" 
         }
       },
       required: ["query"]
@@ -479,64 +479,76 @@ const unifiedFunctionDeclarations = [
   }
 ]
 
-// Execute web search using Google Custom Search API
-async function executeWebSearch(query: string): Promise<unknown> {
-  // Check if API credentials are configured
-  if (!GOOGLE_SEARCH_API_KEY || !GOOGLE_SEARCH_CX) {
-    console.warn('Google Search API not configured - missing GOOGLE_SEARCH_API_KEY or GOOGLE_SEARCH_CX')
-    return {
-      query: query,
-      error: 'Web search not configured. Please set GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_CX environment variables.',
-      timestamp: new Date().toISOString()
-    }
-  }
-
+// Grounded Research using native Gemini Google Search (Tool-ception pattern)
+// This spins up a separate Gemini instance with ONLY googleSearch enabled
+// to get high-quality synthesized answers with citations
+async function executeGroundedSearch(query: string): Promise<string> {
   try {
-    // Build the Google Custom Search API URL
-    const searchUrl = new URL('https://www.googleapis.com/customsearch/v1')
-    searchUrl.searchParams.set('key', GOOGLE_SEARCH_API_KEY)
-    searchUrl.searchParams.set('cx', GOOGLE_SEARCH_CX)
-    searchUrl.searchParams.set('q', query)
-    searchUrl.searchParams.set('num', '10') // Return up to 10 results
+    console.log(`Executing grounded research for: "${query}"`)
+    
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ 
+            role: 'user', 
+            parts: [{ text: `You are a highly capable research assistant with access to Google Search.
 
-    console.log(`Executing web search for: "${query}"`)
+User Query: "${query}"
 
-    const response = await fetch(searchUrl.toString())
+Instructions:
+1. Use Google Search to find the most relevant and up-to-date information.
+2. Answer the query comprehensively and thoroughly.
+3. If the query asks for an opinion or analysis, provide it based on the search results.
+4. If the query asks for a specific format (bullet points, essay, table, timeline), follow it.
+5. If the query is about current events, include specific dates, names, and developments.
+6. If the query is technical or educational, explain concepts clearly.
+
+Provide a detailed, well-structured response with citations where appropriate.` }] 
+          }],
+          tools: [{ googleSearch: {} }], // EXCLUSIVE MODE: Grounding ONLY - no function calling
+          generationConfig: { 
+            temperature: 0.7,
+            maxOutputTokens: 4096
+          }
+        })
+      }
+    );
 
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error('Google Search API error:', errorText)
-      return {
-        query: query,
-        error: `Search API error: ${response.status} - ${errorText}`,
-        timestamp: new Date().toISOString()
-      }
+      const errorText = await response.text();
+      return `Research Error: ${response.status} - ${errorText}`;
     }
 
-    const data = await response.json()
-
-    // Extract and format search results
-    const results = (data.items || []).map((item: { title: string; link: string; snippet: string; displayLink?: string }) => ({
-      title: item.title,
-      url: item.link,
-      snippet: item.snippet,
-      source: item.displayLink || new URL(item.link).hostname
-    }))
-
-    return {
-      query: query,
-      total_results: data.searchInformation?.totalResults || results.length,
-      results: results,
-      timestamp: new Date().toISOString()
+    const data = await response.json();
+    const candidate = data.candidates?.[0];
+    const text = candidate?.content?.parts?.map((p: { text?: string }) => p.text).join('') || "No results found.";
+    
+    // Extract Grounding Metadata (Citations) and append to text
+    const metadata = candidate?.groundingMetadata;
+    let citationText = "";
+    
+    if (metadata?.groundingChunks && metadata.groundingChunks.length > 0) {
+      citationText = "\n\n**Sources:**\n" + metadata.groundingChunks
+        .slice(0, 10) // Limit to top 10 sources
+        .map((c: { web?: { title?: string; uri?: string } }, i: number) => 
+          `[${i+1}] ${c.web?.title || 'Source'} - ${c.web?.uri || ''}`
+        )
+        .join('\n');
+    }
+    
+    // Also include search queries used if available
+    if (metadata?.webSearchQueries && metadata.webSearchQueries.length > 0) {
+      citationText += "\n\n**Search queries used:** " + metadata.webSearchQueries.join(', ');
     }
 
-  } catch (error) {
-    console.error('Web search error:', error)
-    return {
-      query: query,
-      error: error instanceof Error ? error.message : 'Unknown error during web search',
-      timestamp: new Date().toISOString()
-    }
+    return text + citationText;
+
+  } catch (e) {
+    console.error('Grounded research error:', e);
+    return `Research failed: ${e instanceof Error ? e.message : 'Unknown error'}`;
   }
 }
 
@@ -939,10 +951,10 @@ async function executeFunctionCall(
       
       if (!documents || documents.length === 0) {
         return { 
-          error: `No ${docType} documents found for ${ticker}. The documents may not have been ingested yet. Try using web_search as a fallback.`,
+          error: `No ${docType} documents found for ${ticker}. The documents may not have been ingested yet. Try using perform_grounded_research as a fallback.`,
           ticker,
           doc_type: docType,
-          suggestion: 'Use web_search to find this information online'
+          suggestion: 'Use perform_grounded_research to find this information online'
         }
       }
       
@@ -1134,10 +1146,10 @@ async function executeFunctionCall(
       }
     }
     
-    case "web_search": {
-      const result = await executeWebSearch(args.query as string)
-      // Wrap in object for Gemini API compatibility
-      return { search_output: result }
+    case "perform_grounded_research": {
+      const result = await executeGroundedSearch(args.query as string)
+      // Return the synthesized research with citations
+      return { research_output: result }
     }
     
     case "execute_python": {
@@ -2441,7 +2453,7 @@ function buildSystemPrompt(
 2. **Document Library (get_company_docs)**: Read FULL SEC filings (10-K, 10-Q) and earnings transcripts. Use this for deep dives, risk analysis, finding management quotes, or understanding business strategy.
 3. **Database Functions**: Query real-time financial data, price history, technical indicators, signals, and AI reviews.
 4. **Python Sandbox (execute_python)**: Execute Python code for accurate calculations, statistical analysis, forecasts, and data processing. NumPy, Pandas, and Matplotlib are available.
-5. **Web Search**: Search for current news and real-time information not in the database.
+5. **Grounded Research (perform_grounded_research)**: Search the web using Google Search for current news, company developments, market events, or any external knowledge. Returns synthesized answers with citations.
 6. **Document Export (create_and_export_document)**: When users ask you to CREATE, EXPORT, SAVE, or DOWNLOAD a document (DCF, analysis, report, summary), use this tool to save it as a downloadable file. The user will see download buttons for Markdown and PDF.`
   
   const guidelines = chatConfig.guidelines
@@ -2460,8 +2472,8 @@ function buildSystemPrompt(
 
 ## MEMORY CONSTRAINT STRATEGY (CRITICAL)
 You are running in a memory-constrained serverless environment. For complex multi-step queries:
-- **DO NOT** chain heavy operations (get_company_docs + web_search + execute_python + generate_dynamic_ui) in a single response turn.
-- **Step 1**: Fetch data (documents OR web search). Return findings to user.
+- **DO NOT** chain heavy operations (get_company_docs + perform_grounded_research + execute_python + generate_dynamic_ui) in a single response turn.
+- **Step 1**: Fetch data (documents OR grounded research). Return findings to user.
 - **Step 2**: If user confirms, proceed with analysis (Python calculations, charts).
 - If documents are truncated, inform the user and offer to fetch specific sections.
 - Prefer smaller, focused queries over massive all-in-one requests.`
