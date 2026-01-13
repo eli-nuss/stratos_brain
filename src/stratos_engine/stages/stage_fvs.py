@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 # Configuration
 # ============================================================================
 FMP_API_KEY = os.environ.get("FMP_API_KEY")
-FMP_BASE_URL = "https://financialmodelingprep.com/api/v3"
+FMP_BASE_URL = "https://financialmodelingprep.com/stable"
 
 # Rate limiting
 REQUEST_DELAY = 0.2  # 200ms between requests
@@ -164,7 +164,12 @@ class FVSResult:
 # FMP API Functions
 # ============================================================================
 def get_fmp(endpoint: str, params: Optional[Dict] = None) -> Any:
-    """Fetch data from FMP API with rate limiting."""
+    """
+    Fetch data from FMP stable API with rate limiting.
+    
+    The stable API uses query params for all parameters including symbol.
+    e.g., /stable/profile?symbol=AAPL&apikey=xxx
+    """
     if not FMP_API_KEY:
         logger.error("FMP_API_KEY environment variable not set")
         return None
@@ -379,16 +384,16 @@ def fetch_fundamental_data(symbol: str) -> Optional[QuantitativeMetrics]:
     """Fetch all fundamental data from FMP and calculate metrics."""
     metrics = QuantitativeMetrics()
     
-    # 1. Company Profile
+    # 1. Company Profile (stable API uses query params)
     logger.debug(f"Fetching profile for {symbol}")
-    profile = get_fmp(f"profile/{symbol}")
+    profile = get_fmp("profile", params={'symbol': symbol})
     if profile and len(profile) > 0:
         p = profile[0]
         metrics.market_cap = p.get('mktCap')
     
     # 2. Income Statement (annual, last 5 years)
     logger.debug(f"Fetching income statement for {symbol}")
-    income = get_fmp(f"income-statement/{symbol}", params={'limit': 5})
+    income = get_fmp("income-statement", params={'symbol': symbol, 'limit': 5})
     if income and len(income) > 0:
         latest = income[0]
         metrics.revenue_ttm = latest.get('revenue')
@@ -414,14 +419,14 @@ def fetch_fundamental_data(symbol: str) -> Optional[QuantitativeMetrics]:
     
     # 3. Income Statement (quarterly, last 8 quarters)
     logger.debug(f"Fetching quarterly income for {symbol}")
-    quarterly = get_fmp(f"income-statement/{symbol}", params={'period': 'quarter', 'limit': 8})
+    quarterly = get_fmp("income-statement", params={'symbol': symbol, 'period': 'quarter', 'limit': 8})
     if quarterly:
         metrics.quarterly_revenue = [q.get('revenue') for q in quarterly if q.get('revenue')]
         metrics.revenue_acceleration = calculate_revenue_acceleration(metrics.quarterly_revenue)
     
     # 4. Balance Sheet
     logger.debug(f"Fetching balance sheet for {symbol}")
-    balance = get_fmp(f"balance-sheet-statement/{symbol}", params={'limit': 2})
+    balance = get_fmp("balance-sheet-statement", params={'symbol': symbol, 'limit': 2})
     if balance and len(balance) > 0:
         b = balance[0]
         metrics.total_assets = b.get('totalAssets')
@@ -470,7 +475,7 @@ def fetch_fundamental_data(symbol: str) -> Optional[QuantitativeMetrics]:
     
     # 5. Cash Flow Statement
     logger.debug(f"Fetching cash flow for {symbol}")
-    cashflow = get_fmp(f"cash-flow-statement/{symbol}", params={'limit': 5})
+    cashflow = get_fmp("cash-flow-statement", params={'symbol': symbol, 'limit': 5})
     if cashflow and len(cashflow) > 0:
         cf = cashflow[0]
         ocf = cf.get('operatingCashFlow')
@@ -502,7 +507,7 @@ def fetch_fundamental_data(symbol: str) -> Optional[QuantitativeMetrics]:
     
     # 6. Key Ratios from FMP
     logger.debug(f"Fetching key metrics for {symbol}")
-    ratios = get_fmp(f"ratios-ttm/{symbol}")
+    ratios = get_fmp("ratios-ttm", params={'symbol': symbol})
     if ratios and len(ratios) > 0:
         r = ratios[0]
         metrics.peg_ratio = r.get('pegRatioTTM')

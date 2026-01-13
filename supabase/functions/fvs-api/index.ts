@@ -29,7 +29,7 @@ const corsHeaders = {
 
 // Environment
 const FMP_API_KEY = Deno.env.get('FMP_API_KEY')
-const FMP_BASE_URL = 'https://financialmodelingprep.com/api/v3'
+const FMP_BASE_URL = 'https://financialmodelingprep.com/stable'
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || 'https://wfogbaipiqootjrsprde.supabase.co'
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
@@ -139,18 +139,26 @@ interface FVSResult {
 }
 
 // ============================================================================
-// FMP API Functions
+// FMP API Functions (using stable API)
 // ============================================================================
-async function fetchFMP(endpoint: string): Promise<any> {
-  const url = `${FMP_BASE_URL}/${endpoint}${endpoint.includes('?') ? '&' : '?'}apikey=${FMP_API_KEY}`
+async function fetchFMP(endpoint: string, params: Record<string, string> = {}): Promise<any> {
+  const queryParams = new URLSearchParams({ ...params, apikey: FMP_API_KEY! })
+  const url = `${FMP_BASE_URL}/${endpoint}?${queryParams.toString()}`
   
   try {
     const response = await fetch(url)
     if (!response.ok) {
-      console.error(`FMP API error: ${response.status} for ${endpoint}`)
+      const errorText = await response.text()
+      console.error(`FMP API error: ${response.status} for ${endpoint}:`, errorText)
       return null
     }
-    return await response.json()
+    const data = await response.json()
+    // Check for FMP error response
+    if (data && data['Error Message']) {
+      console.error(`FMP API error for ${endpoint}:`, data['Error Message'])
+      return null
+    }
+    return data
   } catch (error) {
     console.error(`FMP fetch error for ${endpoint}:`, error)
     return null
@@ -255,14 +263,14 @@ function calculatePiotroski(
 // Data Fetching
 // ============================================================================
 async function fetchQuantitativeMetrics(symbol: string): Promise<{ metrics: QuantitativeMetrics, company: any } | null> {
-  // Fetch all data in parallel
+  // Fetch all data in parallel using stable API endpoints
   const [profile, incomeAnnual, incomeQuarterly, balance, cashFlow, ratios] = await Promise.all([
-    fetchFMP(`profile/${symbol}`),
-    fetchFMP(`income-statement/${symbol}?limit=5`),
-    fetchFMP(`income-statement/${symbol}?period=quarter&limit=8`),
-    fetchFMP(`balance-sheet-statement/${symbol}?limit=2`),
-    fetchFMP(`cash-flow-statement/${symbol}?limit=2`),
-    fetchFMP(`ratios-ttm/${symbol}`),
+    fetchFMP('profile', { symbol }),
+    fetchFMP('income-statement', { symbol, limit: '5' }),
+    fetchFMP('income-statement', { symbol, period: 'quarter', limit: '8' }),
+    fetchFMP('balance-sheet-statement', { symbol, limit: '2' }),
+    fetchFMP('cash-flow-statement', { symbol, limit: '2' }),
+    fetchFMP('ratios-ttm', { symbol }),
   ])
   
   if (!profile || profile.length === 0) {
