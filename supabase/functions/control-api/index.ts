@@ -1283,6 +1283,7 @@ ${markdownToHtml(markdown)}
             case 'ai_confidence': return q.order('ai_confidence', { ascending, nullsFirst: false })
             case 'ai_setup_quality_score': return q.order('ai_setup_quality_score', { ascending, nullsFirst: false })
             case 'ai_direction_score': return q.order('ai_direction_score', { ascending, nullsFirst: false })
+            case 'fvs_score': return q.order('fvs_score', { ascending, nullsFirst: false })
             case 'market_cap': return q.order('market_cap', { ascending, nullsFirst: false })
             case 'close': return q.order('close', { ascending, nullsFirst: false })
             case 'return_1d': return q.order('return_1d', { ascending, nullsFirst: false })
