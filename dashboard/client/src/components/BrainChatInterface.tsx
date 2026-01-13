@@ -330,6 +330,11 @@ export function BrainChatInterface({ chat, onRefresh }: BrainChatInterfaceProps)
     }
   }, [isComplete, refreshMessages, onRefresh, resetSendState]);
 
+  // Clear summary result when switching chats
+  useEffect(() => {
+    setSummaryResult(null);
+  }, [chat.chat_id]);
+
   // Focus input on mount
   useEffect(() => {
     inputRef.current?.focus();
