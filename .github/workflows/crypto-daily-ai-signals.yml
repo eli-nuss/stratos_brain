@@ -21,7 +21,7 @@ on:
       model:
         description: 'Gemini model to use'
         required: false
-        default: 'gemini-3-pro-preview'
+        default: 'gemini-3-flash-preview'
         type: string
       limit:
         description: 'Number of top crypto to process'
@@ -67,7 +67,7 @@ jobs:
           if [ -n "${{ github.event.inputs.model }}" ]; then
             echo "model=${{ github.event.inputs.model }}" >> $GITHUB_OUTPUT
           else
-            echo "model=gemini-3-pro-preview" >> $GITHUB_OUTPUT
+            echo "model=gemini-3-flash-preview" >> $GITHUB_OUTPUT
           fi
       
       - name: Determine limit
