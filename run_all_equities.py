@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Run AI analysis for operating companies using parallel processing.
-Uses gemini-3-pro-preview model with concurrent API calls for faster execution.
+Uses gemini-3-flash-preview model with concurrent API calls for faster execution.
 
 VERSION 3.3: Filter by market cap and volume, exclude ETFs/Funds/Trusts/REITs.
 - Default: $100M+ market cap, $1M+ daily volume
@@ -51,7 +51,7 @@ logger = logging.getLogger(__name__)
 AI_REVIEW_VERSION = "v3.3"
 MAX_CONCURRENT_REQUESTS = 10  # Number of parallel API calls (increased for faster processing)
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
-MODEL_NAME = "gemini-3-pro-preview"  # Gemini 3 Pro Preview model
+MODEL_NAME = "gemini-3-flash-preview"  # Gemini 3 Flash Preview model
 
 # Thread-local storage for database connections
 thread_local = threading.local()

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Run AI analysis for top 500 cryptos by volume using parallel processing.
-Uses gemini-3-pro-preview model with concurrent API calls for faster execution.
+Uses gemini-3-flash-preview model with concurrent API calls for faster execution.
 
 VERSION 3: Improved prompting to decouple direction score from quality score.
 Based on Gemini recommendations for independent scoring.
@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 AI_REVIEW_VERSION = "v3.0"
 MAX_CONCURRENT_REQUESTS = 5  # Number of parallel API calls (reduced to avoid rate limits)
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
-MODEL_NAME = "gemini-3-pro-preview"  # Gemini 3 Pro Preview model
+MODEL_NAME = "gemini-3-flash-preview"  # Gemini 3 Flash Preview model
 
 # Thread-local storage for database connections
 thread_local = threading.local()

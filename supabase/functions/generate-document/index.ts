@@ -1078,7 +1078,7 @@ async function callGeminiWithSearch(
   maxTokens: number = 16384,
   useSearch: boolean = true // Enable/disable Google Search grounding
 ): Promise<{ text: string; sources: Array<{ title: string; uri: string }> }> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${apiKey}`
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`
   
   // Build request body - only include tools if useSearch is true
   const requestBody: Record<string, unknown> = {
@@ -1839,7 +1839,7 @@ ${template}
       return new Response(JSON.stringify({
         status: 'ok',
         service: 'generate-document',
-        model: 'gemini-3-pro-preview',
+        model: 'gemini-3-flash-preview',
         features: ['google_search_grounding', 'memo', 'one_pager', 'deep_research']
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

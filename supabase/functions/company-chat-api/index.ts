@@ -15,7 +15,7 @@ const corsHeaders = {
 
 // Gemini API configuration
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
-const GEMINI_MODEL = 'gemini-3-pro-preview'
+const GEMINI_MODEL = 'gemini-3-flash-preview'
 const API_VERSION = 'v2025.01.13.unified'
 
 // Chat config interface

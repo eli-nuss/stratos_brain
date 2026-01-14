@@ -19,7 +19,7 @@ const getEnvVar = (name: string): string => Deno.env.get(name) || ''
 // Grounded Research using native Gemini Google Search
 export async function executeGroundedSearch(query: string): Promise<string> {
   const GEMINI_API_KEY = getEnvVar('GEMINI_API_KEY')
-  const GEMINI_MODEL = 'gemini-3-pro-preview'
+  const GEMINI_MODEL = 'gemini-3-flash-preview'
   
   try {
     const response = await fetch(

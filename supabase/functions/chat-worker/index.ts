@@ -12,7 +12,7 @@ const corsHeaders = {
 
 // Gemini API configuration
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
-const GEMINI_MODEL = 'gemini-3-pro-preview'
+const GEMINI_MODEL = 'gemini-3-flash-preview'
 
 // Google Custom Search API configuration
 const GOOGLE_SEARCH_API_KEY = Deno.env.get('GOOGLE_SEARCH_API_KEY') || ''
