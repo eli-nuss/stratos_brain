@@ -354,8 +354,10 @@
                                                                                             | `asset_notes` | User notes on assets | `note_id`, `asset_id`, `user_id`, `content` |
                                                                                             | `asset_tags` | Asset tagging | `tag_id`, `asset_id`, `tag_name` |
                                                                                             | `asset_reviewed` | Review tracking | `asset_id`, `reviewed_at` |
-                                                                                            | `stock_lists` | Custom stock lists | `list_id`, `list_name`, `user_id` |
-                                                                                            | `stock_list_items` | Stock list membership | `list_id`, `asset_id` |
+                                                                                            | `stock_lists` | Custom subsector/thematic lists | `id`, `name`, `description`, `icon`, `color`, `display_order`, `etf_id` |
+                                                                                            | `stock_list_items` | Stock list membership | `id`, `list_id`, `asset_id`, `added_at` |
+                                                                                            | `etfs` | ETF tracking for subsectors | `etf_id`, `symbol`, `name`, `description`, `subsector` |
+                                                                                            | `etf_holdings` | ETF constituent holdings | `id`, `etf_id`, `asset_id`, `weight_pct`, `as_of_date` |
                                                                                          
                                                                                             ### 5.12 Token & Crypto Tables
                                                                                          
