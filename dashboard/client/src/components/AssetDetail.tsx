@@ -1,6 +1,6 @@
 import useSWR from "swr";
 import { useState, useRef, useEffect } from "react";
-import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, Activity, Info, ExternalLink, Tag, FileText, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera } from "lucide-react";
+import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, MessageCircle, Info, ExternalLink, Tag, FileText, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera } from "lucide-react";
 import html2canvas from "html2canvas";
 import { Area, Line, ComposedChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis, Legend } from "recharts";
 import { format } from "date-fns";
@@ -22,6 +22,7 @@ import { FundamentalsSidebar } from "./FundamentalsSidebar";
 import { DocumentsSection } from "./DocumentsSection";
 import { InlineOnePager } from "./InlineOnePager";
 import AddToPortfolioButton from "./AddToPortfolioButton";
+import AssetTagButton from "./AssetTagButton";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -198,6 +199,9 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
             {/* Add to Portfolio button */}
             <AddToPortfolioButton assetId={parseInt(assetId)} assetType={asset?.asset_type} />
             
+            {/* Asset Tag button */}
+            <AssetTagButton assetId={parseInt(assetId)} />
+            
             {/* Research Chat button */}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -205,7 +209,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                   href={`/chat?asset_id=${assetId}&symbol=${encodeURIComponent(asset?.symbol || '')}&name=${encodeURIComponent(asset?.name || '')}&asset_type=${asset?.asset_type || 'equity'}`}
                   className="p-2 rounded-full transition-colors hover:bg-muted text-muted-foreground hover:text-foreground"
                 >
-                  <Activity className="w-5 h-5" />
+                  <MessageCircle className="w-5 h-5" />
                 </a>
               </TooltipTrigger>
               <TooltipContent>
