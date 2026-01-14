@@ -17,6 +17,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { SidebarValuationGrid } from './SidebarValuationGrid';
 
 interface FundamentalsSidebarProps {
   assetId: string;
@@ -489,74 +490,31 @@ export function FundamentalsSidebar({ assetId, asset, review }: FundamentalsSide
 
   return (
     <div className="space-y-4">
-      {/* Module A: Valuation Context */}
+      {/* Module A: Valuation Context - New Grid Layout */}
       <div className="bg-muted/5 rounded-lg border border-border p-3">
         <div className="flex items-center gap-2 mb-3">
           <BarChart2 className="w-4 h-4 text-muted-foreground" />
           <h3 className="font-semibold text-sm">Valuation Context</h3>
-          <span className="text-[9px] text-muted-foreground bg-muted/50 px-1 py-0.5 rounded">5Y</span>
-          <span className={`text-[8px] px-1.5 py-0.5 rounded ml-auto ${
-            valuationMode === 'EARNINGS_BASED' 
-              ? 'bg-emerald-500/20 text-emerald-400' 
-              : 'bg-amber-500/20 text-amber-400'
-          }`}>
-            {valuationMode === 'EARNINGS_BASED' ? 'Profitable' : 'Growth'}
-          </span>
         </div>
         
         {loading ? (
-          <div className="animate-pulse space-y-3">
-            <div className="h-16 bg-muted/30 rounded" />
-            <div className="h-16 bg-muted/30 rounded" />
+          <div className="animate-pulse grid grid-cols-2 gap-2">
+            <div className="h-20 bg-muted/30 rounded" />
+            <div className="h-20 bg-muted/30 rounded" />
+            <div className="h-20 bg-muted/30 rounded" />
+            <div className="h-20 bg-muted/30 rounded" />
           </div>
-        ) : valuationMode === 'EARNINGS_BASED' ? (
-          /* Profitable Company View - Earnings Based */
-          <>
-            <ValuationChart 
-              label="P/E Ratio"
-              currentValue={currentPE}
-              historicalData={historicalPE}
-              tooltip="Price-to-Earnings ratio. The gold standard for profitable companies. Lower is cheaper."
-            />
-            
-            <ValuationChart 
-              label="EV/EBITDA"
-              currentValue={currentEVEBITDA}
-              historicalData={historicalEVEBITDA}
-              tooltip="Enterprise Value to EBITDA. Neutralizes debt and tax structure. Lower is better."
-            />
-            
-            <ValuationChart 
-              label="EV/Sales"
-              currentValue={currentEVSales}
-              historicalData={historicalEVSales}
-              tooltip="Enterprise Value to Sales. Context metric to check margin efficiency."
-            />
-          </>
         ) : (
-          /* Unprofitable / Hyper-Growth View - Revenue Based */
-          <>
-            <ValuationChart 
-              label="EV/Sales"
-              currentValue={currentEVSales}
-              historicalData={historicalEVSales}
-              tooltip="Enterprise Value to Sales. The standard metric for growth companies without profits."
-            />
-            
-            <ValuationChart 
-              label="EV/Gross Profit"
-              currentValue={currentEVGrossProfit}
-              historicalData={historicalEVGrossProfit}
-              tooltip="EV to Gross Profit. Rewards high-margin businesses (software) over low-margin (hardware)."
-            />
-            
-            <ValuationChart 
-              label="Price/Book"
-              currentValue={currentPriceToBook}
-              historicalData={historicalPriceToBook}
-              tooltip="Price to Book Value. Safety check - if everything fails, what are the assets worth?"
-            />
-          </>
+          <SidebarValuationGrid 
+            data={{
+              pe_ratio: currentPE,
+              forward_pe: asset.forward_pe ? parseFloat(asset.forward_pe) : null,
+              peg_ratio: asset.peg_ratio ? parseFloat(asset.peg_ratio) : null,
+              price_to_sales_ttm: currentEVSales, // Using EV/Sales as proxy for P/S
+              forward_price_to_sales: asset.forward_price_to_sales ? parseFloat(asset.forward_price_to_sales) : null,
+              price_to_book: currentPriceToBook,
+            }}
+          />
         )}
       </div>
 
