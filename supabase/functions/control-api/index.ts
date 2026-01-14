@@ -1188,13 +1188,13 @@ ${markdownToHtml(markdown)}
           .from('asset_ai_reviews')
           .select('*')
           .eq('asset_id', assetId)
-          .eq('as_of_date', targetDate)
+          .lte('as_of_date', targetDate)
         
         if (configId) {
           reviewQuery = reviewQuery.eq('config_id', configId)
         }
         
-        const { data: reviews } = await reviewQuery.order('ai_review_version', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false }).limit(1)
+        const { data: reviews } = await reviewQuery.order('as_of_date', { ascending: false }).order('ai_review_version', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false }).limit(1)
         const rawReview = reviews?.[0] || null
         
         // Get stock lists this asset belongs to
