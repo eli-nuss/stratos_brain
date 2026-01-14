@@ -523,7 +523,9 @@ export function FundamentalsSidebar({ assetId, asset, review }: FundamentalsSide
       
       try {
         setHoldersLoading(true);
-        const response = await fetch(`/api/investor-api/holders/${asset.symbol}`);
+        const response = await fetch(`/api/investor-api/holders/${asset.symbol}`, {
+          headers: { 'x-stratos-key': 'stratos_brain_api_key_2024' }
+        });
         if (response.ok) {
           const data = await response.json();
           setInvestorHolders(data || []);
