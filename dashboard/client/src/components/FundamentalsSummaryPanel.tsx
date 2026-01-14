@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BarChart3, TrendingUp, DollarSign, Percent, ChevronDown, ChevronUp, RefreshCw, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ValuationGrid } from './ValuationGrid';
 
 interface FundamentalsData {
   // Size & Growth
@@ -241,28 +242,14 @@ export function FundamentalsSummaryPanel({ assetId, assetType, className }: Fund
 
           {/* Valuation */}
           <div>
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-3">
               <TrendingUp className="w-3.5 h-3.5 text-purple-400" />
               <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
                 Valuation
               </span>
             </div>
-            <div className="space-y-0.5">
-              <MetricRow 
-                label="P/E (TTM)" 
-                value={formatRatio(data.pe_ratio)} 
-                highlight={data.pe_ratio !== undefined && data.pe_ratio < 15}
-              />
-              <MetricRow label="Forward P/E" value={formatRatio(data.forward_pe)} />
-              <MetricRow 
-                label="PEG" 
-                value={formatRatio(data.peg_ratio)} 
-                highlight={data.peg_ratio !== undefined && data.peg_ratio < 1}
-              />
-              <MetricRow label="P/S (TTM)" value={formatRatio(data.price_to_sales_ttm)} />
-              <MetricRow label="Fwd P/S" value={formatRatio(data.forward_price_to_sales)} />
-              <MetricRow label="P/B" value={formatRatio(data.price_to_book)} />
-            </div>
+            
+            <ValuationGrid data={data} />
           </div>
 
           {/* Profitability */}
