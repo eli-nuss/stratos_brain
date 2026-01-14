@@ -42,11 +42,17 @@ export function useAllAssets({
   maxMarketCap,
   industry,
 }: UseAllAssetsParams) {
+  // When sorting by interesting_first, we need all data for client-side sorting
+  const isTagSorting = sortBy === "interesting_first";
+  const effectiveLimit = isTagSorting ? 10000 : limit; // Fetch all for tag sorting
+  const effectiveOffset = isTagSorting ? 0 : offset;
+  const effectiveSortBy = isTagSorting ? "ai_direction_score" : sortBy; // Use default sort for API
+  
   const params = new URLSearchParams({
-    limit: limit.toString(),
-    offset: offset.toString(),
+    limit: effectiveLimit.toString(),
+    offset: effectiveOffset.toString(),
     asset_type: assetType, // Use asset_type filter (equity or crypto)
-    sort_by: sortBy || "ai_setup_quality_score", // Default to AI score
+    sort_by: effectiveSortBy || "ai_setup_quality_score", // Default to AI score
     sort_order: sortOrder,
   });
 
@@ -94,5 +100,6 @@ export function useAllAssets({
     isLoading,
     error,
     mutate,
+    isTagSorting, // Indicates client-side sorting is active
   };
 }

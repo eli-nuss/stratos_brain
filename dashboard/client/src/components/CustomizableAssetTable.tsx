@@ -271,7 +271,7 @@ export default function CustomizableAssetTable({
     industry: "",
   });
 
-  const { data = [], total, isLoading } = useAllAssets({
+  const { data = [], total, isLoading, isTagSorting } = useAllAssets({
     assetType,
     date,
     limit: PAGE_SIZE,
@@ -282,7 +282,9 @@ export default function CustomizableAssetTable({
     industry: assetType === "equity" && filterInputs.industry ? filterInputs.industry : undefined,
   });
 
-  const totalPages = Math.ceil(total / PAGE_SIZE);
+  // When tag sorting, we have all data client-side, so calculate pages from sorted data length
+  const effectiveTotal = isTagSorting ? data.length : total;
+  const totalPages = Math.ceil(effectiveTotal / PAGE_SIZE);
   const visibleColumns = getVisibleColumns();
   const availableColumns = getAvailableColumns();
 
@@ -414,7 +416,7 @@ export default function CustomizableAssetTable({
   });
 
   // Apply client-side sorting for interesting_first (since tags are stored separately)
-  const sortedData = sortBy === "interesting_first" 
+  const sortedDataAll = sortBy === "interesting_first" 
     ? [...filteredData].sort((a: any, b: any) => {
         const aTag = tagsMap.get(a.asset_id);
         const bTag = tagsMap.get(b.asset_id);
@@ -436,6 +438,11 @@ export default function CustomizableAssetTable({
         return bScore - aScore;
       })
     : filteredData;
+
+  // Apply client-side pagination when tag sorting (since we fetched all data)
+  const sortedData = isTagSorting 
+    ? sortedDataAll.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+    : sortedDataAll;
 
   const handleSort = (field: SortField) => {
     if (sortBy === field) {
@@ -718,7 +725,7 @@ export default function CustomizableAssetTable({
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-foreground">
             All {assetType === "crypto" ? "Crypto" : "Equity"} Assets
-            <span className="text-xs text-muted-foreground ml-2">({sortedData.length} / {total} total)</span>
+            <span className="text-xs text-muted-foreground ml-2">({isTagSorting ? sortedDataAll.length : sortedData.length} / {total} total)</span>
           </h3>
           
           {/* Column customizer - hidden on mobile */}
@@ -1046,7 +1053,7 @@ export default function CustomizableAssetTable({
               <tbody>
                 {/* Summary Rows */}
                 {!isLoading && sortedData.length > 0 && (
-                  <TableSummaryRows assets={sortedData} visibleColumns={visibleColumns} listName={assetType === 'crypto' ? 'Crypto' : 'Equities'} />
+                  <TableSummaryRows assets={isTagSorting ? sortedDataAll : sortedData} visibleColumns={visibleColumns} listName={assetType === 'crypto' ? 'Crypto' : 'Equities'} />
                 )}
                 {isLoading ? (
                   <tr><td colSpan={colCount} className="px-2 py-4 text-center text-muted-foreground">Loading...</td></tr>
@@ -1083,7 +1090,7 @@ export default function CustomizableAssetTable({
       {/* Pagination */}
       <div className="border-t border-border px-3 py-2 flex items-center justify-between bg-muted/20">
         <span className="text-xs text-muted-foreground">
-          Page {page + 1} of {totalPages} | {sortedData.length} results
+          Page {page + 1} of {totalPages} | {isTagSorting ? sortedDataAll.length : sortedData.length} results
         </span>
         <div className="flex gap-1">
           <button onClick={() => setPage(0)} disabled={page === 0} className="p-1 hover:bg-muted disabled:opacity-50" title="First page">
