@@ -790,6 +790,7 @@
                                                                                            
                                                                                             - [ ] | Version | Date | Changes |
                                                                                             - [ ] |---------|------|---------|
+                                                                                            - [ ] | 1.1 | Jan 14, 2026 | Added fill_missing_descriptions.py script, fixed Under the Hood metrics display |
                                                                                             - [ ] | 1.0 | Jan 13, 2026 | Initial PRD document |
                                                                                            
                                                                                             - [ ] ---
