@@ -44,12 +44,14 @@ function ValuationChart({
   currentValue,
   historicalData,
   tooltip,
+  period = 'TTM',
   formatFn = (v: number) => v.toFixed(1) + 'x'
 }: { 
   label: string;
   currentValue: number | null;
   historicalData: { date: string; value: number }[];
   tooltip: string;
+  period?: 'TTM' | 'FWD' | 'LTM' | 'NTM';
   formatFn?: (v: number) => string;
 }) {
   const [hoveredPoint, setHoveredPoint] = useState<{ date: string; value: number; x: number; y: number } | null>(null);
@@ -134,7 +136,9 @@ function ValuationChart({
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-medium text-foreground">{label}</span>
-              <Info className="w-3 h-3 text-muted-foreground/40" />
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted/50 text-muted-foreground font-medium">
+                {period}
+              </span>
             </div>
             <div className="flex items-center gap-1.5">
               {currentValue && (
