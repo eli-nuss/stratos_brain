@@ -11,6 +11,7 @@ import ColumnCustomizer from "@/components/ColumnCustomizer";
 import { useModelPortfolioAssets, useModelPortfolio } from "@/hooks/useModelPortfolio";
 import AddToPortfolioButton from "@/components/AddToPortfolioButton";
 import { useColumnConfig, ColumnDef } from "@/hooks/useColumnConfig";
+import { useSortPreferences, SortField, SortOrder } from "@/hooks/useSortPreferences";
 import {
   DndContext,
   closestCenter,
@@ -34,8 +35,7 @@ interface CustomizableModelPortfolioTableProps {
   onAssetClick: (assetId: string) => void;
 }
 
-type SortField = "symbol" | "ai_direction_score" | "ai_setup_quality_score" | "market_cap" | "close" | "return_1d" | "return_7d" | "return_30d" | "return_365d" | "dollar_volume_7d" | "dollar_volume_30d" | "pe_ratio" | "forward_pe" | "peg_ratio" | "price_to_sales_ttm" | "forward_ps" | "psg";
-type SortOrder = "asc" | "desc";
+// SortField and SortOrder imported from useSortPreferences
 
 const PAGE_SIZE = 50;
 
@@ -146,8 +146,7 @@ export default function CustomizableModelPortfolioTable({ onAssetClick }: Custom
   } = useColumnConfig("stocklist");
   
   const [page, setPage] = useState(0);
-  const [sortBy, setSortBy] = useState<SortField>("ai_direction_score");
-  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+  const { sortBy, sortOrder, handleSort } = useSortPreferences("model-portfolio");
   const [activeId, setActiveId] = useState<string | null>(null);
 
   // Ensure assets is always an array for safety
@@ -208,13 +207,8 @@ export default function CustomizableModelPortfolioTable({ onAssetClick }: Custom
     }
   };
 
-  const handleSort = (field: SortField) => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortBy(field);
-      setSortOrder("desc");
-    }
+  const onSort = (field: SortField) => {
+    handleSort(field);
     setPage(0);
   };
 
@@ -407,7 +401,7 @@ export default function CustomizableModelPortfolioTable({ onAssetClick }: Custom
                       column={column}
                       sortBy={sortBy}
                       sortOrder={sortOrder}
-                      onSort={handleSort}
+                      onSort={onSort}
                     />
                   ))}
                 </tr>

@@ -1,7 +1,8 @@
 // Customizable Asset Table with drag-and-drop column reordering and show/hide
 import { useState, useCallback, useEffect } from "react";
 import { TrendingUp, TrendingDown, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, X, GripVertical, Activity, LayoutGrid, Table2, Star } from "lucide-react";
-import { useAllAssets, AssetType, SortField, SortOrder } from "@/hooks/useAllAssets";
+import { useAllAssets, AssetType } from "@/hooks/useAllAssets";
+import { useSortPreferences, SortField, SortOrder } from "@/hooks/useSortPreferences";
 import { useColumnConfig, ColumnDef, ALL_COLUMNS } from "@/hooks/useColumnConfig";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { NoteCell } from "@/components/NoteCell";
@@ -221,8 +222,7 @@ export default function CustomizableAssetTable({
   } = useColumnConfig(tableType);
   
   const [page, setPage] = useState(0);
-  const [sortBy, setSortBy] = useState<SortField>("ai_direction_score");
-  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+  const { sortBy, sortOrder, handleSort } = useSortPreferences(assetType);
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -444,13 +444,8 @@ export default function CustomizableAssetTable({
     ? sortedDataAll.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
     : sortedDataAll;
 
-  const handleSort = (field: SortField) => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortBy(field);
-      setSortOrder("desc");
-    }
+  const onSort = (field: SortField) => {
+    handleSort(field);
     setPage(0);
   };
 
@@ -1044,7 +1039,7 @@ export default function CustomizableAssetTable({
                         column={column}
                         sortBy={sortBy}
                         sortOrder={sortOrder}
-                        onSort={handleSort}
+                        onSort={onSort}
                       />
                     ))}
                   </tr>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { TrendingUp, TrendingDown, AlertTriangle, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, ExternalLink, StickyNote, X, Filter } from "lucide-react";
-import { useAllAssets, AssetType, SortField, SortOrder } from "@/hooks/useAllAssets";
+import { useAllAssets, AssetType } from "@/hooks/useAllAssets";
+import { useSortPreferences, SortField, SortOrder } from "@/hooks/useSortPreferences";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { COLUMN_DEFINITIONS } from "@/lib/signalDefinitions";
 import { NoteCell } from "@/components/NoteCell";
@@ -39,8 +40,7 @@ interface FilterThresholds {
 export default function AllAssetsTable({ assetType, date, onAssetClick, showWatchlistColumn = true }: AllAssetsTableProps) {
   const { isInWatchlist, toggleWatchlist } = useWatchlist();
   const [page, setPage] = useState(0);
-  const [sortBy, setSortBy] = useState<SortField>("ai_direction_score");
-  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+  const { sortBy, sortOrder, handleSort } = useSortPreferences(`filtered-${assetType}`);
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -103,13 +103,8 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
     return true;
   });
 
-  const handleSort = (field: SortField) => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortBy(field);
-      setSortOrder("desc");
-    }
+  const onSort = (field: SortField) => {
+    handleSort(field);
     setPage(0);
   };
 
@@ -202,7 +197,7 @@ export default function AllAssetsTable({ assetType, date, onAssetClick, showWatc
   const SortHeader = ({ field, children, tooltip }: { field: SortField; children: React.ReactNode; tooltip?: string }) => (
     <div className="flex items-center justify-center gap-1">
       <button
-        onClick={() => handleSort(field)}
+        onClick={() => onSort(field)}
         className="flex items-center gap-1 hover:text-foreground transition-colors"
       >
         {children}
