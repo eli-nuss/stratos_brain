@@ -17,7 +17,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { SidebarValuationGrid } from './SidebarValuationGrid';
 
 interface FundamentalsSidebarProps {
   assetId: string;
@@ -54,6 +53,7 @@ function ValuationChart({
   formatFn?: (v: number) => string;
 }) {
   const [hoveredPoint, setHoveredPoint] = useState<{ date: string; value: number; x: number; y: number } | null>(null);
+  const [isChartHovered, setIsChartHovered] = useState(false);
   
   // Sort by date ascending (oldest first, newest last = left to right)
   const sortedData = [...historicalData]
@@ -113,36 +113,52 @@ function ValuationChart({
   const currentX = width - padding - 5;
   const currentY = currentValue ? getY(currentValue) : null;
 
+  // Generate interpretation text based on z-score
+  const getInterpretation = () => {
+    if (!currentValue) return '';
+    if (isVeryExpensive) return 'Very expensive vs history';
+    if (isExpensive) return 'Above average valuation';
+    if (isVeryCheap) return 'Very cheap vs history';
+    if (isCheap) return 'Below average valuation';
+    return 'Near historical average';
+  };
+
   return (
-    <div className="mb-4">
-      <div className="flex items-center justify-between mb-1">
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-muted-foreground">{label}</span>
-          <InfoTooltip content={tooltip} />
-        </div>
-        <div className="flex items-center gap-1">
-          {currentValue && (
-            <>
-              <span className={`text-xs font-mono font-semibold ${
-                isVeryExpensive ? 'text-red-400' : 
-                isExpensive ? 'text-amber-400' : 
-                isVeryCheap ? 'text-emerald-400' : 
-                isCheap ? 'text-emerald-400/80' : 
-                'text-foreground'
-              }`}>
-                {formatFn(currentValue)}
-              </span>
-              {(isExpensive || isCheap) && (
-                <span className={`text-[9px] px-1 py-0.5 rounded ${
-                  isExpensive ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'
-                }`}>
-                  {isVeryExpensive ? '+2σ' : isExpensive ? '+1σ' : isVeryCheap ? '-2σ' : '-1σ'}
-                </span>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div 
+          className="mb-4 cursor-help rounded-lg p-2 -mx-2 transition-colors hover:bg-muted/30"
+          onMouseEnter={() => setIsChartHovered(true)}
+          onMouseLeave={() => setIsChartHovered(false)}
+        >
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-medium text-foreground">{label}</span>
+              <Info className="w-3 h-3 text-muted-foreground/40" />
+            </div>
+            <div className="flex items-center gap-1.5">
+              {currentValue && (
+                <>
+                  <span className={`text-sm font-mono font-bold ${
+                    isVeryExpensive ? 'text-red-400' : 
+                    isExpensive ? 'text-amber-400' : 
+                    isVeryCheap ? 'text-emerald-400' : 
+                    isCheap ? 'text-emerald-400/80' : 
+                    'text-foreground'
+                  }`}>
+                    {formatFn(currentValue)}
+                  </span>
+                  {(isExpensive || isCheap) && (
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium ${
+                      isExpensive ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'
+                    }`}>
+                      {isVeryExpensive ? '+2σ' : isExpensive ? '+1σ' : isVeryCheap ? '-2σ' : '-1σ'}
+                    </span>
+                  )}
+                </>
               )}
-            </>
-          )}
-        </div>
-      </div>
+            </div>
+          </div>
       
       <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
         {/* σ bands */}
@@ -291,13 +307,49 @@ function ValuationChart({
         <text x={width - padding + 2} y={minus1SigmaY + 3} fontSize="7" fill="currentColor" fillOpacity={0.3}>-1σ</text>
       </svg>
       
-      {/* Stats row */}
-      <div className="flex justify-between text-[9px] text-muted-foreground/70 mt-0.5">
-        <span>5Y Low: {formatFn(min)}</span>
-        <span>Avg: {formatFn(mean)}</span>
-        <span>5Y High: {formatFn(max)}</span>
+        {/* Stats row */}
+        <div className="flex justify-between text-[9px] text-muted-foreground/60 mt-1 px-0.5">
+          <span>5Y Low: <span className="font-mono text-emerald-400/70">{formatFn(min)}</span></span>
+          <span>Avg: <span className="font-mono text-muted-foreground">{formatFn(mean)}</span></span>
+          <span>5Y High: <span className="font-mono text-red-400/70">{formatFn(max)}</span></span>
+        </div>
       </div>
-    </div>
+    </TooltipTrigger>
+    <TooltipContent side="left" className="max-w-[280px] p-3">
+      <div className="space-y-2">
+        <div className="font-semibold text-sm">{label}</div>
+        <p className="text-xs text-muted-foreground leading-relaxed">{tooltip}</p>
+        {currentValue && (
+          <div className="pt-2 border-t border-border/50 space-y-1">
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Current:</span>
+              <span className={`font-mono font-bold ${
+                isVeryExpensive ? 'text-red-400' : 
+                isExpensive ? 'text-amber-400' : 
+                isVeryCheap ? 'text-emerald-400' : 
+                isCheap ? 'text-emerald-400/80' : 
+                'text-foreground'
+              }`}>{formatFn(currentValue)}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">5Y Average:</span>
+              <span className="font-mono">{formatFn(mean)}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Status:</span>
+              <span className={`font-medium ${
+                isVeryExpensive ? 'text-red-400' : 
+                isExpensive ? 'text-amber-400' : 
+                isVeryCheap ? 'text-emerald-400' : 
+                isCheap ? 'text-emerald-400/80' : 
+                'text-muted-foreground'
+              }`}>{getInterpretation()}</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </TooltipContent>
+  </Tooltip>
   );
 }
 
@@ -490,31 +542,74 @@ export function FundamentalsSidebar({ assetId, asset, review }: FundamentalsSide
 
   return (
     <div className="space-y-4">
-      {/* Module A: Valuation Context - New Grid Layout */}
+      {/* Module A: Valuation Context */}
       <div className="bg-muted/5 rounded-lg border border-border p-3">
         <div className="flex items-center gap-2 mb-3">
           <BarChart2 className="w-4 h-4 text-muted-foreground" />
           <h3 className="font-semibold text-sm">Valuation Context</h3>
+          <span className="text-[9px] text-muted-foreground bg-muted/50 px-1 py-0.5 rounded">5Y</span>
+          <span className={`text-[8px] px-1.5 py-0.5 rounded ml-auto ${
+            valuationMode === 'EARNINGS_BASED' 
+              ? 'bg-emerald-500/20 text-emerald-400' 
+              : 'bg-amber-500/20 text-amber-400'
+          }`}>
+            {valuationMode === 'EARNINGS_BASED' ? 'Profitable' : 'Growth'}
+          </span>
         </div>
         
         {loading ? (
-          <div className="animate-pulse grid grid-cols-2 gap-2">
-            <div className="h-20 bg-muted/30 rounded" />
-            <div className="h-20 bg-muted/30 rounded" />
-            <div className="h-20 bg-muted/30 rounded" />
-            <div className="h-20 bg-muted/30 rounded" />
+          <div className="animate-pulse space-y-3">
+            <div className="h-16 bg-muted/30 rounded" />
+            <div className="h-16 bg-muted/30 rounded" />
           </div>
+        ) : valuationMode === 'EARNINGS_BASED' ? (
+          /* Profitable Company View - Earnings Based */
+          <>
+            <ValuationChart 
+              label="P/E Ratio"
+              currentValue={currentPE}
+              historicalData={historicalPE}
+              tooltip="Price-to-Earnings ratio. The gold standard for profitable companies. Lower is cheaper."
+            />
+            
+            <ValuationChart 
+              label="EV/EBITDA"
+              currentValue={currentEVEBITDA}
+              historicalData={historicalEVEBITDA}
+              tooltip="Enterprise Value to EBITDA. Neutralizes debt and tax structure. Lower is better."
+            />
+            
+            <ValuationChart 
+              label="EV/Sales"
+              currentValue={currentEVSales}
+              historicalData={historicalEVSales}
+              tooltip="Enterprise Value to Sales. Context metric to check margin efficiency."
+            />
+          </>
         ) : (
-          <SidebarValuationGrid 
-            data={{
-              pe_ratio: currentPE,
-              forward_pe: asset.forward_pe ? parseFloat(asset.forward_pe) : null,
-              peg_ratio: asset.peg_ratio ? parseFloat(asset.peg_ratio) : null,
-              price_to_sales_ttm: currentEVSales, // Using EV/Sales as proxy for P/S
-              forward_price_to_sales: asset.forward_price_to_sales ? parseFloat(asset.forward_price_to_sales) : null,
-              price_to_book: currentPriceToBook,
-            }}
-          />
+          /* Unprofitable / Hyper-Growth View - Revenue Based */
+          <>
+            <ValuationChart 
+              label="EV/Sales"
+              currentValue={currentEVSales}
+              historicalData={historicalEVSales}
+              tooltip="Enterprise Value to Sales. The standard metric for growth companies without profits."
+            />
+            
+            <ValuationChart 
+              label="EV/Gross Profit"
+              currentValue={currentEVGrossProfit}
+              historicalData={historicalEVGrossProfit}
+              tooltip="EV to Gross Profit. Rewards high-margin businesses (software) over low-margin (hardware)."
+            />
+            
+            <ValuationChart 
+              label="Price/Book"
+              currentValue={currentPriceToBook}
+              historicalData={historicalPriceToBook}
+              tooltip="Price to Book Value. Safety check - if everything fails, what are the assets worth?"
+            />
+          </>
         )}
       </div>
 
