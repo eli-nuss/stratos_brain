@@ -199,7 +199,7 @@
                                                                           | **Global Brain** | Cross-market AI analysis | Market screening |
                                                                           | **Smart Money** | Institutional tracking | 13F filings, guru portfolios |
                                                                           | **Core Portfolio** | Portfolio management | Holdings tracking |
-                                                                          | **Model Portfolio** | Paper trading | Simulation mode |
+                                                                          | **Model Portfolio** | Paper trading & portfolio construction | Sandbox mode, rebalance calculator, risk metrics, correlation matrix |
 
                                                                           ### 4.3 AI Chat System
 
@@ -472,12 +472,21 @@
                                                                                             GET  /api/company-chat/chats/:id/messages  # Get history
                                                                                             ```
 
-                                                                                            #### Watchlist
-                                                                                            ```
-                                                                                            GET  /api/watchlist                # Get watchlist
-                                                                                            POST /api/watchlist/add            # Add asset
-                                                                                            POST /api/watchlist/remove         # Remove asset
-                                                                                            ```
+#### Watchlist
+                                                                            ```
+                                                                            GET  /api/watchlist                # Get watchlist
+                                                                            POST /api/watchlist/add            # Add asset
+                                                                            POST /api/watchlist/remove         # Remove asset
+                                                                            ```
+
+                                                                            #### Portfolio Construction
+                                                                            ```
+                                                                            GET  /api/dashboard/portfolio-risk  # Portfolio risk metrics & correlation matrix
+                                                                            GET  /api/dashboard/model-portfolio-holdings  # Model portfolio holdings
+                                                                            POST /api/dashboard/model-portfolio-holdings  # Add holding
+                                                                            PATCH /api/dashboard/model-portfolio-holdings/:id  # Update holding
+                                                                            DELETE /api/dashboard/model-portfolio-holdings/:id  # Remove holding
+                                                                            ```
 
                                                                                             ---
 
@@ -505,7 +514,8 @@
                                                                                             │   ├── CompanyChat.tsx
                                                                                             │   └── SmartMoney.tsx
                                                                                             └── lib/                 # Utilities
-                                                                                                └── supabase.ts
+                                                                                                ├── supabase.ts
+                                                                                                └── portfolioMath.ts  # Risk calculations, correlation, volatility
                                                                                             ```
 
                                                                                             ### 9.2 Key Components
@@ -517,6 +527,9 @@
                                                                                             | `AssetDetail` | Modal with charts, AI analysis, trade plan |
                                                                                             | `CompanyChatInterface` | Chat UI with code blocks and citations |
                                                                                             | `SmartMoneyTracker` | Institutional holdings visualization |
+                                                                                            | `PortfolioSandbox` | Interactive portfolio construction with weight sliders |
+                                                                                            | `RebalanceCalculator` | Trade sheet generation and CSV export |
+                                                                                            | `CorrelationMatrix` | Asset correlation heatmap visualization |
 
                                                                                             ### 9.3 Data Flow
 
