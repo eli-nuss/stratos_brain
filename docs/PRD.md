@@ -125,7 +125,7 @@
                                                                           | **Data Fetching** | SWR | Caching and revalidation |
                                                                           | **Backend API** | Supabase Edge Functions (Deno/TypeScript) | Serverless API layer |
                                                                           | **Data Processing** | Python 3.11 | Signal engine and analysis |
-                                                                          | **AI Models** | Google Gemini 3 Pro Preview, Gemini Flash | LLM-powered analysis |
+                                                                          | **AI Models** | Google Gemini 3 Flash Preview | LLM-powered analysis |
                                                                           | **Database** | PostgreSQL (Supabase) | Data persistence |
                                                                           | **Job Queue** | pgmq | Async job processing |
                                                                           | **Scheduler** | pg_cron | Automated job scheduling |
