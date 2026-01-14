@@ -5,6 +5,10 @@
 name: Crypto Daily AI Signals
 
 on:
+  # Run on Sunday, Monday, Wednesday, Friday at 6:00 AM UTC
+  schedule:
+    - cron: '0 6 * * 0,1,3,5'
+  
   # Run after crypto features workflow completes
   workflow_run:
     workflows: ["Crypto Daily Features"]
