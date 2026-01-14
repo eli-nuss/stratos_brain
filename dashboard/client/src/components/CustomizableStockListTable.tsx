@@ -1,6 +1,6 @@
 // Customizable Stock List Table with drag-and-drop column reordering and show/hide
 import { useState, useMemo } from "react";
-import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, X, GripVertical, Activity, Star } from "lucide-react";
+import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, X, GripVertical, Activity, Star, Search } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { NoteCell } from "@/components/NoteCell";
 import TableSummaryRows from "@/components/TableSummaryRows";
@@ -157,6 +157,7 @@ export default function CustomizableStockListTable({ list, onAssetClick }: Custo
   const [sortBy, setSortBy] = useState<SortField>("ai_direction_score");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [filterSearch, setFilterSearch] = useState("");
 
   // Compute existing asset IDs for the search dropdown
   const existingAssetIds = useMemo(() => {
@@ -176,8 +177,18 @@ export default function CustomizableStockListTable({ list, onAssetClick }: Custo
     mutateAssets();
   };
 
+  // Filter assets by search term
+  const filteredAssets = useMemo(() => {
+    if (!filterSearch.trim()) return assets;
+    const searchLower = filterSearch.toLowerCase();
+    return assets.filter((a: any) => 
+      a.symbol?.toLowerCase().includes(searchLower) ||
+      a.name?.toLowerCase().includes(searchLower)
+    );
+  }, [assets, filterSearch]);
+
   // Sort assets with special handling for interesting_first
-  const sortedAssets = [...assets].sort((a: any, b: any) => {
+  const sortedAssets = [...filteredAssets].sort((a: any, b: any) => {
     if (sortBy === "interesting_first") {
       const aTag = tagsMap.get(a.asset_id);
       const bTag = tagsMap.get(b.asset_id);
@@ -207,7 +218,8 @@ export default function CustomizableStockListTable({ list, onAssetClick }: Custo
   });
 
   const paginatedAssets = sortedAssets.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const total = assets.length;
+  const total = filteredAssets.length;
+  const totalAssets = assets.length;
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const visibleColumns = getVisibleColumns();
   const availableColumns = getAvailableColumns();
@@ -420,9 +432,31 @@ export default function CustomizableStockListTable({ list, onAssetClick }: Custo
             style={{ backgroundColor: list.color || '#10b981' }}
           />
           {list.name}
-          <span className="text-xs text-muted-foreground">({total} assets)</span>
+          <span className="text-xs text-muted-foreground">({filterSearch ? `${total} of ${totalAssets}` : `${total} assets`})</span>
         </h3>
         <div className="flex items-center gap-2">
+          {/* Filter current list search */}
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <input
+              type="text"
+              value={filterSearch}
+              onChange={(e) => {
+                setFilterSearch(e.target.value);
+                setPage(0); // Reset to first page when filtering
+              }}
+              placeholder="Filter list..."
+              className="w-32 pl-7 pr-2 py-1.5 text-xs bg-background border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground"
+            />
+            {filterSearch && (
+              <button
+                onClick={() => setFilterSearch("")}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
           <AssetSearchDropdown
             existingAssetIds={existingAssetIds}
             onAddAsset={handleAddAsset}
