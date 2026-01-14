@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated:** January 13, 2026  
+**Last Updated:** January 14, 2026  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -352,7 +352,7 @@
                                                                                             |-------|---------|-------------|
                                                                                             | `asset_files` | Asset-related files | `file_id`, `asset_id`, `file_type`, `url` |
                                                                                             | `asset_notes` | User notes on assets | `note_id`, `asset_id`, `user_id`, `content` |
-                                                                                            | `asset_tags` | Asset tagging | `tag_id`, `asset_id`, `tag_name` |
+                                                                                            | `asset_tags` | Asset tagging (interesting, maybe, no) - supports sorting | `tag_id`, `asset_id`, `tag_name` |
                                                                                             | `asset_reviewed` | Review tracking | `asset_id`, `reviewed_at` |
                                                                                             | `stock_lists` | Custom subsector/thematic lists | `id`, `name`, `description`, `icon`, `color`, `display_order`, `etf_id` |
                                                                                             | `stock_list_items` | Stock list membership | `id`, `list_id`, `asset_id`, `added_at` |
@@ -513,7 +513,7 @@
                                                                                             | Component | Purpose |
                                                                                             |-----------|---------|
                                                                                             | `DashboardLayout` | Main app shell with navigation |
-                                                                                            | `CustomizableAssetTable` | Flexible data table with sorting/filtering |
+                                                                                            | `CustomizableAssetTable` | Flexible data table with sorting/filtering, including tag-based sorting (Interesting first) |
                                                                                             | `AssetDetail` | Modal with charts, AI analysis, trade plan |
                                                                                             | `CompanyChatInterface` | Chat UI with code blocks and citations |
                                                                                             | `SmartMoneyTracker` | Institutional holdings visualization |
