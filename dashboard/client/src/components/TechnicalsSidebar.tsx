@@ -23,6 +23,7 @@ import {
 interface TechnicalsSidebarProps {
   asset: any;
   review: any;
+  features?: any;
 }
 
 // Helper for info tooltips
@@ -169,7 +170,7 @@ function LevelRow({
   );
 }
 
-export function TechnicalsSidebar({ asset, review }: TechnicalsSidebarProps) {
+export function TechnicalsSidebar({ asset, review, features }: TechnicalsSidebarProps) {
   const [levelsExpanded, setLevelsExpanded] = useState(true);
   
   const hasReview = review && review.direction;
@@ -188,12 +189,12 @@ export function TechnicalsSidebar({ asset, review }: TechnicalsSidebarProps) {
   // Check if we have a complete trade plan
   const hasTradePlan = entryZone || targets.length > 0 || stopLoss;
 
-  // Mock technical metrics (to be populated with real data later)
+  // Technical metrics from daily_features
   const technicalMetrics = {
-    rvol: null as number | null, // Relative Volume
-    floatRotation: null as number | null, // Float Rotation %
-    atr: null as number | null, // Average True Range
-    shortFloat: null as number | null, // Short Interest %
+    rvol: features?.rvol_20 ?? null, // Relative Volume (20-day)
+    floatRotation: null as number | null, // Float Rotation % (not yet available)
+    atr: features?.atr_14 ? parseFloat(features.atr_14) : null, // Average True Range (14-day)
+    shortFloat: null as number | null, // Short Interest % (not yet available)
   };
 
   // Determine status based on values
@@ -358,9 +359,11 @@ export function TechnicalsSidebar({ asset, review }: TechnicalsSidebarProps) {
           />
         </div>
 
-        <div className="mt-2 text-[9px] text-muted-foreground/50 text-center">
-          Data coming soon
-        </div>
+        {!technicalMetrics.rvol && !technicalMetrics.atr && (
+          <div className="mt-2 text-[9px] text-muted-foreground/50 text-center">
+            Data coming soon
+          </div>
+        )}
       </div>
 
       {/* Module C: Automated Levels */}

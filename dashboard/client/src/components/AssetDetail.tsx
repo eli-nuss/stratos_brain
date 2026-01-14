@@ -138,7 +138,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
 
   if (!data || !data.asset) return null;
 
-  const { asset, ohlcv, ai_score_history, review, review_status, stock_lists } = data;
+  const { asset, ohlcv, ai_score_history, features, review, review_status, stock_lists } = data;
 
   // Merge OHLCV data with AI score history for chart overlay
   const chartData = ohlcv?.map((bar: any) => {
@@ -601,6 +601,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               <TechnicalsSidebar 
                 asset={asset}
                 review={review}
+                features={features}
               />
             )}
 
