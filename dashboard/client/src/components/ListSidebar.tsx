@@ -249,7 +249,7 @@ export function ListSidebar({
     }
   };
 
-  const visibleLists = showAllLists ? stockLists : stockLists.slice(0, 5);
+  const visibleLists = showAllLists ? stockLists : stockLists.slice(0, 15);
 
   // Context menu portal
   const contextMenuPortal = contextMenu.isOpen && createPortal(
