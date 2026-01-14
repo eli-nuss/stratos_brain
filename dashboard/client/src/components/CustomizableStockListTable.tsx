@@ -1,6 +1,6 @@
 // Customizable Stock List Table with drag-and-drop column reordering and show/hide
 import { useState, useMemo } from "react";
-import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, X, GripVertical, Activity } from "lucide-react";
+import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, X, GripVertical, Activity, Star } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { NoteCell } from "@/components/NoteCell";
 import TableSummaryRows from "@/components/TableSummaryRows";
@@ -11,6 +11,7 @@ import AssetTagButton from "@/components/AssetTagButton";
 import AssetSearchDropdown from "@/components/AssetSearchDropdown";
 import ColumnCustomizer from "@/components/ColumnCustomizer";
 import { useWatchlist } from "@/hooks/useWatchlist";
+import { useAssetTags } from "@/hooks/useAssetTags";
 import { useColumnConfig, ColumnDef } from "@/hooks/useColumnConfig";
 import {
   DndContext,
@@ -36,7 +37,7 @@ interface CustomizableStockListTableProps {
   onAssetClick: (assetId: string) => void;
 }
 
-type SortField = "symbol" | "ai_direction_score" | "ai_setup_quality_score" | "fvs_score" | "market_cap" | "close" | "return_1d" | "return_7d" | "return_30d" | "return_365d" | "dollar_volume_7d" | "dollar_volume_30d" | "pe_ratio" | "forward_pe" | "peg_ratio" | "price_to_sales_ttm" | "forward_ps" | "psg";
+type SortField = "symbol" | "ai_direction_score" | "ai_setup_quality_score" | "fvs_score" | "market_cap" | "close" | "return_1d" | "return_7d" | "return_30d" | "return_365d" | "dollar_volume_7d" | "dollar_volume_30d" | "pe_ratio" | "forward_pe" | "peg_ratio" | "price_to_sales_ttm" | "forward_ps" | "psg" | "interesting_first";
 type SortOrder = "asc" | "desc";
 
 const PAGE_SIZE = 50;
@@ -104,16 +105,20 @@ function DraggableHeader({
             onClick={() => onSort(column.sortField as SortField)}
             className="flex items-center gap-1 hover:text-foreground transition-colors"
           >
-            {column.label}
+            {column.sortField === "interesting_first" ? (
+              <Star className={`w-3 h-3 ${isSorted ? "text-yellow-500 fill-yellow-500" : "text-muted-foreground"}`} />
+            ) : (
+              column.label
+            )}
             {isSorted ? (
               sortOrder === "asc" ? (
                 <ArrowUp className="w-3 h-3" />
               ) : (
                 <ArrowDown className="w-3 h-3" />
               )
-            ) : (
+            ) : column.sortField !== "interesting_first" ? (
               <ArrowUpDown className="w-3 h-3 opacity-50" />
-            )}
+            ) : null}
           </button>
         ) : (
           <span>{column.label}</span>
@@ -138,6 +143,7 @@ function DraggableHeader({
 export default function CustomizableStockListTable({ list, onAssetClick }: CustomizableStockListTableProps) {
   const { assets, isLoading, mutate: mutateAssets } = useStockListAssets(list.id);
   const { mutate: mutateWatchlist } = useWatchlist();
+  const { tagsMap } = useAssetTags();
   const { 
     config, 
     getVisibleColumns, 
@@ -170,8 +176,28 @@ export default function CustomizableStockListTable({ list, onAssetClick }: Custo
     mutateAssets();
   };
 
-  // Sort assets
+  // Sort assets with special handling for interesting_first
   const sortedAssets = [...assets].sort((a: any, b: any) => {
+    if (sortBy === "interesting_first") {
+      const aTag = tagsMap.get(a.asset_id);
+      const bTag = tagsMap.get(b.asset_id);
+      // Priority: interesting (0) > maybe (1) > no (2) > no tag (3)
+      const tagPriority = (tag: string | undefined) => {
+        if (tag === 'interesting') return 0;
+        if (tag === 'maybe') return 1;
+        if (tag === 'no') return 2;
+        return 3;
+      };
+      const aPriority = tagPriority(aTag);
+      const bPriority = tagPriority(bTag);
+      if (aPriority !== bPriority) {
+        return sortOrder === "asc" ? bPriority - aPriority : aPriority - bPriority;
+      }
+      // Secondary sort by ai_direction_score when tags are equal
+      const aScore = a.ai_direction_score ?? -Infinity;
+      const bScore = b.ai_direction_score ?? -Infinity;
+      return bScore - aScore;
+    }
     const aVal = a[sortBy] ?? 0;
     const bVal = b[sortBy] ?? 0;
     if (sortOrder === "asc") {

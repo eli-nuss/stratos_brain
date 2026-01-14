@@ -1,6 +1,6 @@
 // Customizable Asset Table with drag-and-drop column reordering and show/hide
 import { useState, useCallback, useEffect } from "react";
-import { TrendingUp, TrendingDown, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, X, GripVertical, Activity, LayoutGrid, Table2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, X, GripVertical, Activity, LayoutGrid, Table2, Star } from "lucide-react";
 import { useAllAssets, AssetType, SortField, SortOrder } from "@/hooks/useAllAssets";
 import { useColumnConfig, ColumnDef, ALL_COLUMNS } from "@/hooks/useColumnConfig";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -12,6 +12,7 @@ import AssetTagButton from "@/components/AssetTagButton";
 import ColumnCustomizer from "@/components/ColumnCustomizer";
 import { MobileAssetList } from "@/components/MobileAssetCard";
 import { useWatchlist } from "@/hooks/useWatchlist";
+import { useAssetTags } from "@/hooks/useAssetTags";
 import {
   DndContext,
   closestCenter,
@@ -165,16 +166,20 @@ function DraggableHeader({
             onClick={() => onSort(column.sortField as SortField)}
             className="flex items-center gap-1 hover:text-foreground transition-colors"
           >
-            {column.label}
+            {column.sortField === "interesting_first" ? (
+              <Star className={`w-3 h-3 ${isSorted ? "text-yellow-500 fill-yellow-500" : "text-muted-foreground"}`} />
+            ) : (
+              column.label
+            )}
             {isSorted ? (
               sortOrder === "asc" ? (
                 <ArrowUp className="w-3 h-3" />
               ) : (
                 <ArrowDown className="w-3 h-3" />
               )
-            ) : (
+            ) : column.sortField !== "interesting_first" ? (
               <ArrowUpDown className="w-3 h-3 opacity-50" />
-            )}
+            ) : null}
           </button>
         ) : (
           <span>{column.label}</span>
@@ -203,6 +208,7 @@ export default function CustomizableAssetTable({
   showWatchlistColumn = true 
 }: CustomizableAssetTableProps) {
   const { mutate: mutateWatchlist } = useWatchlist();
+  const { tagsMap } = useAssetTags();
   const tableType = assetType === "crypto" ? "crypto" : "equity";
   const { 
     config, 
@@ -406,6 +412,30 @@ export default function CustomizableAssetTable({
       return activeFilterKeys.some(key => checkFilter(row, key));
     }
   });
+
+  // Apply client-side sorting for interesting_first (since tags are stored separately)
+  const sortedData = sortBy === "interesting_first" 
+    ? [...filteredData].sort((a: any, b: any) => {
+        const aTag = tagsMap.get(a.asset_id);
+        const bTag = tagsMap.get(b.asset_id);
+        // Priority: interesting (0) > maybe (1) > no (2) > no tag (3)
+        const tagPriority = (tag: string | undefined) => {
+          if (tag === 'interesting') return 0;
+          if (tag === 'maybe') return 1;
+          if (tag === 'no') return 2;
+          return 3;
+        };
+        const aPriority = tagPriority(aTag);
+        const bPriority = tagPriority(bTag);
+        if (aPriority !== bPriority) {
+          return sortOrder === "asc" ? bPriority - aPriority : aPriority - bPriority;
+        }
+        // Secondary sort by ai_direction_score when tags are equal
+        const aScore = a.ai_direction_score ?? -Infinity;
+        const bScore = b.ai_direction_score ?? -Infinity;
+        return bScore - aScore;
+      })
+    : filteredData;
 
   const handleSort = (field: SortField) => {
     if (sortBy === field) {
@@ -688,7 +718,7 @@ export default function CustomizableAssetTable({
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-foreground">
             All {assetType === "crypto" ? "Crypto" : "Equity"} Assets
-            <span className="text-xs text-muted-foreground ml-2">({filteredData.length} / {total} total)</span>
+            <span className="text-xs text-muted-foreground ml-2">({sortedData.length} / {total} total)</span>
           </h3>
           
           {/* Column customizer - hidden on mobile */}
@@ -963,7 +993,7 @@ export default function CustomizableAssetTable({
       {viewMode === 'cards' ? (
         <div className="flex-1 overflow-y-auto">
           <MobileAssetList
-            assets={filteredData.map(row => ({
+            assets={sortedData.map(row => ({
               asset_id: row.asset_id,
               symbol: row.symbol,
               name: row.name,
@@ -1015,15 +1045,15 @@ export default function CustomizableAssetTable({
               </thead>
               <tbody>
                 {/* Summary Rows */}
-                {!isLoading && filteredData.length > 0 && (
-                  <TableSummaryRows assets={filteredData} visibleColumns={visibleColumns} listName={assetType === 'crypto' ? 'Crypto' : 'Equities'} />
+                {!isLoading && sortedData.length > 0 && (
+                  <TableSummaryRows assets={sortedData} visibleColumns={visibleColumns} listName={assetType === 'crypto' ? 'Crypto' : 'Equities'} />
                 )}
                 {isLoading ? (
                   <tr><td colSpan={colCount} className="px-2 py-4 text-center text-muted-foreground">Loading...</td></tr>
-                ) : filteredData.length === 0 ? (
+                ) : sortedData.length === 0 ? (
                   <tr><td colSpan={colCount} className="px-2 py-4 text-center text-muted-foreground">No assets match your filters</td></tr>
                 ) : (
-                  filteredData.map((row) => (
+                  sortedData.map((row) => (
                     <tr 
                       key={row.asset_id} 
                       className="border-b border-border hover:bg-muted/30 transition-colors cursor-pointer" 
@@ -1053,7 +1083,7 @@ export default function CustomizableAssetTable({
       {/* Pagination */}
       <div className="border-t border-border px-3 py-2 flex items-center justify-between bg-muted/20">
         <span className="text-xs text-muted-foreground">
-          Page {page + 1} of {totalPages} | {filteredData.length} results
+          Page {page + 1} of {totalPages} | {sortedData.length} results
         </span>
         <div className="flex gap-1">
           <button onClick={() => setPage(0)} disabled={page === 0} className="p-1 hover:bg-muted disabled:opacity-50" title="First page">

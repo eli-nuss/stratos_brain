@@ -23,7 +23,7 @@ export interface ColumnDef {
 
 // All available columns for asset tables
 export const ALL_COLUMNS: ColumnDef[] = [
-  { id: "actions", label: "", tooltip: "Actions", minWidth: "64px", align: "center", sticky: true, stickyOffset: "0", required: true },
+  { id: "actions", label: "", tooltip: "Click to sort by tag (Interesting first)", minWidth: "64px", align: "center", sticky: true, stickyOffset: "0", required: true, sortField: "interesting_first" },
   { id: "asset", label: "Asset", tooltip: "Asset name and symbol", sortField: "symbol", minWidth: "120px", align: "left", sticky: true, stickyOffset: "64px", required: true },
   { id: "direction", label: "Dir", tooltip: "AI directional conviction (-100 to +100)", sortField: "ai_direction_score", minWidth: "70px", align: "center" },
   { id: "quality", label: "Quality", tooltip: "AI setup quality score (0-100)", sortField: "ai_setup_quality_score", minWidth: "70px", align: "center" },
