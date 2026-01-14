@@ -4206,6 +4206,164 @@ If asked about something not in the data, acknowledge the limitation.`
         }
       }
 
+      // GET /dashboard/portfolio-risk - Calculate portfolio risk metrics
+      case req.method === 'GET' && path === '/dashboard/portfolio-risk': {
+        const assetIdsParam = url.searchParams.get('asset_ids')
+        const lookbackDays = parseInt(url.searchParams.get('lookback') || '90')
+        
+        if (!assetIdsParam) {
+          return new Response(JSON.stringify({ error: 'asset_ids parameter required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const assetIds = assetIdsParam.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id))
+        
+        if (assetIds.length === 0) {
+          return new Response(JSON.stringify({ error: 'No valid asset IDs provided' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Fetch daily returns for each asset
+        const assetReturns: { [assetId: number]: { symbol: string; returns: number[]; stdDev: number } } = {}
+        
+        for (const assetId of assetIds) {
+          // Get asset info
+          const { data: assetData } = await supabase
+            .from('assets')
+            .select('symbol')
+            .eq('asset_id', assetId)
+            .single()
+          
+          // Get daily returns from daily_features
+          const { data: returnsData } = await supabase
+            .from('daily_features')
+            .select('date, return_1d')
+            .eq('asset_id', assetId)
+            .not('return_1d', 'is', null)
+            .order('date', { ascending: false })
+            .limit(lookbackDays)
+          
+          if (returnsData && returnsData.length > 0) {
+            const returns = returnsData.map(r => r.return_1d).reverse()
+            
+            // Calculate annualized standard deviation
+            const mean = returns.reduce((a, b) => a + b, 0) / returns.length
+            const squaredDiffs = returns.map(r => Math.pow(r - mean, 2))
+            const variance = squaredDiffs.reduce((a, b) => a + b, 0) / returns.length
+            const dailyStdDev = Math.sqrt(variance)
+            const annualizedStdDev = dailyStdDev * Math.sqrt(252)
+            
+            assetReturns[assetId] = {
+              symbol: assetData?.symbol || `Asset ${assetId}`,
+              returns,
+              stdDev: annualizedStdDev
+            }
+          }
+        }
+        
+        // Calculate correlation matrix
+        const assetList = Object.entries(assetReturns)
+        const n = assetList.length
+        const correlationMatrix: number[][] = Array(n).fill(null).map(() => Array(n).fill(0))
+        const symbols: string[] = assetList.map(([_, data]) => data.symbol)
+        
+        for (let i = 0; i < n; i++) {
+          for (let j = 0; j < n; j++) {
+            if (i === j) {
+              correlationMatrix[i][j] = 1
+            } else if (j > i) {
+              const returnsA = assetList[i][1].returns
+              const returnsB = assetList[j][1].returns
+              const minLen = Math.min(returnsA.length, returnsB.length)
+              
+              if (minLen < 2) {
+                correlationMatrix[i][j] = 0
+                correlationMatrix[j][i] = 0
+                continue
+              }
+              
+              const sliceA = returnsA.slice(-minLen)
+              const sliceB = returnsB.slice(-minLen)
+              const avgA = sliceA.reduce((a, b) => a + b, 0) / minLen
+              const avgB = sliceB.reduce((a, b) => a + b, 0) / minLen
+              
+              let numerator = 0
+              let denomA = 0
+              let denomB = 0
+              
+              for (let k = 0; k < minLen; k++) {
+                const diffA = sliceA[k] - avgA
+                const diffB = sliceB[k] - avgB
+                numerator += diffA * diffB
+                denomA += diffA * diffA
+                denomB += diffB * diffB
+              }
+              
+              const denom = Math.sqrt(denomA * denomB)
+              const corr = denom > 0 ? numerator / denom : 0
+              correlationMatrix[i][j] = corr
+              correlationMatrix[j][i] = corr
+            }
+          }
+        }
+        
+        // Calculate average volatility and diversification metrics
+        const volatilities = assetList.map(([_, data]) => data.stdDev)
+        const avgVolatility = volatilities.length > 0 
+          ? volatilities.reduce((a, b) => a + b, 0) / volatilities.length 
+          : 0
+        
+        // Calculate average pairwise correlation (excluding diagonal)
+        let totalCorr = 0
+        let corrCount = 0
+        for (let i = 0; i < n; i++) {
+          for (let j = i + 1; j < n; j++) {
+            totalCorr += correlationMatrix[i][j]
+            corrCount++
+          }
+        }
+        const avgCorrelation = corrCount > 0 ? totalCorr / corrCount : 0
+        const diversificationScore = 1 - avgCorrelation
+        
+        // Estimate portfolio metrics (equal weight assumption for now)
+        const equalWeight = n > 0 ? 1 / n : 0
+        let portfolioVariance = 0
+        for (let i = 0; i < n; i++) {
+          for (let j = 0; j < n; j++) {
+            portfolioVariance += equalWeight * equalWeight * correlationMatrix[i][j] * volatilities[i] * volatilities[j]
+          }
+        }
+        const portfolioVolatility = Math.sqrt(Math.max(0, portfolioVariance))
+        
+        // Mock beta and sharpe (would need benchmark data for real calculation)
+        const beta = 1.0 + (avgCorrelation * 0.3)
+        const sharpeRatio = avgVolatility > 0 ? (0.08 / avgVolatility) : 0 // Assume 8% return
+        const maxDrawdown = -portfolioVolatility * 2 // Rough estimate
+        
+        return new Response(JSON.stringify({
+          metrics: {
+            volatility: portfolioVolatility,
+            beta,
+            sharpeRatio,
+            maxDrawdown,
+            diversificationScore,
+            avgCorrelation,
+            assetCount: n
+          },
+          correlationMatrix,
+          symbols,
+          assetVolatilities: Object.fromEntries(
+            assetList.map(([id, data]) => [data.symbol, data.stdDev])
+          )
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
       default:
         return new Response(JSON.stringify({ error: 'Not found' }), {
           status: 404,

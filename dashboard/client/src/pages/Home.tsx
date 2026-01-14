@@ -8,13 +8,14 @@ import CustomizableModelPortfolioTable from "@/components/CustomizableModelPortf
 import CustomizableCorePortfolioTable from "@/components/CustomizableCorePortfolioTable";
 import CorePortfolioHoldings from "@/components/CorePortfolioHoldings";
 import ModelPortfolioHoldings from "@/components/ModelPortfolioHoldings";
+import PortfolioSandbox from "@/components/PortfolioSandbox";
 import AssetDetail from "@/components/AssetDetail";
 import useSWR from "swr";
 import { useStockLists, StockList } from "@/hooks/useStockLists";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-export type TabType = "watchlist" | "model-portfolio" | "core-portfolio" | "crypto" | "equity" | `list-${number}`;
+export type TabType = "watchlist" | "model-portfolio" | "model-portfolio-sandbox" | "core-portfolio" | "crypto" | "equity" | `list-${number}`;
 
 export default function Home() {
   const [location, setLocation] = useLocation();
@@ -128,7 +129,7 @@ export default function Home() {
             onAssetClick={handleAssetClick}
           />
         ) : activeTab === "model-portfolio" ? (
-          <ModelPortfolioHoldings
+          <PortfolioSandbox
             key="model-portfolio"
             onAssetClick={handleAssetClick}
           />
