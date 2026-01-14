@@ -937,6 +937,51 @@ serve(async (req: Request) => {
         })
       }
 
+      // GET /holders/:symbol - Get tracked investors holding a specific symbol
+      case req.method === 'GET' && path.startsWith('/holders/'): {
+        const symbol = path.split('/')[2]?.toUpperCase()
+        
+        if (!symbol) {
+          return new Response(JSON.stringify({ error: 'Symbol required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Query the cross-reference view to find all tracked investors holding this symbol
+        const { data: holders, error } = await supabase
+          .from('v_guru_cross_reference')
+          .select('investor_name, investor_id, percent_portfolio, value, shares, action, date_reported')
+          .eq('symbol', symbol)
+          .order('percent_portfolio', { ascending: false })
+        
+        if (error) throw error
+        
+        // Format the response with investor initials and formatted values
+        const formattedHolders = (holders || []).map((h: any) => {
+          // Generate initials from investor name
+          const words = h.investor_name.split(/[\s,]+/).filter((w: string) => w.length > 0)
+          const initials = words.length >= 2 
+            ? (words[0][0] + words[1][0]).toUpperCase()
+            : h.investor_name.substring(0, 2).toUpperCase()
+          
+          return {
+            investor_id: h.investor_id,
+            investor_name: h.investor_name,
+            initials,
+            percent_portfolio: h.percent_portfolio,
+            value: h.value,
+            shares: h.shares,
+            action: h.action,
+            date_reported: h.date_reported
+          }
+        })
+        
+        return new Response(JSON.stringify(formattedHolders), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
       // DELETE /investors/:investorId - Remove investor
       case req.method === 'DELETE' && path.startsWith('/investors/'): {
         const investorId = path.split('/')[2]

@@ -477,9 +477,23 @@ function ThesisAccordion({
   );
 }
 
+// Interface for investor holder data
+interface InvestorHolder {
+  investor_id: number;
+  investor_name: string;
+  initials: string;
+  percent_portfolio: number;
+  value: number;
+  shares: number;
+  action: string;
+  date_reported: string;
+}
+
 export function FundamentalsSidebar({ assetId, asset, review }: FundamentalsSidebarProps) {
   const [valuationHistory, setValuationHistory] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [investorHolders, setInvestorHolders] = useState<InvestorHolder[]>([]);
+  const [holdersLoading, setHoldersLoading] = useState(true);
 
   useEffect(() => {
     const fetchValuationHistory = async () => {
@@ -501,6 +515,28 @@ export function FundamentalsSidebar({ assetId, asset, review }: FundamentalsSide
       fetchValuationHistory();
     }
   }, [assetId]);
+
+  // Fetch tracked investors holding this asset
+  useEffect(() => {
+    const fetchInvestorHolders = async () => {
+      if (!asset?.symbol) return;
+      
+      try {
+        setHoldersLoading(true);
+        const response = await fetch(`/api/investor-api/holders/${asset.symbol}`);
+        if (response.ok) {
+          const data = await response.json();
+          setInvestorHolders(data || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch investor holders:', err);
+      } finally {
+        setHoldersLoading(false);
+      }
+    };
+
+    fetchInvestorHolders();
+  }, [asset?.symbol]);
 
   // Extract historical values with dates
   const historicalPE = valuationHistory?.history?.filter((h: any) => h.pe_ratio).map((h: any) => ({ date: h.fiscal_date || h.date, value: h.pe_ratio })) || [];
@@ -617,37 +653,107 @@ export function FundamentalsSidebar({ assetId, asset, review }: FundamentalsSide
         )}
       </div>
 
-      {/* Module B: Smart Money Flow */}
+      {/* Module B: Smart Money - Tracked Investors */}
       <div className="bg-muted/5 rounded-lg border border-border p-3">
         <div className="flex items-center gap-2 mb-3">
           <Users className="w-4 h-4 text-muted-foreground" />
           <h3 className="font-semibold text-sm">Smart Money</h3>
+          {investorHolders.length > 0 && (
+            <span className="text-xs text-muted-foreground bg-muted/30 px-1.5 py-0.5 rounded">
+              {investorHolders.length} tracked
+            </span>
+          )}
         </div>
         
-        {(insiderActivity !== null || institutionalChange !== null) ? (
-          <>
-            {insiderActivity !== null && (
-              <SentimentMeter 
-                label="Insider Activity"
-                value={insiderActivity}
-                tooltip="Net insider buying vs selling over the last 6 months. Positive = insiders buying."
-                icon={Users}
-              />
-            )}
+        {holdersLoading ? (
+          <div className="text-center py-3">
+            <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-1.5" />
+            <p className="text-xs text-muted-foreground/60">Loading...</p>
+          </div>
+        ) : investorHolders.length > 0 ? (
+          <div className="space-y-2">
+            {investorHolders.slice(0, 5).map((holder) => {
+              // Format value as $XXM or $XXB
+              const formatValue = (val: number) => {
+                if (val >= 1e9) return `$${(val / 1e9).toFixed(1)}B`;
+                if (val >= 1e6) return `$${(val / 1e6).toFixed(0)}M`;
+                if (val >= 1e3) return `$${(val / 1e3).toFixed(0)}K`;
+                return `$${val}`;
+              };
+              
+              // Action badge color
+              const actionColor = holder.action === 'NEW' ? 'text-green-400 bg-green-400/10' :
+                                  holder.action === 'ADD' ? 'text-green-400 bg-green-400/10' :
+                                  holder.action === 'REDUCE' ? 'text-red-400 bg-red-400/10' :
+                                  holder.action === 'SOLD' ? 'text-red-400 bg-red-400/10' :
+                                  'text-muted-foreground bg-muted/30';
+              
+              return (
+                <Tooltip key={holder.investor_id}>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-2 p-2 rounded-md bg-muted/20 hover:bg-muted/40 cursor-pointer transition-colors">
+                      {/* Initials badge */}
+                      <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                        {holder.initials}
+                      </div>
+                      
+                      {/* Name and position */}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-medium truncate">
+                          {holder.investor_name.split(',')[0]}
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                          <span>{holder.percent_portfolio?.toFixed(1)}% of portfolio</span>
+                          {holder.action && holder.action !== 'HOLD' && (
+                            <span className={`px-1 py-0.5 rounded text-[9px] font-medium ${actionColor}`}>
+                              {holder.action}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Value */}
+                      <div className="text-xs font-semibold text-right shrink-0">
+                        {formatValue(holder.value)}
+                      </div>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="max-w-[280px]">
+                    <div className="space-y-1">
+                      <p className="font-semibold">{holder.investor_name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Holds {holder.shares?.toLocaleString()} shares worth {formatValue(holder.value)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {holder.percent_portfolio?.toFixed(2)}% of their portfolio
+                      </p>
+                      {holder.action && (
+                        <p className="text-xs">
+                          <span className={holder.action === 'NEW' || holder.action === 'ADD' ? 'text-green-400' : holder.action === 'REDUCE' || holder.action === 'SOLD' ? 'text-red-400' : ''}>
+                            {holder.action === 'NEW' ? 'New position' :
+                             holder.action === 'ADD' ? 'Increased position' :
+                             holder.action === 'REDUCE' ? 'Reduced position' :
+                             holder.action === 'SOLD' ? 'Sold position' : 'Held position'}
+                          </span>
+                          {' '}as of {new Date(holder.date_reported).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
             
-            {institutionalChange !== null && (
-              <SentimentMeter 
-                label="Institutional Flow"
-                value={institutionalChange}
-                tooltip="Net change in institutional ownership. Positive = funds adding positions."
-                icon={Building2}
-              />
+            {investorHolders.length > 5 && (
+              <p className="text-xs text-muted-foreground text-center pt-1">
+                +{investorHolders.length - 5} more investors
+              </p>
             )}
-          </>
+          </div>
         ) : (
           <div className="text-center py-3">
             <Users className="w-6 h-6 text-muted-foreground/30 mx-auto mb-1.5" />
-            <p className="text-xs text-muted-foreground/60">Smart money data coming soon</p>
+            <p className="text-xs text-muted-foreground/60">No tracked investors hold this asset</p>
           </div>
         )}
       </div>
