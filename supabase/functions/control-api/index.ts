@@ -1101,6 +1101,19 @@ ${markdownToHtml(markdown)}
           asset.piotroski_f_score = enrichedAsset.piotroski_f_score
         }
         
+        // Get company description from equity_metadata
+        if (asset.asset_type === 'equity') {
+          const { data: metadataDesc } = await supabase
+            .from('equity_metadata')
+            .select('description')
+            .eq('asset_id', assetId)
+            .single()
+          
+          if (metadataDesc?.description) {
+            asset.short_description = metadataDesc.description
+          }
+        }
+        
         // Get OHLCV (365 bars)
         const { data: ohlcv } = await supabase
           .from('daily_bars')
