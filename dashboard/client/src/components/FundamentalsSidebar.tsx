@@ -357,6 +357,93 @@ function ValuationChart({
   );
 }
 
+// Forward P/E display component - shows comparison between TTM and Forward P/E
+function ForwardPEDisplay({ 
+  ttmPE, 
+  forwardPE 
+}: { 
+  ttmPE: number | null; 
+  forwardPE: number | null;
+}) {
+  if (!forwardPE) return null;
+  
+  // Calculate the change from TTM to Forward
+  const change = ttmPE && forwardPE ? ((forwardPE - ttmPE) / ttmPE) * 100 : null;
+  const isLower = change !== null && change < 0;
+  const isHigher = change !== null && change > 0;
+  
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="mb-4 cursor-help rounded-lg p-2 -mx-2 transition-colors hover:bg-muted/30 border-l-2 border-primary/30 pl-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-medium text-foreground">Fwd P/E</span>
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-medium">
+                NTM
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`text-sm font-mono font-bold ${
+                isLower ? 'text-emerald-400' : isHigher ? 'text-amber-400' : 'text-foreground'
+              }`}>
+                {forwardPE.toFixed(1)}x
+              </span>
+              {change !== null && (
+                <span className={`text-[10px] font-mono px-1 py-0.5 rounded ${
+                  isLower 
+                    ? 'bg-emerald-500/20 text-emerald-400' 
+                    : isHigher 
+                    ? 'bg-amber-500/20 text-amber-400' 
+                    : 'bg-muted/50 text-muted-foreground'
+                }`}>
+                  {isLower ? '' : '+'}{change.toFixed(0)}%
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="text-[9px] text-muted-foreground/60 mt-1">
+            Based on analyst estimates for next 12 months
+          </div>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent side="left" className="max-w-[280px] p-3">
+        <div className="space-y-2">
+          <div className="font-semibold text-sm">Forward P/E Ratio</div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Price-to-Earnings based on analyst estimates for the next 12 months (NTM). 
+            {isLower 
+              ? ' A lower Forward P/E suggests analysts expect earnings growth.' 
+              : isHigher 
+              ? ' A higher Forward P/E suggests analysts expect earnings to decline.' 
+              : ''}
+          </p>
+          <div className="pt-2 border-t border-border/50 space-y-1">
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">TTM P/E:</span>
+              <span className="font-mono">{ttmPE ? ttmPE.toFixed(1) + 'x' : '—'}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Forward P/E:</span>
+              <span className="font-mono font-bold">{forwardPE.toFixed(1)}x</span>
+            </div>
+            {change !== null && (
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Change:</span>
+                <span className={`font-mono font-medium ${
+                  isLower ? 'text-emerald-400' : isHigher ? 'text-amber-400' : 'text-muted-foreground'
+                }`}>
+                  {isLower ? '' : '+'}{change.toFixed(1)}%
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 // Sentiment meter component
 function SentimentMeter({ 
   label, 
@@ -550,6 +637,7 @@ export function FundamentalsSidebar({ assetId, asset, review }: FundamentalsSide
 
   // Current values
   const currentPE = asset.pe_ratio ? parseFloat(asset.pe_ratio) : valuationHistory?.current?.pe_ratio;
+  const currentForwardPE = asset.forward_pe ? parseFloat(asset.forward_pe) : valuationHistory?.current?.forward_pe;
   const currentEVSales = asset.ev_to_revenue ? parseFloat(asset.ev_to_revenue) : valuationHistory?.current?.ev_to_sales;
   const currentEVEBITDA = asset.ev_to_ebitda ? parseFloat(asset.ev_to_ebitda) : valuationHistory?.current?.ev_to_ebitda;
   const currentEVGrossProfit = valuationHistory?.current?.ev_to_gross_profit;
@@ -611,8 +699,15 @@ export function FundamentalsSidebar({ assetId, asset, review }: FundamentalsSide
               label="P/E Ratio"
               currentValue={currentPE}
               historicalData={historicalPE}
-              tooltip="Price-to-Earnings ratio. The gold standard for profitable companies. Lower is cheaper."
+              tooltip="Price-to-Earnings ratio (TTM). The gold standard for profitable companies. Lower is cheaper."
             />
+            
+            {currentForwardPE && (
+              <ForwardPEDisplay 
+                ttmPE={currentPE}
+                forwardPE={currentForwardPE}
+              />
+            )}
             
             <ValuationChart 
               label="EV/EBITDA"
