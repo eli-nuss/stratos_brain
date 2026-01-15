@@ -8,10 +8,14 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { 
   Play, Save, X, RotateCcw, AlertTriangle, TrendingUp, 
   Activity, BarChart3, Percent, ChevronDown, ChevronUp,
-  Calculator, Zap, Shield, Plus, Search, Loader2, AlertCircle, DollarSign, Wallet
+  Calculator, Zap, Shield, Plus, Search, Loader2, AlertCircle, DollarSign, Wallet, Brain, Clock, PieChart, AlertTriangle as StressIcon
 } from "lucide-react";
 import { RebalanceCalculator } from "./RebalanceCalculator";
 import { CorrelationMatrix } from "./CorrelationMatrix";
+import { ScenarioSimulator } from "./ScenarioSimulator";
+import { RiskAttribution } from "./RiskAttribution";
+import { TimeTravelBacktester } from "./TimeTravelBacktester";
+import { AIInvestmentCommittee } from "./AIInvestmentCommittee";
 import useSWR from 'swr';
 import { 
   useModelPortfolioHoldings,
@@ -60,7 +64,7 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
   const { holdings, isLoading: holdingsLoading, mutate } = useModelPortfolioHoldings();
   const { categories, categorySummaries, corePortfolioValue, totalWeight, isLoading } = useModelPortfolioByCategory();
   
-  const [activeTab, setActiveTab] = useState<'holdings' | 'sandbox' | 'rebalance'>('holdings');
+  const [activeTab, setActiveTab] = useState<'holdings' | 'sandbox' | 'rebalance' | 'analytics' | 'ai'>('holdings');
   const [expandedCategories, setExpandedCategories] = useState<Set<PortfolioCategory>>(
     new Set(CATEGORY_ORDER)
   );
@@ -449,6 +453,14 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
             <TabsTrigger value="rebalance" className="gap-2">
               <Calculator className="w-4 h-4" />
               Rebalance
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Analytics
+            </TabsTrigger>
+            <TabsTrigger value="ai" className="gap-2">
+              <Brain className="w-4 h-4" />
+              AI Review
             </TabsTrigger>
           </TabsList>
 
@@ -1161,6 +1173,65 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
             currentHoldings={rebalanceHoldings}
             targetWeights={targetWeights}
             corePortfolioValue={corePortfolioValue}
+          />
+        </TabsContent>
+
+        {/* Analytics Tab - Stress Testing, Risk Attribution, Backtester */}
+        <TabsContent value="analytics" className="mt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Scenario Stress Tester */}
+            <ScenarioSimulator
+              portfolio={holdings.map(h => ({
+                symbol: h.symbol,
+                name: h.name,
+                weight: h.target_weight,
+                assetType: h.category === 'tokens' ? 'crypto' : h.category === 'cash' ? 'cash' : 'equity',
+              }))}
+            />
+
+            {/* Risk Attribution */}
+            <RiskAttribution
+              portfolio={holdings.map(h => ({
+                symbol: h.symbol,
+                name: h.name,
+                weight: h.target_weight,
+                assetType: h.category === 'tokens' ? 'crypto' : h.category === 'cash' ? 'cash' : 'equity',
+                category: h.category,
+              }))}
+            />
+          </div>
+
+          {/* Time Travel Backtester - Full Width */}
+          <div className="mt-6">
+            <TimeTravelBacktester
+              portfolio={holdings.map(h => ({
+                symbol: h.symbol,
+                name: h.name,
+                weight: h.target_weight,
+                assetId: h.asset_id,
+                assetType: h.category === 'tokens' ? 'crypto' : h.category === 'cash' ? 'cash' : 'equity',
+              }))}
+              corePortfolioValue={corePortfolioValue}
+            />
+          </div>
+        </TabsContent>
+
+        {/* AI Review Tab */}
+        <TabsContent value="ai" className="mt-4">
+          <AIInvestmentCommittee
+            portfolio={holdings.map(h => ({
+              symbol: h.symbol,
+              name: h.name,
+              weight: h.target_weight,
+              assetType: h.category === 'tokens' ? 'crypto' : h.category === 'cash' ? 'cash' : 'equity',
+              category: h.category,
+            }))}
+            corePortfolioValue={corePortfolioValue}
+            riskMetrics={{
+              volatility: riskMetrics.volatility,
+              beta: riskMetrics.beta,
+              sharpeRatio: riskMetrics.sharpeRatio,
+            }}
           />
         </TabsContent>
       </Tabs>

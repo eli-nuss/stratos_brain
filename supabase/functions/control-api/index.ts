@@ -4364,6 +4364,73 @@ If asked about something not in the data, acknowledge the limitation.`
         })
       }
 
+      // POST /dashboard/ai-analysis - AI-powered portfolio analysis
+      case req.method === 'POST' && path === '/dashboard/ai-analysis': {
+        const body = await req.json()
+        const { prompt, type } = body
+        
+        if (!prompt) {
+          return new Response(JSON.stringify({ error: 'prompt is required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Use Gemini API for analysis
+        const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
+        if (!geminiApiKey) {
+          return new Response(JSON.stringify({ error: 'AI service not configured' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        try {
+          const geminiResponse = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [{ text: prompt }]
+                }],
+                generationConfig: {
+                  temperature: 0.7,
+                  maxOutputTokens: 2048,
+                }
+              })
+            }
+          )
+          
+          if (!geminiResponse.ok) {
+            const errorText = await geminiResponse.text()
+            console.error('Gemini API error:', errorText)
+            throw new Error('AI service error')
+          }
+          
+          const geminiData = await geminiResponse.json()
+          const analysis = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || ''
+          
+          return new Response(JSON.stringify({
+            analysis,
+            type,
+            timestamp: new Date().toISOString()
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        } catch (aiError) {
+          console.error('AI analysis error:', aiError)
+          return new Response(JSON.stringify({ 
+            error: 'AI analysis failed',
+            details: aiError.message 
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+      }
+
       default:
         return new Response(JSON.stringify({ error: 'Not found' }), {
           status: 404,
