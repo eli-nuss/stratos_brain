@@ -45,7 +45,8 @@ function ValuationChart({
   historicalData,
   tooltip,
   period = 'TTM',
-  formatFn = (v: number) => v.toFixed(1) + 'x'
+  formatFn = (v: number) => v.toFixed(1) + 'x',
+  forwardPE = null
 }: { 
   label: string;
   currentValue: number | null;
@@ -53,6 +54,7 @@ function ValuationChart({
   tooltip: string;
   period?: 'TTM' | 'FWD' | 'LTM' | 'NTM';
   formatFn?: (v: number) => string;
+  forwardPE?: number | null;
 }) {
   const [hoveredPoint, setHoveredPoint] = useState<{ date: string; value: number; x: number; y: number } | null>(null);
   const [isChartHovered, setIsChartHovered] = useState(false);
@@ -695,19 +697,38 @@ export function FundamentalsSidebar({ assetId, asset, review }: FundamentalsSide
         ) : valuationMode === 'EARNINGS_BASED' ? (
           /* Profitable Company View - Earnings Based */
           <>
+            {/* P/E Section with Forward P/E header */}
+            {currentForwardPE && (
+              <div className="flex items-center justify-between mb-2 pb-2 border-b border-border/30">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Fwd P/E</span>
+                  <span className="text-[8px] px-1 py-0.5 rounded bg-primary/20 text-primary font-medium">NTM</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-mono font-bold text-primary">
+                    {currentForwardPE.toFixed(1)}x
+                  </span>
+                  {currentPE && (
+                    <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
+                      currentForwardPE < currentPE 
+                        ? 'bg-emerald-500/20 text-emerald-400' 
+                        : currentForwardPE > currentPE 
+                        ? 'bg-amber-500/20 text-amber-400' 
+                        : 'bg-muted/50 text-muted-foreground'
+                    }`}>
+                      {currentForwardPE < currentPE ? '' : '+'}{(((currentForwardPE - currentPE) / currentPE) * 100).toFixed(0)}% vs TTM
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+            
             <ValuationChart 
               label="P/E Ratio"
               currentValue={currentPE}
               historicalData={historicalPE}
               tooltip="Price-to-Earnings ratio (TTM). The gold standard for profitable companies. Lower is cheaper."
             />
-            
-            {currentForwardPE && (
-              <ForwardPEDisplay 
-                ttmPE={currentPE}
-                forwardPE={currentForwardPE}
-              />
-            )}
             
             <ValuationChart 
               label="EV/EBITDA"
