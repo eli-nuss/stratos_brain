@@ -482,7 +482,8 @@
 
                                                                             #### Portfolio Construction
                                                                             ```
-GET  /api/dashboard/portfolio-risk  # Portfolio risk metrics & correlation matrix
+GET  /api/dashboard/portfolio-risk  # Portfolio risk metrics, betas, volatilities & correlation matrix
+GET  /api/dashboard/portfolio-backtest  # Historical portfolio performance backtest vs SPY/BTC
 POST /api/dashboard/ai-analysis  # AI-powered portfolio analysis (Gemini)
 GET  /api/dashboard/model-portfolio-holdings  # Model portfolio holdings
 POST /api/dashboard/model-portfolio-holdings  # Add holding
