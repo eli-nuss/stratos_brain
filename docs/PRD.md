@@ -231,8 +231,9 @@
 
                                                                                             | Table | Purpose | Key Columns |
                                                                                             |-------|---------|-------------|
-                                                                                            | `assets` | Master asset list | `asset_id`, `asset_type`, `is_active` |
-                                                                                            | `daily_bars` | Raw OHLCV data | `asset_id`, `bar_date`, `open`, `high`, `low`, `close`, `volume` |
+| `assets` | Master asset list | `asset_id`, `asset_type`, `symbol`, `currency`, `fmp_symbol`, `data_vendor`, `is_active` |
+| `daily_bars` | Raw OHLCV data with USD conversion | `asset_id`, `bar_date`, `open`, `high`, `low`, `close`, `volume`, `close_usd`, `volume_usd` |
+| `fx_rates` | Daily forex rates for currency conversion | `rate_date`, `from_currency`, `to_currency`, `rate`, `source` |
                                                                                             | `daily_features` | Technical indicators | `asset_id`, `as_of_date`, `rsi_14`, `macd`, `sma_20`, etc. |
                                                                                             | `daily_signal_facts` | Signal evaluations | `asset_id`, `template_name`, `signal_strength`, `direction` |
                                                                                             | `signal_instances` | Signal lifecycle | `signal_id`, `first_seen`, `last_seen`, `status` |
@@ -378,9 +379,9 @@
 
                                                                                             | Source | Data Type | Frequency | Assets |
                                                                                             |--------|-----------|-----------|--------|
-                                                                                            | **CoinGecko** | OHLCV, Market Cap | Daily | Crypto |
-                                                                                            | **Alpha Vantage** | OHLCV | Daily | Equities |
-                                                                                            | **Financial Modeling Prep** | Fundamentals, 13F, Transcripts | Daily/Quarterly | Equities |
+| **CoinGecko** | OHLCV, Market Cap | Daily | Crypto |
+| **Alpha Vantage** | OHLCV | Daily | US Equities |
+| **Financial Modeling Prep** | OHLCV, Fundamentals, 13F, Transcripts, FX Rates | Daily/Quarterly | Global Equities, US Equities |
 
                                                                                             ### 6.2 AI & Search
 
@@ -806,9 +807,10 @@ DELETE /api/dashboard/model-portfolio-holdings/:id  # Remove holding
                                                                                            
                                                                                             - [ ] ## Changelog
                                                                                            
-                                                                                            - [ ] | Version | Date | Changes |
-                                                                                            - [ ] |---------|------|---------|
-                                                                                            - [ ] | 1.1 | Jan 14, 2026 | Added fill_missing_descriptions.py script, fixed Under the Hood metrics display |
+- [ ] | Version | Date | Changes |
+- [ ] |---------|------|---------|
+                                                                                            - [ ] | 1.2 | Jan 15, 2026 | Added global equities support (62 international tech stocks), FMP data ingestion, fx_rates table, USD conversion in daily_bars |
+- [ ] | 1.1 | Jan 14, 2026 | Added fill_missing_descriptions.py script, fixed Under the Hood metrics display |
                                                                                             - [ ] | 1.0 | Jan 13, 2026 | Initial PRD document |
                                                                                            
                                                                                             - [ ] ---
