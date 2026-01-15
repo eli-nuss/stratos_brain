@@ -27,6 +27,9 @@ function Router() {
       <Route path={"/core-portfolio"} component={Home} />
       <Route path={"/equities"} component={Home} />
       <Route path={"/crypto"} component={Home} />
+      <Route path={"/etfs"} component={Home} />
+      <Route path={"/indices"} component={Home} />
+      <Route path={"/commodities"} component={Home} />
       <Route path={"/list/:listId"} component={Home} />
       <Route path={"/asset/:assetId"} component={Home} />
       <Route path={"/docs"} component={Documentation} />
