@@ -342,13 +342,14 @@ export function ListSidebar({
         />
       </div>
 
-      {/* Asset Type Tabs - Watchlist, Equities, Crypto */}
-      <div className="px-3 py-2 border-b border-border">
+      {/* Asset Type Tabs - Two rows for better layout */}
+      <div className="px-3 py-2 border-b border-border space-y-1.5">
+        {/* Row 1: Core asset types */}
         <div className="flex items-center gap-1">
           <button
             onClick={() => onTabChange('watchlist')}
             className={cn(
-              'px-2.5 py-1 text-[11px] font-medium rounded transition-colors',
+              'flex-1 px-2 py-1.5 text-[11px] font-medium rounded transition-colors text-center',
               activeTab === 'watchlist'
                 ? 'bg-muted text-foreground'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -359,7 +360,7 @@ export function ListSidebar({
           <button
             onClick={() => onTabChange('equity')}
             className={cn(
-              'px-2.5 py-1 text-[11px] font-medium rounded transition-colors',
+              'flex-1 px-2 py-1.5 text-[11px] font-medium rounded transition-colors text-center',
               activeTab === 'equity'
                 ? 'bg-muted text-foreground'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -370,7 +371,7 @@ export function ListSidebar({
           <button
             onClick={() => onTabChange('crypto')}
             className={cn(
-              'px-2.5 py-1 text-[11px] font-medium rounded transition-colors',
+              'flex-1 px-2 py-1.5 text-[11px] font-medium rounded transition-colors text-center',
               activeTab === 'crypto'
                 ? 'bg-muted text-foreground'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -378,10 +379,13 @@ export function ListSidebar({
           >
             Crypto
           </button>
+        </div>
+        {/* Row 2: Market data types */}
+        <div className="flex items-center gap-1">
           <button
             onClick={() => onTabChange('etfs')}
             className={cn(
-              'px-2.5 py-1 text-[11px] font-medium rounded transition-colors',
+              'flex-1 px-2 py-1.5 text-[11px] font-medium rounded transition-colors text-center',
               activeTab === 'etfs'
                 ? 'bg-muted text-foreground'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -392,7 +396,7 @@ export function ListSidebar({
           <button
             onClick={() => onTabChange('indices')}
             className={cn(
-              'px-2.5 py-1 text-[11px] font-medium rounded transition-colors',
+              'flex-1 px-2 py-1.5 text-[11px] font-medium rounded transition-colors text-center',
               activeTab === 'indices'
                 ? 'bg-muted text-foreground'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -403,7 +407,7 @@ export function ListSidebar({
           <button
             onClick={() => onTabChange('commodities')}
             className={cn(
-              'px-2.5 py-1 text-[11px] font-medium rounded transition-colors',
+              'flex-1 px-2 py-1.5 text-[11px] font-medium rounded transition-colors text-center',
               activeTab === 'commodities'
                 ? 'bg-muted text-foreground'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
