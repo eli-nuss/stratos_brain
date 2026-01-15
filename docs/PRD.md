@@ -293,7 +293,18 @@
 | `fundamental_vigor_scores` | AI-powered FVS scores | `asset_id`, `as_of_date`, `final_score`, `profitability_score`, `solvency_score`, `growth_score`, `moat_score` |
 | `fvs_calculation_inputs` | FVS calculation audit trail | `asset_id`, `as_of_date`, `quantitative_metrics` |
                                                                                          
-                                                                                            ### 5.6 Signal & Engine Tables
+                                                                                            ### 5.6 ETF, Index & Commodity Tables
+
+| Table | Purpose | Key Columns |
+|-------|---------|-------------|
+| `etf_assets` | ETF master list | `etf_id`, `symbol`, `name`, `asset_class`, `geography`, `category`, `issuer` |
+| `etf_daily_bars` | ETF OHLCV data | `etf_id`, `date`, `open`, `high`, `low`, `close`, `volume` |
+| `market_indices` | Global indices | `index_id`, `symbol`, `name`, `region`, `country`, `index_type` |
+| `index_daily_bars` | Index OHLCV data | `index_id`, `date`, `open`, `high`, `low`, `close`, `volume` |
+| `commodities` | Commodity futures | `commodity_id`, `symbol`, `name`, `category`, `unit` |
+| `commodity_daily_bars` | Commodity OHLCV data | `commodity_id`, `date`, `open`, `high`, `low`, `close`, `volume` |
+
+### 5.7 Signal & Engine Tables
                                                                                          
                                                                                             | Table | Purpose | Key Columns |
                                                                                             |-------|---------|-------------|
@@ -304,7 +315,7 @@
                                                                                             | `engine_jobs` | Engine job queue | `job_id`, `job_type`, `status`, `created_at` |
                                                                                             | `daily_signals_v2` | V2 signal data | `asset_id`, `signal_date`, `signals_json` |
                                                                                          
-                                                                                            ### 5.7 Brain & Chat System Tables
+                                                                                            ### 5.8 Brain & Chat System Tables
                                                                                          
                                                                                             | Table | Purpose | Key Columns |
                                                                                             |-------|---------|-------------|
@@ -810,7 +821,8 @@ DELETE /api/dashboard/model-portfolio-holdings/:id  # Remove holding
                                                                                            
 - [ ] | Version | Date | Changes |
 - [ ] |---------|------|---------|
-                                                                                            - [ ] | 1.2 | Jan 15, 2026 | Added global equities support (62 international tech stocks), FMP data ingestion, fx_rates table, USD conversion in daily_bars |
+                                                                                            - [ ] | 1.3 | Jan 15, 2026 | Added ETF tables (105 ETFs, 104K bars), market indices (15 global indices, 15K bars), commodities (40 commodities, 38K bars) |
+| 1.2 | Jan 15, 2026 | Added global equities support (62 international tech stocks), FMP data ingestion, fx_rates table, USD conversion in daily_bars |
 - [ ] | 1.1 | Jan 14, 2026 | Added fill_missing_descriptions.py script, fixed Under the Hood metrics display |
                                                                                             - [ ] | 1.0 | Jan 13, 2026 | Initial PRD document |
                                                                                            
