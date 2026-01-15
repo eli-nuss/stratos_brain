@@ -1,6 +1,6 @@
 // Customizable Stock List Table with drag-and-drop column reordering and show/hide
 import { useState, useMemo } from "react";
-import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, X, GripVertical, Activity, Star, Search } from "lucide-react";
+import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, X, GripVertical, Activity, Star, Search, Tag, ChevronDown, Check } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { NoteCell } from "@/components/NoteCell";
 import TableSummaryRows from "@/components/TableSummaryRows";
@@ -157,6 +157,19 @@ export default function CustomizableStockListTable({ list, onAssetClick }: Custo
   const { sortBy, sortOrder, handleSort } = useSortPreferences(`stocklist-${list.id}`);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [filterSearch, setFilterSearch] = useState("");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
+
+  // Extract all unique tags from the assets
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    assets.forEach((a: any) => {
+      if (a.list_tags && Array.isArray(a.list_tags)) {
+        a.list_tags.forEach((tag: string) => tagSet.add(tag));
+      }
+    });
+    return Array.from(tagSet).sort();
+  }, [assets]);
 
   // Compute existing asset IDs for the search dropdown
   const existingAssetIds = useMemo(() => {
@@ -176,15 +189,29 @@ export default function CustomizableStockListTable({ list, onAssetClick }: Custo
     mutateAssets();
   };
 
-  // Filter assets by search term
+  // Filter assets by search term and selected tags
   const filteredAssets = useMemo(() => {
-    if (!filterSearch.trim()) return assets;
-    const searchLower = filterSearch.toLowerCase();
-    return assets.filter((a: any) => 
-      a.symbol?.toLowerCase().includes(searchLower) ||
-      a.name?.toLowerCase().includes(searchLower)
-    );
-  }, [assets, filterSearch]);
+    let filtered = assets;
+    
+    // Filter by search term
+    if (filterSearch.trim()) {
+      const searchLower = filterSearch.toLowerCase();
+      filtered = filtered.filter((a: any) => 
+        a.symbol?.toLowerCase().includes(searchLower) ||
+        a.name?.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    // Filter by selected tags (show assets that have ANY of the selected tags)
+    if (selectedTags.length > 0) {
+      filtered = filtered.filter((a: any) => {
+        if (!a.list_tags || !Array.isArray(a.list_tags)) return false;
+        return selectedTags.some(tag => a.list_tags.includes(tag));
+      });
+    }
+    
+    return filtered;
+  }, [assets, filterSearch, selectedTags]);
 
   // Sort assets with special handling for interesting_first
   const sortedAssets = [...filteredAssets].sort((a: any, b: any) => {
@@ -443,7 +470,7 @@ export default function CustomizableStockListTable({ list, onAssetClick }: Custo
             style={{ backgroundColor: list.color || '#10b981' }}
           />
           {list.name}
-          <span className="text-xs text-muted-foreground">({filterSearch ? `${total} of ${totalAssets}` : `${total} assets`})</span>
+          <span className="text-xs text-muted-foreground">({(filterSearch || selectedTags.length > 0) ? `${total} of ${totalAssets}` : `${total} assets`})</span>
         </h3>
         <div className="flex items-center gap-2">
           {/* Filter current list search */}
@@ -468,6 +495,73 @@ export default function CustomizableStockListTable({ list, onAssetClick }: Custo
               </button>
             )}
           </div>
+          {/* Tag filter dropdown */}
+          {allTags.length > 0 && (
+            <div className="relative">
+              <button
+                onClick={() => setTagDropdownOpen(!tagDropdownOpen)}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs border rounded transition-colors ${
+                  selectedTags.length > 0 
+                    ? 'bg-primary/10 border-primary/30 text-primary' 
+                    : 'bg-background border-border text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Tag className="w-3.5 h-3.5" />
+                {selectedTags.length > 0 ? (
+                  <span>{selectedTags.length} tag{selectedTags.length > 1 ? 's' : ''}</span>
+                ) : (
+                  <span>Filter by tag</span>
+                )}
+                <ChevronDown className={`w-3 h-3 transition-transform ${tagDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {tagDropdownOpen && (
+                <>
+                  {/* Backdrop to close dropdown */}
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setTagDropdownOpen(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-1 z-50 bg-background border border-border rounded-lg shadow-lg py-1 min-w-[160px] max-h-[300px] overflow-y-auto">
+                    {/* Clear all button */}
+                    {selectedTags.length > 0 && (
+                      <button
+                        onClick={() => {
+                          setSelectedTags([]);
+                          setPage(0);
+                        }}
+                        className="w-full px-3 py-1.5 text-xs text-left text-muted-foreground hover:bg-muted/50 border-b border-border mb-1"
+                      >
+                        Clear all filters
+                      </button>
+                    )}
+                    {allTags.map((tag) => (
+                      <button
+                        key={tag}
+                        onClick={() => {
+                          setSelectedTags(prev => 
+                            prev.includes(tag) 
+                              ? prev.filter(t => t !== tag)
+                              : [...prev, tag]
+                          );
+                          setPage(0);
+                        }}
+                        className="w-full px-3 py-1.5 text-xs text-left hover:bg-muted/50 flex items-center justify-between gap-2"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-primary/10 text-primary border border-primary/20">
+                            {tag}
+                          </span>
+                        </span>
+                        {selectedTags.includes(tag) && (
+                          <Check className="w-3.5 h-3.5 text-primary" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
           <AssetSearchDropdown
             existingAssetIds={existingAssetIds}
             onAddAsset={handleAddAsset}
