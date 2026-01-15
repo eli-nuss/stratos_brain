@@ -392,6 +392,23 @@ export default function CustomizableStockListTable({ list, onAssetClick }: Custo
         return <span className="font-mono text-xs text-muted-foreground">{row.forward_ps ? row.forward_ps.toFixed(2) : "-"}</span>;
       case "psg":
         return <span className="font-mono text-xs text-muted-foreground">{row.psg ? row.psg.toFixed(2) : "-"}</span>;
+      case "list_tags":
+        return (
+          <div className="flex flex-wrap gap-1 max-w-[150px]">
+            {row.list_tags && row.list_tags.length > 0 ? (
+              row.list_tags.map((tag: string, idx: number) => (
+                <span
+                  key={idx}
+                  className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-primary/10 text-primary border border-primary/20"
+                >
+                  {tag}
+                </span>
+              ))
+            ) : (
+              <span className="text-muted-foreground">-</span>
+            )}
+          </div>
+        );
       case "category":
         return <span className="text-xs text-muted-foreground truncate max-w-[80px]">{row.category || row.industry || row.sector || "-"}</span>;
       case "description":

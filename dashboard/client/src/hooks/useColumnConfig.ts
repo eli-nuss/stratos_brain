@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 
 // Config version - increment this when adding new columns that should be auto-added to existing configs
-const CONFIG_VERSION = 2; // v2: Added fvs_score column
+const CONFIG_VERSION = 3; // v3: Added list_tags column for stock lists
 
 // Column definition type
 export interface ColumnDef {
@@ -43,6 +43,7 @@ export const ALL_COLUMNS: ColumnDef[] = [
   { id: "forward_ps", label: "Fwd P/S*", tooltip: "Forward P/S (approx): Market Cap / Est. NTM Revenue. Uses log-dampened growth rate.", sortField: "forward_ps", minWidth: "70px", align: "center", appliesTo: ["equity", "watchlist", "stocklist"] },
   { id: "psg", label: "PSG*", tooltip: "Price-to-Sales-Growth (approx): Forward P/S / Dampened Growth %. Lower = cheaper relative to growth.", sortField: "psg", minWidth: "60px", align: "center", appliesTo: ["equity", "watchlist", "stocklist"] },
   { id: "revenue_growth_yoy", label: "Rev Gr%", tooltip: "Year-over-year revenue growth rate", sortField: "revenue_growth_yoy", minWidth: "70px", align: "center", appliesTo: ["equity", "watchlist", "stocklist"] },
+  { id: "list_tags", label: "Tags", tooltip: "Custom tags for this asset in the current list (e.g., metals produced)", minWidth: "120px", align: "left", appliesTo: ["stocklist"], addedInVersion: 3 },
   { id: "category", label: "Industry", tooltip: "Category (crypto) or Industry (equities)", minWidth: "100px", align: "center" },
   { id: "description", label: "Description", tooltip: "Brief description of the asset", minWidth: "150px", align: "left" },
   { id: "notes", label: "Notes", tooltip: "Your personal notes", minWidth: "100px", align: "center" },
@@ -53,7 +54,7 @@ export const DEFAULT_VISIBLE_COLUMNS: Record<string, string[]> = {
   crypto: ["actions", "asset", "direction", "quality", "market_cap", "price", "return_1d", "return_7d", "return_30d", "return_365d", "volume_7d", "volume_30d", "category", "description", "notes"],
   equity: ["actions", "asset", "direction", "quality", "fvs_score", "market_cap", "price", "return_1d", "return_7d", "return_30d", "return_365d", "volume_7d", "volume_30d", "pe_ratio", "forward_pe", "peg_ratio", "price_to_sales", "forward_ps", "psg", "revenue_growth_yoy", "category", "description", "notes"],
   watchlist: ["actions", "asset", "direction", "quality", "fvs_score", "market_cap", "price", "return_1d", "return_7d", "return_30d", "return_365d", "volume_7d", "volume_30d", "pe_ratio", "forward_pe", "peg_ratio", "price_to_sales", "forward_ps", "psg", "revenue_growth_yoy", "category", "description", "notes"],
-  stocklist: ["actions", "asset", "direction", "quality", "fvs_score", "market_cap", "price", "return_1d", "return_7d", "return_30d", "return_365d", "volume_7d", "volume_30d", "pe_ratio", "forward_pe", "peg_ratio", "price_to_sales", "forward_ps", "psg", "revenue_growth_yoy", "category", "description", "notes"],
+  stocklist: ["actions", "asset", "direction", "quality", "fvs_score", "market_cap", "price", "return_1d", "return_7d", "return_30d", "return_365d", "volume_7d", "volume_30d", "pe_ratio", "forward_pe", "peg_ratio", "price_to_sales", "forward_ps", "psg", "revenue_growth_yoy", "list_tags", "category", "description", "notes"],
 };
 
 // Default column order (same as ALL_COLUMNS order)

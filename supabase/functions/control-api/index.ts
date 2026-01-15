@@ -2281,10 +2281,10 @@ If asked about something not in the data, acknowledge the limitation.`
       case req.method === 'GET' && /^\/dashboard\/stock-lists\/\d+\/assets$/.test(path): {
         const listId = parseInt(path.split('/')[3])
         
-        // Get asset IDs from the stock list
+        // Get asset IDs and tags from the stock list
         const { data: listItems, error: listError } = await supabase
           .from('stock_list_items')
-          .select('asset_id')
+          .select('asset_id, tags')
           .eq('list_id', listId)
         
         if (listError) {
@@ -2302,6 +2302,12 @@ If asked about something not in the data, acknowledge the limitation.`
         
         const assetIds = listItems.map(item => item.asset_id)
         
+        // Create a map of asset_id to tags
+        const tagsMap: Record<number, string[]> = {}
+        listItems.forEach(item => {
+          tagsMap[item.asset_id] = item.tags || []
+        })
+        
         // Get assets from materialized view
         const { data: assets, error: assetsError } = await supabase
           .from('mv_dashboard_all_assets')
@@ -2315,7 +2321,13 @@ If asked about something not in the data, acknowledge the limitation.`
           })
         }
         
-        return new Response(JSON.stringify(assets || []), {
+        // Merge tags into assets
+        const assetsWithTags = (assets || []).map(asset => ({
+          ...asset,
+          list_tags: tagsMap[asset.asset_id] || []
+        }))
+        
+        return new Response(JSON.stringify(assetsWithTags), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
