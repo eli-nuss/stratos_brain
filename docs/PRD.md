@@ -821,7 +821,8 @@ DELETE /api/dashboard/model-portfolio-holdings/:id  # Remove holding
                                                                                            
 - [ ] | Version | Date | Changes |
 - [ ] |---------|------|---------|
-                                                                                            - [ ] | 1.3 | Jan 15, 2026 | Added ETF tables (105 ETFs, 104K bars), market indices (15 global indices, 15K bars), commodities (40 commodities, 38K bars) |
+                                                                                            - [ ] | 1.4 | Jan 15, 2026 | Added ETFs, Indices, and Commodities dashboard views with API endpoints; global equities now appear in All Equities view |
+| 1.3 | Jan 15, 2026 | Added ETF tables (105 ETFs, 104K bars), market indices (15 global indices, 15K bars), commodities (40 commodities, 38K bars) |
 | 1.2 | Jan 15, 2026 | Added global equities support (62 international tech stocks), FMP data ingestion, fx_rates table, USD conversion in daily_bars |
 - [ ] | 1.1 | Jan 14, 2026 | Added fill_missing_descriptions.py script, fixed Under the Hood metrics display |
                                                                                             - [ ] | 1.0 | Jan 13, 2026 | Initial PRD document |

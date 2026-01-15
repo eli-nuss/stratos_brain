@@ -1266,7 +1266,12 @@ ${markdownToHtml(markdown)}
           .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1)
           
         if (assetType) {
-          query = query.eq('asset_type', assetType)
+          // Include global_equity when equity is requested
+          if (assetType === 'equity') {
+            query = query.in('asset_type', ['equity', 'global_equity'])
+          } else {
+            query = query.eq('asset_type', assetType)
+          }
         }
         
         // Optional search by symbol
@@ -4753,6 +4758,139 @@ If asked about something not in the data, acknowledge the limitation.`
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
         }
+      }
+
+      // GET /dashboard/etfs - Get all ETFs with overview data
+      case req.method === 'GET' && path === '/dashboard/etfs': {
+        const limit = url.searchParams.get('limit') || '200'
+        const offset = url.searchParams.get('offset') || '0'
+        const sortBy = url.searchParams.get('sort_by') || 'dollar_volume'
+        const sortOrder = url.searchParams.get('sort_order') || 'desc'
+        const search = url.searchParams.get('search')
+        const category = url.searchParams.get('category')
+        
+        let query = supabase
+          .from('v_etf_overview')
+          .select('*', { count: 'exact' })
+          .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1)
+        
+        if (search) {
+          query = query.or(`symbol.ilike.%${search}%,name.ilike.%${search}%`)
+        }
+        
+        if (category) {
+          query = query.eq('category', category)
+        }
+        
+        // Apply sorting
+        const ascending = sortOrder === 'asc'
+        switch (sortBy) {
+          case 'symbol': query = query.order('symbol', { ascending }); break
+          case 'name': query = query.order('name', { ascending }); break
+          case 'close': query = query.order('close', { ascending, nullsFirst: false }); break
+          case 'return_1d': query = query.order('return_1d', { ascending, nullsFirst: false }); break
+          case 'return_7d': query = query.order('return_7d', { ascending, nullsFirst: false }); break
+          case 'return_30d': query = query.order('return_30d', { ascending, nullsFirst: false }); break
+          case 'return_365d': query = query.order('return_365d', { ascending, nullsFirst: false }); break
+          default: query = query.order('dollar_volume', { ascending: false, nullsFirst: false })
+        }
+        
+        const { data, count, error } = await query
+        
+        if (error) {
+          console.error('ETFs query error:', error)
+          throw error
+        }
+        
+        return new Response(JSON.stringify({
+          data: data || [],
+          total: count || 0,
+          limit: parseInt(limit),
+          offset: parseInt(offset)
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /dashboard/indices - Get all market indices with overview data
+      case req.method === 'GET' && path === '/dashboard/indices': {
+        const sortBy = url.searchParams.get('sort_by') || 'symbol'
+        const sortOrder = url.searchParams.get('sort_order') || 'asc'
+        const region = url.searchParams.get('region')
+        
+        let query = supabase
+          .from('v_index_overview')
+          .select('*', { count: 'exact' })
+        
+        if (region) {
+          query = query.eq('region', region)
+        }
+        
+        // Apply sorting
+        const ascending = sortOrder === 'asc'
+        switch (sortBy) {
+          case 'symbol': query = query.order('symbol', { ascending }); break
+          case 'name': query = query.order('name', { ascending }); break
+          case 'close': query = query.order('close', { ascending, nullsFirst: false }); break
+          case 'return_1d': query = query.order('return_1d', { ascending, nullsFirst: false }); break
+          case 'return_7d': query = query.order('return_7d', { ascending, nullsFirst: false }); break
+          default: query = query.order('symbol', { ascending: true })
+        }
+        
+        const { data, count, error } = await query
+        
+        if (error) {
+          console.error('Indices query error:', error)
+          throw error
+        }
+        
+        return new Response(JSON.stringify({
+          data: data || [],
+          total: count || 0
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /dashboard/commodities - Get all commodities with overview data
+      case req.method === 'GET' && path === '/dashboard/commodities': {
+        const sortBy = url.searchParams.get('sort_by') || 'symbol'
+        const sortOrder = url.searchParams.get('sort_order') || 'asc'
+        const category = url.searchParams.get('category')
+        
+        let query = supabase
+          .from('v_commodity_overview')
+          .select('*', { count: 'exact' })
+        
+        if (category) {
+          query = query.eq('category', category)
+        }
+        
+        // Apply sorting
+        const ascending = sortOrder === 'asc'
+        switch (sortBy) {
+          case 'symbol': query = query.order('symbol', { ascending }); break
+          case 'name': query = query.order('name', { ascending }); break
+          case 'close': query = query.order('close', { ascending, nullsFirst: false }); break
+          case 'return_1d': query = query.order('return_1d', { ascending, nullsFirst: false }); break
+          case 'return_7d': query = query.order('return_7d', { ascending, nullsFirst: false }); break
+          case 'category': query = query.order('category', { ascending }); break
+          default: query = query.order('symbol', { ascending: true })
+        }
+        
+        const { data, count, error } = await query
+        
+        if (error) {
+          console.error('Commodities query error:', error)
+          throw error
+        }
+        
+        return new Response(JSON.stringify({
+          data: data || [],
+          total: count || 0
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
       }
 
       default:

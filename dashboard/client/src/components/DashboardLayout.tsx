@@ -59,6 +59,7 @@ export default function DashboardLayout({
   // Check if current page is a detail/sub-page (not main dashboard)
   const isMainDashboard = location === "/" || location === "/watchlist" || 
     location === "/equities" || location === "/crypto" || 
+    location === "/etfs" || location === "/indices" || location === "/commodities" ||
     location === "/model-portfolio" || location === "/model-portfolio-sandbox" || 
     location === "/core-portfolio" ||
     location.startsWith("/list/");

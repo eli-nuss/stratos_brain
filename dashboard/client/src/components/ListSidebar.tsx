@@ -378,6 +378,39 @@ export function ListSidebar({
           >
             Crypto
           </button>
+          <button
+            onClick={() => onTabChange('etfs')}
+            className={cn(
+              'px-2.5 py-1 text-[11px] font-medium rounded transition-colors',
+              activeTab === 'etfs'
+                ? 'bg-muted text-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+            )}
+          >
+            ETFs
+          </button>
+          <button
+            onClick={() => onTabChange('indices')}
+            className={cn(
+              'px-2.5 py-1 text-[11px] font-medium rounded transition-colors',
+              activeTab === 'indices'
+                ? 'bg-muted text-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+            )}
+          >
+            Indices
+          </button>
+          <button
+            onClick={() => onTabChange('commodities')}
+            className={cn(
+              'px-2.5 py-1 text-[11px] font-medium rounded transition-colors',
+              activeTab === 'commodities'
+                ? 'bg-muted text-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+            )}
+          >
+            Commodities
+          </button>
         </div>
       </div>
 

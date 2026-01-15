@@ -7,6 +7,9 @@ import CustomizableStockListTable from "@/components/CustomizableStockListTable"
 import CustomizableModelPortfolioTable from "@/components/CustomizableModelPortfolioTable";
 import CustomizableCorePortfolioTable from "@/components/CustomizableCorePortfolioTable";
 import CorePortfolioHoldings from "@/components/CorePortfolioHoldings";
+import ETFTable from "@/components/ETFTable";
+import IndicesTable from "@/components/IndicesTable";
+import CommoditiesTable from "@/components/CommoditiesTable";
 import ModelPortfolioHoldings from "@/components/ModelPortfolioHoldings";
 import PortfolioSandbox from "@/components/PortfolioSandbox";
 import AssetDetail from "@/components/AssetDetail";
@@ -15,7 +18,7 @@ import { useStockLists, StockList } from "@/hooks/useStockLists";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-export type TabType = "watchlist" | "model-portfolio" | "model-portfolio-sandbox" | "core-portfolio" | "crypto" | "equity" | `list-${number}`;
+export type TabType = "watchlist" | "model-portfolio" | "model-portfolio-sandbox" | "core-portfolio" | "crypto" | "equity" | "etfs" | "indices" | "commodities" | `list-${number}`;
 
 export default function Home() {
   const [location, setLocation] = useLocation();
@@ -45,6 +48,9 @@ export default function Home() {
     }
     if (location === "/equities") return "equity";
     if (location === "/crypto") return "crypto";
+    if (location === "/etfs") return "etfs";
+    if (location === "/indices") return "indices";
+    if (location === "/commodities") return "commodities";
     if (location === "/model-portfolio") return "model-portfolio";
     if (location === "/core-portfolio") return "core-portfolio";
     if (location === "/watchlist" || location === "/") return "watchlist";
@@ -79,6 +85,12 @@ export default function Home() {
       setLocation("/equities");
     } else if (tab === "crypto") {
       setLocation("/crypto");
+    } else if (tab === "etfs") {
+      setLocation("/etfs");
+    } else if (tab === "indices") {
+      setLocation("/indices");
+    } else if (tab === "commodities") {
+      setLocation("/commodities");
     } else if (tab.startsWith("list-")) {
       const listId = tab.split("-")[1];
       setLocation(`/list/${listId}`);
@@ -138,6 +150,12 @@ export default function Home() {
             key="core-portfolio"
             onAssetClick={handleAssetClick}
           />
+        ) : activeTab === "etfs" ? (
+          <ETFTable key="etfs" />
+        ) : activeTab === "indices" ? (
+          <IndicesTable key="indices" />
+        ) : activeTab === "commodities" ? (
+          <CommoditiesTable key="commodities" />
         ) : isStockListTab && currentList ? (
           <CustomizableStockListTable
             key={`list-${currentListId}`}
