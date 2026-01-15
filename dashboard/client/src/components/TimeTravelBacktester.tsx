@@ -146,8 +146,28 @@ export function TimeTravelBacktester({ portfolio, corePortfolioValue = 100000 }:
     };
   }, [portfolio, selectedPeriod]);
 
+  // Default empty stats to prevent undefined errors
+  const defaultStats: PerformanceStats = {
+    totalReturn: 0,
+    maxDrawdown: 0,
+    sharpeRatio: 0,
+    volatility: 0,
+    bestDay: 0,
+    worstDay: 0,
+  };
+
   // Use real data if available, otherwise mock
-  const data = backtestData || mockBacktestData;
+  const data = backtestData || mockBacktestData || {
+    results: [],
+    portfolioStats: defaultStats,
+    spyStats: defaultStats,
+    btcStats: defaultStats,
+  };
+
+  // Ensure stats are never undefined
+  const portfolioStats = data.portfolioStats || defaultStats;
+  const spyStats = data.spyStats || defaultStats;
+  const btcStats = data.btcStats || defaultStats;
 
   const formatPercent = (value: number) => {
     const sign = value >= 0 ? '+' : '';
@@ -160,7 +180,7 @@ export function TimeTravelBacktester({ portfolio, corePortfolioValue = 100000 }:
 
   // Simple line chart using SVG
   const LineChart = () => {
-    if (!data.results.length) return null;
+    if (!data.results || !data.results.length) return null;
     
     const width = 600;
     const height = 200;
@@ -322,26 +342,26 @@ export function TimeTravelBacktester({ portfolio, corePortfolioValue = 100000 }:
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatCard 
             label="Total Return" 
-            value={formatPercent(data.portfolioStats.totalReturn)}
-            comparison={formatPercent(data.spyStats.totalReturn)}
-            isGood={data.portfolioStats.totalReturn > data.spyStats.totalReturn}
+            value={formatPercent(portfolioStats.totalReturn)}
+            comparison={formatPercent(spyStats.totalReturn)}
+            isGood={portfolioStats.totalReturn > spyStats.totalReturn}
           />
           <StatCard 
             label="Max Drawdown" 
-            value={formatPercent(data.portfolioStats.maxDrawdown)}
-            comparison={formatPercent(data.spyStats.maxDrawdown)}
-            isGood={data.portfolioStats.maxDrawdown > data.spyStats.maxDrawdown}
+            value={formatPercent(portfolioStats.maxDrawdown)}
+            comparison={formatPercent(spyStats.maxDrawdown)}
+            isGood={portfolioStats.maxDrawdown > spyStats.maxDrawdown}
           />
           <StatCard 
             label="Sharpe Ratio" 
-            value={data.portfolioStats.sharpeRatio.toFixed(2)}
-            comparison={data.spyStats.sharpeRatio.toFixed(2)}
-            isGood={data.portfolioStats.sharpeRatio > data.spyStats.sharpeRatio}
+            value={portfolioStats.sharpeRatio.toFixed(2)}
+            comparison={spyStats.sharpeRatio.toFixed(2)}
+            isGood={portfolioStats.sharpeRatio > spyStats.sharpeRatio}
           />
           <StatCard 
             label="Volatility" 
-            value={formatPercentSimple(data.portfolioStats.volatility)}
-            comparison={formatPercentSimple(data.spyStats.volatility)}
+            value={formatPercentSimple(portfolioStats.volatility)}
+            comparison={formatPercentSimple(spyStats.volatility)}
           />
         </div>
 
@@ -360,67 +380,67 @@ export function TimeTravelBacktester({ portfolio, corePortfolioValue = 100000 }:
               <tr className="border-t">
                 <td className="px-3 py-2 text-muted-foreground">Total Return</td>
                 <td className={`text-right px-3 py-2 font-mono font-medium ${
-                  data.portfolioStats.totalReturn >= 0 ? 'text-green-500' : 'text-red-500'
+                  portfolioStats.totalReturn >= 0 ? 'text-green-500' : 'text-red-500'
                 }`}>
-                  {formatPercent(data.portfolioStats.totalReturn)}
+                  {formatPercent(portfolioStats.totalReturn)}
                 </td>
                 <td className={`text-right px-3 py-2 font-mono ${
-                  data.spyStats.totalReturn >= 0 ? 'text-green-500' : 'text-red-500'
+                  spyStats.totalReturn >= 0 ? 'text-green-500' : 'text-red-500'
                 }`}>
-                  {formatPercent(data.spyStats.totalReturn)}
+                  {formatPercent(spyStats.totalReturn)}
                 </td>
                 <td className={`text-right px-3 py-2 font-mono ${
-                  data.btcStats.totalReturn >= 0 ? 'text-green-500' : 'text-red-500'
+                  btcStats.totalReturn >= 0 ? 'text-green-500' : 'text-red-500'
                 }`}>
-                  {formatPercent(data.btcStats.totalReturn)}
+                  {formatPercent(btcStats.totalReturn)}
                 </td>
               </tr>
               <tr className="border-t">
                 <td className="px-3 py-2 text-muted-foreground">Max Drawdown</td>
                 <td className="text-right px-3 py-2 font-mono text-red-500">
-                  {formatPercent(data.portfolioStats.maxDrawdown)}
+                  {formatPercent(portfolioStats.maxDrawdown)}
                 </td>
                 <td className="text-right px-3 py-2 font-mono text-red-500">
-                  {formatPercent(data.spyStats.maxDrawdown)}
+                  {formatPercent(spyStats.maxDrawdown)}
                 </td>
                 <td className="text-right px-3 py-2 font-mono text-red-500">
-                  {formatPercent(data.btcStats.maxDrawdown)}
+                  {formatPercent(btcStats.maxDrawdown)}
                 </td>
               </tr>
               <tr className="border-t">
                 <td className="px-3 py-2 text-muted-foreground">Sharpe Ratio</td>
                 <td className="text-right px-3 py-2 font-mono">
-                  {data.portfolioStats.sharpeRatio.toFixed(2)}
+                  {portfolioStats.sharpeRatio.toFixed(2)}
                 </td>
                 <td className="text-right px-3 py-2 font-mono">
-                  {data.spyStats.sharpeRatio.toFixed(2)}
+                  {spyStats.sharpeRatio.toFixed(2)}
                 </td>
                 <td className="text-right px-3 py-2 font-mono">
-                  {data.btcStats.sharpeRatio.toFixed(2)}
+                  {btcStats.sharpeRatio.toFixed(2)}
                 </td>
               </tr>
               <tr className="border-t">
                 <td className="px-3 py-2 text-muted-foreground">Best Day</td>
                 <td className="text-right px-3 py-2 font-mono text-green-500">
-                  {formatPercent(data.portfolioStats.bestDay)}
+                  {formatPercent(portfolioStats.bestDay)}
                 </td>
                 <td className="text-right px-3 py-2 font-mono text-green-500">
-                  {formatPercent(data.spyStats.bestDay)}
+                  {formatPercent(spyStats.bestDay)}
                 </td>
                 <td className="text-right px-3 py-2 font-mono text-green-500">
-                  {formatPercent(data.btcStats.bestDay)}
+                  {formatPercent(btcStats.bestDay)}
                 </td>
               </tr>
               <tr className="border-t">
                 <td className="px-3 py-2 text-muted-foreground">Worst Day</td>
                 <td className="text-right px-3 py-2 font-mono text-red-500">
-                  {formatPercent(data.portfolioStats.worstDay)}
+                  {formatPercent(portfolioStats.worstDay)}
                 </td>
                 <td className="text-right px-3 py-2 font-mono text-red-500">
-                  {formatPercent(data.spyStats.worstDay)}
+                  {formatPercent(spyStats.worstDay)}
                 </td>
                 <td className="text-right px-3 py-2 font-mono text-red-500">
-                  {formatPercent(data.btcStats.worstDay)}
+                  {formatPercent(btcStats.worstDay)}
                 </td>
               </tr>
             </tbody>
@@ -435,17 +455,17 @@ export function TimeTravelBacktester({ portfolio, corePortfolioValue = 100000 }:
           </div>
           <p className="text-muted-foreground">
             Over the past {selectedPeriod} days, your model portfolio would have{' '}
-            {data.portfolioStats.totalReturn > data.spyStats.totalReturn ? (
+            {portfolioStats.totalReturn > spyStats.totalReturn ? (
               <span className="text-green-500 font-medium">
-                outperformed SPY by {formatPercent(data.portfolioStats.totalReturn - data.spyStats.totalReturn)}
+                outperformed SPY by {formatPercent(portfolioStats.totalReturn - spyStats.totalReturn)}
               </span>
             ) : (
               <span className="text-red-500 font-medium">
-                underperformed SPY by {formatPercent(data.spyStats.totalReturn - data.portfolioStats.totalReturn)}
+                underperformed SPY by {formatPercent(spyStats.totalReturn - portfolioStats.totalReturn)}
               </span>
             )}
             {' '}with a max drawdown of{' '}
-            <span className="text-red-500 font-medium">{formatPercent(data.portfolioStats.maxDrawdown)}</span>.
+            <span className="text-red-500 font-medium">{formatPercent(portfolioStats.maxDrawdown)}</span>.
           </p>
         </div>
 
