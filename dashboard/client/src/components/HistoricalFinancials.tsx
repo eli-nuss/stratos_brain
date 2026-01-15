@@ -35,20 +35,30 @@ interface FinancialData {
   is_estimate?: boolean;
 }
 
-interface ForwardEstimates {
+interface ForwardEstimate {
   fiscal_date_ending: string;
+  fiscal_year: string;
   total_revenue: number | null;
+  revenue_low?: number | null;
+  revenue_high?: number | null;
   gross_profit: number | null;
   operating_income: number | null;
+  operating_income_low?: number | null;
+  operating_income_high?: number | null;
+  ebitda?: number | null;
   net_income: number | null;
-  eps_diluted: string | null;
+  net_income_low?: number | null;
+  net_income_high?: number | null;
+  eps_diluted: number | string | null;
+  eps_low?: number | null;
+  eps_high?: number | null;
+  num_analysts_revenue?: number;
+  num_analysts_eps?: number;
   is_estimate: boolean;
-  growth_assumptions: {
+  source?: string;
+  growth_assumptions?: {
     revenue_growth: number;
     earnings_growth: number;
-    forward_pe: number | null;
-    peg_ratio: number | null;
-    analyst_target: number | null;
   };
 }
 
@@ -240,7 +250,7 @@ function FinancialRow({
   isNeutralColor = false,
   neutralGrowthColor = false,
   formatFn = formatLargeNumber,
-  isEstimateColumn = false
+  numEstimates = 0
 }: { 
   label: string; 
   values: (number | null)[];
@@ -250,15 +260,15 @@ function FinancialRow({
   isNeutralColor?: boolean;
   neutralGrowthColor?: boolean;
   formatFn?: (value: number | null | undefined) => string;
-  isEstimateColumn?: boolean;
+  numEstimates?: number;
 }) {
   const growthRates = values.map((val, idx) => 
     idx > 0 ? calculateGrowth(val, values[idx - 1]) : null
   );
 
   // Separate actual vs estimate values for sparkline (don't include estimates)
-  const actualValues = isEstimateColumn ? values.slice(0, -1) : values;
-  const actualLabels = isEstimateColumn ? labels.slice(0, -1) : labels;
+  const actualValues = numEstimates > 0 ? values.slice(0, -numEstimates) : values;
+  const actualLabels = numEstimates > 0 ? labels.slice(0, -numEstimates) : labels;
 
   return (
     <tr className="border-b border-border/30 hover:bg-muted/10 transition-colors">
@@ -276,7 +286,7 @@ function FinancialRow({
         </Tooltip>
       </td>
       {values.map((value, idx) => {
-        const isEstimate = isEstimateColumn && idx === values.length - 1;
+        const isEstimate = numEstimates > 0 && idx >= values.length - numEstimates;
         return (
           <td 
             key={idx} 
@@ -314,16 +324,16 @@ function MarginRow({
   values, 
   labels,
   tooltip,
-  isEstimateColumn = false
+  numEstimates = 0
 }: { 
   label: string; 
   values: (number | null)[];
   labels: string[];
   tooltip: string;
-  isEstimateColumn?: boolean;
+  numEstimates?: number;
 }) {
-  const actualValues = isEstimateColumn ? values.slice(0, -1) : values;
-  const actualLabels = isEstimateColumn ? labels.slice(0, -1) : labels;
+  const actualValues = numEstimates > 0 ? values.slice(0, -numEstimates) : values;
+  const actualLabels = numEstimates > 0 ? labels.slice(0, -numEstimates) : labels;
 
   return (
     <tr className="border-b border-border/30 hover:bg-muted/10 transition-colors bg-muted/5">
@@ -343,7 +353,7 @@ function MarginRow({
       {values.map((value, idx) => {
         const prevValue = idx > 0 ? values[idx - 1] : null;
         const change = value !== null && prevValue !== null ? value - prevValue : null;
-        const isEstimate = isEstimateColumn && idx === values.length - 1;
+        const isEstimate = numEstimates > 0 && idx >= values.length - numEstimates;
         return (
           <td key={idx} className={`py-1.5 px-2 text-right ${isEstimate ? 'bg-amber-500/5' : ''}`}>
             <div className="flex flex-col items-end">
@@ -372,13 +382,13 @@ function EPSRow({
   values, 
   labels,
   tooltip,
-  isEstimateColumn = false
+  numEstimates = 0
 }: { 
   label: string; 
   values: (string | number | null)[];
   labels: string[];
   tooltip: string;
-  isEstimateColumn?: boolean;
+  numEstimates?: number;
 }) {
   const numericValues = values.map(v => {
     if (v === null) return null;
@@ -390,8 +400,8 @@ function EPSRow({
     idx > 0 ? calculateGrowth(val, numericValues[idx - 1]) : null
   );
 
-  const actualValues = isEstimateColumn ? numericValues.slice(0, -1) : numericValues;
-  const actualLabels = isEstimateColumn ? labels.slice(0, -1) : labels;
+  const actualValues = numEstimates > 0 ? numericValues.slice(0, -numEstimates) : numericValues;
+  const actualLabels = numEstimates > 0 ? labels.slice(0, -numEstimates) : labels;
 
   return (
     <tr className="border-b border-border/30 hover:bg-muted/10 transition-colors">
@@ -409,7 +419,7 @@ function EPSRow({
         </Tooltip>
       </td>
       {values.map((value, idx) => {
-        const isEstimate = isEstimateColumn && idx === values.length - 1;
+        const isEstimate = numEstimates > 0 && idx >= values.length - numEstimates;
         return (
           <td key={idx} className={`py-2 px-2 text-right ${isEstimate ? 'bg-amber-500/5' : ''}`}>
             <div className="flex flex-col items-end">
@@ -582,7 +592,7 @@ export function HistoricalFinancials({ assetId, assetType, symbol, embedded = fa
   const { data, isLoading, error } = useSWR<{ 
     annual: FinancialData[], 
     quarterly: FinancialData[],
-    forward_estimates: ForwardEstimates | null,
+    forward_estimates: ForwardEstimate[],
     metadata: any
   }>(
     `/api/dashboard/financials?asset_id=${assetId}`,
@@ -624,13 +634,19 @@ export function HistoricalFinancials({ assetId, assetType, symbol, embedded = fa
     : (data.quarterly || []).slice(0, 8).reverse();
   
   // Add forward estimates for annual view if available and enabled
-  const hasForward = isAnnual && showForward && data.forward_estimates;
+  const forwardEstimates = data.forward_estimates || [];
+  const hasForward = isAnnual && showForward && forwardEstimates.length > 0;
+  const numEstimates = hasForward ? forwardEstimates.length : 0;
   const displayData = hasForward 
-    ? [...baseData, data.forward_estimates as any]
+    ? [...baseData, ...forwardEstimates]
     : baseData;
   
   const labels = displayData.map((d, idx) => {
     if (d.is_estimate) {
+      // Use fiscal_year if available (from FMP), otherwise parse from date
+      if ((d as ForwardEstimate).fiscal_year) {
+        return (d as ForwardEstimate).fiscal_year;
+      }
       return `FY${d.fiscal_date_ending.substring(2, 4)} Est`;
     }
     return isAnnual
@@ -713,7 +729,11 @@ export function HistoricalFinancials({ assetId, assetType, symbol, embedded = fa
         <tr className="border-b border-border">
           <th className="text-left py-2 pr-4 text-xs font-medium text-muted-foreground w-32">Metric</th>
           {labels.map((label, idx) => {
-            const isEstimate = hasForward && idx === labels.length - 1;
+            // Check if this column is an estimate (last N columns where N = numEstimates)
+            const isEstimate = hasForward && idx >= labels.length - numEstimates;
+            const estimateIdx = isEstimate ? idx - (labels.length - numEstimates) : -1;
+            const estimateData = isEstimate && forwardEstimates[estimateIdx] ? forwardEstimates[estimateIdx] : null;
+            
             return (
               <th 
                 key={idx} 
@@ -727,7 +747,7 @@ export function HistoricalFinancials({ assetId, assetType, symbol, embedded = fa
                 } : {}}
               >
                 {label}
-                {isEstimate && (
+                {isEstimate && estimateData && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <span className="ml-1 cursor-help">
@@ -736,15 +756,22 @@ export function HistoricalFinancials({ assetId, assetType, symbol, embedded = fa
                     </TooltipTrigger>
                     <TooltipContent side="bottom" className="max-w-xs">
                       <p className="text-xs font-normal">
-                        <strong>Consensus Estimate</strong><br/>
-                        Based on {data.forward_estimates?.growth_assumptions.earnings_growth 
-                          ? `${(data.forward_estimates.growth_assumptions.earnings_growth * 100).toFixed(0)}%` 
-                          : 'analyst'} earnings growth.
-                        {data.forward_estimates?.growth_assumptions.forward_pe && (
-                          <><br/>Forward P/E: {data.forward_estimates.growth_assumptions.forward_pe.toFixed(1)}x</>
-                        )}
-                        {data.forward_estimates?.growth_assumptions.analyst_target && (
-                          <><br/>Analyst Target: ${data.forward_estimates.growth_assumptions.analyst_target.toFixed(0)}</>
+                        <strong>Analyst Consensus Estimate</strong><br/>
+                        {estimateData.source === 'FMP Analyst Estimates' ? (
+                          <>
+                            Source: Wall Street Analysts<br/>
+                            {estimateData.num_analysts_revenue && (
+                              <>Revenue: {estimateData.num_analysts_revenue} analysts<br/></>
+                            )}
+                            {estimateData.num_analysts_eps && (
+                              <>EPS: {estimateData.num_analysts_eps} analysts<br/></>
+                            )}
+                            {estimateData.eps_low !== undefined && estimateData.eps_high !== undefined && (
+                              <>EPS Range: ${Number(estimateData.eps_low).toFixed(2)} - ${Number(estimateData.eps_high).toFixed(2)}</>
+                            )}
+                          </>
+                        ) : (
+                          <>Based on historical growth rates</>
                         )}
                       </p>
                     </TooltipContent>
@@ -771,56 +798,56 @@ export function HistoricalFinancials({ assetId, assetType, symbol, embedded = fa
           values={revenue} 
           labels={labels}
           tooltip="Total revenue from all sources (top line)"
-          isEstimateColumn={hasForward}
+          numEstimates={numEstimates}
         />
         <FinancialRow 
           label="Gross Profit" 
           values={grossProfit} 
           labels={labels}
           tooltip="Revenue minus cost of goods sold"
-          isEstimateColumn={hasForward}
+          numEstimates={numEstimates}
         />
         <MarginRow 
           label="↳ Gross Margin %" 
           values={grossMargins} 
           labels={labels}
           tooltip="Gross Profit / Revenue. Shows pricing power and cost efficiency. Expanding margins = good, compressing = concerning."
-          isEstimateColumn={hasForward}
+          numEstimates={numEstimates}
         />
         <FinancialRow 
           label="Operating Income" 
           values={operatingIncome} 
           labels={labels}
           tooltip="Profit from core operations before interest and taxes (EBIT)"
-          isEstimateColumn={hasForward}
+          numEstimates={numEstimates}
         />
         <MarginRow 
           label="↳ Operating Margin %" 
           values={operatingMargins} 
           labels={labels}
           tooltip="Operating Income / Revenue. Shows operational efficiency after all operating expenses."
-          isEstimateColumn={hasForward}
+          numEstimates={numEstimates}
         />
         <FinancialRow 
           label="Net Income" 
           values={netIncome} 
           labels={labels}
           tooltip="Bottom line profit after all expenses, interest, and taxes"
-          isEstimateColumn={hasForward}
+          numEstimates={numEstimates}
         />
         <MarginRow 
           label="↳ Net Margin %" 
           values={netMargins} 
           labels={labels}
           tooltip="Net Income / Revenue. Final profitability after all costs including taxes and interest."
-          isEstimateColumn={hasForward}
+          numEstimates={numEstimates}
         />
         <EPSRow 
           label="Diluted EPS" 
           values={eps} 
           labels={labels}
           tooltip="Earnings Per Share (diluted). Net income divided by all potential shares. Key metric for stock valuation - watch for dilution from stock-based compensation."
-          isEstimateColumn={hasForward}
+          numEstimates={numEstimates}
         />
 
         {/* Cash Flow Section */}
@@ -837,7 +864,7 @@ export function HistoricalFinancials({ assetId, assetType, symbol, embedded = fa
           values={cfo} 
           labels={labels}
           tooltip="Cash Flow from Operations - cash generated from core business activities. Should be positive and growing."
-          isEstimateColumn={hasForward}
+          numEstimates={numEstimates}
         />
         <FinancialRow 
           label="CFI" 
@@ -847,7 +874,7 @@ export function HistoricalFinancials({ assetId, assetType, symbol, embedded = fa
           isNeutralColor={true}
           neutralGrowthColor={true}
           sparklinePositive={false}
-          isEstimateColumn={hasForward}
+          numEstimates={numEstimates}
         />
         <FinancialRow 
           label="CFF" 
@@ -856,14 +883,14 @@ export function HistoricalFinancials({ assetId, assetType, symbol, embedded = fa
           tooltip="Cash Flow from Financing - cash from/used for debt, equity, and dividends. Context matters: buybacks (negative) can be good, dilution (positive) can be bad."
           isNeutralColor={true}
           neutralGrowthColor={true}
-          isEstimateColumn={hasForward}
+          numEstimates={numEstimates}
         />
         <FinancialRow 
           label="Free Cash Flow" 
           values={ownerEarnings} 
           labels={labels}
           tooltip="CFO - ΔWorking Capital - D&A. Uses D&A as proxy for maintenance capex, excluding growth investments that don't reflect true earnings power."
-          isEstimateColumn={hasForward}
+          numEstimates={numEstimates}
         />
 
         {/* Efficiency Section - Only for Annual view */}
@@ -879,15 +906,15 @@ export function HistoricalFinancials({ assetId, assetType, symbol, embedded = fa
             </tr>
             <ROICRow 
               label="ROIC" 
-              values={hasForward ? [...roicValues, null] : roicValues}
-              labels={hasForward ? labels.slice(0, -1) : labels}
+              values={hasForward ? [...roicValues, ...Array(numEstimates).fill(null)] : roicValues}
+              labels={hasForward ? labels.slice(0, -numEstimates) : labels}
               tooltip="Return on Invested Capital. NOPAT / (Equity + Debt - Cash). The gold standard for capital efficiency. >15% is excellent, >10% is good."
             />
             {netDebtToEBITDAValues.some(v => v !== null) && (
               <LeverageRow 
                 label="Net Debt/EBITDA" 
-                values={hasForward ? [...netDebtToEBITDAValues, null] : netDebtToEBITDAValues}
-                labels={hasForward ? labels.slice(0, -1) : labels}
+                values={hasForward ? [...netDebtToEBITDAValues, ...Array(numEstimates).fill(null)] : netDebtToEBITDAValues}
+                labels={hasForward ? labels.slice(0, -numEstimates) : labels}
                 tooltip="Net Debt / EBITDA. Measures leverage and ability to pay off debt. <1x is excellent, 1-2x is healthy, 2-3x is moderate, >3x is high leverage (risk). Negative means net cash position (more cash than debt)."
               />
             )}

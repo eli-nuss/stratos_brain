@@ -3701,9 +3701,89 @@ If asked about something not in the data, acknowledge the limitation.`
           .eq('asset_id', assetId)
           .single()
         
-        // Calculate forward estimates based on growth rates
-        let forwardEstimates = null
-        if (metadataData && annualData && annualData.length > 0) {
+        // Get the symbol for FMP API call
+        let symbol = symbolParam
+        if (!symbol && assetId) {
+          const { data: assetData } = await supabase
+            .from('assets')
+            .select('symbol')
+            .eq('asset_id', assetId)
+            .single()
+          symbol = assetData?.symbol
+        }
+        
+        // Fetch forward estimates from FMP Analyst Estimates API
+        let forwardEstimates: any[] = []
+        if (symbol) {
+          const FMP_API_KEY = Deno.env.get('FMP_API_KEY')
+          if (FMP_API_KEY) {
+            try {
+              const fmpResponse = await fetch(
+                `https://financialmodelingprep.com/stable/analyst-estimates?symbol=${symbol}&period=annual&page=0&limit=10&apikey=${FMP_API_KEY}`
+              )
+              if (fmpResponse.ok) {
+                const fmpData = await fmpResponse.json()
+                
+                // Get the latest historical fiscal year end date to determine fiscal calendar
+                const latestHistoricalDate = annualData && annualData.length > 0 
+                  ? new Date(annualData[0].fiscal_date_ending)
+                  : new Date()
+                const latestHistoricalYear = latestHistoricalDate.getFullYear()
+                
+                // Filter to only future estimates (dates after the latest historical data)
+                // and take only the next 2 fiscal years
+                const futureEstimates = fmpData
+                  .filter((est: any) => {
+                    const estDate = new Date(est.date)
+                    return estDate > latestHistoricalDate
+                  })
+                  .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                  .slice(0, 2) // Only take next 2 years
+                
+                // Transform FMP data to match our format
+                forwardEstimates = futureEstimates.map((est: any) => {
+                  const estDate = new Date(est.date)
+                  const fiscalYear = estDate.getFullYear()
+                  
+                  // Calculate gross profit estimate (assume same gross margin as latest year)
+                  let grossProfitEstimate = null
+                  if (annualData && annualData.length > 0 && annualData[0].gross_profit && annualData[0].total_revenue) {
+                    const grossMargin = annualData[0].gross_profit / annualData[0].total_revenue
+                    grossProfitEstimate = est.revenueAvg * grossMargin
+                  }
+                  
+                  return {
+                    fiscal_date_ending: est.date,
+                    fiscal_year: `FY${fiscalYear.toString().slice(-2)} Est`,
+                    total_revenue: est.revenueAvg,
+                    revenue_low: est.revenueLow,
+                    revenue_high: est.revenueHigh,
+                    gross_profit: grossProfitEstimate,
+                    operating_income: est.ebitAvg, // EBIT = Operating Income
+                    operating_income_low: est.ebitLow,
+                    operating_income_high: est.ebitHigh,
+                    ebitda: est.ebitdaAvg,
+                    net_income: est.netIncomeAvg,
+                    net_income_low: est.netIncomeLow,
+                    net_income_high: est.netIncomeHigh,
+                    eps_diluted: est.epsAvg,
+                    eps_low: est.epsLow,
+                    eps_high: est.epsHigh,
+                    num_analysts_revenue: est.numAnalystsRevenue,
+                    num_analysts_eps: est.numAnalystsEps,
+                    is_estimate: true,
+                    source: 'FMP Analyst Estimates'
+                  }
+                })
+              }
+            } catch (e) {
+              console.error('Error fetching FMP analyst estimates:', e)
+            }
+          }
+        }
+        
+        // Fallback to calculated estimates if FMP data not available
+        if (forwardEstimates.length === 0 && metadataData && annualData && annualData.length > 0) {
           const latestYear = annualData[0]
           const earningsGrowth = metadataData.quarterly_earnings_growth_yoy 
             ? parseFloat(metadataData.quarterly_earnings_growth_yoy) 
@@ -3712,23 +3792,27 @@ If asked about something not in the data, acknowledge the limitation.`
             ? parseFloat(metadataData.quarterly_revenue_growth_yoy) 
             : earningsGrowth
           
-          // Project next year based on growth rates
-          const nextYear = parseInt(latestYear.fiscal_date_ending.substring(0, 4)) + 1
-          forwardEstimates = {
-            fiscal_date_ending: `${nextYear}-Est`,
-            total_revenue: latestYear.total_revenue ? latestYear.total_revenue * (1 + revenueGrowth) : null,
-            gross_profit: latestYear.gross_profit ? latestYear.gross_profit * (1 + revenueGrowth) : null,
-            operating_income: latestYear.operating_income ? latestYear.operating_income * (1 + earningsGrowth) : null,
-            net_income: latestYear.net_income ? latestYear.net_income * (1 + earningsGrowth) : null,
-            eps_diluted: latestYear.eps_diluted ? (parseFloat(latestYear.eps_diluted) * (1 + earningsGrowth)).toFixed(2) : null,
-            is_estimate: true,
-            growth_assumptions: {
-              revenue_growth: revenueGrowth,
-              earnings_growth: earningsGrowth,
-              forward_pe: metadataData.forward_pe ? parseFloat(metadataData.forward_pe) : null,
-              peg_ratio: metadataData.peg_ratio ? parseFloat(metadataData.peg_ratio) : null,
-              analyst_target: metadataData.analyst_target_price ? parseFloat(metadataData.analyst_target_price) : null
-            }
+          // Project next 2 years based on growth rates
+          for (let i = 1; i <= 2; i++) {
+            const nextYear = parseInt(latestYear.fiscal_date_ending.substring(0, 4)) + i
+            const growthMultiplier = Math.pow(1 + revenueGrowth, i)
+            const earningsMultiplier = Math.pow(1 + earningsGrowth, i)
+            
+            forwardEstimates.push({
+              fiscal_date_ending: `${nextYear}-Est`,
+              fiscal_year: `FY${nextYear.toString().slice(-2)} Est`,
+              total_revenue: latestYear.total_revenue ? latestYear.total_revenue * growthMultiplier : null,
+              gross_profit: latestYear.gross_profit ? latestYear.gross_profit * growthMultiplier : null,
+              operating_income: latestYear.operating_income ? latestYear.operating_income * earningsMultiplier : null,
+              net_income: latestYear.net_income ? latestYear.net_income * earningsMultiplier : null,
+              eps_diluted: latestYear.eps_diluted ? (parseFloat(latestYear.eps_diluted) * earningsMultiplier) : null,
+              is_estimate: true,
+              source: 'Calculated from growth rates',
+              growth_assumptions: {
+                revenue_growth: revenueGrowth,
+                earnings_growth: earningsGrowth
+              }
+            })
           }
         }
         
