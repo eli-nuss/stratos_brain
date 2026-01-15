@@ -199,7 +199,7 @@
                                                                           | **Global Brain** | Cross-market AI analysis | Market screening |
                                                                           | **Smart Money** | Institutional tracking | 13F filings, guru portfolios |
                                                                           | **Core Portfolio** | Portfolio management | Holdings tracking |
-                                                                          | **Model Portfolio** | Paper trading & portfolio construction | Sandbox mode, rebalance calculator, risk metrics, correlation matrix |
+                                                                          | **Model Portfolio** | Paper trading & portfolio construction | Sandbox mode, rebalance calculator, risk metrics, correlation matrix, stress testing, risk attribution, backtester, AI review |
 
                                                                           ### 4.3 AI Chat System
 
@@ -481,11 +481,12 @@
 
                                                                             #### Portfolio Construction
                                                                             ```
-                                                                            GET  /api/dashboard/portfolio-risk  # Portfolio risk metrics & correlation matrix
-                                                                            GET  /api/dashboard/model-portfolio-holdings  # Model portfolio holdings
-                                                                            POST /api/dashboard/model-portfolio-holdings  # Add holding
-                                                                            PATCH /api/dashboard/model-portfolio-holdings/:id  # Update holding
-                                                                            DELETE /api/dashboard/model-portfolio-holdings/:id  # Remove holding
+GET  /api/dashboard/portfolio-risk  # Portfolio risk metrics & correlation matrix
+POST /api/dashboard/ai-analysis  # AI-powered portfolio analysis (Gemini)
+GET  /api/dashboard/model-portfolio-holdings  # Model portfolio holdings
+POST /api/dashboard/model-portfolio-holdings  # Add holding
+PATCH /api/dashboard/model-portfolio-holdings/:id  # Update holding
+DELETE /api/dashboard/model-portfolio-holdings/:id  # Remove holding
                                                                             ```
 
                                                                                             ---
@@ -527,9 +528,13 @@
                                                                                             | `AssetDetail` | Modal with charts, AI analysis, trade plan |
                                                                                             | `CompanyChatInterface` | Chat UI with code blocks and citations |
                                                                                             | `SmartMoneyTracker` | Institutional holdings visualization |
-                                                                                            | `PortfolioSandbox` | Interactive portfolio construction with weight sliders |
-                                                                                            | `RebalanceCalculator` | Trade sheet generation and CSV export |
-                                                                                            | `CorrelationMatrix` | Asset correlation heatmap visualization |
+| `PortfolioSandbox` | Interactive portfolio construction with weight sliders |
+| `RebalanceCalculator` | Trade sheet generation and CSV export |
+| `CorrelationMatrix` | Asset correlation heatmap visualization |
+| `ScenarioSimulator` | Stress testing with preset scenarios (Mild Correction, Market Crash, Black Swan, Bull Run) |
+| `RiskAttribution` | Dual donut charts showing Capital vs Risk allocation with concentration warnings |
+| `TimeTravelBacktester` | Historical performance simulation with SPY/BTC comparison |
+| `AIInvestmentCommittee` | LLM-powered portfolio critique with actionable recommendations |
 
                                                                                             ### 9.3 Data Flow
 
