@@ -67,9 +67,13 @@ export function ScenarioSimulator({ portfolio, onRefreshBetas }: ScenarioSimulat
   const [marketShock, setMarketShock] = useState<number>(-10);
   const [benchmarkType, setBenchmarkType] = useState<'spx' | 'btc'>('spx');
 
-  // Get beta for an asset
-  const getBeta = (symbol: string, assetType?: string): number => {
-    // Check if we have a specific beta for this symbol
+  // Get beta for an asset - prioritize real data from props, fallback to defaults
+  const getBeta = (symbol: string, providedBeta?: number, assetType?: string): number => {
+    // Use real beta from API if provided
+    if (providedBeta !== undefined && !isNaN(providedBeta)) {
+      return providedBeta;
+    }
+    // Fallback to hardcoded defaults
     if (DEFAULT_BETAS[symbol] !== undefined) {
       return DEFAULT_BETAS[symbol];
     }
@@ -78,12 +82,16 @@ export function ScenarioSimulator({ portfolio, onRefreshBetas }: ScenarioSimulat
     if (assetType === 'cash') return 0;
     return 1.0; // Default equity beta
   };
+  
+  // Check if we're using real data
+  const hasRealBetas = portfolio.some(p => p.beta !== undefined && !isNaN(p.beta));
 
   // Calculate portfolio-level metrics
   const analysis = useMemo(() => {
     const assetsWithBeta = portfolio.map(asset => ({
       ...asset,
-      beta: asset.beta ?? getBeta(asset.symbol, asset.assetType),
+      beta: getBeta(asset.symbol, asset.beta, asset.assetType),
+      usingRealBeta: asset.beta !== undefined && !isNaN(asset.beta),
       weightDecimal: asset.weight / 100,
     }));
 

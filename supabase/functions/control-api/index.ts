@@ -4230,8 +4230,33 @@ If asked about something not in the data, acknowledge the limitation.`
           })
         }
         
+        // Fetch benchmark returns first (SPY or BTC)
+        let benchmarkReturns: number[] = []
+        const benchmarkSymbol = benchmark === 'BTC' ? 'BTC' : 'SPY'
+        
+        // Find benchmark asset
+        const { data: benchmarkAsset } = await supabase
+          .from('assets')
+          .select('asset_id')
+          .eq('symbol', benchmarkSymbol)
+          .single()
+        
+        if (benchmarkAsset) {
+          const { data: benchmarkData } = await supabase
+            .from('daily_features')
+            .select('date, return_1d')
+            .eq('asset_id', benchmarkAsset.asset_id)
+            .not('return_1d', 'is', null)
+            .order('date', { ascending: false })
+            .limit(lookbackDays)
+          
+          if (benchmarkData && benchmarkData.length > 0) {
+            benchmarkReturns = benchmarkData.map(r => r.return_1d).reverse()
+          }
+        }
+        
         // Fetch daily returns for each asset
-        const assetReturns: { [assetId: number]: { symbol: string; returns: number[]; stdDev: number } } = {}
+        const assetReturns: { [assetId: number]: { symbol: string; returns: number[]; stdDev: number; beta: number; annualizedReturn: number } } = {}
         
         for (const assetId of assetIds) {
           // Get asset info
@@ -4261,10 +4286,38 @@ If asked about something not in the data, acknowledge the limitation.`
             const annualizedStdDev = dailyStdDev * Math.sqrt(annualizationFactor)
             const annualizedReturn = mean * annualizationFactor
             
+            // Calculate beta against benchmark
+            let assetBeta = 1.0
+            if (benchmarkReturns.length > 0) {
+              const minLen = Math.min(returns.length, benchmarkReturns.length)
+              if (minLen >= 10) {
+                const assetSlice = returns.slice(-minLen)
+                const benchSlice = benchmarkReturns.slice(-minLen)
+                const avgAsset = assetSlice.reduce((a, b) => a + b, 0) / minLen
+                const avgBench = benchSlice.reduce((a, b) => a + b, 0) / minLen
+                
+                let covariance = 0
+                let benchVariance = 0
+                for (let k = 0; k < minLen; k++) {
+                  const diffAsset = assetSlice[k] - avgAsset
+                  const diffBench = benchSlice[k] - avgBench
+                  covariance += diffAsset * diffBench
+                  benchVariance += diffBench * diffBench
+                }
+                covariance /= minLen
+                benchVariance /= minLen
+                
+                if (benchVariance > 0) {
+                  assetBeta = covariance / benchVariance
+                }
+              }
+            }
+            
             assetReturns[assetId] = {
               symbol: assetData?.symbol || `Asset ${assetId}`,
               returns,
               stdDev: annualizedStdDev,
+              beta: assetBeta,
               annualizedReturn
             }
           }
@@ -4352,9 +4405,11 @@ If asked about something not in the data, acknowledge the limitation.`
           ? (portfolioReturn - riskFreeRate) / portfolioVolatility 
           : 0
         
-        // Estimate beta based on correlation with market (simplified)
-        // In a real implementation, we'd fetch benchmark returns and calculate properly
-        const beta = 1.0 + (avgCorrelation * 0.3)
+        // Calculate portfolio beta as weighted average of individual betas
+        const assetBetas = assetList.map(([_, data]) => data.beta)
+        const portfolioBeta = assetBetas.length > 0
+          ? assetBetas.reduce((sum, b) => sum + b, 0) / assetBetas.length
+          : 1.0
         
         // Calculate max drawdown from historical returns
         let maxDrawdown = 0
@@ -4377,7 +4432,7 @@ If asked about something not in the data, acknowledge the limitation.`
         return new Response(JSON.stringify({
           metrics: {
             volatility: portfolioVolatility,
-            beta,
+            beta: portfolioBeta,
             sharpeRatio,
             maxDrawdown,
             diversificationScore,
@@ -4388,7 +4443,10 @@ If asked about something not in the data, acknowledge the limitation.`
           correlationMatrix,
           symbols,
           assetVolatilities: Object.fromEntries(
-            assetList.map(([id, data]) => [data.symbol, data.stdDev])
+            assetList.map(([_, data]) => [data.symbol, data.stdDev])
+          ),
+          assetBetas: Object.fromEntries(
+            assetList.map(([_, data]) => [data.symbol, data.beta])
           ),
           settings: {
             lookbackDays,
@@ -4396,6 +4454,235 @@ If asked about something not in the data, acknowledge the limitation.`
             annualizationFactor,
             benchmark
           }
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /dashboard/portfolio-backtest - Historical portfolio performance backtest
+      case req.method === 'GET' && path === '/dashboard/portfolio-backtest': {
+        const assetIdsParam = url.searchParams.get('asset_ids')
+        const weightsParam = url.searchParams.get('weights') // Comma-separated weights matching asset_ids
+        const period = url.searchParams.get('period') || '90' // days
+        
+        if (!assetIdsParam) {
+          return new Response(JSON.stringify({ error: 'asset_ids parameter required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const assetIds = assetIdsParam.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id))
+        const weights = weightsParam 
+          ? weightsParam.split(',').map(w => parseFloat(w.trim()) / 100)
+          : assetIds.map(() => 1 / assetIds.length) // Equal weight if not specified
+        
+        const lookbackDays = parseInt(period)
+        
+        // Fetch daily returns for each asset
+        const assetReturns: { [assetId: number]: { symbol: string; returns: { date: string; return_1d: number }[] } } = {}
+        
+        for (let i = 0; i < assetIds.length; i++) {
+          const assetId = assetIds[i]
+          const { data: assetData } = await supabase
+            .from('assets')
+            .select('symbol')
+            .eq('asset_id', assetId)
+            .single()
+          
+          const { data: returnsData } = await supabase
+            .from('daily_features')
+            .select('date, return_1d')
+            .eq('asset_id', assetId)
+            .not('return_1d', 'is', null)
+            .order('date', { ascending: true })
+            .limit(lookbackDays)
+          
+          if (returnsData && returnsData.length > 0) {
+            assetReturns[assetId] = {
+              symbol: assetData?.symbol || `Asset ${assetId}`,
+              returns: returnsData
+            }
+          }
+        }
+        
+        // Fetch SPY returns for benchmark
+        const { data: spyAsset } = await supabase
+          .from('assets')
+          .select('asset_id')
+          .eq('symbol', 'SPY')
+          .single()
+        
+        let spyReturns: { date: string; return_1d: number }[] = []
+        if (spyAsset) {
+          const { data: spyData } = await supabase
+            .from('daily_features')
+            .select('date, return_1d')
+            .eq('asset_id', spyAsset.asset_id)
+            .not('return_1d', 'is', null)
+            .order('date', { ascending: true })
+            .limit(lookbackDays)
+          if (spyData) spyReturns = spyData
+        }
+        
+        // Fetch BTC returns for benchmark
+        const { data: btcAsset } = await supabase
+          .from('assets')
+          .select('asset_id')
+          .eq('symbol', 'BTC')
+          .single()
+        
+        let btcReturns: { date: string; return_1d: number }[] = []
+        if (btcAsset) {
+          const { data: btcData } = await supabase
+            .from('daily_features')
+            .select('date, return_1d')
+            .eq('asset_id', btcAsset.asset_id)
+            .not('return_1d', 'is', null)
+            .order('date', { ascending: true })
+            .limit(lookbackDays)
+          if (btcData) btcReturns = btcData
+        }
+        
+        // Find common dates across all assets
+        const assetList = Object.entries(assetReturns)
+        if (assetList.length === 0) {
+          return new Response(JSON.stringify({ error: 'No return data found for assets' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Get all unique dates from portfolio assets
+        const allDates = new Set<string>()
+        assetList.forEach(([_, data]) => {
+          data.returns.forEach(r => allDates.add(r.date))
+        })
+        const sortedDates = Array.from(allDates).sort()
+        
+        // Build return lookup maps
+        const returnMaps: { [assetId: string]: Map<string, number> } = {}
+        assetList.forEach(([id, data]) => {
+          returnMaps[id] = new Map(data.returns.map(r => [r.date, r.return_1d]))
+        })
+        const spyMap = new Map(spyReturns.map(r => [r.date, r.return_1d]))
+        const btcMap = new Map(btcReturns.map(r => [r.date, r.return_1d]))
+        
+        // Calculate portfolio performance
+        const results: { date: string; portfolio: number; spy: number; btc: number }[] = []
+        let portfolioValue = 100
+        let spyValue = 100
+        let btcValue = 100
+        let portfolioPeak = 100
+        let spyPeak = 100
+        let btcPeak = 100
+        let portfolioMaxDD = 0
+        let spyMaxDD = 0
+        let btcMaxDD = 0
+        let portfolioBestDay = 0
+        let portfolioWorstDay = 0
+        let spyBestDay = 0
+        let spyWorstDay = 0
+        let btcBestDay = 0
+        let btcWorstDay = 0
+        const portfolioDailyReturns: number[] = []
+        const spyDailyReturns: number[] = []
+        const btcDailyReturns: number[] = []
+        
+        for (const date of sortedDates) {
+          // Calculate weighted portfolio return for this day
+          let portfolioReturn = 0
+          let totalWeight = 0
+          for (let i = 0; i < assetIds.length; i++) {
+            const assetId = assetIds[i]
+            const weight = weights[i] || 0
+            const dayReturn = returnMaps[assetId]?.get(date)
+            if (dayReturn !== undefined) {
+              portfolioReturn += dayReturn * weight
+              totalWeight += weight
+            }
+          }
+          if (totalWeight > 0) {
+            portfolioReturn = portfolioReturn / totalWeight * totalWeight // Normalize
+          }
+          
+          const spyReturn = spyMap.get(date) || 0
+          const btcReturn = btcMap.get(date) || 0
+          
+          // Track daily returns for stats
+          portfolioDailyReturns.push(portfolioReturn)
+          spyDailyReturns.push(spyReturn)
+          btcDailyReturns.push(btcReturn)
+          
+          // Track best/worst days
+          if (portfolioReturn > portfolioBestDay) portfolioBestDay = portfolioReturn
+          if (portfolioReturn < portfolioWorstDay) portfolioWorstDay = portfolioReturn
+          if (spyReturn > spyBestDay) spyBestDay = spyReturn
+          if (spyReturn < spyWorstDay) spyWorstDay = spyReturn
+          if (btcReturn > btcBestDay) btcBestDay = btcReturn
+          if (btcReturn < btcWorstDay) btcWorstDay = btcReturn
+          
+          // Update cumulative values
+          portfolioValue *= (1 + portfolioReturn)
+          spyValue *= (1 + spyReturn)
+          btcValue *= (1 + btcReturn)
+          
+          // Track peaks and drawdowns
+          if (portfolioValue > portfolioPeak) portfolioPeak = portfolioValue
+          if (spyValue > spyPeak) spyPeak = spyValue
+          if (btcValue > btcPeak) btcPeak = btcValue
+          
+          const portfolioDD = (portfolioValue - portfolioPeak) / portfolioPeak
+          const spyDD = (spyValue - spyPeak) / spyPeak
+          const btcDD = (btcValue - btcPeak) / btcPeak
+          
+          if (portfolioDD < portfolioMaxDD) portfolioMaxDD = portfolioDD
+          if (spyDD < spyMaxDD) spyMaxDD = spyDD
+          if (btcDD < btcMaxDD) btcMaxDD = btcDD
+          
+          results.push({
+            date,
+            portfolio: portfolioValue,
+            spy: spyValue,
+            btc: btcValue
+          })
+        }
+        
+        // Calculate statistics
+        const calcStats = (returns: number[], finalValue: number, maxDD: number, bestDay: number, worstDay: number) => {
+          const n = returns.length
+          if (n === 0) return { totalReturn: 0, volatility: 0, sharpeRatio: 0, maxDrawdown: 0, bestDay: 0, worstDay: 0 }
+          
+          const mean = returns.reduce((a, b) => a + b, 0) / n
+          const variance = returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / n
+          const dailyVol = Math.sqrt(variance)
+          const annualizedVol = dailyVol * Math.sqrt(252)
+          const annualizedReturn = mean * 252
+          const riskFreeRate = 0.045 // 4.5%
+          const sharpeRatio = annualizedVol > 0 ? (annualizedReturn - riskFreeRate) / annualizedVol : 0
+          
+          return {
+            totalReturn: (finalValue - 100) / 100,
+            volatility: annualizedVol,
+            sharpeRatio,
+            maxDrawdown: maxDD,
+            bestDay,
+            worstDay
+          }
+        }
+        
+        const portfolioStats = calcStats(portfolioDailyReturns, portfolioValue, portfolioMaxDD, portfolioBestDay, portfolioWorstDay)
+        const spyStats = calcStats(spyDailyReturns, spyValue, spyMaxDD, spyBestDay, spyWorstDay)
+        const btcStats = calcStats(btcDailyReturns, btcValue, btcMaxDD, btcBestDay, btcWorstDay)
+        
+        return new Response(JSON.stringify({
+          results,
+          portfolioStats,
+          spyStats,
+          btcStats,
+          period: lookbackDays,
+          assetCount: assetList.length,
+          dataPoints: results.length
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })

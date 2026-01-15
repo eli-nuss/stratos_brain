@@ -132,9 +132,9 @@ Keep each section to 2-3 sentences. Be direct and specific.`;
       setLastGenerated(new Date());
     } catch (err) {
       console.error('Analysis error:', err);
-      // Generate mock analysis for demo
-      setAnalysis(generateMockAnalysis());
-      setLastGenerated(new Date());
+      // Show error instead of falling back to mock
+      setError('Failed to generate AI analysis. Please check that the Gemini API is configured in your Supabase environment.');
+      setAnalysis(null);
     } finally {
       setIsLoading(false);
     }

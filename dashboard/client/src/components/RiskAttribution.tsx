@@ -15,6 +15,7 @@ interface PortfolioAsset {
 
 interface RiskAttributionProps {
   portfolio: PortfolioAsset[];
+  portfolioVolatility?: number; // Real portfolio volatility from API
 }
 
 // Default volatilities by asset type (annualized)
@@ -67,9 +68,14 @@ const CHART_COLORS = [
   '#6366f1', // indigo
 ];
 
-export function RiskAttribution({ portfolio }: RiskAttributionProps) {
-  // Get volatility for an asset
-  const getVolatility = (symbol: string, assetType?: string): number => {
+export function RiskAttribution({ portfolio, portfolioVolatility }: RiskAttributionProps) {
+  // Get volatility for an asset - prioritize real data from props, fallback to defaults
+  const getVolatility = (symbol: string, providedVolatility?: number, assetType?: string): number => {
+    // Use real volatility from API if provided
+    if (providedVolatility !== undefined && !isNaN(providedVolatility)) {
+      return providedVolatility;
+    }
+    // Fallback to hardcoded defaults
     if (DEFAULT_VOLATILITIES[symbol] !== undefined) {
       return DEFAULT_VOLATILITIES[symbol];
     }
@@ -77,12 +83,16 @@ export function RiskAttribution({ portfolio }: RiskAttributionProps) {
     if (assetType === 'cash') return 0;
     return 0.25; // Default equity volatility
   };
+  
+  // Check if we're using real data
+  const hasRealVolatilities = portfolio.some(p => p.volatility !== undefined && !isNaN(p.volatility));
 
   // Calculate risk attribution
   const analysis = useMemo(() => {
     const assetsWithRisk = portfolio.map((asset, index) => ({
       ...asset,
-      volatility: asset.volatility ?? getVolatility(asset.symbol, asset.assetType),
+      volatility: getVolatility(asset.symbol, asset.volatility, asset.assetType),
+      usingRealVolatility: asset.volatility !== undefined && !isNaN(asset.volatility),
       weightDecimal: asset.weight / 100,
       color: CHART_COLORS[index % CHART_COLORS.length],
     }));
@@ -115,20 +125,24 @@ export function RiskAttribution({ portfolio }: RiskAttributionProps) {
       a => a.riskToCapitalRatio > 2 && a.riskWeight > 5
     );
 
-    // Portfolio-level stats
-    const portfolioVolatility = totalRiskContribution;
+    // Portfolio-level stats - use real volatility from API if available
+    const calculatedVolatility = totalRiskContribution;
     const topRiskContributor = riskAttribution[0];
-    const diversificationBenefit = 1 - (portfolioVolatility / 
+    const diversificationBenefit = 1 - (calculatedVolatility / 
       assetsWithRisk.reduce((acc, a) => acc + a.volatility * a.weightDecimal, 0));
 
     return {
       riskAttribution,
-      portfolioVolatility,
+      calculatedVolatility,
       topRiskContributor,
       concentrationWarnings,
       diversificationBenefit,
+      hasRealData: assetsWithRisk.some(a => a.usingRealVolatility),
     };
   }, [portfolio]);
+  
+  // Use real portfolio volatility from API if provided, otherwise use calculated
+  const displayVolatility = portfolioVolatility ?? analysis.calculatedVolatility;
 
   // SVG Donut Chart Component
   const DonutChart = ({ 
@@ -205,16 +219,23 @@ export function RiskAttribution({ portfolio }: RiskAttributionProps) {
               </TooltipContent>
             </Tooltip>
           </CardTitle>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge variant="outline" className="font-mono cursor-help">
-                Vol: {(analysis.portfolioVolatility * 100).toFixed(1)}%
+          <div className="flex items-center gap-2">
+            {(portfolioVolatility || analysis.hasRealData) && (
+              <Badge variant="secondary" className="text-xs bg-green-500/20 text-green-600">
+                Live Data
               </Badge>
-            </TooltipTrigger>
-            <TooltipContent className="max-w-xs">
-              <p><strong>Portfolio Volatility:</strong> Estimated annualized standard deviation of returns. Higher values mean more price swings. 20% vol means roughly ±20% moves in a typical year.</p>
-            </TooltipContent>
-          </Tooltip>
+            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge variant="outline" className="font-mono cursor-help">
+                  Vol: {(displayVolatility * 100).toFixed(1)}%
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p><strong>Portfolio Volatility:</strong> {portfolioVolatility ? 'Calculated from real historical returns.' : 'Estimated based on asset volatilities.'} Higher values mean more price swings. 20% vol means roughly ±20% moves in a typical year.</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">

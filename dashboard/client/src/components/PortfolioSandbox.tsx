@@ -404,14 +404,13 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
   const remainingWeight = 100 - totalWeight;
   const displayTotalWeight = activeTab === 'sandbox' && isEditing ? draftTotalWeight : totalWeight;
 
-  // Mock risk metrics if not available from backend
-  const riskMetrics: RiskMetrics = riskData?.metrics || {
-    volatility: 0.18,
-    beta: 1.15,
-    sharpeRatio: 1.2,
-    maxDrawdown: -0.15,
-    diversificationScore: 0.65,
-  };
+  // Use real risk metrics from backend - show null/loading state if not available
+  const riskMetrics: RiskMetrics | null = riskData?.metrics || null;
+  const isRiskLoading = assetIds && !riskData;
+  
+  // Extract real volatilities and betas from API response
+  const assetVolatilities: Record<string, number> = riskData?.assetVolatilities || {};
+  const assetBetas: Record<string, number> = riskData?.assetBetas || {};
 
   return (
     <div className="space-y-4">
@@ -1191,6 +1190,17 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {isRiskLoading ? (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="text-sm">Calculating risk metrics...</span>
+                    </div>
+                  ) : !riskMetrics ? (
+                    <div className="text-sm text-muted-foreground">
+                      Add assets with historical data to see risk metrics.
+                    </div>
+                  ) : (
+                    <>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div className="cursor-help">
@@ -1272,6 +1282,8 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
                       </TooltipContent>
                     </Tooltip>
                   </div>
+                    </>
+                  )}
                 </CardContent>
               </Card>
 
@@ -1306,6 +1318,7 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
                 symbol: h.symbol,
                 name: h.name,
                 weight: h.target_weight,
+                beta: assetBetas[h.symbol], // Real beta from API
                 assetType: h.category === 'tokens' ? 'crypto' : h.category === 'cash' ? 'cash' : 'equity',
               }))}
             />
@@ -1316,9 +1329,11 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
                 symbol: h.symbol,
                 name: h.name,
                 weight: h.target_weight,
+                volatility: assetVolatilities[h.symbol], // Real volatility from API
                 assetType: h.category === 'tokens' ? 'crypto' : h.category === 'cash' ? 'cash' : 'equity',
                 category: h.category,
               }))}
+              portfolioVolatility={riskMetrics?.volatility}
             />
           </div>
 
@@ -1348,11 +1363,11 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
               category: h.category,
             }))}
             corePortfolioValue={corePortfolioValue}
-            riskMetrics={{
+            riskMetrics={riskMetrics ? {
               volatility: riskMetrics.volatility,
               beta: riskMetrics.beta,
               sharpeRatio: riskMetrics.sharpeRatio,
-            }}
+            } : undefined}
           />
         </TabsContent>
 

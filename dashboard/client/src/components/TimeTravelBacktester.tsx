@@ -51,22 +51,23 @@ export function TimeTravelBacktester({ portfolio, corePortfolioValue = 100000 }:
   const [isLoading, setIsLoading] = useState(false);
 
   // Fetch historical data from backend
-  const assetIds = portfolio
-    .filter(a => a.assetId)
-    .map(a => a.assetId)
-    .join(',');
+  const assetsWithIds = portfolio.filter(a => a.assetId);
+  const assetIds = assetsWithIds.map(a => a.assetId).join(',');
+  const weights = assetsWithIds.map(a => a.weight).join(',');
   
-  const { data: backtestData, error, mutate } = useSWR<{
-    results: BacktestResult[];
+  const { data: backtestData, error, isLoading: apiLoading, mutate } = useSWR<{
+    results: { date: string; portfolio: number; spy: number; btc: number }[];
     portfolioStats: PerformanceStats;
     spyStats: PerformanceStats;
     btcStats: PerformanceStats;
+    dataPoints: number;
   }>(
-    assetIds ? `/api/dashboard/backtest?asset_ids=${assetIds}&days=${selectedPeriod}&weights=${
-      portfolio.filter(a => a.assetId).map(a => a.weight).join(',')
-    }` : null,
+    assetIds ? `/api/dashboard/portfolio-backtest?asset_ids=${assetIds}&weights=${weights}&period=${selectedPeriod}` : null,
     fetcher
   );
+  
+  // Check if we have real data
+  const hasRealData = backtestData && backtestData.dataPoints > 0;
 
   // Generate mock backtest data for demo
   const mockBacktestData = useMemo(() => {
@@ -156,8 +157,18 @@ export function TimeTravelBacktester({ portfolio, corePortfolioValue = 100000 }:
     worstDay: 0,
   };
 
-  // Use real data if available, otherwise mock
-  const data = backtestData || mockBacktestData || {
+  // Use real data if available, otherwise fall back to mock (with warning)
+  const data = hasRealData ? {
+    results: backtestData.results.map(r => ({
+      date: r.date,
+      portfolioValue: r.portfolio,
+      spyValue: r.spy,
+      btcValue: r.btc,
+    })),
+    portfolioStats: backtestData.portfolioStats,
+    spyStats: backtestData.spyStats,
+    btcStats: backtestData.btcStats,
+  } : mockBacktestData || {
     results: [],
     portfolioStats: defaultStats,
     spyStats: defaultStats,
@@ -325,6 +336,22 @@ export function TimeTravelBacktester({ portfolio, corePortfolioValue = 100000 }:
                 <p>See how your current portfolio allocation would have performed historically. Compares your portfolio against SPY (S&P 500) and BTC benchmarks.</p>
               </TooltipContent>
             </Tooltip>
+            {apiLoading && (
+              <Badge variant="secondary" className="text-xs">
+                <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                Loading...
+              </Badge>
+            )}
+            {hasRealData && !apiLoading && (
+              <Badge variant="secondary" className="text-xs bg-green-500/20 text-green-600">
+                Live Data ({backtestData?.dataPoints} days)
+              </Badge>
+            )}
+            {!hasRealData && !apiLoading && assetIds && (
+              <Badge variant="secondary" className="text-xs bg-yellow-500/20 text-yellow-600">
+                Simulated
+              </Badge>
+            )}
           </CardTitle>
           <div className="flex items-center gap-2">
             {TIME_PERIODS.map(period => (
