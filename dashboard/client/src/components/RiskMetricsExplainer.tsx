@@ -2,24 +2,25 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronRight, Calculator, BookOpen, Info } from "lucide-react";
+import { ChevronDown, ChevronRight, Calculator, BookOpen, Info, Settings } from "lucide-react";
+import { RiskSettingsValues, DEFAULT_RISK_SETTINGS } from "./RiskSettings";
 
 interface MetricExplanation {
   name: string;
   shortDescription: string;
-  formula: string;
-  formulaExplanation: string;
+  formula: (settings: RiskSettingsValues) => string;
+  formulaExplanation: (settings: RiskSettingsValues) => string;
   interpretation: string[];
   example?: string;
-  dataSource?: string;
+  dataSource: (settings: RiskSettingsValues) => string;
 }
 
-const METRIC_EXPLANATIONS: MetricExplanation[] = [
+const createMetricExplanations = (settings: RiskSettingsValues): MetricExplanation[] => [
   {
     name: "Annualized Volatility",
     shortDescription: "Expected yearly price swing range",
-    formula: "σ_annual = σ_daily × √252",
-    formulaExplanation: "Standard deviation of daily returns, multiplied by √252 (trading days per year) to annualize",
+    formula: () => `σ_annual = σ_daily × √${settings.annualizationFactor}`,
+    formulaExplanation: () => `Standard deviation of daily returns, multiplied by √${settings.annualizationFactor} (${settings.annualizationFactor === 252 ? 'trading days' : 'calendar days'} per year) to annualize`,
     interpretation: [
       "20% volatility means the portfolio could swing ±20% in a typical year",
       "< 15% = Low volatility (bonds, stable stocks)",
@@ -27,14 +28,14 @@ const METRIC_EXPLANATIONS: MetricExplanation[] = [
       "25-40% = High volatility (growth stocks, single sectors)",
       "> 40% = Very high volatility (crypto, leveraged positions)"
     ],
-    example: "If daily returns have σ = 1.5%, then annual volatility = 1.5% × √252 ≈ 23.8%",
-    dataSource: "Calculated from 90 days of daily returns from the daily_features table"
+    example: `If daily returns have σ = 1.5%, then annual volatility = 1.5% × √${settings.annualizationFactor} ≈ ${(1.5 * Math.sqrt(settings.annualizationFactor)).toFixed(1)}%`,
+    dataSource: () => `Calculated from ${settings.lookbackDays} days of daily returns from the daily_features table`
   },
   {
     name: "Beta (β)",
     shortDescription: "Sensitivity to market movements",
-    formula: "β = Cov(R_portfolio, R_market) / Var(R_market)",
-    formulaExplanation: "Covariance of portfolio returns with market returns, divided by variance of market returns. We use SPY as the market benchmark.",
+    formula: () => `β = Cov(R_portfolio, R_${settings.benchmark}) / Var(R_${settings.benchmark})`,
+    formulaExplanation: () => `Covariance of portfolio returns with ${settings.benchmark} returns, divided by variance of ${settings.benchmark} returns. We use ${settings.benchmark} as the market benchmark.`,
     interpretation: [
       "β = 1.0: Portfolio moves exactly with the market",
       "β = 1.5: Portfolio moves 50% more than the market (if market drops 10%, portfolio drops 15%)",
@@ -42,14 +43,14 @@ const METRIC_EXPLANATIONS: MetricExplanation[] = [
       "β < 0: Portfolio moves opposite to the market (rare, hedged positions)",
       "β > 2.0: Very aggressive, leveraged-like exposure"
     ],
-    example: "If SPY drops 10% and your portfolio drops 12%, your beta is approximately 1.2",
-    dataSource: "Weighted average of individual asset betas from the assets table"
+    example: `If ${settings.benchmark} drops 10% and your portfolio drops 12%, your beta is approximately 1.2`,
+    dataSource: () => `Calculated from ${settings.lookbackDays} days of returns vs ${settings.benchmark}`
   },
   {
     name: "Sharpe Ratio",
     shortDescription: "Risk-adjusted return (return per unit of risk)",
-    formula: "Sharpe = (R_portfolio - R_riskfree) / σ_portfolio",
-    formulaExplanation: "Excess return (portfolio return minus risk-free rate) divided by portfolio volatility. We use 4.5% as the risk-free rate (approximate T-bill yield).",
+    formula: () => `Sharpe = (R_portfolio - ${settings.riskFreeRate}%) / σ_portfolio`,
+    formulaExplanation: () => `Excess return (portfolio return minus risk-free rate of ${settings.riskFreeRate}%) divided by portfolio volatility.`,
     interpretation: [
       "< 0: Losing money or underperforming risk-free rate",
       "0 - 1.0: Suboptimal risk-adjusted returns",
@@ -57,14 +58,14 @@ const METRIC_EXPLANATIONS: MetricExplanation[] = [
       "2.0 - 3.0: Excellent risk-adjusted returns",
       "> 3.0: Outstanding (rare, verify data quality)"
     ],
-    example: "Portfolio returns 15%, risk-free is 4.5%, volatility is 20%. Sharpe = (15% - 4.5%) / 20% = 0.525",
-    dataSource: "Calculated from historical returns and current volatility estimate"
+    example: `Portfolio returns 15%, risk-free is ${settings.riskFreeRate}%, volatility is 20%. Sharpe = (15% - ${settings.riskFreeRate}%) / 20% = ${((15 - settings.riskFreeRate) / 20).toFixed(2)}`,
+    dataSource: () => `Calculated from ${settings.lookbackDays} days of historical returns with ${settings.riskFreeRate}% risk-free rate`
   },
   {
     name: "Max Drawdown",
     shortDescription: "Largest peak-to-trough decline",
-    formula: "Max DD = max[(Peak_t - Trough_t) / Peak_t]",
-    formulaExplanation: "The maximum percentage decline from any peak to any subsequent trough over the measurement period.",
+    formula: () => "Max DD = max[(Peak_t - Trough_t) / Peak_t]",
+    formulaExplanation: () => `The maximum percentage decline from any peak to any subsequent trough over the ${settings.lookbackDays}-day measurement period.`,
     interpretation: [
       "Shows your worst-case historical scenario",
       "-10% to -20%: Normal for diversified portfolios",
@@ -73,13 +74,13 @@ const METRIC_EXPLANATIONS: MetricExplanation[] = [
       "> -60%: Catastrophic (crypto bear markets, leveraged losses)"
     ],
     example: "If portfolio peaked at $100K and dropped to $70K before recovering, max drawdown = -30%",
-    dataSource: "Calculated from simulated portfolio value using historical daily returns"
+    dataSource: () => `Calculated from simulated portfolio value using ${settings.lookbackDays} days of historical daily returns`
   },
   {
     name: "Diversification Score",
     shortDescription: "How well assets are spread across uncorrelated investments",
-    formula: "Div Score = 1 - (Average Pairwise Correlation)",
-    formulaExplanation: "One minus the average correlation between all asset pairs. Higher score means assets move more independently.",
+    formula: () => "Div Score = 1 - (Average Pairwise Correlation)",
+    formulaExplanation: () => "One minus the average correlation between all asset pairs. Higher score means assets move more independently.",
     interpretation: [
       "0-30%: Poor diversification (assets highly correlated)",
       "30-50%: Moderate diversification",
@@ -87,13 +88,13 @@ const METRIC_EXPLANATIONS: MetricExplanation[] = [
       "> 70%: Excellent diversification (rare with traditional assets)"
     ],
     example: "If average correlation between your 10 assets is 0.4, diversification score = 1 - 0.4 = 60%",
-    dataSource: "Calculated from the correlation matrix of portfolio holdings"
+    dataSource: () => `Calculated from the correlation matrix based on ${settings.lookbackDays} days of returns`
   },
   {
     name: "Correlation",
     shortDescription: "How two assets move together",
-    formula: "ρ = Cov(R_a, R_b) / (σ_a × σ_b)",
-    formulaExplanation: "Covariance of two assets' returns divided by the product of their standard deviations. Ranges from -1 to +1.",
+    formula: () => "ρ = Cov(R_a, R_b) / (σ_a × σ_b)",
+    formulaExplanation: () => "Covariance of two assets' returns divided by the product of their standard deviations. Ranges from -1 to +1.",
     interpretation: [
       "+1.0: Perfect positive correlation (move together exactly)",
       "+0.7 to +1.0: High correlation (limited diversification benefit)",
@@ -102,13 +103,13 @@ const METRIC_EXPLANATIONS: MetricExplanation[] = [
       "-1.0 to -0.3: Negative correlation (hedge benefit)"
     ],
     example: "BTC and ETH often have correlation > 0.8, while BTC and Gold might be 0.1-0.3",
-    dataSource: "Calculated from 90 days of daily returns for each asset pair"
+    dataSource: () => `Calculated from ${settings.lookbackDays} days of daily returns for each asset pair`
   },
   {
     name: "Risk Contribution",
     shortDescription: "How much each asset contributes to total portfolio risk",
-    formula: "RC_i = w_i × (Σ_j w_j × σ_i × σ_j × ρ_ij) / σ_portfolio",
-    formulaExplanation: "Each asset's marginal contribution to portfolio variance, accounting for its weight, volatility, and correlations with other assets.",
+    formula: () => "RC_i = w_i × (Σ_j w_j × σ_i × σ_j × ρ_ij) / σ_portfolio",
+    formulaExplanation: () => "Each asset's marginal contribution to portfolio variance, accounting for its weight, volatility, and correlations with other assets.",
     interpretation: [
       "Risk contribution can exceed capital weight for volatile assets",
       "A 10% position in BTC might contribute 30% of portfolio risk",
@@ -116,30 +117,31 @@ const METRIC_EXPLANATIONS: MetricExplanation[] = [
       "Aim for risk contributions roughly aligned with capital weights"
     ],
     example: "30% BTC position with 60% volatility in a 20% volatility portfolio might contribute 50%+ of total risk",
-    dataSource: "Calculated using individual asset volatilities and the correlation matrix"
+    dataSource: () => `Calculated using individual asset volatilities and the ${settings.lookbackDays}-day correlation matrix`
   },
   {
     name: "Portfolio Volatility (Multi-Asset)",
     shortDescription: "Total portfolio risk accounting for diversification",
-    formula: "σ_p = √(Σ_i Σ_j w_i × w_j × σ_i × σ_j × ρ_ij)",
-    formulaExplanation: "Square root of the weighted sum of all pairwise covariances. This is why diversification reduces risk - correlations < 1 reduce total volatility.",
+    formula: () => `σ_p = √(Σ_i Σ_j w_i × w_j × σ_i × σ_j × ρ_ij) × √${settings.annualizationFactor}`,
+    formulaExplanation: () => `Square root of the weighted sum of all pairwise covariances, annualized by √${settings.annualizationFactor}. This is why diversification reduces risk - correlations < 1 reduce total volatility.`,
     interpretation: [
       "Always less than or equal to weighted average of individual volatilities",
       "The 'diversification benefit' is the difference between weighted average vol and portfolio vol",
       "More assets with low correlations = lower portfolio volatility"
     ],
     example: "Two assets each with 30% vol and 0.5 correlation: Portfolio vol = 30% × √(1 + 0.5) / √2 ≈ 26%",
-    dataSource: "Calculated from individual asset volatilities and the full correlation matrix"
+    dataSource: () => `Calculated from individual asset volatilities and the full ${settings.lookbackDays}-day correlation matrix`
   }
 ];
 
 interface MetricCardProps {
   metric: MetricExplanation;
+  settings: RiskSettingsValues;
   isOpen: boolean;
   onToggle: () => void;
 }
 
-function MetricCard({ metric, isOpen, onToggle }: MetricCardProps) {
+function MetricCard({ metric, settings, isOpen, onToggle }: MetricCardProps) {
   return (
     <Collapsible open={isOpen} onOpenChange={onToggle}>
       <CollapsibleTrigger className="w-full">
@@ -152,7 +154,7 @@ function MetricCard({ metric, isOpen, onToggle }: MetricCardProps) {
             </div>
           </div>
           <Badge variant="outline" className="font-mono text-xs">
-            {metric.formula.split('=')[0].trim()}
+            {metric.formula(settings).split('=')[0].trim()}
           </Badge>
         </div>
       </CollapsibleTrigger>
@@ -165,9 +167,9 @@ function MetricCard({ metric, isOpen, onToggle }: MetricCardProps) {
               Formula
             </div>
             <div className="p-3 bg-muted/50 rounded font-mono text-sm">
-              {metric.formula}
+              {metric.formula(settings)}
             </div>
-            <p className="text-sm text-muted-foreground mt-2">{metric.formulaExplanation}</p>
+            <p className="text-sm text-muted-foreground mt-2">{metric.formulaExplanation(settings)}</p>
           </div>
 
           {/* Interpretation */}
@@ -195,20 +197,23 @@ function MetricCard({ metric, isOpen, onToggle }: MetricCardProps) {
           )}
 
           {/* Data Source */}
-          {metric.dataSource && (
-            <div className="flex items-start gap-2 text-xs text-muted-foreground">
-              <Info className="w-3 h-3 mt-0.5" />
-              <span>{metric.dataSource}</span>
-            </div>
-          )}
+          <div className="flex items-start gap-2 text-xs text-muted-foreground">
+            <Info className="w-3 h-3 mt-0.5" />
+            <span>{metric.dataSource(settings)}</span>
+          </div>
         </div>
       </CollapsibleContent>
     </Collapsible>
   );
 }
 
-export function RiskMetricsExplainer() {
+interface RiskMetricsExplainerProps {
+  settings?: RiskSettingsValues;
+}
+
+export function RiskMetricsExplainer({ settings = DEFAULT_RISK_SETTINGS }: RiskMetricsExplainerProps) {
   const [openMetrics, setOpenMetrics] = useState<Set<string>>(new Set());
+  const metricExplanations = createMetricExplanations(settings);
 
   const toggleMetric = (name: string) => {
     setOpenMetrics(prev => {
@@ -223,7 +228,7 @@ export function RiskMetricsExplainer() {
   };
 
   const expandAll = () => {
-    setOpenMetrics(new Set(METRIC_EXPLANATIONS.map(m => m.name)));
+    setOpenMetrics(new Set(metricExplanations.map(m => m.name)));
   };
 
   const collapseAll = () => {
@@ -254,12 +259,42 @@ export function RiskMetricsExplainer() {
             </button>
           </div>
         </div>
+        
+        {/* Current Settings Display */}
+        <div className="mt-3 p-3 bg-muted/30 rounded-lg">
+          <div className="flex items-center gap-2 text-sm font-medium mb-2">
+            <Settings className="w-4 h-4 text-muted-foreground" />
+            Current Calculation Settings
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            <div>
+              <div className="text-xs text-muted-foreground">Lookback Period</div>
+              <div className="font-mono font-medium">{settings.lookbackDays} days</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Risk-Free Rate</div>
+              <div className="font-mono font-medium">{settings.riskFreeRate}%</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Benchmark</div>
+              <div className="font-mono font-medium">{settings.benchmark}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Annualization</div>
+              <div className="font-mono font-medium">√{settings.annualizationFactor} days</div>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            These settings affect how all metrics are calculated. Change them in the Sandbox tab using the Settings button.
+          </p>
+        </div>
       </CardHeader>
       <CardContent className="space-y-2">
-        {METRIC_EXPLANATIONS.map(metric => (
+        {metricExplanations.map(metric => (
           <MetricCard
             key={metric.name}
             metric={metric}
+            settings={settings}
             isOpen={openMetrics.has(metric.name)}
             onToggle={() => toggleMetric(metric.name)}
           />

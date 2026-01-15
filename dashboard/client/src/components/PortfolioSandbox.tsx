@@ -17,6 +17,7 @@ import { RiskAttribution } from "./RiskAttribution";
 import { TimeTravelBacktester } from "./TimeTravelBacktester";
 import { AIInvestmentCommittee } from "./AIInvestmentCommittee";
 import { RiskMetricsExplainer } from "./RiskMetricsExplainer";
+import { RiskSettings, RiskSettingsSummary, RiskSettingsValues, DEFAULT_RISK_SETTINGS } from "./RiskSettings";
 import useSWR from 'swr';
 import { 
   useModelPortfolioHoldings,
@@ -92,11 +93,21 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
   // Cash entry state
   const [cashAmount, setCashAmount] = useState<number>(0);
   const [cashNotes, setCashNotes] = useState<string>('');
+  
+  // Risk settings state
+  const [riskSettings, setRiskSettings] = useState<RiskSettingsValues>(DEFAULT_RISK_SETTINGS);
 
   // Fetch risk metrics from backend
   const assetIds = holdings.map(h => h.asset_id).filter(Boolean).join(',');
+  const riskQueryParams = new URLSearchParams({
+    asset_ids: assetIds,
+    lookback_days: String(riskSettings.lookbackDays),
+    risk_free_rate: String(riskSettings.riskFreeRate),
+    annualization_factor: String(riskSettings.annualizationFactor),
+    benchmark: riskSettings.benchmark,
+  }).toString();
   const { data: riskData } = useSWR<{ metrics: RiskMetrics; correlationMatrix: number[][] }>(
-    assetIds ? `/api/dashboard/portfolio-risk?asset_ids=${assetIds}` : null,
+    assetIds ? `/api/dashboard/portfolio-risk?${riskQueryParams}` : null,
     fetcher
   );
 
@@ -1161,17 +1172,23 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
             <div className="space-y-4">
               <Card className="border-l-4 border-l-blue-500">
                 <CardHeader className="pb-2">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <CardTitle className="text-sm uppercase text-muted-foreground flex items-center gap-2 cursor-help">
-                        <Shield className="w-4 h-4" />
-                        Risk Metrics
-                      </CardTitle>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      <p>Key risk indicators for your portfolio. These metrics help you understand the risk profile and potential volatility of your allocation.</p>
-                    </TooltipContent>
-                  </Tooltip>
+                  <div className="flex items-center justify-between">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <CardTitle className="text-sm uppercase text-muted-foreground flex items-center gap-2 cursor-help">
+                          <Shield className="w-4 h-4" />
+                          Risk Metrics
+                        </CardTitle>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p>Key risk indicators for your portfolio. These metrics help you understand the risk profile and potential volatility of your allocation.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <RiskSettings settings={riskSettings} onChange={setRiskSettings} compact />
+                  </div>
+                  <div className="mt-2">
+                    <RiskSettingsSummary settings={riskSettings} />
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <Tooltip>
@@ -1185,8 +1202,8 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
                     </TooltipTrigger>
                     <TooltipContent className="max-w-sm">
                       <p className="font-semibold">Annualized Volatility</p>
-                      <p className="text-xs font-mono bg-muted/50 px-1 rounded my-1">σ_annual = σ_daily × √252</p>
-                      <p className="text-xs">Standard deviation of daily returns, annualized. 20% means the portfolio could swing ±20% in a typical year.</p>
+                      <p className="text-xs font-mono bg-muted/50 px-1 rounded my-1">σ_annual = σ_daily × √{riskSettings.annualizationFactor}</p>
+                      <p className="text-xs">Based on {riskSettings.lookbackDays} days of returns, annualized using {riskSettings.annualizationFactor} days/year.</p>
                       <p className="text-xs mt-1 text-muted-foreground">{'<'}15% low | 15-25% moderate | {'>'}25% high</p>
                     </TooltipContent>
                   </Tooltip>
@@ -1202,8 +1219,8 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
                       <TooltipContent className="max-w-sm">
                         <p className="font-semibold">Beta (β)</p>
                         <p className="text-xs font-mono bg-muted/50 px-1 rounded my-1">β = Cov(R_p, R_m) / Var(R_m)</p>
-                        <p className="text-xs">Sensitivity to market (SPY). β=1.0 moves with market, β=1.5 is 50% more volatile.</p>
-                        <p className="text-xs mt-1 text-muted-foreground">Weighted avg of individual asset betas</p>
+                        <p className="text-xs">Sensitivity to {riskSettings.benchmark}. β=1.0 moves with market, β=1.5 is 50% more volatile.</p>
+                        <p className="text-xs mt-1 text-muted-foreground">Based on {riskSettings.lookbackDays} days vs {riskSettings.benchmark}</p>
                       </TooltipContent>
                     </Tooltip>
                     <Tooltip>
@@ -1218,7 +1235,7 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
                       <TooltipContent className="max-w-sm">
                         <p className="font-semibold">Sharpe Ratio</p>
                         <p className="text-xs font-mono bg-muted/50 px-1 rounded my-1">Sharpe = (R_p - R_f) / σ_p</p>
-                        <p className="text-xs">Excess return per unit of risk. R_f = 4.5% (T-bill rate).</p>
+                        <p className="text-xs">Excess return per unit of risk. R_f = {riskSettings.riskFreeRate}% (risk-free rate).</p>
                         <p className="text-xs mt-1 text-muted-foreground">{'<'}1 suboptimal | 1-2 good | {'>'}2 excellent</p>
                       </TooltipContent>
                     </Tooltip>
@@ -1234,7 +1251,7 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
                       <TooltipContent className="max-w-sm">
                         <p className="font-semibold">Maximum Drawdown</p>
                         <p className="text-xs font-mono bg-muted/50 px-1 rounded my-1">Max DD = max[(Peak - Trough) / Peak]</p>
-                        <p className="text-xs">Largest peak-to-trough decline. Shows worst-case historical scenario.</p>
+                        <p className="text-xs">Largest peak-to-trough decline over {riskSettings.lookbackDays} days.</p>
                         <p className="text-xs mt-1 text-muted-foreground">-20% normal | -40% severe | -60% catastrophic</p>
                       </TooltipContent>
                     </Tooltip>
@@ -1341,7 +1358,7 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
 
         {/* Learn Tab - How metrics are calculated */}
         <TabsContent value="learn" className="mt-4">
-          <RiskMetricsExplainer />
+          <RiskMetricsExplainer settings={riskSettings} />
         </TabsContent>
       </Tabs>
     </div>

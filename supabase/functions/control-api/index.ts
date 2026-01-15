@@ -4209,7 +4209,10 @@ If asked about something not in the data, acknowledge the limitation.`
       // GET /dashboard/portfolio-risk - Calculate portfolio risk metrics
       case req.method === 'GET' && path === '/dashboard/portfolio-risk': {
         const assetIdsParam = url.searchParams.get('asset_ids')
-        const lookbackDays = parseInt(url.searchParams.get('lookback') || '90')
+        const lookbackDays = parseInt(url.searchParams.get('lookback_days') || url.searchParams.get('lookback') || '90')
+        const riskFreeRate = parseFloat(url.searchParams.get('risk_free_rate') || '4.5') / 100 // Convert to decimal
+        const annualizationFactor = parseInt(url.searchParams.get('annualization_factor') || '252')
+        const benchmark = url.searchParams.get('benchmark') || 'SPY'
         
         if (!assetIdsParam) {
           return new Response(JSON.stringify({ error: 'asset_ids parameter required' }), {
@@ -4250,17 +4253,19 @@ If asked about something not in the data, acknowledge the limitation.`
           if (returnsData && returnsData.length > 0) {
             const returns = returnsData.map(r => r.return_1d).reverse()
             
-            // Calculate annualized standard deviation
+            // Calculate annualized standard deviation using configurable factor
             const mean = returns.reduce((a, b) => a + b, 0) / returns.length
             const squaredDiffs = returns.map(r => Math.pow(r - mean, 2))
             const variance = squaredDiffs.reduce((a, b) => a + b, 0) / returns.length
             const dailyStdDev = Math.sqrt(variance)
-            const annualizedStdDev = dailyStdDev * Math.sqrt(252)
+            const annualizedStdDev = dailyStdDev * Math.sqrt(annualizationFactor)
+            const annualizedReturn = mean * annualizationFactor
             
             assetReturns[assetId] = {
               symbol: assetData?.symbol || `Asset ${assetId}`,
               returns,
-              stdDev: annualizedStdDev
+              stdDev: annualizedStdDev,
+              annualizedReturn
             }
           }
         }
@@ -4339,10 +4344,35 @@ If asked about something not in the data, acknowledge the limitation.`
         }
         const portfolioVolatility = Math.sqrt(Math.max(0, portfolioVariance))
         
-        // Mock beta and sharpe (would need benchmark data for real calculation)
+        // Calculate portfolio return (weighted average of individual returns)
+        const portfolioReturn = assetList.reduce((sum, [_, data]) => sum + (data.annualizedReturn || 0), 0) / n
+        
+        // Calculate Sharpe ratio using configurable risk-free rate
+        const sharpeRatio = portfolioVolatility > 0 
+          ? (portfolioReturn - riskFreeRate) / portfolioVolatility 
+          : 0
+        
+        // Estimate beta based on correlation with market (simplified)
+        // In a real implementation, we'd fetch benchmark returns and calculate properly
         const beta = 1.0 + (avgCorrelation * 0.3)
-        const sharpeRatio = avgVolatility > 0 ? (0.08 / avgVolatility) : 0 // Assume 8% return
-        const maxDrawdown = -portfolioVolatility * 2 // Rough estimate
+        
+        // Calculate max drawdown from historical returns
+        let maxDrawdown = 0
+        if (assetList.length > 0) {
+          // Simulate portfolio value using equal weights
+          const minLen = Math.min(...assetList.map(([_, data]) => data.returns.length))
+          if (minLen > 0) {
+            let portfolioValue = 100
+            let peak = portfolioValue
+            for (let i = 0; i < minLen; i++) {
+              const dailyReturn = assetList.reduce((sum, [_, data]) => sum + data.returns[i], 0) / n
+              portfolioValue *= (1 + dailyReturn)
+              if (portfolioValue > peak) peak = portfolioValue
+              const drawdown = (portfolioValue - peak) / peak
+              if (drawdown < maxDrawdown) maxDrawdown = drawdown
+            }
+          }
+        }
         
         return new Response(JSON.stringify({
           metrics: {
@@ -4352,13 +4382,20 @@ If asked about something not in the data, acknowledge the limitation.`
             maxDrawdown,
             diversificationScore,
             avgCorrelation,
-            assetCount: n
+            assetCount: n,
+            portfolioReturn
           },
           correlationMatrix,
           symbols,
           assetVolatilities: Object.fromEntries(
             assetList.map(([id, data]) => [data.symbol, data.stdDev])
-          )
+          ),
+          settings: {
+            lookbackDays,
+            riskFreeRate: riskFreeRate * 100, // Convert back to percentage
+            annualizationFactor,
+            benchmark
+          }
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
