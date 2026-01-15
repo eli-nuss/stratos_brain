@@ -268,6 +268,16 @@ export function TimeTravelBacktester({ portfolio, corePortfolioValue = 100000 }:
     );
   };
 
+  // Tooltip descriptions for each metric
+  const metricTooltips: Record<string, string> = {
+    'Total Return': 'The percentage gain or loss over the selected time period. Green means you beat SPY, red means you underperformed.',
+    'Max Drawdown': 'The largest peak-to-trough decline during the period. Smaller (less negative) is better. Shows your worst-case scenario.',
+    'Sharpe Ratio': 'Risk-adjusted return: (Return - Risk-free Rate) / Volatility. Higher is better. Above 1.0 is good, above 2.0 is excellent.',
+    'Volatility': 'Annualized standard deviation of returns. Lower means smoother ride. 20% vol means roughly ±20% swings per year.',
+    'Best Day': 'The single best daily return during the period.',
+    'Worst Day': 'The single worst daily return during the period.',
+  };
+
   const StatCard = ({ 
     label, 
     value, 
@@ -279,19 +289,26 @@ export function TimeTravelBacktester({ portfolio, corePortfolioValue = 100000 }:
     comparison?: string;
     isGood?: boolean;
   }) => (
-    <div className="p-3 bg-muted/30 rounded-lg">
-      <div className="text-xs text-muted-foreground mb-1">{label}</div>
-      <div className={`text-lg font-bold font-mono ${
-        isGood === true ? 'text-green-500' : isGood === false ? 'text-red-500' : ''
-      }`}>
-        {value}
-      </div>
-      {comparison && (
-        <div className="text-xs text-muted-foreground mt-1">
-          vs SPY: {comparison}
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="p-3 bg-muted/30 rounded-lg cursor-help">
+          <div className="text-xs text-muted-foreground mb-1">{label}</div>
+          <div className={`text-lg font-bold font-mono ${
+            isGood === true ? 'text-green-500' : isGood === false ? 'text-red-500' : ''
+          }`}>
+            {value}
+          </div>
+          {comparison && (
+            <div className="text-xs text-muted-foreground mt-1">
+              vs SPY: {comparison}
+            </div>
+          )}
         </div>
-      )}
-    </div>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-xs">
+        <p>{metricTooltips[label] || label}</p>
+      </TooltipContent>
+    </Tooltip>
   );
 
   return (
@@ -300,7 +317,14 @@ export function TimeTravelBacktester({ portfolio, corePortfolioValue = 100000 }:
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Clock className="w-5 h-5 text-blue-500" />
-            Time Travel Backtester
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-help">Time Travel Backtester</span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p>See how your current portfolio allocation would have performed historically. Compares your portfolio against SPY (S&P 500) and BTC benchmarks.</p>
+              </TooltipContent>
+            </Tooltip>
           </CardTitle>
           <div className="flex items-center gap-2">
             {TIME_PERIODS.map(period => (

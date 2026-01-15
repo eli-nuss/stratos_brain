@@ -196,7 +196,14 @@ export function RiskAttribution({ portfolio }: RiskAttributionProps) {
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <PieChart className="w-5 h-5 text-purple-500" />
-            Risk Attribution
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-help">Risk Attribution</span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p>Compares where your money is allocated (Capital) vs. where your risk is concentrated (Risk). High-volatility assets contribute more risk than their capital weight suggests.</p>
+              </TooltipContent>
+            </Tooltip>
           </CardTitle>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -204,8 +211,8 @@ export function RiskAttribution({ portfolio }: RiskAttributionProps) {
                 Vol: {(analysis.portfolioVolatility * 100).toFixed(1)}%
               </Badge>
             </TooltipTrigger>
-            <TooltipContent>
-              Estimated annualized portfolio volatility
+            <TooltipContent className="max-w-xs">
+              <p><strong>Portfolio Volatility:</strong> Estimated annualized standard deviation of returns. Higher values mean more price swings. 20% vol means roughly ±20% moves in a typical year.</p>
             </TooltipContent>
           </Tooltip>
         </div>
@@ -214,10 +221,17 @@ export function RiskAttribution({ portfolio }: RiskAttributionProps) {
         {/* Concentration Warnings */}
         {analysis.concentrationWarnings.length > 0 && (
           <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-            <div className="flex items-center gap-2 text-yellow-600 text-sm font-medium mb-2">
-              <AlertTriangle className="w-4 h-4" />
-              Risk Concentration Warning
-            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-2 text-yellow-600 text-sm font-medium mb-2 cursor-help">
+                  <AlertTriangle className="w-4 h-4" />
+                  Risk Concentration Warning
+                </div>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p>These assets contribute disproportionately more risk than their capital allocation. A 10% position contributing 25% of risk means that asset is 2.5x more volatile than average.</p>
+              </TooltipContent>
+            </Tooltip>
             <div className="text-sm text-muted-foreground">
               {analysis.concentrationWarnings.map(a => (
                 <div key={a.symbol}>
@@ -237,7 +251,14 @@ export function RiskAttribution({ portfolio }: RiskAttributionProps) {
               valueKey="capitalWeight" 
               title="Capital Allocation" 
             />
-            <div className="text-xs text-muted-foreground mt-2">Where your money is</div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="text-xs text-muted-foreground mt-2 cursor-help">Where your money is</div>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p><strong>Capital Allocation:</strong> The percentage of your total portfolio value in each asset. This is what you see in your account balance.</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
           <div className="relative flex flex-col items-center">
             <DonutChart 
@@ -245,7 +266,14 @@ export function RiskAttribution({ portfolio }: RiskAttributionProps) {
               valueKey="riskWeight" 
               title="Risk Allocation" 
             />
-            <div className="text-xs text-muted-foreground mt-2">Where your anxiety is</div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="text-xs text-muted-foreground mt-2 cursor-help">Where your anxiety is</div>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p><strong>Risk Allocation:</strong> The percentage of total portfolio volatility each asset contributes. High-volatility assets like crypto often dominate risk even with small allocations.</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
         </div>
 
@@ -268,9 +296,26 @@ export function RiskAttribution({ portfolio }: RiskAttributionProps) {
             <thead className="bg-muted/50">
               <tr>
                 <th className="text-left px-3 py-2 font-medium">Asset</th>
-                <th className="text-right px-3 py-2 font-medium">Capital %</th>
-                <th className="text-right px-3 py-2 font-medium">Risk %</th>
-                <th className="text-right px-3 py-2 font-medium">Ratio</th>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <th className="text-right px-3 py-2 font-medium cursor-help">Capital %</th>
+                  </TooltipTrigger>
+                  <TooltipContent>Percentage of portfolio value in this asset</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <th className="text-right px-3 py-2 font-medium cursor-help">Risk %</th>
+                  </TooltipTrigger>
+                  <TooltipContent>Percentage of portfolio volatility from this asset</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <th className="text-right px-3 py-2 font-medium cursor-help">Ratio</th>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p><strong>Risk/Capital Ratio:</strong> How much more (or less) risk an asset contributes relative to its capital weight. 2.0x means it contributes twice as much risk as capital.</p>
+                  </TooltipContent>
+                </Tooltip>
               </tr>
             </thead>
             <tbody>

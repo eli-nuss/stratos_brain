@@ -146,12 +146,26 @@ export function ScenarioSimulator({ portfolio, onRefreshBetas }: ScenarioSimulat
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-red-500" />
-            Stress Test Simulator
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-help">Stress Test Simulator</span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p>Simulate how your portfolio would perform during market shocks. Uses beta coefficients to estimate the impact of market movements on each asset.</p>
+              </TooltipContent>
+            </Tooltip>
           </CardTitle>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="font-mono">
-              Portfolio β: {analysis.portfolioBeta.toFixed(2)}
-            </Badge>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge variant="outline" className="font-mono cursor-help">
+                  Portfolio β: {analysis.portfolioBeta.toFixed(2)}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p><strong>Portfolio Beta:</strong> The weighted average sensitivity of your portfolio to market movements. β=1.0 means it moves with the market, β&gt;1 means more volatile, β&lt;1 means less volatile.</p>
+              </TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -220,7 +234,14 @@ export function ScenarioSimulator({ portfolio, onRefreshBetas }: ScenarioSimulat
         }`}>
           <div className="flex justify-between items-center">
             <div>
-              <div className="text-sm text-muted-foreground">Projected Portfolio Impact</div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="text-sm text-muted-foreground cursor-help">Projected Portfolio Impact</div>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p>The estimated percentage change in your portfolio value if the market moves by the selected amount. Calculated as: Market Move × Portfolio Beta.</p>
+                </TooltipContent>
+              </Tooltip>
               <div className={`text-3xl font-bold font-mono ${getImpactColor(analysis.projectedImpact)}`}>
                 {analysis.projectedImpact >= 0 ? '+' : ''}{analysis.projectedImpact.toFixed(2)}%
               </div>
@@ -241,10 +262,17 @@ export function ScenarioSimulator({ portfolio, onRefreshBetas }: ScenarioSimulat
         {/* Top Risk Contributors */}
         {analysis.riskContributors.length > 0 && marketShock < 0 && (
           <div className="p-3 bg-red-500/5 border border-red-500/20 rounded-lg">
-            <div className="text-xs font-semibold text-red-500 uppercase tracking-wider mb-2 flex items-center gap-1">
-              <Zap className="w-3 h-3" />
-              Biggest Risk Contributors
-            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="text-xs font-semibold text-red-500 uppercase tracking-wider mb-2 flex items-center gap-1 cursor-help">
+                  <Zap className="w-3 h-3" />
+                  Biggest Risk Contributors
+                </div>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p>Assets that contribute the most to your portfolio's potential losses. Contribution = Asset Beta × Asset Weight × Market Shock.</p>
+              </TooltipContent>
+            </Tooltip>
             <div className="space-y-1">
               {analysis.riskContributors.slice(0, 3).map(asset => (
                 <div key={asset.symbol} className="flex justify-between text-sm">
@@ -260,9 +288,16 @@ export function ScenarioSimulator({ portfolio, onRefreshBetas }: ScenarioSimulat
 
         {/* Asset Breakdown */}
         <div className="space-y-2">
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Asset Impact Breakdown
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-help">
+                Asset Impact Breakdown
+              </div>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              <p>How each individual asset would perform in this scenario. The bar shows the magnitude of the move - red bars extend left (losses), green bars extend right (gains).</p>
+            </TooltipContent>
+          </Tooltip>
           <div className="max-h-64 overflow-y-auto space-y-1">
             {analysis.assetImpacts.map(asset => (
               <div key={asset.symbol} className="flex items-center text-sm py-1">

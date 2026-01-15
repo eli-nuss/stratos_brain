@@ -273,7 +273,14 @@ Keep each section to 2-3 sentences. Be direct and specific.`;
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Brain className="w-5 h-5 text-violet-500" />
-            AI Investment Committee
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-help">AI Investment Committee</span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p>Get an AI-powered portfolio critique similar to what a professional investment committee would provide. Analyzes concentration risk, diversification gaps, and provides actionable recommendations.</p>
+              </TooltipContent>
+            </Tooltip>
           </CardTitle>
           <div className="flex items-center gap-2">
             {lastGenerated && (
@@ -319,7 +326,14 @@ Keep each section to 2-3 sentences. Be direct and specific.`;
       <CardContent className="space-y-4">
         {/* Portfolio Summary */}
         <div className="p-3 bg-muted/30 rounded-lg">
-          <div className="text-xs text-muted-foreground mb-2">Portfolio Overview</div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="text-xs text-muted-foreground mb-2 cursor-help">Portfolio Overview</div>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              <p>Summary of your portfolio by category. This information is sent to the AI for analysis.</p>
+            </TooltipContent>
+          </Tooltip>
           <div className="flex flex-wrap gap-2">
             {Object.entries(getPortfolioSummary().byCategory).map(([category, data]) => (
               <Badge key={category} variant="outline" className="font-mono">
@@ -352,20 +366,37 @@ Keep each section to 2-3 sentences. Be direct and specific.`;
         {/* Analysis Results */}
         {analysis && !isLoading && (
           <div className="space-y-3">
-            {analysis.map((section, index) => (
-              <div 
-                key={index} 
-                className={`p-4 rounded-lg border-l-4 ${getSeverityStyles(section.severity)}`}
-              >
-                <div className="flex items-center gap-2 font-medium mb-2">
-                  {section.icon}
-                  {section.title}
+            {analysis.map((section, index) => {
+              const sectionTooltips: Record<string, string> = {
+                'Concentration Risk': 'Identifies positions that are too large relative to your portfolio, creating single-asset risk.',
+                'Diversification Gaps': 'Highlights asset classes or sectors missing from your portfolio that could improve risk-adjusted returns.',
+                'Risk/Reward Assessment': 'Overall evaluation of your portfolio\'s risk profile and potential return characteristics.',
+                'Recommendations': 'Specific, actionable steps to improve your portfolio based on the analysis.',
+                'Hedge Suggestions': 'Strategies to protect your portfolio from downside risk, including options and defensive positions.',
+                'Portfolio Analysis': 'General analysis of your portfolio composition and characteristics.',
+              };
+              return (
+                <div 
+                  key={index} 
+                  className={`p-4 rounded-lg border-l-4 ${getSeverityStyles(section.severity)}`}
+                >
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-2 font-medium mb-2 cursor-help">
+                        {section.icon}
+                        {section.title}
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>{sectionTooltips[section.title] || section.title}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                    {section.content}
+                  </p>
                 </div>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                  {section.content}
-                </p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
