@@ -680,7 +680,7 @@ export function FundamentalsSidebar({ assetId, asset, review }: FundamentalsSide
           <BarChart2 className="w-4 h-4 text-muted-foreground" />
           <h3 className="font-semibold text-sm">Valuation Context</h3>
           <span className="text-[9px] text-muted-foreground bg-muted/50 px-1 py-0.5 rounded">5Y</span>
-          <span className={`text-[8px] px-1.5 py-0.5 rounded ml-auto ${
+          <span className={`text-[8px] px-1.5 py-0.5 rounded ${
             valuationMode === 'EARNINGS_BASED' 
               ? 'bg-emerald-500/20 text-emerald-400' 
               : 'bg-amber-500/20 text-amber-400'
