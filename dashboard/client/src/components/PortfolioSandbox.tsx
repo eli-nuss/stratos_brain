@@ -500,11 +500,46 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
                 <tr>
                   <th className="text-left px-3 py-2 font-medium text-muted-foreground w-8"></th>
                   <th className="text-left px-3 py-2 font-medium text-muted-foreground">Asset</th>
-                  <th className="text-right px-3 py-2 font-medium text-muted-foreground">Weight %</th>
-                  <th className="text-right px-3 py-2 font-medium text-muted-foreground">Target Value</th>
-                  <th className="text-right px-3 py-2 font-medium text-muted-foreground">Price</th>
-                  <th className="text-right px-3 py-2 font-medium text-muted-foreground">Target Qty</th>
-                  <th className="text-left px-3 py-2 font-medium text-muted-foreground">Notes</th>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <th className="text-right px-3 py-2 font-medium text-muted-foreground cursor-help">Weight %</th>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>Target allocation percentage for this asset in your model portfolio. Click to edit.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <th className="text-right px-3 py-2 font-medium text-muted-foreground cursor-help">Target Value</th>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>Dollar amount to hold based on your Core Portfolio value and target weight. Target Value = Core Portfolio × Weight %.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <th className="text-right px-3 py-2 font-medium text-muted-foreground cursor-help">Price</th>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>Current market price from live data. For manual entries, you can set a custom price.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <th className="text-right px-3 py-2 font-medium text-muted-foreground cursor-help">Target Qty</th>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>Number of shares/units to buy to reach your target value. Target Qty = Target Value ÷ Price.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <th className="text-left px-3 py-2 font-medium text-muted-foreground cursor-help">Notes</th>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>Personal notes about this position (thesis, entry criteria, etc.). Click to edit.</p>
+                    </TooltipContent>
+                  </Tooltip>
                   <th className="text-center px-3 py-2 font-medium text-muted-foreground w-20">Actions</th>
                 </tr>
               </thead>
@@ -998,7 +1033,14 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
               <Card>
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">Asset Allocation</CardTitle>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <CardTitle className="text-base cursor-help">Asset Allocation</CardTitle>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p>Adjust target weights for each asset using the sliders. Changes are applied in real-time for what-if analysis. Click "Save Model" to persist changes.</p>
+                      </TooltipContent>
+                    </Tooltip>
                     <div className="text-sm text-muted-foreground">
                       {isEditing && (
                         <Badge variant={draftTotalWeight > 100 ? "destructive" : draftTotalWeight < 100 ? "secondary" : "default"}>
@@ -1114,42 +1156,84 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
             <div className="space-y-4">
               <Card className="border-l-4 border-l-blue-500">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm uppercase text-muted-foreground flex items-center gap-2">
-                    <Shield className="w-4 h-4" />
-                    Risk Metrics
-                  </CardTitle>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <CardTitle className="text-sm uppercase text-muted-foreground flex items-center gap-2 cursor-help">
+                        <Shield className="w-4 h-4" />
+                        Risk Metrics
+                      </CardTitle>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>Key risk indicators for your portfolio. These metrics help you understand the risk profile and potential volatility of your allocation.</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
-                    <div className="text-3xl font-bold text-blue-500">
-                      {(riskMetrics.volatility * 100).toFixed(1)}%
-                    </div>
-                    <div className="text-xs text-muted-foreground">Annualized Volatility</div>
-                  </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="cursor-help">
+                        <div className="text-3xl font-bold text-blue-500">
+                          {(riskMetrics.volatility * 100).toFixed(1)}%
+                        </div>
+                        <div className="text-xs text-muted-foreground">Annualized Volatility</div>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p><strong>Annualized Volatility:</strong> Expected yearly price swing range. 20% volatility means the portfolio could move ±20% in a typical year. Lower is generally less risky.</p>
+                    </TooltipContent>
+                  </Tooltip>
 
                   <div className="pt-4 border-t space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Beta</span>
-                      <span className="font-bold font-mono">{riskMetrics.beta.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Sharpe Ratio</span>
-                      <span className={`font-bold font-mono ${riskMetrics.sharpeRatio > 1 ? 'text-green-500' : 'text-yellow-500'}`}>
-                        {riskMetrics.sharpeRatio.toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Max Drawdown</span>
-                      <span className="font-bold font-mono text-red-500">
-                        {(riskMetrics.maxDrawdown * 100).toFixed(1)}%
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Diversification</span>
-                      <span className={`font-bold font-mono ${riskMetrics.diversificationScore > 0.5 ? 'text-green-500' : 'text-yellow-500'}`}>
-                        {(riskMetrics.diversificationScore * 100).toFixed(0)}%
-                      </span>
-                    </div>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex justify-between text-sm cursor-help">
+                          <span className="text-muted-foreground">Beta</span>
+                          <span className="font-bold font-mono">{riskMetrics.beta.toFixed(2)}</span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p><strong>Beta:</strong> Sensitivity to market movements. β=1.0 moves with the market, β=1.5 is 50% more volatile, β=0.5 is 50% less volatile than the market.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex justify-between text-sm cursor-help">
+                          <span className="text-muted-foreground">Sharpe Ratio</span>
+                          <span className={`font-bold font-mono ${riskMetrics.sharpeRatio > 1 ? 'text-green-500' : 'text-yellow-500'}`}>
+                            {riskMetrics.sharpeRatio.toFixed(2)}
+                          </span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p><strong>Sharpe Ratio:</strong> Risk-adjusted return (excess return per unit of risk). Above 1.0 is good, above 2.0 is excellent. Higher means better return for the risk taken.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex justify-between text-sm cursor-help">
+                          <span className="text-muted-foreground">Max Drawdown</span>
+                          <span className="font-bold font-mono text-red-500">
+                            {(riskMetrics.maxDrawdown * 100).toFixed(1)}%
+                          </span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p><strong>Max Drawdown:</strong> Largest peak-to-trough decline historically. Shows your worst-case scenario. -30% means the portfolio dropped 30% from its high at some point.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex justify-between text-sm cursor-help">
+                          <span className="text-muted-foreground">Diversification</span>
+                          <span className={`font-bold font-mono ${riskMetrics.diversificationScore > 0.5 ? 'text-green-500' : 'text-yellow-500'}`}>
+                            {(riskMetrics.diversificationScore * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p><strong>Diversification Score:</strong> How well your assets are spread across uncorrelated investments. Higher is better. Low scores mean assets tend to move together.</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 </CardContent>
               </Card>

@@ -150,7 +150,14 @@ export function CorrelationMatrix({ holdings, correlationData }: CorrelationMatr
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <BarChart3 className="w-4 h-4" />
-            Correlation Matrix
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-help">Correlation Matrix</span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p>A heatmap showing how assets move together. High correlation means assets rise and fall together, reducing diversification benefits.</p>
+              </TooltipContent>
+            </Tooltip>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -168,7 +175,14 @@ export function CorrelationMatrix({ holdings, correlationData }: CorrelationMatr
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base">
             <BarChart3 className="w-4 h-4" />
-            Correlation Matrix
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-help">Correlation Matrix</span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p>A heatmap showing how assets move together. High correlation means assets rise and fall together, reducing diversification benefits.</p>
+              </TooltipContent>
+            </Tooltip>
           </CardTitle>
           <Tooltip>
             <TooltipTrigger>
@@ -185,18 +199,39 @@ export function CorrelationMatrix({ holdings, correlationData }: CorrelationMatr
       <CardContent className="space-y-4">
         {/* Summary Stats */}
         <div className="grid grid-cols-3 gap-3 text-sm">
-          <div className="p-2 bg-muted/30 rounded">
-            <div className="text-muted-foreground text-xs">Avg Correlation</div>
-            <div className="font-mono font-medium">{(stats.avgCorr * 100).toFixed(0)}%</div>
-          </div>
-          <div className="p-2 bg-muted/30 rounded">
-            <div className="text-muted-foreground text-xs">Max Correlation</div>
-            <div className="font-mono font-medium text-red-500">{(stats.maxCorr * 100).toFixed(0)}%</div>
-          </div>
-          <div className="p-2 bg-muted/30 rounded">
-            <div className="text-muted-foreground text-xs">Min Correlation</div>
-            <div className="font-mono font-medium text-blue-500">{(stats.minCorr * 100).toFixed(0)}%</div>
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="p-2 bg-muted/30 rounded cursor-help">
+                <div className="text-muted-foreground text-xs">Avg Correlation</div>
+                <div className="font-mono font-medium">{(stats.avgCorr * 100).toFixed(0)}%</div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              <p><strong>Average Correlation:</strong> Mean correlation across all asset pairs. Lower is better for diversification. Below 40% is good, below 20% is excellent.</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="p-2 bg-muted/30 rounded cursor-help">
+                <div className="text-muted-foreground text-xs">Max Correlation</div>
+                <div className="font-mono font-medium text-red-500">{(stats.maxCorr * 100).toFixed(0)}%</div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              <p><strong>Maximum Correlation:</strong> The highest correlation between any two assets. Above 80% means those assets move almost identically.</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="p-2 bg-muted/30 rounded cursor-help">
+                <div className="text-muted-foreground text-xs">Min Correlation</div>
+                <div className="font-mono font-medium text-blue-500">{(stats.minCorr * 100).toFixed(0)}%</div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              <p><strong>Minimum Correlation:</strong> The lowest correlation between any two assets. Negative values mean assets move in opposite directions, providing hedge benefits.</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
 
         {/* Matrix Heatmap */}

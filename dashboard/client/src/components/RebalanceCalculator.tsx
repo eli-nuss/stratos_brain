@@ -124,7 +124,14 @@ export function RebalanceCalculator({
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <DollarSign className="w-5 h-5 text-primary" />
-            Rebalance Calculator
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-help">Rebalance Calculator</span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p>Calculates the exact trades needed to align your current holdings with your target model portfolio weights. Shows buy/sell amounts and share counts.</p>
+              </TooltipContent>
+            </Tooltip>
           </CardTitle>
           <div className="flex items-center gap-2">
             <Tooltip>
@@ -150,9 +157,16 @@ export function RebalanceCalculator({
         {/* Cash Input */}
         <div className="flex items-center gap-4 p-3 bg-muted/30 rounded-lg">
           <div className="flex-1">
-            <label htmlFor="cash" className="text-sm font-medium text-muted-foreground">
-              Additional Cash to Invest
-            </label>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <label htmlFor="cash" className="text-sm font-medium text-muted-foreground cursor-help">
+                  Additional Cash to Invest
+                </label>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p>Enter new cash you want to add to your portfolio. The calculator will factor this into the rebalancing trades, prioritizing buys over sells.</p>
+              </TooltipContent>
+            </Tooltip>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-muted-foreground">$</span>
               <Input 
@@ -173,30 +187,51 @@ export function RebalanceCalculator({
 
         {/* Summary Stats */}
         <div className="grid grid-cols-3 gap-4">
-          <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-            <div className="flex items-center gap-1 text-green-600 text-sm">
-              <TrendingUp className="w-4 h-4" />
-              Total Buys
-            </div>
-            <div className="text-lg font-bold font-mono text-green-600">
-              {formatCurrency(totalBuys)}
-            </div>
-          </div>
-          <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-            <div className="flex items-center gap-1 text-red-600 text-sm">
-              <TrendingDown className="w-4 h-4" />
-              Total Sells
-            </div>
-            <div className="text-lg font-bold font-mono text-red-600">
-              {formatCurrency(totalSells)}
-            </div>
-          </div>
-          <div className={`p-3 rounded-lg ${netCashFlow >= 0 ? 'bg-blue-500/10 border border-blue-500/30' : 'bg-orange-500/10 border border-orange-500/30'}`}>
-            <div className="text-sm text-muted-foreground">Net Cash Flow</div>
-            <div className={`text-lg font-bold font-mono ${netCashFlow >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-              {netCashFlow >= 0 ? '+' : ''}{formatCurrency(netCashFlow)}
-            </div>
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg cursor-help">
+                <div className="flex items-center gap-1 text-green-600 text-sm">
+                  <TrendingUp className="w-4 h-4" />
+                  Total Buys
+                </div>
+                <div className="text-lg font-bold font-mono text-green-600">
+                  {formatCurrency(totalBuys)}
+                </div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              <p>Total dollar amount of all buy orders needed to reach your target weights.</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg cursor-help">
+                <div className="flex items-center gap-1 text-red-600 text-sm">
+                  <TrendingDown className="w-4 h-4" />
+                  Total Sells
+                </div>
+                <div className="text-lg font-bold font-mono text-red-600">
+                  {formatCurrency(totalSells)}
+                </div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              <p>Total dollar amount of all sell orders needed to reach your target weights.</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className={`p-3 rounded-lg cursor-help ${netCashFlow >= 0 ? 'bg-blue-500/10 border border-blue-500/30' : 'bg-orange-500/10 border border-orange-500/30'}`}>
+                <div className="text-sm text-muted-foreground">Net Cash Flow</div>
+                <div className={`text-lg font-bold font-mono ${netCashFlow >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+                  {netCashFlow >= 0 ? '+' : ''}{formatCurrency(netCashFlow)}
+                </div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              <p><strong>Net Cash Flow:</strong> Sells minus Buys. Positive means you'll have cash left over after rebalancing. Negative means you need additional cash to complete all trades.</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
 
         {/* Trade Table */}
@@ -204,12 +239,34 @@ export function RebalanceCalculator({
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                <th className="text-left px-3 py-2 font-medium">Action</th>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <th className="text-left px-3 py-2 font-medium cursor-help">Action</th>
+                  </TooltipTrigger>
+                  <TooltipContent>BUY, SELL, or HOLD based on weight difference</TooltipContent>
+                </Tooltip>
                 <th className="text-left px-3 py-2 font-medium">Symbol</th>
-                <th className="text-right px-3 py-2 font-medium">Shares</th>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <th className="text-right px-3 py-2 font-medium cursor-help">Shares</th>
+                  </TooltipTrigger>
+                  <TooltipContent>Number of shares to buy or sell</TooltipContent>
+                </Tooltip>
                 <th className="text-right px-3 py-2 font-medium">Price</th>
-                <th className="text-right px-3 py-2 font-medium">Amount</th>
-                <th className="text-right px-3 py-2 font-medium">Weight Δ</th>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <th className="text-right px-3 py-2 font-medium cursor-help">Amount</th>
+                  </TooltipTrigger>
+                  <TooltipContent>Dollar value of the trade (Shares × Price)</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <th className="text-right px-3 py-2 font-medium cursor-help">Weight Δ</th>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p>Weight change: Current weight → Target weight. Shows how the allocation will shift after executing the trade.</p>
+                  </TooltipContent>
+                </Tooltip>
               </tr>
             </thead>
             <tbody>
