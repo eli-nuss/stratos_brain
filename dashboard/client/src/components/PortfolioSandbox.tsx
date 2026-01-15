@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { 
   Play, Save, X, RotateCcw, AlertTriangle, TrendingUp, 
   Activity, BarChart3, Percent, ChevronDown, ChevronUp,
-  Calculator, Zap, Shield, Plus, Search, Loader2, AlertCircle, DollarSign, Wallet, Brain, Clock, PieChart, AlertTriangle as StressIcon
+  Calculator, Zap, Shield, Plus, Search, Loader2, AlertCircle, DollarSign, Wallet, Brain, Clock, PieChart, AlertTriangle as StressIcon, BookOpen
 } from "lucide-react";
 import { RebalanceCalculator } from "./RebalanceCalculator";
 import { CorrelationMatrix } from "./CorrelationMatrix";
@@ -16,6 +16,7 @@ import { ScenarioSimulator } from "./ScenarioSimulator";
 import { RiskAttribution } from "./RiskAttribution";
 import { TimeTravelBacktester } from "./TimeTravelBacktester";
 import { AIInvestmentCommittee } from "./AIInvestmentCommittee";
+import { RiskMetricsExplainer } from "./RiskMetricsExplainer";
 import useSWR from 'swr';
 import { 
   useModelPortfolioHoldings,
@@ -64,7 +65,7 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
   const { holdings, isLoading: holdingsLoading, mutate } = useModelPortfolioHoldings();
   const { categories, categorySummaries, corePortfolioValue, totalWeight, isLoading } = useModelPortfolioByCategory();
   
-  const [activeTab, setActiveTab] = useState<'holdings' | 'sandbox' | 'rebalance' | 'analytics' | 'ai'>('holdings');
+  const [activeTab, setActiveTab] = useState<'holdings' | 'sandbox' | 'rebalance' | 'analytics' | 'ai' | 'learn'>('holdings');
   const [expandedCategories, setExpandedCategories] = useState<Set<PortfolioCategory>>(
     new Set(CATEGORY_ORDER)
   );
@@ -461,6 +462,10 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
             <TabsTrigger value="ai" className="gap-2">
               <Brain className="w-4 h-4" />
               AI Review
+            </TabsTrigger>
+            <TabsTrigger value="learn" className="gap-2">
+              <BookOpen className="w-4 h-4" />
+              Learn
             </TabsTrigger>
           </TabsList>
 
@@ -1178,8 +1183,11 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
                         <div className="text-xs text-muted-foreground">Annualized Volatility</div>
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      <p><strong>Annualized Volatility:</strong> Expected yearly price swing range. 20% volatility means the portfolio could move ±20% in a typical year. Lower is generally less risky.</p>
+                    <TooltipContent className="max-w-sm">
+                      <p className="font-semibold">Annualized Volatility</p>
+                      <p className="text-xs font-mono bg-muted/50 px-1 rounded my-1">σ_annual = σ_daily × √252</p>
+                      <p className="text-xs">Standard deviation of daily returns, annualized. 20% means the portfolio could swing ±20% in a typical year.</p>
+                      <p className="text-xs mt-1 text-muted-foreground">{'<'}15% low | 15-25% moderate | {'>'}25% high</p>
                     </TooltipContent>
                   </Tooltip>
 
@@ -1191,8 +1199,11 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
                           <span className="font-bold font-mono">{riskMetrics.beta.toFixed(2)}</span>
                         </div>
                       </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <p><strong>Beta:</strong> Sensitivity to market movements. β=1.0 moves with the market, β=1.5 is 50% more volatile, β=0.5 is 50% less volatile than the market.</p>
+                      <TooltipContent className="max-w-sm">
+                        <p className="font-semibold">Beta (β)</p>
+                        <p className="text-xs font-mono bg-muted/50 px-1 rounded my-1">β = Cov(R_p, R_m) / Var(R_m)</p>
+                        <p className="text-xs">Sensitivity to market (SPY). β=1.0 moves with market, β=1.5 is 50% more volatile.</p>
+                        <p className="text-xs mt-1 text-muted-foreground">Weighted avg of individual asset betas</p>
                       </TooltipContent>
                     </Tooltip>
                     <Tooltip>
@@ -1204,8 +1215,11 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
                           </span>
                         </div>
                       </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <p><strong>Sharpe Ratio:</strong> Risk-adjusted return (excess return per unit of risk). Above 1.0 is good, above 2.0 is excellent. Higher means better return for the risk taken.</p>
+                      <TooltipContent className="max-w-sm">
+                        <p className="font-semibold">Sharpe Ratio</p>
+                        <p className="text-xs font-mono bg-muted/50 px-1 rounded my-1">Sharpe = (R_p - R_f) / σ_p</p>
+                        <p className="text-xs">Excess return per unit of risk. R_f = 4.5% (T-bill rate).</p>
+                        <p className="text-xs mt-1 text-muted-foreground">{'<'}1 suboptimal | 1-2 good | {'>'}2 excellent</p>
                       </TooltipContent>
                     </Tooltip>
                     <Tooltip>
@@ -1217,8 +1231,11 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
                           </span>
                         </div>
                       </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <p><strong>Max Drawdown:</strong> Largest peak-to-trough decline historically. Shows your worst-case scenario. -30% means the portfolio dropped 30% from its high at some point.</p>
+                      <TooltipContent className="max-w-sm">
+                        <p className="font-semibold">Maximum Drawdown</p>
+                        <p className="text-xs font-mono bg-muted/50 px-1 rounded my-1">Max DD = max[(Peak - Trough) / Peak]</p>
+                        <p className="text-xs">Largest peak-to-trough decline. Shows worst-case historical scenario.</p>
+                        <p className="text-xs mt-1 text-muted-foreground">-20% normal | -40% severe | -60% catastrophic</p>
                       </TooltipContent>
                     </Tooltip>
                     <Tooltip>
@@ -1230,8 +1247,11 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
                           </span>
                         </div>
                       </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <p><strong>Diversification Score:</strong> How well your assets are spread across uncorrelated investments. Higher is better. Low scores mean assets tend to move together.</p>
+                      <TooltipContent className="max-w-sm">
+                        <p className="font-semibold">Diversification Score</p>
+                        <p className="text-xs font-mono bg-muted/50 px-1 rounded my-1">Score = 1 - Avg(Correlation)</p>
+                        <p className="text-xs">Higher = assets move more independently, reducing overall risk.</p>
+                        <p className="text-xs mt-1 text-muted-foreground">{'<'}30% poor | 30-50% moderate | {'>'}50% good</p>
                       </TooltipContent>
                     </Tooltip>
                   </div>
@@ -1317,6 +1337,11 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
               sharpeRatio: riskMetrics.sharpeRatio,
             }}
           />
+        </TabsContent>
+
+        {/* Learn Tab - How metrics are calculated */}
+        <TabsContent value="learn" className="mt-4">
+          <RiskMetricsExplainer />
         </TabsContent>
       </Tabs>
     </div>
