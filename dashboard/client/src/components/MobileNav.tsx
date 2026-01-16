@@ -13,7 +13,7 @@ import {
   Brain,
   Users,
   StickyNote,
-  LayoutDashboard,
+  Home,
   Star,
   TrendingUp,
   Bitcoin,
@@ -30,29 +30,52 @@ interface MobileNavProps {
   onSearchChange?: (query: string) => void;
 }
 
-// Main navigation links (same as desktop header)
-const mainNavLinks = [
-  { href: '/chat', label: 'Research', icon: MessageSquare },
-  { href: '/brain', label: 'Stratos Brain', icon: Brain },
-  { href: '/smart-money', label: 'Smart Money', icon: Users },
-  { href: '/notes', label: 'Notes', icon: StickyNote },
-  { href: '/memos', label: 'Memos', icon: FileText },
-  { href: '/docs', label: 'Docs', icon: BookOpen },
-  { href: '/todo', label: 'To-Do', icon: CheckSquare },
-  { href: '/admin/templates', label: 'Templates', icon: Settings },
+// Grouped navigation for mobile
+const mobileNavGroups = [
+  {
+    label: 'AI Research',
+    items: [
+      { href: '/chat', label: 'Company Chat', icon: MessageSquare },
+      { href: '/brain', label: 'Stratos Brain', icon: Brain },
+    ]
+  },
+  {
+    label: 'Library',
+    items: [
+      { href: '/notes', label: 'Notes', icon: StickyNote },
+      { href: '/memos', label: 'Memos', icon: FileText },
+      { href: '/docs', label: 'Docs', icon: BookOpen },
+    ]
+  },
+  {
+    label: 'Tools',
+    items: [
+      { href: '/smart-money', label: 'Smart Money', icon: Users },
+      { href: '/todo', label: 'To-Do', icon: CheckSquare },
+      { href: '/admin/templates', label: 'Templates', icon: Settings },
+    ]
+  },
 ];
 
-// Dashboard tabs (for quick access)
+// Dashboard quick access tabs
 const dashboardTabs = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/?tab=watchlist', label: 'Watchlist', icon: Star },
-  { href: '/?tab=equities', label: 'Equities', icon: TrendingUp },
-  { href: '/?tab=crypto', label: 'Crypto', icon: Bitcoin },
-  { href: '/?tab=etfs', label: 'ETFs', icon: Layers },
-  { href: '/?tab=indices', label: 'Indices', icon: BarChart3 },
-  { href: '/?tab=commodities', label: 'Commodities', icon: Package },
-  { href: '/?tab=core-portfolio', label: 'Active Portfolio', icon: Briefcase },
-  { href: '/?tab=model-portfolio', label: 'Model Portfolio', icon: PieChart },
+  { href: '/', label: 'Dashboard', icon: Home },
+  { href: '/watchlist', label: 'Watchlist', icon: Star },
+  { href: '/equities', label: 'Equities', icon: TrendingUp },
+  { href: '/crypto', label: 'Crypto', icon: Bitcoin },
+  { href: '/etfs', label: 'ETFs', icon: Layers },
+  { href: '/indices', label: 'Indices', icon: BarChart3 },
+  { href: '/commodities', label: 'Commodities', icon: Package },
+  { href: '/core-portfolio', label: 'Active Portfolio', icon: Briefcase },
+  { href: '/model-portfolio', label: 'Model Portfolio', icon: PieChart },
+];
+
+// Bottom nav items for quick access (most used features)
+const bottomNavItems = [
+  { href: '/', label: 'Home', icon: Home },
+  { href: '/chat', label: 'Research', icon: MessageSquare },
+  { href: '/brain', label: 'Brain', icon: Brain },
+  { href: '/notes', label: 'Notes', icon: StickyNote },
 ];
 
 export function MobileNav({ searchQuery = '', onSearchChange }: MobileNavProps) {
@@ -63,10 +86,17 @@ export function MobileNav({ searchQuery = '', onSearchChange }: MobileNavProps) 
   const toggleMenu = () => setIsOpen(!isOpen);
   const closeMenu = () => setIsOpen(false);
 
+  // Check if we're on the main dashboard
+  const isMainDashboard = location === "/" || location === "/watchlist" || 
+    location === "/equities" || location === "/crypto" || 
+    location === "/etfs" || location === "/indices" || location === "/commodities" ||
+    location === "/model-portfolio" || location === "/core-portfolio" ||
+    location.startsWith("/list/");
+
   return (
     <>
       {/* Mobile Menu Button - visible only on small screens */}
-      <div className="flex items-center gap-2 sm:hidden">
+      <div className="flex items-center gap-2 md:hidden">
         {/* Search Button */}
         {onSearchChange && (
           <button
@@ -92,7 +122,7 @@ export function MobileNav({ searchQuery = '', onSearchChange }: MobileNavProps) 
       {/* Search Modal Overlay */}
       {showSearch && (
         <div 
-          className="fixed inset-0 bg-black/60 z-[60] sm:hidden animate-in fade-in duration-200"
+          className="fixed inset-0 bg-black/60 z-[60] md:hidden animate-in fade-in duration-200"
           onClick={() => setShowSearch(false)}
         >
           <div 
@@ -123,7 +153,7 @@ export function MobileNav({ searchQuery = '', onSearchChange }: MobileNavProps) 
       {/* Mobile Menu Overlay */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 z-[55] sm:hidden animate-in fade-in duration-200"
+          className="fixed inset-0 bg-black/60 z-[55] md:hidden animate-in fade-in duration-200"
           onClick={closeMenu}
         />
       )}
@@ -131,7 +161,7 @@ export function MobileNav({ searchQuery = '', onSearchChange }: MobileNavProps) 
       {/* Mobile Menu Drawer */}
       <div
         className={cn(
-          'fixed top-0 right-0 h-full w-72 bg-card border-l border-border z-[56] sm:hidden',
+          'fixed top-0 right-0 h-full w-72 bg-card border-l border-border z-[56] md:hidden',
           'transform transition-transform duration-300 ease-out overflow-y-auto',
           isOpen ? 'translate-x-0' : 'translate-x-full'
         )}
@@ -139,8 +169,8 @@ export function MobileNav({ searchQuery = '', onSearchChange }: MobileNavProps) 
         {/* Drawer Header */}
         <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-card z-10">
           <div className="flex items-center gap-2">
-            <Activity className="w-6 h-6 text-primary" />
-            <span className="font-semibold">Menu</span>
+            <Activity className="w-5 h-5 text-primary" />
+            <span className="font-semibold text-sm">STRATOSBRAIN</span>
           </div>
           <button
             onClick={closeMenu}
@@ -151,46 +181,50 @@ export function MobileNav({ searchQuery = '', onSearchChange }: MobileNavProps) 
           </button>
         </div>
 
-        {/* Main Navigation Links */}
-        <div className="p-4">
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-2">
-            Navigation
-          </h3>
-          <nav className="space-y-1">
-            {mainNavLinks.map((link) => {
-              const Icon = link.icon;
-              const isActive = location === link.href;
-              
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={closeMenu}
-                  className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
-                    'min-h-[44px]', // Minimum touch target
-                    isActive
-                      ? 'bg-primary/10 text-primary font-medium'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                  )}
-                >
-                  <Icon className="w-5 h-5 flex-shrink-0" />
-                  <span>{link.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
+        {/* Grouped Navigation */}
+        <div className="p-3">
+          {mobileNavGroups.map((group, groupIndex) => (
+            <div key={group.label} className={cn(groupIndex > 0 && "mt-4")}>
+              <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 px-2">
+                {group.label}
+              </h3>
+              <nav className="space-y-0.5">
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = location === item.href;
+                  
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={closeMenu}
+                      className={cn(
+                        'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
+                        'min-h-[44px]',
+                        isActive
+                          ? 'bg-primary/10 text-primary font-medium'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                      )}
+                    >
+                      <Icon className="w-4 h-4 flex-shrink-0" />
+                      <span className="text-sm">{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+          ))}
         </div>
 
-        {/* Dashboard Tabs Section */}
-        <div className="p-4 border-t border-border">
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-2">
-            Dashboard
+        {/* Dashboard Quick Access */}
+        <div className="p-3 border-t border-border">
+          <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 px-2">
+            Asset Lists
           </h3>
-          <nav className="space-y-1">
+          <nav className="grid grid-cols-2 gap-1">
             {dashboardTabs.map((tab) => {
               const Icon = tab.icon;
-              const isActive = location === '/' && tab.href === '/';
+              const isActive = location === tab.href;
               
               return (
                 <Link
@@ -198,23 +232,64 @@ export function MobileNav({ searchQuery = '', onSearchChange }: MobileNavProps) 
                   href={tab.href}
                   onClick={closeMenu}
                   className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
-                    'min-h-[44px]', // Minimum touch target
+                    'flex items-center gap-2 px-2 py-2 rounded-lg transition-colors',
+                    'min-h-[40px]',
                     isActive
                       ? 'bg-primary/10 text-primary font-medium'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                   )}
                 >
-                  <Icon className="w-5 h-5 flex-shrink-0" />
-                  <span>{tab.label}</span>
+                  <Icon className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="text-xs truncate">{tab.label}</span>
                 </Link>
               );
             })}
           </nav>
         </div>
 
-        {/* Footer spacer */}
-        <div className="h-20" />
+        {/* Footer spacer for bottom nav */}
+        <div className="h-24" />
+      </div>
+
+      {/* Bottom Navigation Bar - Fixed at bottom on mobile */}
+      <div className="fixed bottom-0 left-0 right-0 h-16 bg-card border-t border-border z-[50] md:hidden safe-area-inset-bottom">
+        <nav className="flex items-center justify-around h-full px-2">
+          {bottomNavItems.map((item) => {
+            const Icon = item.icon;
+            // Special handling for Home - active when on dashboard pages
+            const isActive = item.href === '/' 
+              ? isMainDashboard 
+              : location === item.href;
+            
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  'flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg transition-colors min-w-[60px]',
+                  isActive
+                    ? 'text-primary'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <Icon className={cn("w-5 h-5", isActive && "fill-primary/20")} />
+                <span className="text-[10px] font-medium">{item.label}</span>
+              </Link>
+            );
+          })}
+          
+          {/* More button to open drawer */}
+          <button
+            onClick={toggleMenu}
+            className={cn(
+              'flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg transition-colors min-w-[60px]',
+              'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <Menu className="w-5 h-5" />
+            <span className="text-[10px] font-medium">More</span>
+          </button>
+        </nav>
       </div>
     </>
   );
