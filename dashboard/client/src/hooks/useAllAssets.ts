@@ -87,8 +87,8 @@ export function useAllAssets({
     apiFetcher,
     {
       ...defaultSwrConfig,
-      refreshInterval: 60000,
-      keepPreviousData: true,
+      refreshInterval: 120000,     // Refresh every 2 minutes (data doesn't change that fast)
+      keepPreviousData: true,      // Show stale data while revalidating
     }
   );
 

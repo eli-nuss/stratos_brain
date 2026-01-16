@@ -120,15 +120,46 @@ export async function apiFetcher<T = unknown>(url: string): Promise<T> {
 
 /**
  * Default SWR configuration for API hooks
+ * Optimized for snappy performance with stale-while-revalidate pattern
  */
 export const defaultSwrConfig = {
+  // Retry configuration
   errorRetryCount: 3,
   errorRetryInterval: 1000,
-  revalidateOnFocus: true,
-  keepPreviousData: true,
+  
+  // Revalidation settings
+  revalidateOnFocus: false,      // Don't refetch on tab focus (reduces unnecessary requests)
+  revalidateOnReconnect: true,   // Refetch when network reconnects
+  revalidateIfStale: true,       // Revalidate in background if data is stale
+  
+  // Caching settings for snappy UX
+  keepPreviousData: true,        // Show old data while fetching new
+  dedupingInterval: 5000,        // Dedupe requests within 5 seconds
+  focusThrottleInterval: 30000,  // Throttle focus revalidation to 30s
+  
+  // Error handling
   onError: (err: Error, key: string) => {
     console.error(`[SWR] Error fetching ${key}:`, err);
   }
+};
+
+/**
+ * SWR config for data that changes frequently (watchlist, portfolios)
+ */
+export const frequentUpdateSwrConfig = {
+  ...defaultSwrConfig,
+  refreshInterval: 30000,        // Refresh every 30 seconds
+  dedupingInterval: 2000,        // Shorter dedupe for more responsive updates
+};
+
+/**
+ * SWR config for static/slow-changing data (asset metadata, templates)
+ */
+export const staticDataSwrConfig = {
+  ...defaultSwrConfig,
+  revalidateOnFocus: false,
+  revalidateIfStale: false,      // Only revalidate on explicit mutate
+  dedupingInterval: 60000,       // Dedupe for 1 minute
 };
 
 // Export headers for direct use

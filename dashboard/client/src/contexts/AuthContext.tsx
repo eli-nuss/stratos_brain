@@ -16,14 +16,30 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>;
 }
 
-// Clear all SWR cache on auth state change to prevent stale data
-const clearAllCache = () => {
-  console.log('[Auth] Clearing all SWR cache...');
-  // Clear all SWR cache entries
+// Clear only user-specific SWR cache on auth state change
+// This preserves public dashboard data while clearing user-specific data
+const clearUserSpecificCache = () => {
+  console.log('[Auth] Clearing user-specific SWR cache...');
+  
+  // Patterns for user-specific data that should be cleared on auth change
+  const userSpecificPatterns = [
+    '/notes',
+    '/research-notes',
+    '/chats',
+    '/brain-chats',
+    '/table-settings',
+    'company-chat-api',
+    'global-chat-api',
+  ];
+  
+  // Clear only user-specific cache entries
   mutate(
-    () => true, // Match all keys
-    undefined,  // Set data to undefined
-    { revalidate: false } // Don't revalidate immediately
+    (key: string) => {
+      if (typeof key !== 'string') return false;
+      return userSpecificPatterns.some(pattern => key.includes(pattern));
+    },
+    undefined,
+    { revalidate: false }
   );
 };
 
@@ -183,7 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             await updateCachedAuth();
             
             // Clear SWR cache on auth state change to prevent stale data
-            clearAllCache();
+            clearUserSpecificCache();
           }
           
           if (currentSession?.user) {
@@ -293,7 +309,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     // Update cached auth and clear SWR cache
     await updateCachedAuth();
-    clearAllCache();
+    clearUserSpecificCache();
   };
 
   // Shortcut for signInWithGoogle
