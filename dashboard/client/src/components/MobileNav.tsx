@@ -9,7 +9,19 @@ import {
   CheckSquare, 
   Settings,
   Search,
-  Activity
+  Activity,
+  Brain,
+  Users,
+  StickyNote,
+  LayoutDashboard,
+  Star,
+  TrendingUp,
+  Bitcoin,
+  Layers,
+  BarChart3,
+  Package,
+  Briefcase,
+  PieChart
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -18,12 +30,29 @@ interface MobileNavProps {
   onSearchChange?: (query: string) => void;
 }
 
-const navLinks = [
-  { href: '/chat', label: 'Research Chat', icon: MessageSquare },
+// Main navigation links (same as desktop header)
+const mainNavLinks = [
+  { href: '/chat', label: 'Research', icon: MessageSquare },
+  { href: '/brain', label: 'Stratos Brain', icon: Brain },
+  { href: '/smart-money', label: 'Smart Money', icon: Users },
+  { href: '/notes', label: 'Notes', icon: StickyNote },
   { href: '/memos', label: 'Memos', icon: FileText },
-  { href: '/docs', label: 'Documentation', icon: BookOpen },
-  { href: '/todo', label: 'To-Do List', icon: CheckSquare },
+  { href: '/docs', label: 'Docs', icon: BookOpen },
+  { href: '/todo', label: 'To-Do', icon: CheckSquare },
   { href: '/admin/templates', label: 'Templates', icon: Settings },
+];
+
+// Dashboard tabs (for quick access)
+const dashboardTabs = [
+  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/?tab=watchlist', label: 'Watchlist', icon: Star },
+  { href: '/?tab=equities', label: 'Equities', icon: TrendingUp },
+  { href: '/?tab=crypto', label: 'Crypto', icon: Bitcoin },
+  { href: '/?tab=etfs', label: 'ETFs', icon: Layers },
+  { href: '/?tab=indices', label: 'Indices', icon: BarChart3 },
+  { href: '/?tab=commodities', label: 'Commodities', icon: Package },
+  { href: '/?tab=core-portfolio', label: 'Active Portfolio', icon: Briefcase },
+  { href: '/?tab=model-portfolio', label: 'Model Portfolio', icon: PieChart },
 ];
 
 export function MobileNav({ searchQuery = '', onSearchChange }: MobileNavProps) {
@@ -103,12 +132,12 @@ export function MobileNav({ searchQuery = '', onSearchChange }: MobileNavProps) 
       <div
         className={cn(
           'fixed top-0 right-0 h-full w-72 bg-card border-l border-border z-[56] sm:hidden',
-          'transform transition-transform duration-300 ease-out',
+          'transform transition-transform duration-300 ease-out overflow-y-auto',
           isOpen ? 'translate-x-0' : 'translate-x-full'
         )}
       >
         {/* Drawer Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
+        <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-card z-10">
           <div className="flex items-center gap-2">
             <Activity className="w-6 h-6 text-primary" />
             <span className="font-semibold">Menu</span>
@@ -122,43 +151,70 @@ export function MobileNav({ searchQuery = '', onSearchChange }: MobileNavProps) 
           </button>
         </div>
 
-        {/* Navigation Links */}
-        <nav className="p-4 space-y-1">
-          {navLinks.map((link) => {
-            const Icon = link.icon;
-            const isActive = location === link.href;
-            
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={closeMenu}
-                className={cn(
-                  'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors',
-                  'min-h-[48px]', // Minimum touch target
-                  isActive
-                    ? 'bg-primary/10 text-primary font-medium'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                )}
-              >
-                <Icon className="w-5 h-5 flex-shrink-0" />
-                <span>{link.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Footer */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
-          <Link
-            href="/"
-            onClick={closeMenu}
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <Activity className="w-4 h-4" />
-            Back to Dashboard
-          </Link>
+        {/* Main Navigation Links */}
+        <div className="p-4">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-2">
+            Navigation
+          </h3>
+          <nav className="space-y-1">
+            {mainNavLinks.map((link) => {
+              const Icon = link.icon;
+              const isActive = location === link.href;
+              
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={closeMenu}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
+                    'min-h-[44px]', // Minimum touch target
+                    isActive
+                      ? 'bg-primary/10 text-primary font-medium'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  )}
+                >
+                  <Icon className="w-5 h-5 flex-shrink-0" />
+                  <span>{link.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
         </div>
+
+        {/* Dashboard Tabs Section */}
+        <div className="p-4 border-t border-border">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-2">
+            Dashboard
+          </h3>
+          <nav className="space-y-1">
+            {dashboardTabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = location === '/' && tab.href === '/';
+              
+              return (
+                <Link
+                  key={tab.href}
+                  href={tab.href}
+                  onClick={closeMenu}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
+                    'min-h-[44px]', // Minimum touch target
+                    isActive
+                      ? 'bg-primary/10 text-primary font-medium'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  )}
+                >
+                  <Icon className="w-5 h-5 flex-shrink-0" />
+                  <span>{tab.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Footer spacer */}
+        <div className="h-20" />
       </div>
     </>
   );
