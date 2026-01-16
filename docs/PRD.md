@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated:** January 16, 2026  
+**Last Updated:** January 16, 2026 (v1.1 - Auth System Documentation)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -620,6 +620,141 @@ PATCH  /api/dashboard/research-notes/:id/favorite # Toggle favorite status
                                                                                                 ▼
                                                                                             Supabase Database Views
                                                                                             ```
+
+### 9.4 Authentication System
+
+Stratos Brain uses Supabase Auth with Google OAuth for authentication. The system is designed to handle stale auth tokens gracefully and provide a seamless user experience.
+
+#### Authentication Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        AUTHENTICATION FLOW                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  1. User clicks "Sign In"                                                   │
+│         │                                                                   │
+│         ▼                                                                   │
+│  2. Google OAuth (restricted to @stratos.xyz domain)                        │
+│         │                                                                   │
+│         ▼                                                                   │
+│  3. Supabase creates session with JWT access token                          │
+│         │                                                                   │
+│         ▼                                                                   │
+│  4. AuthContext caches user ID and access token                             │
+│         │                                                                   │
+│         ▼                                                                   │
+│  5. API requests include JWT in Authorization header                        │
+│         │                                                                   │
+│         ▼                                                                   │
+│  6. Backend validates JWT and extracts user_id                              │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Key Files
+
+| File | Purpose |
+|------|--------|
+| `contexts/AuthContext.tsx` | React context providing auth state and methods |
+| `lib/api-config.ts` | API configuration with auth headers and stale auth recovery |
+| `lib/supabase.ts` | Supabase client initialization |
+| `components/StaleAuthHandler.tsx` | UI feedback for stale auth events |
+| `pages/AuthCallback.tsx` | OAuth callback handler |
+
+#### Authentication Methods
+
+The backend (`control-api`) supports three authentication methods:
+
+1. **JWT (Supabase Auth)**: `Authorization: Bearer <user_jwt>`
+   - Used by authenticated browser clients
+   - Provides user_id for user-specific data filtering
+
+2. **API Key (scripts/n8n)**: `x-stratos-key: <STRATOS_BRAIN_API_KEY>`
+   - Used by automated scripts and n8n workflows
+   - Full access to all endpoints
+
+3. **Supabase Anon Key**: `apikey: <SUPABASE_ANON_KEY>`
+   - Used by unauthenticated browser clients
+   - Access to public endpoints only
+
+#### Stale Auth Detection & Recovery
+
+The system automatically detects and recovers from stale authentication tokens:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     STALE AUTH RECOVERY FLOW                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  1. API request returns 401/403 error                                       │
+│         │                                                                   │
+│         ▼                                                                   │
+│  2. Increment auth error counter                                            │
+│         │                                                                   │
+│         ▼                                                                   │
+│  3. If 3+ errors within 10 seconds:                                         │
+│         │                                                                   │
+│         ├──▶ Try to refresh Supabase session token                          │
+│         │         │                                                         │
+│         │         ├──▶ Success: Retry original request                      │
+│         │         │                                                         │
+│         │         └──▶ Failure: Clear stale auth data                       │
+│         │                   │                                               │
+│         │                   ▼                                               │
+│         │             Clear localStorage (sb-* keys)                        │
+│         │                   │                                               │
+│         │                   ▼                                               │
+│         │             Sign out user                                         │
+│         │                   │                                               │
+│         │                   ▼                                               │
+│         │             Show "Session Expired" toast                          │
+│         │                   │                                               │
+│         │                   ▼                                               │
+│         │             Reload page                                           │
+│         │                                                                   │
+│         └──▶ If < 3 errors: Return empty data (graceful degradation)        │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Implementation Details
+
+**api-config.ts** handles:
+- Auth token caching (`cachedUserId`, `cachedAccessToken`)
+- Auth error tracking (`authErrorCount`, `lastAuthErrorTime`)
+- Automatic token refresh (`forceRefreshToken()`)
+- Stale auth clearing (`clearStaleAuth()`)
+- Request retry after token refresh
+
+**StaleAuthHandler.tsx** provides:
+- Listens for `stale-auth-cleared` custom event
+- Shows toast notification when session expires
+- Provides `useClearStaleAuth()` hook for manual recovery
+
+#### Best Practices for Auth-Related Changes
+
+1. **Always use the cached auth helpers**:
+   ```typescript
+   import { getApiHeaders, getCachedUserId, hasAuthToken } from '@/lib/api-config';
+   ```
+
+2. **Handle auth errors gracefully**:
+   - Return empty arrays instead of throwing for 401/403 errors
+   - Let the stale auth recovery system handle token refresh
+
+3. **User-specific data filtering**:
+   - Always filter by `user_id` on the backend for user-specific tables
+   - Use `getUserIdFromRequest()` helper in edge functions
+
+4. **SWR cache management**:
+   - Use `clearUserSpecificCache()` when auth state changes
+   - Don't clear public data cache on auth changes
+
+5. **Testing auth changes**:
+   - Test with fresh browser session
+   - Test with expired tokens (wait for token expiry)
+   - Test sign-in/sign-out transitions
 
                                                                                             ---
 
