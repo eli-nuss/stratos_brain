@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { FileText, ExternalLink, Loader2, ChevronDown, ChevronUp, Sparkles, Download, BookOpen } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { getApiHeaders } from '@/lib/api-config';
+import { API_BASE, getApiHeaders } from '@/lib/api-config';
 
 interface AssetFile {
   file_id: number;
@@ -21,7 +21,7 @@ interface InlineDocumentViewerProps {
 
 type DocumentType = 'one_pager' | 'memo' | 'deep_research';
 
-const API_BASE = '/api';
+// API_BASE is now imported from api-config
 
 export function InlineOnePager({ assetId, symbol }: InlineDocumentViewerProps) {
   const [activeTab, setActiveTab] = useState<DocumentType>('one_pager');

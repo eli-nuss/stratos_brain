@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { FileText, ChevronDown, ChevronUp, ExternalLink, Loader2, Clock, CheckCircle, BookOpen, RefreshCw } from 'lucide-react';
-import { getApiHeaders, getJsonApiHeaders } from '@/lib/api-config';
+import { API_BASE, getApiHeaders, getJsonApiHeaders } from '@/lib/api-config';
 
 interface AssetFile {
   file_id: number;
@@ -45,7 +45,7 @@ interface JobStatus {
   error?: string;
 }
 
-const API_BASE = '/api';
+// API_BASE is now imported from api-config
 
 export function DocumentsSection({ assetId, symbol, companyName, assetType, onOpenChat }: DocumentsSectionProps) {
   const [onePagers, setOnePagers] = useState<AssetFile[]>([]);
