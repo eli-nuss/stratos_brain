@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated:** January 14, 2026  
+**Last Updated:** January 16, 2026  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -343,6 +343,7 @@
                                                                                             |-------|---------|-------------|
                                                                                             | `user_profiles` | User profile data | `user_id`, `email`, `display_name` |
                                                                                             | `user_preferences` | User settings | `user_id`, `preference_key`, `preference_value` |
+                                                                                            | `user_table_settings` | User-specific table column/sort/filter settings | `id`, `user_id`, `table_key`, `visible_columns`, `column_order`, `column_widths`, `sort_by`, `sort_order`, `secondary_sort_by`, `secondary_sort_order`, `filters` |
                                                                                             | `user_activity` | Activity tracking | `activity_id`, `user_id`, `action`, `timestamp` |
                                                                                             | `feedback_items` | User feedback | `feedback_id`, `user_id`, `feedback_type`, `content` |
                                                                                          
@@ -382,6 +383,26 @@
 - `general` - General notes not tied to a specific context
 - `asset` - Notes for a specific asset (context_id = asset_id)
 - `stock_list` - Notes for a custom stock list (context_id = list_id)
+
+### 5.14 User-Specific vs Shared Data
+
+**User-Specific Data (requires authentication):**
+| Data Type | Table | Description |
+|-----------|-------|-------------|
+| Asset Notes | `asset_notes` | Quick notes on individual assets (user_id column) |
+| Research Notes | `research_notes` | Context-aware research notes |
+| Company Chats | `company_chats` | AI chat sessions for specific companies |
+| Brain Chats | `brain_chats` | Global AI assistant chat sessions |
+| Table Settings | `user_table_settings` | Column visibility, order, widths, sorting, and filters |
+
+**Shared Data (accessible to all authenticated users):**
+| Data Type | Table | Description |
+|-----------|-------|-------------|
+| Watchlist | `watchlist` | Shared watchlist of assets |
+| Model Portfolio | `model_portfolio_holdings` | Paper trading portfolio |
+| Core Portfolio | `core_portfolio_holdings` | Real holdings tracking |
+| Stock Lists | `stock_lists`, `stock_list_items` | Custom thematic/subsector lists |
+| Asset Tags | `asset_tags` | Asset categorization (interesting, maybe, no) |
 
                                                                                             ### 5.13 Token & Crypto Tables
                                                                                          
