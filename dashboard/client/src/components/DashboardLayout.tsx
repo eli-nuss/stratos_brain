@@ -97,7 +97,7 @@ export default function DashboardLayout({
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-background">
       {/* Header */}
-      <header className="flex-none h-[52px] border-b border-border bg-card/80 backdrop-blur-sm z-50 flex items-center px-4 gap-3">
+      <header className="flex-none h-[52px] border-b border-border bg-card/80 backdrop-blur-sm z-50 flex items-center px-2 md:px-4 gap-2 md:gap-3">
         {/* Left: Logo + Home + Nav */}
         <div className="flex items-center gap-2">
           {/* Logo */}
@@ -217,10 +217,13 @@ export default function DashboardLayout({
           </nav>
         </div>
 
-        {/* Center: Command Bar */}
-        <div className="flex-1 flex justify-center max-w-md mx-auto">
+        {/* Center: Command Bar - hidden on mobile, use bottom nav search instead */}
+        <div className="hidden md:flex flex-1 justify-center max-w-md mx-auto">
           <CommandBar className="w-full" />
         </div>
+
+        {/* Spacer for mobile to push right items to the end */}
+        <div className="flex-1 md:hidden" />
 
         {/* Right: Status + User + Admin */}
         <div className="flex items-center gap-2 shrink-0">

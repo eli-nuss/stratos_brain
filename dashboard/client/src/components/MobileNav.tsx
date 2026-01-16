@@ -75,7 +75,6 @@ const bottomNavItems = [
   { href: '/', label: 'Home', icon: Home },
   { href: '/chat', label: 'Research', icon: MessageSquare },
   { href: '/brain', label: 'Brain', icon: Brain },
-  { href: '/notes', label: 'Notes', icon: StickyNote },
 ];
 
 export function MobileNav({ searchQuery = '', onSearchChange }: MobileNavProps) {
@@ -95,20 +94,9 @@ export function MobileNav({ searchQuery = '', onSearchChange }: MobileNavProps) 
 
   return (
     <>
-      {/* Mobile Menu Button - visible only on small screens */}
-      <div className="flex items-center gap-2 md:hidden">
-        {/* Search Button */}
-        {onSearchChange && (
-          <button
-            onClick={() => setShowSearch(true)}
-            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-            aria-label="Search"
-          >
-            <Search className="w-5 h-5" />
-          </button>
-        )}
-        
-        {/* Hamburger Button */}
+      {/* Mobile Menu Button - visible only on small screens (in header) */}
+      <div className="flex items-center gap-1 md:hidden">
+        {/* Only show hamburger in header - search is in bottom nav */}
         <button
           onClick={toggleMenu}
           className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
@@ -277,6 +265,18 @@ export function MobileNav({ searchQuery = '', onSearchChange }: MobileNavProps) 
               </Link>
             );
           })}
+          
+          {/* Search button */}
+          <button
+            onClick={() => setShowSearch(true)}
+            className={cn(
+              'flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg transition-colors min-w-[60px]',
+              'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <Search className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Search</span>
+          </button>
           
           {/* More button to open drawer */}
           <button
