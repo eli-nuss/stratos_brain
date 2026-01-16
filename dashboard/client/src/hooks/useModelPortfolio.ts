@@ -1,14 +1,11 @@
 import useSWR from 'swr';
+import { apiFetcher, apiPost, apiDelete, apiPatch } from '@/lib/api-config';
 
 const API_BASE = '';
 
-const fetcher = async (url: string) => {
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`API error: ${res.status}`);
-  }
-  const data = await res.json();
-  // Ensure we always return an array
+// Wrapper to ensure array return
+const arrayFetcher = async (url: string) => {
+  const data = await apiFetcher(url);
   return Array.isArray(data) ? data : [];
 };
 
@@ -22,7 +19,7 @@ export interface ModelPortfolioItem {
 export function useModelPortfolio() {
   const { data, error, isLoading, mutate } = useSWR<ModelPortfolioItem[]>(
     `${API_BASE}/api/dashboard/model-portfolio`,
-    fetcher
+    arrayFetcher
   );
 
   // Ensure data is always an array before mapping
@@ -31,19 +28,11 @@ export function useModelPortfolio() {
 
   const addToModelPortfolio = async (assetId: number, options?: { target_weight?: number; notes?: string }) => {
     try {
-      const response = await fetch(`${API_BASE}/api/dashboard/model-portfolio`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          asset_id: assetId,
-          target_weight: options?.target_weight,
-          notes: options?.notes
-        })
+      await apiPost(`${API_BASE}/api/dashboard/model-portfolio`, { 
+        asset_id: assetId,
+        target_weight: options?.target_weight,
+        notes: options?.notes
       });
-      
-      if (!response.ok) {
-        throw new Error('Failed to add to model portfolio');
-      }
       
       // Optimistically update the cache
       mutate([...safeData, { 
@@ -62,13 +51,7 @@ export function useModelPortfolio() {
 
   const removeFromModelPortfolio = async (assetId: number) => {
     try {
-      const response = await fetch(`${API_BASE}/api/dashboard/model-portfolio/${assetId}`, {
-        method: 'DELETE'
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to remove from model portfolio');
-      }
+      await apiDelete(`${API_BASE}/api/dashboard/model-portfolio/${assetId}`);
       
       // Optimistically update the cache
       mutate(safeData.filter(item => item.asset_id !== assetId), false);
@@ -82,15 +65,7 @@ export function useModelPortfolio() {
 
   const updateModelPortfolioItem = async (assetId: number, updates: { target_weight?: number; notes?: string }) => {
     try {
-      const response = await fetch(`${API_BASE}/api/dashboard/model-portfolio/${assetId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates)
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update model portfolio item');
-      }
+      await apiPatch(`${API_BASE}/api/dashboard/model-portfolio/${assetId}`, updates);
       
       // Refresh the cache
       mutate();
@@ -129,7 +104,7 @@ export function useModelPortfolio() {
 export function useModelPortfolioAssets() {
   const { data, error, isLoading, mutate } = useSWR(
     `${API_BASE}/api/dashboard/model-portfolio/assets`,
-    fetcher
+    arrayFetcher
   );
 
   // Ensure assets is always an array

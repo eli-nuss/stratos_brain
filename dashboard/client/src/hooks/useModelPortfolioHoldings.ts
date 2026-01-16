@@ -1,12 +1,9 @@
 import useSWR from "swr";
+import { apiFetcher } from "@/lib/api-config";
 
-const fetcher = async (url: string) => {
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`API error: ${res.status}`);
-  }
-  const data = await res.json();
-  // Ensure we always return an array
+// Wrapper to ensure array return
+const arrayFetcher = async (url: string) => {
+  const data = await apiFetcher(url);
   return Array.isArray(data) ? data : [];
 };
 
@@ -79,7 +76,7 @@ export interface UpdateHoldingInput {
 export function useCorePortfolioValue() {
   const { data, error, isLoading } = useSWR<CorePortfolioHolding[]>(
     "/api/dashboard/core-portfolio-holdings",
-    fetcher
+    arrayFetcher
   );
 
   const holdings = Array.isArray(data) ? data : [];
@@ -96,7 +93,7 @@ export function useCorePortfolioValue() {
 export function useModelPortfolioHoldings() {
   const { data, error, isLoading, mutate } = useSWR<ModelPortfolioHolding[]>(
     "/api/dashboard/model-portfolio-holdings",
-    fetcher
+    arrayFetcher
   );
 
   // Ensure holdings is always an array

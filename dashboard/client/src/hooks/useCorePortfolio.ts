@@ -1,14 +1,11 @@
 import useSWR from 'swr';
+import { apiFetcher, apiPost, apiDelete, apiPatch } from '@/lib/api-config';
 
 const API_BASE = '';
 
-const fetcher = async (url: string) => {
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`API error: ${res.status}`);
-  }
-  const data = await res.json();
-  // Ensure we always return an array
+// Wrapper to ensure array return
+const arrayFetcher = async (url: string) => {
+  const data = await apiFetcher(url);
   return Array.isArray(data) ? data : [];
 };
 
@@ -22,7 +19,7 @@ export interface CorePortfolioItem {
 export function useCorePortfolio() {
   const { data, error, isLoading, mutate } = useSWR<CorePortfolioItem[]>(
     `${API_BASE}/api/dashboard/core-portfolio`,
-    fetcher
+    arrayFetcher
   );
 
   // Ensure data is always an array before mapping
@@ -31,19 +28,11 @@ export function useCorePortfolio() {
 
   const addToCorePortfolio = async (assetId: number, options?: { target_weight?: number; notes?: string }) => {
     try {
-      const response = await fetch(`${API_BASE}/api/dashboard/core-portfolio`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          asset_id: assetId,
-          target_weight: options?.target_weight,
-          notes: options?.notes
-        })
+      await apiPost(`${API_BASE}/api/dashboard/core-portfolio`, { 
+        asset_id: assetId,
+        target_weight: options?.target_weight,
+        notes: options?.notes
       });
-      
-      if (!response.ok) {
-        throw new Error('Failed to add to core portfolio');
-      }
       
       // Optimistically update the cache
       mutate([...safeData, { 
@@ -62,13 +51,7 @@ export function useCorePortfolio() {
 
   const removeFromCorePortfolio = async (assetId: number) => {
     try {
-      const response = await fetch(`${API_BASE}/api/dashboard/core-portfolio/${assetId}`, {
-        method: 'DELETE'
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to remove from core portfolio');
-      }
+      await apiDelete(`${API_BASE}/api/dashboard/core-portfolio/${assetId}`);
       
       // Optimistically update the cache
       mutate(safeData.filter(item => item.asset_id !== assetId), false);
@@ -82,15 +65,7 @@ export function useCorePortfolio() {
 
   const updateCorePortfolioItem = async (assetId: number, updates: { target_weight?: number; notes?: string }) => {
     try {
-      const response = await fetch(`${API_BASE}/api/dashboard/core-portfolio/${assetId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates)
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update core portfolio item');
-      }
+      await apiPatch(`${API_BASE}/api/dashboard/core-portfolio/${assetId}`, updates);
       
       // Refresh the cache
       mutate();
@@ -129,7 +104,7 @@ export function useCorePortfolio() {
 export function useCorePortfolioAssets() {
   const { data, error, isLoading, mutate } = useSWR(
     `${API_BASE}/api/dashboard/core-portfolio/assets`,
-    fetcher
+    arrayFetcher
   );
 
   // Ensure assets is always an array
@@ -147,7 +122,7 @@ export function useCorePortfolioAssets() {
 export function useCorePortfolioHoldingsCheck() {
   const { data, error, isLoading, mutate } = useSWR(
     `${API_BASE}/api/dashboard/core-portfolio-holdings`,
-    fetcher
+    arrayFetcher
   );
 
   const safeData = Array.isArray(data) ? data : [];
@@ -163,19 +138,11 @@ export function useCorePortfolioHoldingsCheck() {
         category = 'equities';
       }
 
-      const response = await fetch(`${API_BASE}/api/dashboard/core-portfolio-holdings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          asset_id: assetId,
-          category,
-          quantity: 0
-        })
+      await apiPost(`${API_BASE}/api/dashboard/core-portfolio-holdings`, { 
+        asset_id: assetId,
+        category,
+        quantity: 0
       });
-      
-      if (!response.ok) {
-        throw new Error('Failed to add to core holdings');
-      }
       
       mutate();
       return true;
@@ -191,13 +158,7 @@ export function useCorePortfolioHoldingsCheck() {
       const holding = safeData.find(h => h.asset_id === assetId);
       if (!holding) return false;
 
-      const response = await fetch(`${API_BASE}/api/dashboard/core-portfolio-holdings/${holding.id}`, {
-        method: 'DELETE'
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to remove from core holdings');
-      }
+      await apiDelete(`${API_BASE}/api/dashboard/core-portfolio-holdings/${holding.id}`);
       
       mutate();
       return true;

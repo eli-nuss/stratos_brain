@@ -1,12 +1,9 @@
 import useSWR from "swr";
+import { apiFetcher, apiPost, apiPatch, apiDelete } from "@/lib/api-config";
 
-const fetcher = async (url: string) => {
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`API error: ${res.status}`);
-  }
-  const data = await res.json();
-  // Ensure we always return an array
+// Wrapper to ensure array return
+const arrayFetcher = async (url: string) => {
+  const data = await apiFetcher(url);
   return Array.isArray(data) ? data : [];
 };
 
@@ -94,7 +91,7 @@ export interface UpdateHoldingInput {
 export function useCorePortfolioHoldings() {
   const { data, error, isLoading, mutate } = useSWR<CorePortfolioHolding[]>(
     "/api/dashboard/core-portfolio-holdings",
-    fetcher
+    arrayFetcher
   );
 
   // Ensure holdings is always an array
@@ -183,43 +180,17 @@ export function useCorePortfolioByCategory() {
 
 // Add a new holding
 export async function addHolding(input: AddHoldingInput): Promise<CorePortfolioHolding> {
-  const response = await fetch("/api/dashboard/core-portfolio-holdings", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-  });
-  
-  if (!response.ok) {
-    throw new Error("Failed to add holding");
-  }
-  
-  return response.json();
+  return apiPost("/api/dashboard/core-portfolio-holdings", input);
 }
 
 // Update an existing holding
 export async function updateHolding(input: UpdateHoldingInput): Promise<CorePortfolioHolding> {
-  const response = await fetch(`/api/dashboard/core-portfolio-holdings/${input.id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-  });
-  
-  if (!response.ok) {
-    throw new Error("Failed to update holding");
-  }
-  
-  return response.json();
+  return apiPatch(`/api/dashboard/core-portfolio-holdings/${input.id}`, input);
 }
 
 // Remove a holding (soft delete)
 export async function removeHolding(id: number): Promise<void> {
-  const response = await fetch(`/api/dashboard/core-portfolio-holdings/${id}`, {
-    method: "DELETE",
-  });
-  
-  if (!response.ok) {
-    throw new Error("Failed to remove holding");
-  }
+  return apiDelete(`/api/dashboard/core-portfolio-holdings/${id}`);
 }
 
 // Add holding from existing asset

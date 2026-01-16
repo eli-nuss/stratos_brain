@@ -76,3 +76,71 @@ export const defaultSwrConfig = {
     console.error(`[SWR] Error fetching ${key}:`, err);
   }
 };
+
+// Export headers for direct use
+export const API_HEADERS = getApiHeaders();
+
+/**
+ * POST request helper
+ */
+export async function apiPost<T = unknown>(url: string, body: unknown): Promise<T> {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: getJsonApiHeaders(),
+    body: JSON.stringify(body),
+  });
+  
+  if (!response.ok) {
+    throw new Error(`API POST Error: ${response.status}`);
+  }
+  
+  return response.json();
+}
+
+/**
+ * PUT request helper
+ */
+export async function apiPut<T = unknown>(url: string, body: unknown): Promise<T> {
+  const response = await fetch(url, {
+    method: 'PUT',
+    headers: getJsonApiHeaders(),
+    body: JSON.stringify(body),
+  });
+  
+  if (!response.ok) {
+    throw new Error(`API PUT Error: ${response.status}`);
+  }
+  
+  return response.json();
+}
+
+/**
+ * PATCH request helper
+ */
+export async function apiPatch<T = unknown>(url: string, body: unknown): Promise<T> {
+  const response = await fetch(url, {
+    method: 'PATCH',
+    headers: getJsonApiHeaders(),
+    body: JSON.stringify(body),
+  });
+  
+  if (!response.ok) {
+    throw new Error(`API PATCH Error: ${response.status}`);
+  }
+  
+  return response.json();
+}
+
+/**
+ * DELETE request helper
+ */
+export async function apiDelete(url: string): Promise<void> {
+  const response = await fetch(url, {
+    method: 'DELETE',
+    headers: getApiHeaders(),
+  });
+  
+  if (!response.ok) {
+    throw new Error(`API DELETE Error: ${response.status}`);
+  }
+}
