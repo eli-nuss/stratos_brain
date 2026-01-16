@@ -61,10 +61,21 @@ export default function FloatingNotepad() {
   const [isSaving, setIsSaving] = useState(false);
   const [showSaved, setShowSaved] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef<{ startX: number; startY: number; initialX: number; initialY: number } | null>(null);
   const contentRef = useRef<HTMLTextAreaElement>(null);
+
+  // Check if mobile on mount and resize
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640); // sm breakpoint
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Update local state when note changes
   useEffect(() => {
@@ -77,11 +88,13 @@ export default function FloatingNotepad() {
 
   // Initialize position on mount - taller panel
   useEffect(() => {
-    setPosition({
-      x: window.innerWidth - 440,
-      y: window.innerHeight - 620
-    });
-  }, []);
+    if (!isMobile) {
+      setPosition({
+        x: window.innerWidth - 440,
+        y: window.innerHeight - 620
+      });
+    }
+  }, [isMobile]);
 
   // Save note
   const handleSave = async () => {
@@ -142,8 +155,9 @@ export default function FloatingNotepad() {
     }
   };
 
-  // Drag handling
+  // Drag handling (desktop only)
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (isMobile) return;
     if ((e.target as HTMLElement).closest('button, input, textarea, a')) return;
     
     setIsDragging(true);
@@ -156,7 +170,7 @@ export default function FloatingNotepad() {
   };
 
   useEffect(() => {
-    if (!isDragging) return;
+    if (!isDragging || isMobile) return;
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!dragRef.current) return;
@@ -182,7 +196,7 @@ export default function FloatingNotepad() {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging]);
+  }, [isDragging, isMobile]);
 
   // Don't render if user is not logged in
   if (!user) return null;
@@ -194,9 +208,11 @@ export default function FloatingNotepad() {
     <button
       onClick={() => openNotepad(currentContext || { type: 'general' })}
       className={cn(
-        "fixed bottom-6 right-20 z-50 p-3 rounded-full shadow-lg transition-all",
+        "fixed z-50 rounded-full shadow-lg transition-all",
         "bg-amber-500 text-white hover:bg-amber-600",
         "hover:scale-105 active:scale-95",
+        // Mobile: smaller, adjusted position
+        "bottom-4 right-16 p-2.5 sm:bottom-6 sm:right-20 sm:p-3",
         isOpen && "hidden"
       )}
       title="Open Notepad"
@@ -205,190 +221,250 @@ export default function FloatingNotepad() {
     </button>
   );
 
-  // Notepad panel - Elegant Agenda/Ulysses inspired design
+  // Mobile: Full screen sheet from bottom
+  // Desktop: Floating panel with drag support
   const notepadPanel = isOpen && (
-    <div
-      style={{
-        position: 'fixed',
-        left: isExpanded ? 0 : position.x,
-        top: isExpanded ? 0 : position.y,
-        width: isExpanded ? '100%' : 420,
-        height: isExpanded ? '100%' : 580,
-        zIndex: 9999,
-      }}
-      className={cn(
-        "flex flex-col overflow-hidden",
-        "bg-zinc-900/95 backdrop-blur-xl",
-        "border border-zinc-700/50",
-        "shadow-2xl shadow-black/50",
-        isExpanded ? "rounded-none" : "rounded-2xl",
-        isDragging && "cursor-grabbing"
+    <>
+      {/* Backdrop for mobile */}
+      {isMobile && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-[9998] animate-in fade-in duration-200"
+          onClick={closeNotepad}
+        />
       )}
-    >
-      {/* Header - Minimal and elegant */}
-      <div 
-        className="flex items-center justify-between px-5 py-4 cursor-grab select-none"
-        onMouseDown={handleMouseDown}
+      
+      <div
+        style={!isMobile && !isExpanded ? {
+          position: 'fixed',
+          left: position.x,
+          top: position.y,
+          width: 420,
+          height: 580,
+          zIndex: 9999,
+        } : undefined}
+        className={cn(
+          "flex flex-col overflow-hidden",
+          "bg-zinc-900/95 backdrop-blur-xl",
+          "border border-zinc-700/50",
+          "shadow-2xl shadow-black/50",
+          
+          // Mobile styles - full width sheet from bottom
+          isMobile && [
+            "fixed inset-x-0 bottom-0 z-[9999]",
+            "h-[85vh] max-h-[85vh]",
+            "rounded-t-2xl border-b-0",
+            "animate-in slide-in-from-bottom duration-300"
+          ],
+          
+          // Desktop expanded
+          !isMobile && isExpanded && [
+            "fixed inset-0 z-[9999]",
+            "rounded-none"
+          ],
+          
+          // Desktop floating
+          !isMobile && !isExpanded && "rounded-2xl",
+          
+          isDragging && "cursor-grabbing"
+        )}
       >
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className={cn("p-2 rounded-lg bg-zinc-800/80", contextColor)}>
-            <ContextIcon type={currentContext?.type || 'general'} className="w-4 h-4" />
+        {/* Mobile drag handle */}
+        {isMobile && (
+          <div className="flex justify-center py-3 cursor-grab" onClick={closeNotepad}>
+            <div className="w-10 h-1 bg-zinc-600 rounded-full" />
           </div>
-          <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-zinc-100 truncate">
-              {getContextLabel(currentContext?.type || 'general', currentContext?.name)}
-            </h3>
-            <p className="text-[11px] text-zinc-500">
-              {note?.updated_at ? `Last edited ${formatNoteDateFull(note.updated_at)}` : 'New note'}
-            </p>
-          </div>
-        </div>
-        
-        {/* Status indicator */}
-        <div className="flex items-center gap-2">
-          {(hasUnsavedChanges || isSaving || showSaved) && (
-            <span className={cn(
-              "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all",
-              isSaving ? "bg-amber-500/20 text-amber-400" :
-              showSaved ? "bg-emerald-500/20 text-emerald-400" :
-              "bg-zinc-700/50 text-zinc-400"
-            )}>
-              {isSaving ? (
-                <>
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  Saving...
-                </>
-              ) : showSaved ? (
-                <>
-                  <Check className="w-3 h-3" />
-                  Saved
-                </>
-              ) : (
-                "Editing"
-              )}
-            </span>
+        )}
+
+        {/* Header - Minimal and elegant */}
+        <div 
+          className={cn(
+            "flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4",
+            !isMobile && "cursor-grab select-none"
           )}
-        </div>
-      </div>
-
-      {/* Toolbar - Subtle divider */}
-      <div className="flex items-center justify-between px-5 py-2 border-y border-zinc-800/80">
-        <div className="flex items-center gap-1">
-          <button
-            onClick={handleToggleFavorite}
-            className={cn(
-              "p-2 rounded-lg transition-all",
-              note?.is_favorite
-                ? "text-amber-400 bg-amber-500/15 hover:bg-amber-500/25"
-                : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/80"
+          onMouseDown={handleMouseDown}
+        >
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className={cn("p-2 rounded-lg bg-zinc-800/80", contextColor)}>
+              <ContextIcon type={currentContext?.type || 'general'} className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold text-zinc-100 truncate">
+                {getContextLabel(currentContext?.type || 'general', currentContext?.name)}
+              </h3>
+              <p className="text-[11px] text-zinc-500 hidden sm:block">
+                {note?.updated_at ? `Last edited ${formatNoteDateFull(note.updated_at)}` : 'New note'}
+              </p>
+            </div>
+          </div>
+          
+          {/* Status indicator */}
+          <div className="flex items-center gap-2">
+            {(hasUnsavedChanges || isSaving || showSaved) && (
+              <span className={cn(
+                "flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-medium transition-all",
+                isSaving ? "bg-amber-500/20 text-amber-400" :
+                showSaved ? "bg-emerald-500/20 text-emerald-400" :
+                "bg-zinc-700/50 text-zinc-400"
+              )}>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span className="hidden sm:inline">Saving...</span>
+                  </>
+                ) : showSaved ? (
+                  <>
+                    <Check className="w-3 h-3" />
+                    <span className="hidden sm:inline">Saved</span>
+                  </>
+                ) : (
+                  <span className="hidden sm:inline">Editing</span>
+                )}
+              </span>
             )}
-            title={note?.is_favorite ? "Remove from favorites" : "Add to favorites"}
-          >
-            <Star className={cn("w-4 h-4", note?.is_favorite && "fill-current")} />
-          </button>
-          <Link href="/notes">
-            <a 
-              className="p-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/80 transition-all"
-              title="View all notes"
-              onClick={closeNotepad}
+          </div>
+        </div>
+
+        {/* Toolbar - Subtle divider */}
+        <div className="flex items-center justify-between px-4 sm:px-5 py-2 border-y border-zinc-800/80">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleToggleFavorite}
+              className={cn(
+                "p-2 rounded-lg transition-all min-h-[44px] min-w-[44px] flex items-center justify-center",
+                note?.is_favorite
+                  ? "text-amber-400 bg-amber-500/15 hover:bg-amber-500/25"
+                  : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/80"
+              )}
+              title={note?.is_favorite ? "Remove from favorites" : "Add to favorites"}
             >
-              <ExternalLink className="w-4 h-4" />
-            </a>
-          </Link>
+              <Star className={cn("w-4 h-4", note?.is_favorite && "fill-current")} />
+            </button>
+            <Link href="/notes">
+              <a 
+                className="p-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/80 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
+                title="View all notes"
+                onClick={closeNotepad}
+              >
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            </Link>
+          </div>
+          <div className="flex items-center gap-1">
+            {/* Expand/minimize - desktop only */}
+            {!isMobile && (
+              <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="p-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/80 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
+                title={isExpanded ? "Minimize" : "Maximize"}
+              >
+                {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              </button>
+            )}
+            <button
+              onClick={closeNotepad}
+              className="p-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/80 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
+              title="Close (Esc)"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="p-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/80 transition-all"
-            title={isExpanded ? "Minimize" : "Maximize"}
-          >
-            {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-          </button>
-          <button
-            onClick={closeNotepad}
-            className="p-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/80 transition-all"
-            title="Close (Esc)"
-          >
-            <X className="w-4 h-4" />
-          </button>
+
+        {/* Content */}
+        {isLoading ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="w-6 h-6 animate-spin text-zinc-500" />
+              <span className="text-sm text-zinc-500">Loading note...</span>
+            </div>
+          </div>
+        ) : note ? (
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Title Input - Large and prominent */}
+            <div className="px-4 sm:px-5 pt-4 sm:pt-5 pb-2">
+              <input
+                type="text"
+                value={editTitle}
+                onChange={(e) => {
+                  setEditTitle(e.target.value);
+                  setHasUnsavedChanges(true);
+                }}
+                placeholder="Note title..."
+                className={cn(
+                  "w-full text-lg sm:text-xl font-semibold tracking-tight",
+                  "bg-transparent border-none focus:outline-none",
+                  "text-zinc-100 placeholder:text-zinc-600",
+                  "selection:bg-amber-500/30"
+                )}
+              />
+            </div>
+
+            {/* Editor - Clean writing area */}
+            <div className="flex-1 overflow-hidden px-4 sm:px-5 pb-4 sm:pb-5">
+              <textarea
+                ref={contentRef}
+                value={editContent}
+                onChange={(e) => {
+                  setEditContent(e.target.value);
+                  setHasUnsavedChanges(true);
+                }}
+                placeholder="Start writing..."
+                className={cn(
+                  "w-full h-full",
+                  "bg-transparent border-none focus:outline-none resize-none",
+                  "text-[15px] sm:text-[15px] leading-[1.7] sm:leading-[1.8] tracking-wide",
+                  "text-zinc-300 placeholder:text-zinc-600",
+                  "selection:bg-amber-500/30",
+                  // Custom scrollbar
+                  "scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent"
+                )}
+                style={{
+                  fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                }}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <StickyNote className="w-10 h-10 mx-auto mb-3 text-zinc-600" />
+              <p className="text-sm text-zinc-500">Unable to load note</p>
+            </div>
+          </div>
+        )}
+
+        {/* Footer - Keyboard hint (desktop only) */}
+        <div className="px-4 sm:px-5 py-3 border-t border-zinc-800/80 bg-zinc-900/50">
+          <div className="flex items-center justify-between text-[11px] text-zinc-600">
+            {/* Mobile: show last updated */}
+            {isMobile ? (
+              <span className="text-zinc-500">
+                {note?.updated_at ? `Updated ${formatNoteDateFull(note.updated_at)}` : ''}
+              </span>
+            ) : (
+              <span>
+                Press <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded text-zinc-400 font-mono">⌘S</kbd> to save
+              </span>
+            )}
+            {!isMobile && (
+              <span>
+                <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded text-zinc-400 font-mono">Esc</kbd> to close
+              </span>
+            )}
+            {/* Mobile: manual save button */}
+            {isMobile && hasUnsavedChanges && (
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="px-3 py-1.5 bg-amber-500 text-white text-xs font-medium rounded-lg"
+              >
+                {isSaving ? 'Saving...' : 'Save'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
-
-      {/* Content */}
-      {isLoading ? (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="w-6 h-6 animate-spin text-zinc-500" />
-            <span className="text-sm text-zinc-500">Loading note...</span>
-          </div>
-        </div>
-      ) : note ? (
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Title Input - Large and prominent */}
-          <div className="px-5 pt-5 pb-2">
-            <input
-              type="text"
-              value={editTitle}
-              onChange={(e) => {
-                setEditTitle(e.target.value);
-                setHasUnsavedChanges(true);
-              }}
-              placeholder="Note title..."
-              className={cn(
-                "w-full text-xl font-semibold tracking-tight",
-                "bg-transparent border-none focus:outline-none",
-                "text-zinc-100 placeholder:text-zinc-600",
-                "selection:bg-amber-500/30"
-              )}
-            />
-          </div>
-
-          {/* Editor - Clean writing area */}
-          <div className="flex-1 overflow-hidden px-5 pb-5">
-            <textarea
-              ref={contentRef}
-              value={editContent}
-              onChange={(e) => {
-                setEditContent(e.target.value);
-                setHasUnsavedChanges(true);
-              }}
-              placeholder="Start writing..."
-              className={cn(
-                "w-full h-full",
-                "bg-transparent border-none focus:outline-none resize-none",
-                "text-[15px] leading-[1.8] tracking-wide",
-                "text-zinc-300 placeholder:text-zinc-600",
-                "selection:bg-amber-500/30",
-                // Custom scrollbar
-                "scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent"
-              )}
-              style={{
-                fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-              }}
-            />
-          </div>
-        </div>
-      ) : (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <StickyNote className="w-10 h-10 mx-auto mb-3 text-zinc-600" />
-            <p className="text-sm text-zinc-500">Unable to load note</p>
-          </div>
-        </div>
-      )}
-
-      {/* Footer - Keyboard hint */}
-      <div className="px-5 py-3 border-t border-zinc-800/80 bg-zinc-900/50">
-        <div className="flex items-center justify-between text-[11px] text-zinc-600">
-          <span>
-            Press <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded text-zinc-400 font-mono">⌘S</kbd> to save
-          </span>
-          <span>
-            <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded text-zinc-400 font-mono">Esc</kbd> to close
-          </span>
-        </div>
-      </div>
-    </div>
+    </>
   );
 
   return createPortal(

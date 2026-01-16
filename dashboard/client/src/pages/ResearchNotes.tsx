@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
   FileText, Plus, Star, Trash2, Search, X, 
-  Loader2, Save, Building2, List, Filter, StickyNote
+  Loader2, Save, Building2, List, StickyNote, ChevronLeft
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,14 +24,13 @@ import {
 } from '@/hooks/useResearchNotes';
 import AssetSearchDropdown from '@/components/AssetSearchDropdown';
 import { cn } from '@/lib/utils';
-import { Link } from 'wouter';
 
 // Context type filter options
-const contextFilters: { value: NoteContextType | 'all'; label: string; icon: React.ReactNode }[] = [
-  { value: 'all', label: 'All Notes', icon: <StickyNote className="w-3.5 h-3.5" /> },
-  { value: 'general', label: 'General', icon: <FileText className="w-3.5 h-3.5" /> },
-  { value: 'asset', label: 'Assets', icon: <Building2 className="w-3.5 h-3.5" /> },
-  { value: 'stock_list', label: 'Lists', icon: <List className="w-3.5 h-3.5" /> },
+const contextFilters: { value: NoteContextType | 'all'; label: string; shortLabel: string; icon: React.ReactNode }[] = [
+  { value: 'all', label: 'All Notes', shortLabel: 'All', icon: <StickyNote className="w-3.5 h-3.5" /> },
+  { value: 'general', label: 'General', shortLabel: 'Gen', icon: <FileText className="w-3.5 h-3.5" /> },
+  { value: 'asset', label: 'Assets', shortLabel: 'Asset', icon: <Building2 className="w-3.5 h-3.5" /> },
+  { value: 'stock_list', label: 'Lists', shortLabel: 'List', icon: <List className="w-3.5 h-3.5" /> },
 ];
 
 export default function ResearchNotes() {
@@ -46,6 +45,7 @@ export default function ResearchNotes() {
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showMobileEditor, setShowMobileEditor] = useState(false);
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
 
@@ -90,6 +90,7 @@ export default function ResearchNotes() {
     try {
       const newNote = await createResearchNote(user.id, 'Untitled Note', '', false, 'general');
       setSelectedNoteId(newNote.id);
+      setShowMobileEditor(true);
       mutate();
       // Focus the title input after creation
       setTimeout(() => titleRef.current?.select(), 100);
@@ -127,6 +128,7 @@ export default function ResearchNotes() {
       await deleteResearchNote(noteId);
       if (selectedNoteId === noteId) {
         setSelectedNoteId(null);
+        setShowMobileEditor(false);
       }
       mutate();
     } catch (error) {
@@ -169,6 +171,20 @@ export default function ResearchNotes() {
     }
   };
 
+  // Handle note selection (with mobile navigation)
+  const handleSelectNote = (noteId: number) => {
+    setSelectedNoteId(noteId);
+    setShowMobileEditor(true);
+  };
+
+  // Handle back button on mobile
+  const handleMobileBack = () => {
+    if (hasUnsavedChanges) {
+      handleSaveNote();
+    }
+    setShowMobileEditor(false);
+  };
+
   // Auto-save on blur or after delay
   useEffect(() => {
     if (!hasUnsavedChanges) return;
@@ -201,7 +217,7 @@ export default function ResearchNotes() {
     return (
       <DashboardLayout hideNavTabs>
         <div className="flex items-center justify-center h-[calc(100vh-52px)]">
-          <div className="text-center">
+          <div className="text-center px-4">
             <StickyNote className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
             <h2 className="text-lg font-semibold mb-2">Sign in to view your notes</h2>
             <p className="text-sm text-muted-foreground">
@@ -217,18 +233,23 @@ export default function ResearchNotes() {
     <DashboardLayout hideNavTabs>
       <div className="flex h-[calc(100vh-52px)]">
         {/* Sidebar - Note List */}
-        <div className="w-80 border-r border-border flex flex-col bg-card/50">
+        <div className={cn(
+          "flex flex-col bg-card/50 border-r border-border",
+          // Mobile: full width when editor is hidden, hidden when editor is shown
+          "w-full md:w-80",
+          showMobileEditor && "hidden md:flex"
+        )}>
           {/* Header */}
-          <div className="p-4 border-b border-border">
+          <div className="p-3 sm:p-4 border-b border-border">
             <div className="flex items-center justify-between mb-3">
-              <h1 className="text-lg font-semibold flex items-center gap-2">
+              <h1 className="text-base sm:text-lg font-semibold flex items-center gap-2">
                 <StickyNote className="w-5 h-5 text-primary" />
                 Notes Library
               </h1>
               <button
                 onClick={handleCreateNote}
                 disabled={isCreating}
-                className="p-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                className="p-2 sm:p-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center"
               >
                 {isCreating ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -246,12 +267,12 @@ export default function ResearchNotes() {
                 placeholder="Search notes..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-8 py-2 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full pl-8 pr-8 py-2.5 sm:py-2 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -265,14 +286,15 @@ export default function ResearchNotes() {
                   key={filter.value}
                   onClick={() => setContextFilter(filter.value)}
                   className={cn(
-                    "flex items-center gap-1 px-2 py-1 text-xs rounded-md transition-colors",
+                    "flex items-center gap-1 px-2 py-1.5 sm:py-1 text-xs rounded-md transition-colors min-h-[36px] sm:min-h-0",
                     contextFilter === filter.value
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {filter.icon}
-                  {filter.label}
+                  <span className="hidden sm:inline">{filter.label}</span>
+                  <span className="sm:hidden">{filter.shortLabel}</span>
                 </button>
               ))}
             </div>
@@ -285,7 +307,7 @@ export default function ResearchNotes() {
                 <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
               </div>
             ) : filteredNotes.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
+              <div className="text-center py-8 text-muted-foreground px-4">
                 <StickyNote className="w-8 h-8 mx-auto mb-2 opacity-50" />
                 <p className="text-sm">
                   {searchQuery || contextFilter !== 'all' ? 'No notes found' : 'No notes yet'}
@@ -306,7 +328,7 @@ export default function ResearchNotes() {
                     key={note.id}
                     note={note}
                     isSelected={selectedNoteId === note.id}
-                    onClick={() => setSelectedNoteId(note.id)}
+                    onClick={() => handleSelectNote(note.id)}
                     onDelete={() => handleDeleteNote(note.id)}
                     onToggleFavorite={() => handleToggleFavorite(note.id, note.is_favorite)}
                   />
@@ -322,12 +344,24 @@ export default function ResearchNotes() {
         </div>
 
         {/* Main Content - Note Editor */}
-        <div className="flex-1 flex flex-col bg-background">
+        <div className={cn(
+          "flex-1 flex flex-col bg-background",
+          // Mobile: full width when shown, hidden when list is shown
+          !showMobileEditor && "hidden md:flex"
+        )}>
           {selectedNote ? (
             <>
               {/* Editor Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-                <div className="flex items-center gap-3 flex-1">
+              <div className="flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 border-b border-border gap-2">
+                {/* Mobile back button */}
+                <button
+                  onClick={handleMobileBack}
+                  className="md:hidden p-2 -ml-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                
+                <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                   <input
                     ref={titleRef}
                     type="text"
@@ -338,13 +372,13 @@ export default function ResearchNotes() {
                     }}
                     onBlur={handleSaveNote}
                     placeholder="Note title..."
-                    className="text-xl font-semibold bg-transparent border-none focus:outline-none flex-1"
+                    className="text-base sm:text-xl font-semibold bg-transparent border-none focus:outline-none flex-1 min-w-0"
                   />
                 </div>
-                <div className="flex items-center gap-2">
-                  {/* Context badge */}
+                <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+                  {/* Context badge - hidden on mobile */}
                   <span className={cn(
-                    "flex items-center gap-1 px-2 py-1 text-xs rounded-md",
+                    "hidden sm:flex items-center gap-1 px-2 py-1 text-xs rounded-md",
                     selectedNote.context_type === 'asset' ? "bg-blue-500/10 text-blue-500" :
                     selectedNote.context_type === 'stock_list' ? "bg-purple-500/10 text-purple-500" :
                     "bg-muted text-muted-foreground"
@@ -355,14 +389,17 @@ export default function ResearchNotes() {
                     {selectedNote.context_name || getContextTypeLabel(selectedNote.context_type)}
                   </span>
                   
+                  {/* Unsaved indicator - hidden on mobile */}
                   {hasUnsavedChanges && (
-                    <span className="text-xs text-muted-foreground">Unsaved changes</span>
+                    <span className="hidden sm:inline text-xs text-muted-foreground">Unsaved</span>
                   )}
+                  
+                  {/* Save button */}
                   <button
                     onClick={handleSaveNote}
                     disabled={!hasUnsavedChanges || isSaving}
                     className={cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md transition-colors",
+                      "flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-xs rounded-md transition-colors min-h-[36px]",
                       hasUnsavedChanges
                         ? "bg-primary text-primary-foreground hover:bg-primary/90"
                         : "bg-muted text-muted-foreground"
@@ -373,12 +410,14 @@ export default function ResearchNotes() {
                     ) : (
                       <Save className="w-3.5 h-3.5" />
                     )}
-                    Save
+                    <span className="hidden sm:inline">Save</span>
                   </button>
+                  
+                  {/* Favorite button */}
                   <button
                     onClick={() => handleToggleFavorite(selectedNote.id, selectedNote.is_favorite)}
                     className={cn(
-                      "p-1.5 rounded-md transition-colors",
+                      "p-2 sm:p-1.5 rounded-md transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center",
                       selectedNote.is_favorite
                         ? "text-yellow-500 bg-yellow-500/10"
                         : "text-muted-foreground hover:text-yellow-500 hover:bg-muted"
@@ -389,11 +428,26 @@ export default function ResearchNotes() {
                 </div>
               </div>
 
+              {/* Mobile context badge */}
+              <div className="sm:hidden px-3 py-2 border-b border-border">
+                <span className={cn(
+                  "inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md",
+                  selectedNote.context_type === 'asset' ? "bg-blue-500/10 text-blue-500" :
+                  selectedNote.context_type === 'stock_list' ? "bg-purple-500/10 text-purple-500" :
+                  "bg-muted text-muted-foreground"
+                )}>
+                  {selectedNote.context_type === 'asset' ? <Building2 className="w-3 h-3" /> :
+                   selectedNote.context_type === 'stock_list' ? <List className="w-3 h-3" /> :
+                   <FileText className="w-3 h-3" />}
+                  {selectedNote.context_name || getContextTypeLabel(selectedNote.context_type)}
+                </span>
+              </div>
+
               {/* Linked Assets (only show for general notes) */}
               {selectedNote.context_type === 'general' && (
-                <div className="px-6 py-3 border-b border-border bg-muted/30">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <div className="px-3 sm:px-6 py-3 border-b border-border bg-muted/30">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
                       <Building2 className="w-3.5 h-3.5" />
                       Linked Companies:
                     </div>
@@ -416,7 +470,7 @@ export default function ResearchNotes() {
               )}
 
               {/* Content Editor */}
-              <div className="flex-1 overflow-y-auto p-6">
+              <div className="flex-1 overflow-y-auto p-3 sm:p-6">
                 <textarea
                   ref={contentRef}
                   value={editContent}
@@ -432,18 +486,18 @@ You can use this space to:
 • List key points and observations
 • Write conclusions and investment theses
 • Compare companies in a sector"
-                  className="w-full h-full min-h-[400px] bg-transparent border-none focus:outline-none resize-none text-sm leading-relaxed"
+                  className="w-full h-full min-h-[300px] sm:min-h-[400px] bg-transparent border-none focus:outline-none resize-none text-sm leading-relaxed"
                 />
               </div>
 
               {/* Footer */}
-              <div className="px-6 py-2 border-t border-border text-xs text-muted-foreground">
+              <div className="px-3 sm:px-6 py-2 border-t border-border text-xs text-muted-foreground">
                 Last updated: {formatNoteDateFull(selectedNote.updated_at)}
               </div>
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center text-muted-foreground">
-              <div className="text-center">
+              <div className="text-center px-4">
                 <StickyNote className="w-12 h-12 mx-auto mb-3 opacity-30" />
                 <p className="text-sm">Select a note or create a new one</p>
                 <button
@@ -480,7 +534,7 @@ function NoteListItem({
     <div
       onClick={onClick}
       className={cn(
-        "px-4 py-3 cursor-pointer transition-colors border-l-2 group",
+        "px-3 sm:px-4 py-3 cursor-pointer transition-colors border-l-2 group active:bg-muted/70",
         isSelected
           ? "bg-primary/10 border-l-primary"
           : "border-l-transparent hover:bg-muted/50"
@@ -499,7 +553,7 @@ function NoteListItem({
               {note.content}
             </p>
           )}
-          <div className="flex items-center gap-2 mt-2">
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
             <span className="text-[10px] text-muted-foreground">
               {formatNoteDate(note.updated_at)}
             </span>
@@ -513,33 +567,34 @@ function NoteListItem({
               {note.context_type === 'asset' ? <Building2 className="w-2.5 h-2.5" /> :
                note.context_type === 'stock_list' ? <List className="w-2.5 h-2.5" /> :
                <FileText className="w-2.5 h-2.5" />}
-              {note.context_name || getContextTypeLabel(note.context_type)}
+              <span className="hidden sm:inline">{note.context_name || getContextTypeLabel(note.context_type)}</span>
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {/* Actions - always visible on mobile, hover on desktop */}
+        <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
           <button
             onClick={(e) => {
               e.stopPropagation();
               onToggleFavorite();
             }}
             className={cn(
-              "p-1 rounded transition-colors",
+              "p-2 sm:p-1 rounded transition-colors min-h-[36px] min-w-[36px] sm:min-h-0 sm:min-w-0 flex items-center justify-center",
               note.is_favorite
                 ? "text-yellow-500"
                 : "text-muted-foreground hover:text-yellow-500"
             )}
           >
-            <Star className={cn("w-3.5 h-3.5", note.is_favorite && "fill-current")} />
+            <Star className={cn("w-4 h-4 sm:w-3.5 sm:h-3.5", note.is_favorite && "fill-current")} />
           </button>
           <button
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
             }}
-            className="p-1 rounded text-muted-foreground hover:text-destructive transition-colors"
+            className="p-2 sm:p-1 rounded text-muted-foreground hover:text-destructive transition-colors min-h-[36px] min-w-[36px] sm:min-h-0 sm:min-w-0 flex items-center justify-center"
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <Trash2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
           </button>
         </div>
       </div>
@@ -556,7 +611,7 @@ function AssetTag({
   onRemove: () => void;
 }) {
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-1 bg-muted rounded-md text-xs group">
+    <span className="inline-flex items-center gap-1 px-2 py-1.5 sm:py-1 bg-muted rounded-md text-xs group">
       <span
         className={cn(
           "text-[9px] px-1 py-0.5 rounded font-medium",
@@ -570,7 +625,7 @@ function AssetTag({
       <span className="font-mono font-medium">{asset.symbol}</span>
       <button
         onClick={onRemove}
-        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
+        className="ml-1 text-muted-foreground hover:text-destructive transition-all p-1 -mr-1"
       >
         <X className="w-3 h-3" />
       </button>
