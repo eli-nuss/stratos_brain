@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
@@ -7,25 +8,43 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { NotepadProvider } from "./contexts/NoteContext";
 import FloatingNotepad from "./components/FloatingNotepad";
-import Home from "./pages/Home";
-import Documentation from "./pages/Documentation";
-import TemplateEditor from "./pages/TemplateEditor";
-import MemoLibrary from "./pages/MemoLibrary";
-import MemoViewer from "./pages/MemoViewer";
-import CompanyChat from "./pages/CompanyChat";
-import TodoList from "./pages/TodoList";
-import StratosBrain from "./pages/StratosBrain";
-import InvestorWatchlist from "./pages/InvestorWatchlist";
-import ResearchNotes from "./pages/ResearchNotes";
+import { PageLoader } from "./components/PageLoader";
+import LazyErrorBoundary from "./components/LazyErrorBoundary";
 import { AuthCallback } from "./pages/AuthCallback";
 import FeedbackButton from "./components/FeedbackButton";
 import { VersionCheck } from "./components/VersionCheck";
 import { StaleAuthHandler } from "./components/StaleAuthHandler";
 
+// Critical path - load immediately (most visited pages)
+import Home from "./pages/Home";
+
+// Lazy load less frequently accessed pages
+// These will be loaded on-demand when the user navigates to them
+const Documentation = lazy(() => import("./pages/Documentation"));
+const TemplateEditor = lazy(() => import("./pages/TemplateEditor"));
+const MemoLibrary = lazy(() => import("./pages/MemoLibrary"));
+const MemoViewer = lazy(() => import("./pages/MemoViewer"));
+const CompanyChat = lazy(() => import("./pages/CompanyChat"));
+const TodoList = lazy(() => import("./pages/TodoList"));
+const StratosBrain = lazy(() => import("./pages/StratosBrain"));
+const InvestorWatchlist = lazy(() => import("./pages/InvestorWatchlist"));
+const ResearchNotes = lazy(() => import("./pages/ResearchNotes"));
+
+// Wrapper component for lazy-loaded pages with error boundary
+function LazyPage({ component: Component }: { component: React.ComponentType }) {
+  return (
+    <LazyErrorBoundary>
+      <Suspense fallback={<PageLoader />}>
+        <Component />
+      </Suspense>
+    </LazyErrorBoundary>
+  );
+}
 
 function Router() {
   return (
     <Switch>
+      {/* Critical path routes - Home component handles all dashboard views */}
       <Route path={"/"} component={Home} />
       <Route path={"/watchlist"} component={Home} />
       <Route path={"/model-portfolio"} component={Home} />
@@ -37,19 +56,56 @@ function Router() {
       <Route path={"/commodities"} component={Home} />
       <Route path={"/list/:listId"} component={Home} />
       <Route path={"/asset/:assetId"} component={Home} />
-      <Route path={"/docs"} component={Documentation} />
-      <Route path={"/admin/templates"} component={TemplateEditor} />
-      <Route path={"/memos"} component={MemoLibrary} />
-      <Route path={"/memo/:id"} component={MemoViewer} />
-      <Route path={"/chat"} component={CompanyChat} />
-      <Route path={"/chat/:chatId"} component={CompanyChat} />
-      <Route path={"/brain"} component={StratosBrain} />
-      <Route path={"/smart-money"} component={InvestorWatchlist} />
-      <Route path={"/todo"} component={TodoList} />
-      <Route path={"/notes"} component={ResearchNotes} />
+      
+      {/* Auth callback - needs to be fast */}
       <Route path={"/auth/callback"} component={AuthCallback} />
+      
+      {/* Lazy-loaded routes */}
+      <Route path={"/docs"}>
+        <LazyPage component={Documentation} />
+      </Route>
+      <Route path={"/admin/templates"}>
+        <LazyPage component={TemplateEditor} />
+      </Route>
+      <Route path={"/memos"}>
+        <LazyPage component={MemoLibrary} />
+      </Route>
+      <Route path={"/memo/:id"}>
+        {(params) => (
+          <LazyErrorBoundary>
+            <Suspense fallback={<PageLoader />}>
+              <MemoViewer />
+            </Suspense>
+          </LazyErrorBoundary>
+        )}
+      </Route>
+      <Route path={"/chat"}>
+        <LazyPage component={CompanyChat} />
+      </Route>
+      <Route path={"/chat/:chatId"}>
+        {(params) => (
+          <LazyErrorBoundary>
+            <Suspense fallback={<PageLoader />}>
+              <CompanyChat />
+            </Suspense>
+          </LazyErrorBoundary>
+        )}
+      </Route>
+      <Route path={"/brain"}>
+        <LazyPage component={StratosBrain} />
+      </Route>
+      <Route path={"/smart-money"}>
+        <LazyPage component={InvestorWatchlist} />
+      </Route>
+      <Route path={"/todo"}>
+        <LazyPage component={TodoList} />
+      </Route>
+      <Route path={"/notes"}>
+        <LazyPage component={ResearchNotes} />
+      </Route>
+      
+      {/* 404 routes */}
       <Route path={"/404"} component={NotFound} />
-      {/* Final fallback route */}
       <Route component={NotFound} />
     </Switch>
   );
