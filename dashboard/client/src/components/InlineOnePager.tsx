@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { FileText, ExternalLink, Loader2, ChevronDown, ChevronUp, Sparkles, Download, BookOpen } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { getApiHeaders } from '@/lib/api-config';
 
 interface AssetFile {
   file_id: number;
@@ -20,7 +21,7 @@ interface InlineDocumentViewerProps {
 
 type DocumentType = 'one_pager' | 'memo' | 'deep_research';
 
-const API_BASE = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/control-api';
+const API_BASE = '/api';
 
 export function InlineOnePager({ assetId, symbol }: InlineDocumentViewerProps) {
   const [activeTab, setActiveTab] = useState<DocumentType>('one_pager');
@@ -131,7 +132,9 @@ export function InlineOnePager({ assetId, symbol }: InlineDocumentViewerProps) {
   const fetchDocuments = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/dashboard/files/${assetId}`);
+      const response = await fetch(`${API_BASE}/dashboard/files/${assetId}`, {
+        headers: getApiHeaders(),
+      });
       const data = await response.json();
       const files: AssetFile[] = data.files || [];
       

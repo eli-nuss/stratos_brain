@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { FileText, ChevronDown, ChevronUp, ExternalLink, Loader2, Clock, CheckCircle, BookOpen, RefreshCw } from 'lucide-react';
+import { getApiHeaders, getJsonApiHeaders } from '@/lib/api-config';
 
 interface AssetFile {
   file_id: number;
@@ -44,7 +45,7 @@ interface JobStatus {
   error?: string;
 }
 
-const API_BASE = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1';
+const API_BASE = '/api';
 
 export function DocumentsSection({ assetId, symbol, companyName, assetType, onOpenChat }: DocumentsSectionProps) {
   const [onePagers, setOnePagers] = useState<AssetFile[]>([]);
@@ -71,7 +72,9 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
 
   const fetchDocuments = async () => {
     try {
-      const response = await fetch(`${API_BASE}/control-api/dashboard/files/${assetId}`);
+      const response = await fetch(`${API_BASE}/dashboard/files/${assetId}`, {
+        headers: getApiHeaders(),
+      });
       const data = await response.json();
       const files: AssetFile[] = data.files || [];
       
@@ -98,7 +101,9 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
   const pollJobStatus = async (jobId: string, onUpdate: (job: JobStatus) => void, onComplete: (job: JobStatus) => void) => {
     const poll = async () => {
       try {
-        const response = await fetch(`${API_BASE}/control-api/dashboard/job-status/${jobId}`);
+        const response = await fetch(`${API_BASE}/dashboard/job-status/${jobId}`, {
+          headers: getApiHeaders(),
+        });
         const job: JobStatus = await response.json();
         
         if (job.status === 'completed') {
@@ -133,9 +138,9 @@ export function DocumentsSection({ assetId, symbol, companyName, assetType, onOp
     });
 
     try {
-      const response = await fetch(`${API_BASE}/control-api/dashboard/create-document`, {
+      const response = await fetch(`${API_BASE}/dashboard/create-document`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getJsonApiHeaders(),
         body: JSON.stringify({
           symbol,
           asset_id: assetId,

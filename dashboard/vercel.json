@@ -21,6 +21,10 @@
       "destination": "https://wfogbaipiqootjrsprde.supabase.co/functions/v1/investor-api/:path*"
     },
     {
+      "source": "/api/feedback",
+      "destination": "https://wfogbaipiqootjrsprde.supabase.co/functions/v1/feedback-api"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
