@@ -4,7 +4,8 @@
  * Contains the authentication headers needed for Supabase Edge Functions
  */
 
-export const API_BASE = '/api';
+// Use direct Supabase URL since Vercel rewrites don't forward auth headers
+export const API_BASE = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/control-api';
 
 // Supabase anon key for API authentication
 export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indmb2diYWlwaXFvb3RqcnNwcmRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxOTQ4NDQsImV4cCI6MjA4MTc3MDg0NH0.DWjb0nVian7a9njxbGR9VjAsWQuWuHI375PgEHH1TRw';
@@ -34,9 +35,17 @@ export function getJsonApiHeaders(): HeadersInit {
 
 /**
  * Enhanced fetcher for SWR hooks with auth headers
+ * Converts /api/dashboard paths to direct Supabase URLs
  */
 export async function apiFetcher<T = unknown>(url: string): Promise<T> {
-  const response = await fetch(url, {
+  // Convert /api/dashboard paths to direct Supabase URL
+  const fullUrl = url.startsWith('/api/dashboard') 
+    ? url.replace('/api/dashboard', API_BASE + '/dashboard')
+    : url.startsWith('/api/')
+    ? url.replace('/api/', API_BASE + '/')
+    : url;
+  
+  const response = await fetch(fullUrl, {
     headers: getApiHeaders(),
   });
   
@@ -84,7 +93,14 @@ export const API_HEADERS = getApiHeaders();
  * POST request helper
  */
 export async function apiPost<T = unknown>(url: string, body: unknown): Promise<T> {
-  const response = await fetch(url, {
+  // Convert /api/dashboard paths to direct Supabase URL
+  const fullUrl = url.startsWith('/api/dashboard') 
+    ? url.replace('/api/dashboard', API_BASE + '/dashboard')
+    : url.startsWith('/api/')
+    ? url.replace('/api/', API_BASE + '/')
+    : url;
+  
+  const response = await fetch(fullUrl, {
     method: 'POST',
     headers: getJsonApiHeaders(),
     body: JSON.stringify(body),
@@ -101,7 +117,14 @@ export async function apiPost<T = unknown>(url: string, body: unknown): Promise<
  * PUT request helper
  */
 export async function apiPut<T = unknown>(url: string, body: unknown): Promise<T> {
-  const response = await fetch(url, {
+  // Convert /api/dashboard paths to direct Supabase URL
+  const fullUrl = url.startsWith('/api/dashboard') 
+    ? url.replace('/api/dashboard', API_BASE + '/dashboard')
+    : url.startsWith('/api/')
+    ? url.replace('/api/', API_BASE + '/')
+    : url;
+  
+  const response = await fetch(fullUrl, {
     method: 'PUT',
     headers: getJsonApiHeaders(),
     body: JSON.stringify(body),
@@ -118,7 +141,14 @@ export async function apiPut<T = unknown>(url: string, body: unknown): Promise<T
  * PATCH request helper
  */
 export async function apiPatch<T = unknown>(url: string, body: unknown): Promise<T> {
-  const response = await fetch(url, {
+  // Convert /api/dashboard paths to direct Supabase URL
+  const fullUrl = url.startsWith('/api/dashboard') 
+    ? url.replace('/api/dashboard', API_BASE + '/dashboard')
+    : url.startsWith('/api/')
+    ? url.replace('/api/', API_BASE + '/')
+    : url;
+  
+  const response = await fetch(fullUrl, {
     method: 'PATCH',
     headers: getJsonApiHeaders(),
     body: JSON.stringify(body),
@@ -135,7 +165,14 @@ export async function apiPatch<T = unknown>(url: string, body: unknown): Promise
  * DELETE request helper
  */
 export async function apiDelete(url: string): Promise<void> {
-  const response = await fetch(url, {
+  // Convert /api/dashboard paths to direct Supabase URL
+  const fullUrl = url.startsWith('/api/dashboard') 
+    ? url.replace('/api/dashboard', API_BASE + '/dashboard')
+    : url.startsWith('/api/')
+    ? url.replace('/api/', API_BASE + '/')
+    : url;
+  
+  const response = await fetch(fullUrl, {
     method: 'DELETE',
     headers: getApiHeaders(),
   });

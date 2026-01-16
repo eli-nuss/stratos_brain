@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Send, MessageCircle, X, Loader2, Sparkles, ChevronRight } from 'lucide-react';
+import { API_BASE, getJsonApiHeaders } from '@/lib/api-config';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -103,11 +104,9 @@ export function ChatSidebar({ assetId, assetSymbol, asOfDate, isOpen, onClose }:
         content: msg.content
       }));
 
-      const response = await fetch('/api/dashboard/chat', {
+      const response = await fetch(`${API_BASE}/dashboard/chat`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getJsonApiHeaders(),
         body: JSON.stringify({
           asset_id: assetId,
           as_of_date: asOfDate,

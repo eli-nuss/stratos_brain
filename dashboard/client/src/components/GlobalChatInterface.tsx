@@ -7,6 +7,7 @@ import { ThinkingSection } from './ThinkingSection';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { GenerativeUIRenderer } from './GenerativeUIRenderer';
 import { cn } from '@/lib/utils';
+import { API_BASE, getJsonApiHeaders } from '@/lib/api-config';
 
 interface SimpleMessage {
   role: 'user' | 'assistant';
@@ -137,9 +138,9 @@ export function GlobalChatInterface() {
     const currentHistory = [...messages, userMessage];
 
     try {
-      const response = await fetch('/api/global-chat-api', {
+      const response = await fetch(`${API_BASE}/global-chat-api`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getJsonApiHeaders(),
         body: JSON.stringify({ messages: currentHistory }),
       });
 

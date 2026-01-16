@@ -2,6 +2,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { Plus, X, Loader2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { API_BASE, getJsonApiHeaders } from "@/lib/api-config";
 
 interface CreateListButtonProps {
   onListCreated: () => void;
@@ -31,9 +32,9 @@ export default function CreateListButton({ onListCreated }: CreateListButtonProp
 
     setIsSubmitting(true);
     try {
-      const response = await fetch("/api/dashboard/stock-lists", {
+      const response = await fetch(`${API_BASE}/dashboard/stock-lists`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getJsonApiHeaders(),
         body: JSON.stringify({
           name: name.trim(),
           description: description.trim(),

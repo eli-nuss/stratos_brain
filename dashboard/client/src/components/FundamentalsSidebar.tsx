@@ -17,6 +17,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { API_BASE, getApiHeaders } from '@/lib/api-config';
 
 interface FundamentalsSidebarProps {
   assetId: string;
@@ -588,7 +589,7 @@ export function FundamentalsSidebar({ assetId, asset, review }: FundamentalsSide
     const fetchValuationHistory = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/dashboard/valuation-history?asset_id=${assetId}`);
+        const response = await fetch(`${API_BASE}/dashboard/valuation-history?asset_id=${assetId}`, { headers: getApiHeaders() });
         if (response.ok) {
           const data = await response.json();
           setValuationHistory(data);

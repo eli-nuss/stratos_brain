@@ -25,6 +25,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { createPortal } from 'react-dom';
+import { API_BASE, getJsonApiHeaders, getApiHeaders } from '@/lib/api-config';
 
 
 
@@ -165,9 +166,9 @@ export function ListSidebar({
       }
       
       try {
-        await fetch('/api/dashboard/stock-lists/reorder', {
+        await fetch(`${API_BASE}/dashboard/stock-lists/reorder`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getJsonApiHeaders(),
           body: JSON.stringify({ list_ids: newOrder.map((list) => list.id) }),
         });
       } catch (error) {
@@ -216,9 +217,9 @@ export function ListSidebar({
     if (!renameModal.list || !renameModal.newName.trim()) return;
     setIsRenaming(true);
     try {
-      await fetch(`/api/dashboard/stock-lists/${renameModal.list.id}`, {
+      await fetch(`${API_BASE}/dashboard/stock-lists/${renameModal.list.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getJsonApiHeaders(),
         body: JSON.stringify({ name: renameModal.newName.trim() }),
       });
       if (onListRenamed) onListRenamed();
@@ -239,7 +240,7 @@ export function ListSidebar({
     
     setIsDeleting(true);
     try {
-      await fetch(`/api/dashboard/stock-lists/${listToDelete.id}`, { method: 'DELETE' });
+      await fetch(`${API_BASE}/dashboard/stock-lists/${listToDelete.id}`, { method: 'DELETE', headers: getApiHeaders() });
       if (activeTab === `list-${listToDelete.id}`) {
         onTabChange('watchlist');
       }

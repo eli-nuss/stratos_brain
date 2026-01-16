@@ -7,6 +7,7 @@ import {
   Brain, Loader2, RefreshCw, AlertTriangle, CheckCircle, 
   TrendingUp, Shield, Target, Lightbulb, Copy, Download
 } from "lucide-react";
+import { API_BASE, getJsonApiHeaders } from "@/lib/api-config";
 
 interface PortfolioAsset {
   symbol: string;
@@ -111,9 +112,9 @@ Provide your analysis in the following format (be specific and actionable):
 Keep each section to 2-3 sentences. Be direct and specific.`;
 
       // Call the backend API
-      const response = await fetch('/api/dashboard/ai-analysis', {
+      const response = await fetch(`${API_BASE}/dashboard/ai-analysis`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getJsonApiHeaders(),
         body: JSON.stringify({ 
           prompt,
           type: 'portfolio_review'
