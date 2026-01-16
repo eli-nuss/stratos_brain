@@ -375,8 +375,13 @@
 
 | Table | Purpose | Key Columns |
 |-------|---------|-------------|
-| `research_notes` | User research notes for groups of companies | `id`, `title`, `content`, `is_favorite`, `created_at`, `updated_at` |
+| `research_notes` | Context-aware user notes (per-user, per-context) | `id`, `user_id`, `title`, `content`, `is_favorite`, `context_type`, `context_id`, `created_at`, `updated_at` |
 | `research_note_assets` | Junction table linking notes to assets | `id`, `note_id`, `asset_id`, `added_at` |
+
+**Context Types:**
+- `general` - General notes not tied to a specific context
+- `asset` - Notes for a specific asset (context_id = asset_id)
+- `stock_list` - Notes for a custom stock list (context_id = list_id)
 
                                                                                             ### 5.13 Token & Crypto Tables
                                                                                          
@@ -509,11 +514,12 @@ PATCH /api/dashboard/model-portfolio-holdings/:id  # Update holding
 DELETE /api/dashboard/model-portfolio-holdings/:id  # Remove holding
                                                                             ```
 
-#### Research Notes
+#### Research Notes (Context-Aware)
 ```
-GET    /api/dashboard/research-notes              # List all research notes
+GET    /api/dashboard/research-notes              # List all notes for user (query: user_id, context_type?, context_id?)
+GET    /api/dashboard/research-notes/context      # Get or create note for context (query: user_id, context_type, context_id?)
 GET    /api/dashboard/research-notes/:id          # Get single note with linked assets
-POST   /api/dashboard/research-notes              # Create new note
+POST   /api/dashboard/research-notes              # Create new note (body: user_id, title, context_type?, context_id?)
 PUT    /api/dashboard/research-notes/:id          # Update note title/content
 DELETE /api/dashboard/research-notes/:id          # Delete note
 POST   /api/dashboard/research-notes/:id/assets   # Link asset to note
@@ -537,7 +543,8 @@ PATCH  /api/dashboard/research-notes/:id/favorite # Toggle favorite status
                                                                                             │   └── ...
                                                                                             ├── contexts/            # React contexts
                                                                                             │   ├── AuthContext.tsx
-                                                                                            │   └── ThemeContext.tsx
+                                                                                            │   ├── ThemeContext.tsx
+                                                                                            │   └── NoteContext.tsx
                                                                                             ├── hooks/               # Custom data hooks
                                                                                             │   ├── useAllAssets.ts
                                                                                             │   ├── useDashboardData.ts
@@ -569,7 +576,8 @@ PATCH  /api/dashboard/research-notes/:id/favorite # Toggle favorite status
 | `RiskAttribution` | Dual donut charts showing Capital vs Risk allocation with concentration warnings |
 | `TimeTravelBacktester` | Historical performance simulation with SPY/BTC comparison |
 | `AIInvestmentCommittee` | LLM-powered portfolio critique with actionable recommendations |
-| `ResearchNotes` | Notes page for tracking research on groups of companies with favorites |
+| `ResearchNotes` | Notes library page for browsing all user notes across contexts |
+| `FloatingNotepad` | Context-aware floating notepad popup accessible from any page |
 
                                                                                             ### 9.3 Data Flow
 

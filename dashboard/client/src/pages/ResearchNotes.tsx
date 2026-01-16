@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
   FileText, Plus, Star, Trash2, Search, X, 
-  ChevronRight, Loader2, Save, Building2, Link2
+  Loader2, Save, Building2, List, Filter, StickyNote
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNotepad } from '@/contexts/NoteContext';
 import { 
   useResearchNotes, 
   useResearchNote,
@@ -15,16 +17,30 @@ import {
   toggleNoteFavorite,
   formatNoteDate,
   formatNoteDateFull,
+  getContextTypeLabel,
   ResearchNote,
-  ResearchNoteAsset
+  ResearchNoteAsset,
+  NoteContextType
 } from '@/hooks/useResearchNotes';
 import AssetSearchDropdown from '@/components/AssetSearchDropdown';
 import { cn } from '@/lib/utils';
+import { Link } from 'wouter';
+
+// Context type filter options
+const contextFilters: { value: NoteContextType | 'all'; label: string; icon: React.ReactNode }[] = [
+  { value: 'all', label: 'All Notes', icon: <StickyNote className="w-3.5 h-3.5" /> },
+  { value: 'general', label: 'General', icon: <FileText className="w-3.5 h-3.5" /> },
+  { value: 'asset', label: 'Assets', icon: <Building2 className="w-3.5 h-3.5" /> },
+  { value: 'stock_list', label: 'Lists', icon: <List className="w-3.5 h-3.5" /> },
+];
 
 export default function ResearchNotes() {
+  const { user } = useAuth();
+  const { openNotepad } = useNotepad();
   const { notes, isLoading, mutate } = useResearchNotes();
   const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [contextFilter, setContextFilter] = useState<NoteContextType | 'all'>('all');
   const [isCreating, setIsCreating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editTitle, setEditTitle] = useState('');
@@ -45,14 +61,21 @@ export default function ResearchNotes() {
     }
   }, [selectedNote]);
 
-  // Filter notes based on search query
+  // Filter notes based on search query and context filter
   const filteredNotes = notes.filter(note => {
+    // Context filter
+    if (contextFilter !== 'all' && note.context_type !== contextFilter) {
+      return false;
+    }
+    
+    // Search filter
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
       note.title.toLowerCase().includes(query) ||
       note.content?.toLowerCase().includes(query) ||
-      note.assets.some(a => 
+      note.context_name?.toLowerCase().includes(query) ||
+      note.assets?.some(a => 
         a.symbol.toLowerCase().includes(query) || 
         a.name?.toLowerCase().includes(query)
       )
@@ -61,9 +84,11 @@ export default function ResearchNotes() {
 
   // Create a new note
   const handleCreateNote = async () => {
+    if (!user?.id) return;
+    
     setIsCreating(true);
     try {
-      const newNote = await createResearchNote('Untitled Note', '');
+      const newNote = await createResearchNote(user.id, 'Untitled Note', '', false, 'general');
       setSelectedNoteId(newNote.id);
       mutate();
       // Focus the title input after creation
@@ -169,7 +194,24 @@ export default function ResearchNotes() {
   }, [selectedNoteId, hasUnsavedChanges, editTitle, editContent]);
 
   // Get existing asset IDs for the search dropdown
-  const existingAssetIds = new Set(selectedNote?.assets.map(a => a.asset_id) || []);
+  const existingAssetIds = new Set(selectedNote?.assets?.map(a => a.asset_id) || []);
+
+  // If user is not logged in, show login prompt
+  if (!user) {
+    return (
+      <DashboardLayout hideNavTabs>
+        <div className="flex items-center justify-center h-[calc(100vh-52px)]">
+          <div className="text-center">
+            <StickyNote className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <h2 className="text-lg font-semibold mb-2">Sign in to view your notes</h2>
+            <p className="text-sm text-muted-foreground">
+              Notes are personal and require authentication.
+            </p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout hideNavTabs>
@@ -180,8 +222,8 @@ export default function ResearchNotes() {
           <div className="p-4 border-b border-border">
             <div className="flex items-center justify-between mb-3">
               <h1 className="text-lg font-semibold flex items-center gap-2">
-                <FileText className="w-5 h-5 text-primary" />
-                Research Notes
+                <StickyNote className="w-5 h-5 text-primary" />
+                Notes Library
               </h1>
               <button
                 onClick={handleCreateNote}
@@ -197,7 +239,7 @@ export default function ResearchNotes() {
             </div>
             
             {/* Search */}
-            <div className="relative">
+            <div className="relative mb-3">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 type="text"
@@ -215,6 +257,25 @@ export default function ResearchNotes() {
                 </button>
               )}
             </div>
+
+            {/* Context Filter */}
+            <div className="flex gap-1 flex-wrap">
+              {contextFilters.map(filter => (
+                <button
+                  key={filter.value}
+                  onClick={() => setContextFilter(filter.value)}
+                  className={cn(
+                    "flex items-center gap-1 px-2 py-1 text-xs rounded-md transition-colors",
+                    contextFilter === filter.value
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {filter.icon}
+                  {filter.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Notes List */}
@@ -225,11 +286,11 @@ export default function ResearchNotes() {
               </div>
             ) : filteredNotes.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <StickyNote className="w-8 h-8 mx-auto mb-2 opacity-50" />
                 <p className="text-sm">
-                  {searchQuery ? 'No notes found' : 'No notes yet'}
+                  {searchQuery || contextFilter !== 'all' ? 'No notes found' : 'No notes yet'}
                 </p>
-                {!searchQuery && (
+                {!searchQuery && contextFilter === 'all' && (
                   <button
                     onClick={handleCreateNote}
                     className="mt-2 text-xs text-primary hover:underline"
@@ -252,6 +313,11 @@ export default function ResearchNotes() {
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Stats */}
+          <div className="px-4 py-2 border-t border-border text-xs text-muted-foreground">
+            {notes.length} total notes • {notes.filter(n => n.is_favorite).length} favorites
           </div>
         </div>
 
@@ -276,6 +342,19 @@ export default function ResearchNotes() {
                   />
                 </div>
                 <div className="flex items-center gap-2">
+                  {/* Context badge */}
+                  <span className={cn(
+                    "flex items-center gap-1 px-2 py-1 text-xs rounded-md",
+                    selectedNote.context_type === 'asset' ? "bg-blue-500/10 text-blue-500" :
+                    selectedNote.context_type === 'stock_list' ? "bg-purple-500/10 text-purple-500" :
+                    "bg-muted text-muted-foreground"
+                  )}>
+                    {selectedNote.context_type === 'asset' ? <Building2 className="w-3 h-3" /> :
+                     selectedNote.context_type === 'stock_list' ? <List className="w-3 h-3" /> :
+                     <FileText className="w-3 h-3" />}
+                    {selectedNote.context_name || getContextTypeLabel(selectedNote.context_type)}
+                  </span>
+                  
                   {hasUnsavedChanges && (
                     <span className="text-xs text-muted-foreground">Unsaved changes</span>
                   )}
@@ -310,29 +389,31 @@ export default function ResearchNotes() {
                 </div>
               </div>
 
-              {/* Linked Assets */}
-              <div className="px-6 py-3 border-b border-border bg-muted/30">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Link2 className="w-3.5 h-3.5" />
-                    Linked Companies:
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap flex-1">
-                    {selectedNote.assets.map((asset) => (
-                      <AssetTag
-                        key={asset.asset_id}
-                        asset={asset}
-                        onRemove={() => handleRemoveAsset(asset.asset_id)}
+              {/* Linked Assets (only show for general notes) */}
+              {selectedNote.context_type === 'general' && (
+                <div className="px-6 py-3 border-b border-border bg-muted/30">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Building2 className="w-3.5 h-3.5" />
+                      Linked Companies:
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap flex-1">
+                      {selectedNote.assets?.map((asset) => (
+                        <AssetTag
+                          key={asset.asset_id}
+                          asset={asset}
+                          onRemove={() => handleRemoveAsset(asset.asset_id)}
+                        />
+                      ))}
+                      <AssetSearchDropdown
+                        existingAssetIds={existingAssetIds}
+                        onAddAsset={handleAddAsset}
+                        placeholder="Add company..."
                       />
-                    ))}
-                    <AssetSearchDropdown
-                      existingAssetIds={existingAssetIds}
-                      onAddAsset={handleAddAsset}
-                      placeholder="Add company..."
-                    />
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Content Editor */}
               <div className="flex-1 overflow-y-auto p-6">
@@ -363,7 +444,7 @@ You can use this space to:
           ) : (
             <div className="flex-1 flex items-center justify-center text-muted-foreground">
               <div className="text-center">
-                <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <StickyNote className="w-12 h-12 mx-auto mb-3 opacity-30" />
                 <p className="text-sm">Select a note or create a new one</p>
                 <button
                   onClick={handleCreateNote}
@@ -422,12 +503,18 @@ function NoteListItem({
             <span className="text-[10px] text-muted-foreground">
               {formatNoteDate(note.updated_at)}
             </span>
-            {note.assets.length > 0 && (
-              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                <Building2 className="w-3 h-3" />
-                {note.assets.length} {note.assets.length === 1 ? 'company' : 'companies'}
-              </span>
-            )}
+            {/* Context indicator */}
+            <span className={cn(
+              "flex items-center gap-0.5 text-[10px] px-1 py-0.5 rounded",
+              note.context_type === 'asset' ? "bg-blue-500/10 text-blue-500" :
+              note.context_type === 'stock_list' ? "bg-purple-500/10 text-purple-500" :
+              "bg-muted text-muted-foreground"
+            )}>
+              {note.context_type === 'asset' ? <Building2 className="w-2.5 h-2.5" /> :
+               note.context_type === 'stock_list' ? <List className="w-2.5 h-2.5" /> :
+               <FileText className="w-2.5 h-2.5" />}
+              {note.context_name || getContextTypeLabel(note.context_type)}
+            </span>
           </div>
         </div>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

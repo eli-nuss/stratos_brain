@@ -1,0 +1,339 @@
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { 
+  StickyNote, X, Star, Save, Loader2, Maximize2, Minimize2,
+  FileText, Building2, List, ChevronDown, ExternalLink
+} from 'lucide-react';
+import { useNotepad } from '@/contexts/NoteContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { 
+  useContextNote, 
+  updateResearchNote, 
+  toggleNoteFavorite,
+  formatNoteDateFull,
+  NoteContextType
+} from '@/hooks/useResearchNotes';
+import { cn } from '@/lib/utils';
+import { Link } from 'wouter';
+
+// Get icon for context type
+function ContextIcon({ type, className }: { type: NoteContextType; className?: string }) {
+  switch (type) {
+    case 'asset':
+      return <Building2 className={className} />;
+    case 'stock_list':
+      return <List className={className} />;
+    case 'general':
+    default:
+      return <FileText className={className} />;
+  }
+}
+
+// Get label for context type
+function getContextLabel(type: NoteContextType, name?: string): string {
+  if (name) return name;
+  switch (type) {
+    case 'asset': return 'Asset Notes';
+    case 'stock_list': return 'List Notes';
+    case 'general': return 'General Notes';
+    default: return 'Notes';
+  }
+}
+
+export default function FloatingNotepad() {
+  const { isOpen, currentContext, closeNotepad, openNotepad } = useNotepad();
+  const { user } = useAuth();
+  const { note, isLoading, mutate } = useContextNote(isOpen ? currentContext : null);
+  
+  const [editContent, setEditContent] = useState('');
+  const [editTitle, setEditTitle] = useState('');
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = useRef<{ startX: number; startY: number; initialX: number; initialY: number } | null>(null);
+  const contentRef = useRef<HTMLTextAreaElement>(null);
+
+  // Update local state when note changes
+  useEffect(() => {
+    if (note) {
+      setEditTitle(note.title);
+      setEditContent(note.content || '');
+      setHasUnsavedChanges(false);
+    }
+  }, [note?.id, note?.title, note?.content]);
+
+  // Initialize position on mount
+  useEffect(() => {
+    setPosition({
+      x: window.innerWidth - 420,
+      y: window.innerHeight - 500
+    });
+  }, []);
+
+  // Save note
+  const handleSave = async () => {
+    if (!note || !hasUnsavedChanges) return;
+    
+    setIsSaving(true);
+    try {
+      await updateResearchNote(note.id, {
+        title: editTitle.trim() || 'Untitled Note',
+        content: editContent,
+      });
+      setHasUnsavedChanges(false);
+      mutate();
+    } catch (error) {
+      console.error('Failed to save note:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Auto-save after delay
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    
+    const timer = setTimeout(() => {
+      handleSave();
+    }, 2000);
+    
+    return () => clearTimeout(timer);
+  }, [editContent, editTitle, hasUnsavedChanges]);
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's' && isOpen) {
+        e.preventDefault();
+        handleSave();
+      }
+      if (e.key === 'Escape' && isOpen) {
+        closeNotepad();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, hasUnsavedChanges, editTitle, editContent, note]);
+
+  // Toggle favorite
+  const handleToggleFavorite = async () => {
+    if (!note) return;
+    try {
+      await toggleNoteFavorite(note.id, !note.is_favorite);
+      mutate();
+    } catch (error) {
+      console.error('Failed to toggle favorite:', error);
+    }
+  };
+
+  // Drag handling
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('button, input, textarea, a')) return;
+    
+    setIsDragging(true);
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initialX: position.x,
+      initialY: position.y
+    };
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!dragRef.current) return;
+      
+      const deltaX = e.clientX - dragRef.current.startX;
+      const deltaY = e.clientY - dragRef.current.startY;
+      
+      setPosition({
+        x: Math.max(0, Math.min(window.innerWidth - 400, dragRef.current.initialX + deltaX)),
+        y: Math.max(0, Math.min(window.innerHeight - 100, dragRef.current.initialY + deltaY))
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      dragRef.current = null;
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
+
+  // Don't render if user is not logged in
+  if (!user) return null;
+
+  // Floating button (always visible)
+  const floatingButton = (
+    <button
+      onClick={() => openNotepad(currentContext || { type: 'general' })}
+      className={cn(
+        "fixed bottom-6 right-6 z-50 p-3 rounded-full shadow-lg transition-all",
+        "bg-primary text-primary-foreground hover:bg-primary/90",
+        "hover:scale-105 active:scale-95",
+        isOpen && "hidden"
+      )}
+      title="Open Notepad"
+    >
+      <StickyNote className="w-5 h-5" />
+    </button>
+  );
+
+  // Notepad panel
+  const notepadPanel = isOpen && (
+    <div
+      style={{
+        position: 'fixed',
+        left: isExpanded ? 0 : position.x,
+        top: isExpanded ? 0 : position.y,
+        width: isExpanded ? '100%' : 400,
+        height: isExpanded ? '100%' : 450,
+        zIndex: 9999,
+      }}
+      className={cn(
+        "bg-card border border-border rounded-lg shadow-2xl flex flex-col overflow-hidden",
+        isExpanded && "rounded-none",
+        isDragging && "cursor-grabbing"
+      )}
+    >
+      {/* Header */}
+      <div 
+        className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/50 cursor-grab"
+        onMouseDown={handleMouseDown}
+      >
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <ContextIcon type={currentContext?.type || 'general'} className="w-4 h-4 text-muted-foreground shrink-0" />
+          <span className="text-sm font-medium truncate">
+            {getContextLabel(currentContext?.type || 'general', currentContext?.name)}
+          </span>
+          {hasUnsavedChanges && (
+            <span className="text-[10px] text-muted-foreground">(unsaved)</span>
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          <Link href="/notes">
+            <a 
+              className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+              title="View all notes"
+              onClick={closeNotepad}
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </Link>
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+            title={isExpanded ? "Minimize" : "Maximize"}
+          >
+            {isExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+          </button>
+          <button
+            onClick={closeNotepad}
+            className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+            title="Close"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
+      {isLoading ? (
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : note ? (
+        <>
+          {/* Title */}
+          <div className="px-3 py-2 border-b border-border">
+            <input
+              type="text"
+              value={editTitle}
+              onChange={(e) => {
+                setEditTitle(e.target.value);
+                setHasUnsavedChanges(true);
+              }}
+              placeholder="Note title..."
+              className="w-full text-sm font-medium bg-transparent border-none focus:outline-none"
+            />
+          </div>
+
+          {/* Editor */}
+          <div className="flex-1 overflow-hidden">
+            <textarea
+              ref={contentRef}
+              value={editContent}
+              onChange={(e) => {
+                setEditContent(e.target.value);
+                setHasUnsavedChanges(true);
+              }}
+              placeholder="Write your notes here..."
+              className="w-full h-full p-3 text-sm bg-transparent border-none focus:outline-none resize-none leading-relaxed"
+            />
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-between px-3 py-2 border-t border-border bg-muted/30">
+            <span className="text-[10px] text-muted-foreground">
+              {note.updated_at && `Updated ${formatNoteDateFull(note.updated_at)}`}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleToggleFavorite}
+                className={cn(
+                  "p-1.5 rounded transition-colors",
+                  note.is_favorite
+                    ? "text-yellow-500 bg-yellow-500/10"
+                    : "text-muted-foreground hover:text-yellow-500 hover:bg-muted"
+                )}
+                title={note.is_favorite ? "Remove from favorites" : "Add to favorites"}
+              >
+                <Star className={cn("w-3.5 h-3.5", note.is_favorite && "fill-current")} />
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={!hasUnsavedChanges || isSaving}
+                className={cn(
+                  "flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors",
+                  hasUnsavedChanges
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "bg-muted text-muted-foreground"
+                )}
+              >
+                {isSaving ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Save className="w-3 h-3" />
+                )}
+                Save
+              </button>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+          Unable to load note
+        </div>
+      )}
+    </div>
+  );
+
+  return createPortal(
+    <>
+      {floatingButton}
+      {notepadPanel}
+    </>,
+    document.body
+  );
+}

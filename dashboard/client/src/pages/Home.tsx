@@ -15,6 +15,7 @@ import PortfolioSandbox from "@/components/PortfolioSandbox";
 import AssetDetail from "@/components/AssetDetail";
 import useSWR from "swr";
 import { useStockLists, StockList } from "@/hooks/useStockLists";
+import { useNotepad } from "@/contexts/NoteContext";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -117,6 +118,38 @@ export default function Home() {
   const isStockListTab = activeTab.startsWith("list-");
   const currentListId = isStockListTab ? parseInt(activeTab.split("-")[1]) : null;
   const currentList = currentListId ? lists.find((l: StockList) => l.id === currentListId) : null;
+
+  // Update notepad context based on current view
+  const { setContext } = useNotepad();
+  
+  useEffect(() => {
+    if (selectedAssetId) {
+      // On asset detail page
+      setContext({
+        type: 'asset',
+        id: selectedAssetId,
+        name: undefined // Will be resolved by the notepad
+      });
+    } else if (isStockListTab && currentList) {
+      // On a stock list page
+      setContext({
+        type: 'stock_list',
+        id: String(currentListId),
+        name: currentList.name
+      });
+    } else {
+      // General page (watchlist, crypto, equity, etc.)
+      setContext({
+        type: 'general',
+        name: activeTab === 'watchlist' ? 'Watchlist' : 
+              activeTab === 'crypto' ? 'Crypto' :
+              activeTab === 'equity' ? 'Equities' :
+              activeTab === 'model-portfolio' ? 'Model Portfolio' :
+              activeTab === 'core-portfolio' ? 'Core Portfolio' :
+              'Dashboard'
+      });
+    }
+  }, [selectedAssetId, isStockListTab, currentListId, currentList?.name, activeTab, setContext]);
 
   // Handle list reordering
   const handleListsReordered = (newOrder: StockList[]) => {

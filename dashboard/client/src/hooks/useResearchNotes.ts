@@ -1,6 +1,15 @@
 import useSWR, { mutate as globalMutate } from "swr";
+import { useAuth } from "@/contexts/AuthContext";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
+export type NoteContextType = 'general' | 'asset' | 'stock_list';
+
+export interface NoteContext {
+  type: NoteContextType;
+  id?: string | number;
+  name?: string;
+}
 
 export interface ResearchNoteAsset {
   asset_id: number;
@@ -15,15 +24,30 @@ export interface ResearchNote {
   title: string;
   content: string;
   is_favorite: boolean;
+  user_id: string;
+  context_type: NoteContextType;
+  context_id: string | null;
+  context_name?: string | null;
   created_at: string;
   updated_at: string;
   assets: ResearchNoteAsset[];
+  is_new?: boolean;
 }
 
-// Hook to get all research notes
-export function useResearchNotes() {
+// Hook to get all research notes for the current user
+export function useResearchNotes(contextType?: NoteContextType, contextId?: string) {
+  const { user } = useAuth();
+  
+  let url = user?.id ? `/api/dashboard/research-notes?user_id=${user.id}` : null;
+  if (url && contextType) {
+    url += `&context_type=${contextType}`;
+  }
+  if (url && contextId) {
+    url += `&context_id=${contextId}`;
+  }
+  
   const { data, error, isLoading, mutate } = useSWR<ResearchNote[]>(
-    '/api/dashboard/research-notes',
+    url,
     fetcher,
     {
       revalidateOnFocus: false,
@@ -56,17 +80,56 @@ export function useResearchNote(noteId: number | null) {
   };
 }
 
+// Hook to get or create a note for a specific context
+export function useContextNote(context: NoteContext | null) {
+  const { user } = useAuth();
+  
+  let url = null;
+  if (user?.id && context) {
+    url = `/api/dashboard/research-notes/context?user_id=${user.id}&context_type=${context.type}`;
+    if (context.id) {
+      url += `&context_id=${context.id}`;
+    }
+  }
+  
+  const { data, error, isLoading, mutate } = useSWR<ResearchNote>(
+    url,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+    }
+  );
+
+  return {
+    note: data || null,
+    isLoading,
+    error,
+    mutate,
+  };
+}
+
 // Create a new research note
 export async function createResearchNote(
+  userId: string,
   title: string,
   content?: string,
   is_favorite?: boolean,
+  context_type?: NoteContextType,
+  context_id?: string,
   asset_ids?: number[]
 ): Promise<ResearchNote> {
   const response = await fetch('/api/dashboard/research-notes', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title, content, is_favorite, asset_ids }),
+    body: JSON.stringify({ 
+      user_id: userId,
+      title, 
+      content, 
+      is_favorite, 
+      context_type,
+      context_id,
+      asset_ids 
+    }),
   });
   
   if (!response.ok) {
@@ -75,7 +138,7 @@ export async function createResearchNote(
   }
   
   const note = await response.json();
-  globalMutate('/api/dashboard/research-notes');
+  globalMutate((key: string) => typeof key === 'string' && key.startsWith('/api/dashboard/research-notes'));
   return note;
 }
 
@@ -96,8 +159,7 @@ export async function updateResearchNote(
   }
   
   const note = await response.json();
-  globalMutate('/api/dashboard/research-notes');
-  globalMutate(`/api/dashboard/research-notes/${noteId}`);
+  globalMutate((key: string) => typeof key === 'string' && key.startsWith('/api/dashboard/research-notes'));
   return note;
 }
 
@@ -112,7 +174,7 @@ export async function deleteResearchNote(noteId: number): Promise<void> {
     throw new Error(error.error || 'Failed to delete note');
   }
   
-  globalMutate('/api/dashboard/research-notes');
+  globalMutate((key: string) => typeof key === 'string' && key.startsWith('/api/dashboard/research-notes'));
 }
 
 // Add asset to a research note
@@ -128,8 +190,7 @@ export async function addAssetToNote(noteId: number, assetId: number): Promise<v
     throw new Error(error.error || 'Failed to add asset to note');
   }
   
-  globalMutate('/api/dashboard/research-notes');
-  globalMutate(`/api/dashboard/research-notes/${noteId}`);
+  globalMutate((key: string) => typeof key === 'string' && key.startsWith('/api/dashboard/research-notes'));
 }
 
 // Remove asset from a research note
@@ -143,8 +204,7 @@ export async function removeAssetFromNote(noteId: number, assetId: number): Prom
     throw new Error(error.error || 'Failed to remove asset from note');
   }
   
-  globalMutate('/api/dashboard/research-notes');
-  globalMutate(`/api/dashboard/research-notes/${noteId}`);
+  globalMutate((key: string) => typeof key === 'string' && key.startsWith('/api/dashboard/research-notes'));
 }
 
 // Toggle favorite status
@@ -161,8 +221,7 @@ export async function toggleNoteFavorite(noteId: number, isFavorite: boolean): P
   }
   
   const note = await response.json();
-  globalMutate('/api/dashboard/research-notes');
-  globalMutate(`/api/dashboard/research-notes/${noteId}`);
+  globalMutate((key: string) => typeof key === 'string' && key.startsWith('/api/dashboard/research-notes'));
   return note;
 }
 
@@ -194,4 +253,24 @@ export function formatNoteDateFull(dateString: string): string {
     hour: 'numeric',
     minute: '2-digit',
   });
+}
+
+// Get context type label
+export function getContextTypeLabel(type: NoteContextType): string {
+  switch (type) {
+    case 'asset': return 'Asset';
+    case 'stock_list': return 'List';
+    case 'general': return 'General';
+    default: return type;
+  }
+}
+
+// Get context icon class
+export function getContextTypeIcon(type: NoteContextType): string {
+  switch (type) {
+    case 'asset': return 'building-2';
+    case 'stock_list': return 'list';
+    case 'general': return 'file-text';
+    default: return 'file-text';
+  }
 }

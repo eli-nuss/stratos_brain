@@ -4996,9 +4996,21 @@ If asked about something not in the data, acknowledge the limitation.`
 
       // ==================== RESEARCH NOTES ENDPOINTS ====================
 
-      // GET /dashboard/research-notes - Get all research notes
+      // GET /dashboard/research-notes - Get all research notes for a user
+      // Query params: user_id (required), context_type (optional), context_id (optional)
       case req.method === 'GET' && path === '/dashboard/research-notes': {
-        const { data: notes, error } = await supabase
+        const userId = url.searchParams.get('user_id')
+        const contextType = url.searchParams.get('context_type')
+        const contextId = url.searchParams.get('context_id')
+        
+        if (!userId) {
+          return new Response(JSON.stringify({ error: 'user_id is required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        let query = supabase
           .from('research_notes')
           .select(`
             *,
@@ -5007,6 +5019,17 @@ If asked about something not in the data, acknowledge the limitation.`
               added_at
             )
           `)
+          .eq('user_id', userId)
+        
+        // Filter by context if provided
+        if (contextType) {
+          query = query.eq('context_type', contextType)
+        }
+        if (contextId) {
+          query = query.eq('context_id', contextId)
+        }
+        
+        const { data: notes, error } = await query
           .order('is_favorite', { ascending: false })
           .order('updated_at', { ascending: false })
         
@@ -5041,17 +5064,168 @@ If asked about something not in the data, acknowledge the limitation.`
           })
         }
         
-        // Enrich notes with asset details
-        const enrichedNotes = notes?.map(note => ({
-          ...note,
-          assets: note.research_note_assets?.map((link: { asset_id: number; added_at: string }) => ({
-            asset_id: link.asset_id,
-            added_at: link.added_at,
-            ...assetMap.get(link.asset_id)
-          })) || []
-        }))
+        // Enrich notes with asset details and context info
+        const enrichedNotes = await Promise.all(notes?.map(async note => {
+          let contextName = null
+          
+          // Get context name based on type
+          if (note.context_type === 'asset' && note.context_id) {
+            const { data: asset } = await supabase
+              .from('assets')
+              .select('symbol, name')
+              .eq('asset_id', parseInt(note.context_id))
+              .single()
+            contextName = asset ? `${asset.symbol} - ${asset.name}` : null
+          } else if (note.context_type === 'stock_list' && note.context_id) {
+            const { data: list } = await supabase
+              .from('stock_lists')
+              .select('name')
+              .eq('id', parseInt(note.context_id))
+              .single()
+            contextName = list?.name || null
+          }
+          
+          return {
+            ...note,
+            context_name: contextName,
+            assets: note.research_note_assets?.map((link: { asset_id: number; added_at: string }) => ({
+              asset_id: link.asset_id,
+              added_at: link.added_at,
+              ...assetMap.get(link.asset_id)
+            })) || []
+          }
+        }) || [])
         
         return new Response(JSON.stringify(enrichedNotes), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /dashboard/research-notes/context - Get or create note for a specific context
+      // Query params: user_id (required), context_type (required), context_id (required for asset/stock_list)
+      case req.method === 'GET' && path === '/dashboard/research-notes/context': {
+        const userId = url.searchParams.get('user_id')
+        const contextType = url.searchParams.get('context_type')
+        const contextId = url.searchParams.get('context_id')
+        
+        if (!userId || !contextType) {
+          return new Response(JSON.stringify({ error: 'user_id and context_type are required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Build query for existing note
+        let query = supabase
+          .from('research_notes')
+          .select(`
+            *,
+            research_note_assets (
+              asset_id,
+              added_at
+            )
+          `)
+          .eq('user_id', userId)
+          .eq('context_type', contextType)
+        
+        if (contextId) {
+          query = query.eq('context_id', contextId)
+        } else {
+          query = query.is('context_id', null)
+        }
+        
+        const { data: existingNotes, error: fetchError } = await query.limit(1)
+        
+        if (fetchError) {
+          return new Response(JSON.stringify({ error: fetchError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // If note exists, return it
+        if (existingNotes && existingNotes.length > 0) {
+          const note = existingNotes[0]
+          
+          // Get asset details for linked assets
+          const assetIds = note.research_note_assets?.map((link: { asset_id: number }) => link.asset_id) || []
+          let assetMap = new Map<number, { symbol: string; name: string; asset_type: string }>()
+          
+          if (assetIds.length > 0) {
+            const { data: assets } = await supabase
+              .from('assets')
+              .select('asset_id, symbol, name, asset_type')
+              .in('asset_id', assetIds)
+            
+            assets?.forEach(asset => {
+              assetMap.set(asset.asset_id, {
+                symbol: asset.symbol,
+                name: asset.name,
+                asset_type: asset.asset_type
+              })
+            })
+          }
+          
+          return new Response(JSON.stringify({
+            ...note,
+            assets: note.research_note_assets?.map((link: { asset_id: number; added_at: string }) => ({
+              asset_id: link.asset_id,
+              added_at: link.added_at,
+              ...assetMap.get(link.asset_id)
+            })) || [],
+            is_new: false
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Note doesn't exist, create a new one
+        let defaultTitle = 'Notes'
+        
+        if (contextType === 'asset' && contextId) {
+          const { data: asset } = await supabase
+            .from('assets')
+            .select('symbol, name')
+            .eq('asset_id', parseInt(contextId))
+            .single()
+          defaultTitle = asset ? `${asset.symbol} Notes` : 'Asset Notes'
+        } else if (contextType === 'stock_list' && contextId) {
+          const { data: list } = await supabase
+            .from('stock_lists')
+            .select('name')
+            .eq('id', parseInt(contextId))
+            .single()
+          defaultTitle = list ? `${list.name} Notes` : 'List Notes'
+        } else if (contextType === 'general') {
+          defaultTitle = 'General Notes'
+        }
+        
+        const { data: newNote, error: createError } = await supabase
+          .from('research_notes')
+          .insert({
+            user_id: userId,
+            title: defaultTitle,
+            content: '',
+            context_type: contextType,
+            context_id: contextId || null,
+            is_favorite: false
+          })
+          .select()
+          .single()
+        
+        if (createError) {
+          return new Response(JSON.stringify({ error: createError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify({
+          ...newNote,
+          assets: [],
+          is_new: true
+        }), {
+          status: 201,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
@@ -5115,10 +5289,17 @@ If asked about something not in the data, acknowledge the limitation.`
       // POST /dashboard/research-notes - Create a new research note
       case req.method === 'POST' && path === '/dashboard/research-notes': {
         const body = await req.json()
-        const { title, content, is_favorite, asset_ids } = body
+        const { title, content, is_favorite, asset_ids, user_id, context_type, context_id } = body
         
         if (!title?.trim()) {
           return new Response(JSON.stringify({ error: 'title is required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        if (!user_id) {
+          return new Response(JSON.stringify({ error: 'user_id is required' }), {
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
@@ -5130,7 +5311,10 @@ If asked about something not in the data, acknowledge the limitation.`
           .insert({
             title: title.trim(),
             content: content || '',
-            is_favorite: is_favorite || false
+            is_favorite: is_favorite || false,
+            user_id: user_id,
+            context_type: context_type || 'general',
+            context_id: context_id || null
           })
           .select()
           .single()

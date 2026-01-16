@@ -5,6 +5,8 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider } from "./contexts/AuthContext";
+import { NotepadProvider } from "./contexts/NoteContext";
+import FloatingNotepad from "./components/FloatingNotepad";
 import Home from "./pages/Home";
 import Documentation from "./pages/Documentation";
 import TemplateEditor from "./pages/TemplateEditor";
@@ -64,11 +66,14 @@ function App() {
         // switchable
       >
         <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Router />
-            <FeedbackButton />
-          </TooltipProvider>
+          <NotepadProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Router />
+              <FeedbackButton />
+              <FloatingNotepad />
+            </TooltipProvider>
+          </NotepadProvider>
         </AuthProvider>
       </ThemeProvider>
     </ErrorBoundary>
