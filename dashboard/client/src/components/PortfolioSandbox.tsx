@@ -108,7 +108,7 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
   }).toString();
   const { data: riskData } = useSWR<{ metrics: RiskMetrics; correlationMatrix: number[][] }>(
     assetIds ? `/api/dashboard/portfolio-risk?${riskQueryParams}` : null,
-    fetcher
+    apiFetcher
   );
 
   // Debounce search query
@@ -146,14 +146,14 @@ export function PortfolioSandbox({ onAssetClick }: PortfolioSandboxProps) {
     debouncedQuery.length >= 1
       ? `/api/dashboard/all-assets?search=${encodeURIComponent(debouncedQuery)}&universe_id=crypto_all&limit=10`
       : null,
-    fetcher
+    apiFetcher
   );
 
   const { data: equityData, isLoading: equityLoading } = useSWR<{ data: SearchResult[] }>(
     debouncedQuery.length >= 1
       ? `/api/dashboard/all-assets?search=${encodeURIComponent(debouncedQuery)}&universe_id=equity_all&limit=10`
       : null,
-    fetcher
+    apiFetcher
   );
 
   const searchLoading = cryptoLoading || equityLoading;

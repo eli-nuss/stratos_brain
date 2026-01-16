@@ -596,7 +596,7 @@ export function HistoricalFinancials({ assetId, assetType, symbol, embedded = fa
     metadata: any
   }>(
     `/api/dashboard/financials?asset_id=${assetId}`,
-    fetcher
+    apiFetcher
   );
 
   if (isLoading) {

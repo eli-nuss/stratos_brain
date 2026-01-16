@@ -118,13 +118,13 @@ export function EarningsChart({ symbol, assetId }: EarningsChartProps) {
   // Fetch earnings calendar
   const { data: earningsData, error: earningsError } = useSWR<{ symbol: string; earnings: EarningsData[] }>(
     `/api/dashboard/earnings-calendar?symbol=${symbol}`,
-    fetcher
+    apiFetcher
   );
 
   // Fetch price history (last 5 years of daily data)
   const { data: priceData, error: priceError } = useSWR<{ prices: PriceData[] }>(
     `/api/dashboard/price-history?asset_id=${assetId}&days=1825`,
-    fetcher
+    apiFetcher
   );
 
   // Format price data for the chart (oldest to newest)

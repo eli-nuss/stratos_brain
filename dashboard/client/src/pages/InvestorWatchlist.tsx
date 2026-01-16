@@ -256,21 +256,21 @@ export default function InvestorWatchlist() {
   // Fetch investors list
   const { data: investors, error: investorsError, isLoading: investorsLoading } = useSWR<Investor[]>(
     '/api/investor-api/investors',
-    fetcher,
+    apiFetcher,
     { refreshInterval: 60000 }
   );
 
   // Fetch consensus stocks
   const { data: consensusStocks } = useSWR<ConsensusStock[]>(
     '/api/investor-api/consensus?min_gurus=2',
-    fetcher,
+    apiFetcher,
     { refreshInterval: 60000 }
   );
 
   // Fetch enriched holdings for selected investor
   const { data: holdings, isLoading: holdingsLoading } = useSWR<EnrichedHolding[]>(
     selectedInvestor ? `/api/investor-api/holdings/${selectedInvestor.investor_id}?enriched=true` : null,
-    fetcher
+    apiFetcher
   );
 
   const investorList = Array.isArray(investors) ? investors : [];

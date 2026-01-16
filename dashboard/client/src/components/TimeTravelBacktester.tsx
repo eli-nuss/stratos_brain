@@ -63,7 +63,7 @@ export function TimeTravelBacktester({ portfolio, corePortfolioValue = 100000 }:
     dataPoints: number;
   }>(
     assetIds ? `/api/dashboard/portfolio-backtest?asset_ids=${assetIds}&weights=${weights}&period=${selectedPeriod}` : null,
-    fetcher
+    apiFetcher
   );
   
   // Check if we have real data

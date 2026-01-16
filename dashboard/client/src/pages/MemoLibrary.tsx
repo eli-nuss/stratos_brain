@@ -389,7 +389,7 @@ export default function MemoLibrary() {
 
   const { data: memos, error, isLoading } = useSWR<MemoFile[]>(
     `/api/dashboard/memos?type=${docTypeFilter}`,
-    fetcher,
+    apiFetcher,
     { revalidateOnFocus: false }
   );
 

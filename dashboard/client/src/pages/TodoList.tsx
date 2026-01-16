@@ -82,7 +82,7 @@ const availablePages = [
 export default function TodoList() {
   const { data: items, error, isLoading, mutate } = useSWR<FeedbackItem[]>(
     'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/feedback-api',
-    fetcher
+    apiFetcher
   );
   const { user, profile } = useAuth();
 

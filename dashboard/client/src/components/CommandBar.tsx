@@ -31,7 +31,7 @@ export function CommandBar({ className = '' }: CommandBarProps) {
   // Fetch assets for search using the all-assets endpoint with search parameter
   const { data: searchResponse } = useSWR<SearchResponse>(
     query.length >= 1 ? `/api/dashboard/all-assets?search=${encodeURIComponent(query)}&limit=8` : null,
-    fetcher
+    apiFetcher
   );
 
   // Extract assets from response - handle both array and object with data property
