@@ -21,7 +21,7 @@ interface AssetSearchDropdownProps {
   placeholder?: string;
 }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { apiFetcher } from "@/lib/api-config";
 
 export default function AssetSearchDropdown({
   existingAssetIds,
@@ -50,14 +50,14 @@ export default function AssetSearchDropdown({
     debouncedQuery.length >= 1
       ? `/api/dashboard/all-assets?search=${encodeURIComponent(debouncedQuery)}&universe_id=crypto_top_500&limit=10`
       : null,
-    fetcher
+    apiFetcher
   );
 
   const { data: equityData, isLoading: equityLoading } = useSWR<{ data: SearchResult[] }>(
     debouncedQuery.length >= 1
       ? `/api/dashboard/all-assets?search=${encodeURIComponent(debouncedQuery)}&universe_id=equity_all&limit=10`
       : null,
-    fetcher
+    apiFetcher
   );
 
   const isLoading = cryptoLoading || equityLoading;

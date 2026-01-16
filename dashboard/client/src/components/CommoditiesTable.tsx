@@ -2,8 +2,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { apiFetcher } from "@/lib/api-config";
 
 interface Commodity {
   commodity_id: number;
@@ -43,7 +42,7 @@ export default function CommoditiesTable() {
 
   const { data, error, isLoading } = useSWR(
     `/api/dashboard/commodities?sort_by=${sortBy}&sort_order=${sortOrder}`,
-    fetcher
+    apiFetcher
   );
 
   const handleSort = (field: SortField) => {

@@ -10,8 +10,7 @@ import { DataStatusIndicator } from "@/components/DataStatusIndicator";
 import { ListSidebar } from "@/components/ListSidebar";
 import { StockList } from "@/hooks/useStockLists";
 import { TabType } from "@/pages/Home";
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { apiFetcher } from "@/lib/api-config";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -51,7 +50,7 @@ export default function DashboardLayout({
   onListDeleted,
   onListRenamed
 }: DashboardLayoutProps) {
-  const { data: health } = useSWR("/api/dashboard/health", fetcher, {
+  const { data: health } = useSWR("/api/dashboard/health", apiFetcher, {
     refreshInterval: 60000,
   });
   const [location] = useLocation();

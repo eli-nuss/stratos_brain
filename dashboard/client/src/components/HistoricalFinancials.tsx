@@ -4,7 +4,7 @@ import { BarChart3, DollarSign, ArrowRightLeft, ChevronDown, ChevronUp, Info, Tr
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { EarningsChart } from "./EarningsChart";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { apiFetcher } from "@/lib/api-config";
 
 interface HistoricalFinancialsProps {
   assetId: number;

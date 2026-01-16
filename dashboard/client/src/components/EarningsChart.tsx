@@ -14,7 +14,7 @@ import {
 } from "recharts";
 import { TrendingUp, Calendar } from "lucide-react";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { apiFetcher } from "@/lib/api-config";
 
 interface EarningsChartProps {
   symbol: string;

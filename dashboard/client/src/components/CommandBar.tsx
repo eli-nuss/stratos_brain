@@ -3,7 +3,7 @@ import { Search, Command, ArrowRight, TrendingUp, Sparkles } from 'lucide-react'
 import { useLocation } from 'wouter';
 import useSWR from 'swr';
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { apiFetcher } from "@/lib/api-config";
 
 interface Asset {
   asset_id: number;

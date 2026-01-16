@@ -16,8 +16,7 @@ import AssetDetail from "@/components/AssetDetail";
 import useSWR from "swr";
 import { useStockLists, StockList } from "@/hooks/useStockLists";
 import { useNotepad } from "@/contexts/NoteContext";
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { apiFetcher } from "@/lib/api-config";
 
 export type TabType = "watchlist" | "model-portfolio" | "model-portfolio-sandbox" | "core-portfolio" | "crypto" | "equity" | "etfs" | "indices" | "commodities" | `list-${number}`;
 
@@ -110,7 +109,7 @@ export default function Home() {
   };
 
   // Get latest date for the active tab
-  const { data: health } = useSWR("/api/dashboard/health", fetcher);
+  const { data: health } = useSWR("/api/dashboard/health", apiFetcher);
   const assetType = activeTab === "crypto" ? "crypto" : activeTab === "equity" ? "equity" : undefined;
   const date = assetType ? health?.latest_dates?.[assetType] : undefined;
 

@@ -34,7 +34,7 @@ interface SearchResult {
   asset_type: string;
 }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { apiFetcher } from "@/lib/api-config";
 
 export default function CorePortfolioHoldings({ onAssetClick }: { onAssetClick: (assetId: string) => void }) {
   const { holdings, isLoading, mutate } = useCorePortfolioHoldings();

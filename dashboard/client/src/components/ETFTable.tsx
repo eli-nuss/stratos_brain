@@ -2,8 +2,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import { ArrowUpDown, ArrowUp, ArrowDown, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { apiFetcher } from "@/lib/api-config";
 
 interface ETF {
   etf_id: number;
@@ -35,7 +34,7 @@ export default function ETFTable() {
 
   const { data, error, isLoading } = useSWR(
     `/api/dashboard/etfs?sort_by=${sortBy}&sort_order=${sortOrder}${search ? `&search=${search}` : ""}`,
-    fetcher
+    apiFetcher
   );
 
   const handleSort = (field: SortField) => {

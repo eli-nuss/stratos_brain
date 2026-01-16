@@ -21,7 +21,7 @@ interface AssetSearchForChatProps {
   disabled?: boolean;
 }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { apiFetcher } from "@/lib/api-config";
 
 export function AssetSearchForChat({
   onSelect,

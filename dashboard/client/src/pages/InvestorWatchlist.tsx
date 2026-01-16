@@ -88,17 +88,7 @@ interface SearchResult {
   date?: string;
 }
 
-// Fetcher with error handling
-const fetcher = async (url: string) => {
-  const res = await fetch(url, {
-    headers: { 'x-stratos-key': 'stratos_brain_api_key_2024' }
-  });
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: 'Request failed' }));
-    throw new Error(error.error || 'Request failed');
-  }
-  return res.json();
-};
+import { apiFetcher } from "@/lib/api-config";
 
 // Format helpers
 const formatCurrency = (value: number | null | undefined): string => {

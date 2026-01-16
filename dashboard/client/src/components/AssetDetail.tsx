@@ -23,8 +23,7 @@ import { DocumentsSection } from "./DocumentsSection";
 import { InlineOnePager } from "./InlineOnePager";
 import AddToPortfolioButton from "./AddToPortfolioButton";
 import AssetTagButton from "./AssetTagButton";
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { apiFetcher } from "@/lib/api-config";
 
 interface AssetDetailProps {
   assetId: string;
@@ -79,7 +78,7 @@ function ConfidenceMeter({ confidence }: { confidence: number }) {
 
 
 export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
-  const { data, isLoading } = useSWR(`/api/dashboard/asset?asset_id=${assetId}`, fetcher);
+  const { data, isLoading } = useSWR(`/api/dashboard/asset?asset_id=${assetId}`, apiFetcher);
 
   const [chartView, setChartView] = useState<'tradingview' | 'financials'>('tradingview');
   const [isChartFullscreen, setIsChartFullscreen] = useState(false);

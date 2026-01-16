@@ -35,7 +35,7 @@ interface PerformanceStats {
   worstDay: number;
 }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { apiFetcher } from "@/lib/api-config";
 
 // Time period options
 const TIME_PERIODS = [

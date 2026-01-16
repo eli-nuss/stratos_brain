@@ -28,7 +28,7 @@ interface FeedbackItem {
   user_email: string | null;
 }
 
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+import { apiFetcher } from "@/lib/api-config";
 
 const categoryConfig = {
   bug: { icon: Bug, label: 'Bug', color: 'text-red-400', bgColor: 'bg-red-500/10', borderColor: 'border-red-500/30' },

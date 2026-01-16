@@ -2,8 +2,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { apiFetcher } from "@/lib/api-config";
 
 interface MarketIndex {
   index_id: number;
@@ -32,7 +31,7 @@ export default function IndicesTable() {
 
   const { data, error, isLoading } = useSWR(
     `/api/dashboard/indices?sort_by=${sortBy}&sort_order=${sortOrder}`,
-    fetcher
+    apiFetcher
   );
 
   const handleSort = (field: SortField) => {
