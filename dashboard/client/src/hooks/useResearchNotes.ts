@@ -54,8 +54,11 @@ export function useResearchNotes(contextType?: NoteContextType, contextId?: stri
     }
   );
 
+  // Ensure data is an array
+  const safeNotes = Array.isArray(data) ? data : [];
+
   return {
-    notes: data || [],
+    notes: safeNotes,
     isLoading,
     error,
     mutate,

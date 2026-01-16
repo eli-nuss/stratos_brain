@@ -16,11 +16,14 @@ export interface AssetTagItem {
 export function useAssetTags() {
   const { data, error, mutate } = useSWR<AssetTagItem[]>(`${API_BASE}/asset-tags`, fetcher);
   
+  // Ensure data is an array
+  const safeData = Array.isArray(data) ? data : [];
+  
   const tagsMap = new Map<number, AssetTag>();
-  (data || []).forEach(item => tagsMap.set(item.asset_id, item.tag));
+  safeData.forEach(item => tagsMap.set(item.asset_id, item.tag));
   
   return {
-    tags: data || [],
+    tags: safeData,
     tagsMap,
     getTag: (assetId: number): AssetTag | null => tagsMap.get(assetId) || null,
     isLoading: !error && !data,

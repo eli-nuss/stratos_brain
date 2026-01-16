@@ -18,8 +18,11 @@ export function useStockLists() {
     fetcher
   );
 
+  // Ensure data is an array
+  const safeLists = Array.isArray(data) ? data : [];
+
   return {
-    lists: data || [],
+    lists: safeLists,
     isLoading,
     error,
     mutate,
@@ -33,8 +36,11 @@ export function useStockListAssets(listId: number | null) {
     fetcher
   );
 
+  // Ensure data is an array
+  const safeAssets = Array.isArray(data) ? data : [];
+
   return {
-    assets: data || [],
+    assets: safeAssets,
     isLoading,
     error,
     mutate,
@@ -48,8 +54,11 @@ export function useAssetLists(assetId: number | null) {
     fetcher
   );
 
+  // Ensure data is an array
+  const safeLists = Array.isArray(data) ? data : [];
+
   return {
-    lists: data || [],
+    lists: safeLists,
     isLoading,
     error,
     mutate,

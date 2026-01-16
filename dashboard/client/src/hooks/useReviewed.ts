@@ -12,9 +12,12 @@ export interface ReviewedItem {
 export function useReviewed() {
   const { data, error, mutate } = useSWR<ReviewedItem[]>(`${API_BASE}/reviewed`, fetcher);
   
+  // Ensure data is an array
+  const safeData = Array.isArray(data) ? data : [];
+  
   return {
-    reviewed: data || [],
-    reviewedIds: (data || []).map(item => item.asset_id),
+    reviewed: safeData,
+    reviewedIds: safeData.map(item => item.asset_id),
     isLoading: !error && !data,
     error,
     mutate

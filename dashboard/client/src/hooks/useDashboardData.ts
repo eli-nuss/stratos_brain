@@ -56,8 +56,11 @@ export function useDashboardData({
     keepPreviousData: false,
   });
 
+  // Ensure data is an array
+  const safeData = Array.isArray(data) ? data : [];
+
   return {
-    data: data || [],
+    data: safeData,
     isLoading,
     error,
   };

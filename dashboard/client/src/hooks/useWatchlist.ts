@@ -15,7 +15,9 @@ export function useWatchlist() {
     fetcher
   )
 
-  const watchlistIds = new Set(data?.map(item => item.asset_id) || [])
+  // Ensure data is an array before mapping
+  const safeData = Array.isArray(data) ? data : [];
+  const watchlistIds = new Set(safeData.map(item => item.asset_id))
 
   const addToWatchlist = async (assetId: number) => {
     try {
@@ -30,7 +32,7 @@ export function useWatchlist() {
       }
       
       // Optimistically update the cache
-      mutate([...(data || []), { asset_id: assetId, created_at: new Date().toISOString() }], false)
+      mutate([...safeData, { asset_id: assetId, created_at: new Date().toISOString() }], false)
       
       return true
     } catch (error) {
@@ -50,7 +52,7 @@ export function useWatchlist() {
       }
       
       // Optimistically update the cache
-      mutate(data?.filter(item => item.asset_id !== assetId) || [], false)
+      mutate(safeData.filter(item => item.asset_id !== assetId), false)
       
       return true
     } catch (error) {
@@ -70,7 +72,7 @@ export function useWatchlist() {
   const isInWatchlist = (assetId: number) => watchlistIds.has(assetId)
 
   return {
-    watchlist: data || [],
+    watchlist: safeData,
     watchlistIds,
     isLoading,
     error,
@@ -88,8 +90,11 @@ export function useWatchlistAssets() {
     fetcher
   )
 
+  // Ensure data is an array
+  const safeAssets = Array.isArray(data) ? data : [];
+
   return {
-    assets: data || [],
+    assets: safeAssets,
     isLoading,
     error,
     mutate
