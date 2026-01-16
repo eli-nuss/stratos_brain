@@ -149,13 +149,14 @@ export function MobileNav({ searchQuery = '', onSearchChange }: MobileNavProps) 
       {/* Mobile Menu Drawer */}
       <div
         className={cn(
-          'fixed top-0 right-0 h-full w-72 bg-card border-l border-border z-[56] md:hidden',
+          'fixed top-0 right-0 h-full w-72 border-l border-border z-[56] md:hidden',
           'transform transition-transform duration-300 ease-out overflow-y-auto',
           isOpen ? 'translate-x-0' : 'translate-x-full'
         )}
+        style={{ backgroundColor: 'hsl(var(--card))' }}
       >
         {/* Drawer Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-card z-10">
+        <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 z-10" style={{ backgroundColor: 'hsl(var(--card))' }}>
           <div className="flex items-center gap-2">
             <Activity className="w-5 h-5 text-primary" />
             <span className="font-semibold text-sm">STRATOSBRAIN</span>
@@ -170,7 +171,7 @@ export function MobileNav({ searchQuery = '', onSearchChange }: MobileNavProps) 
         </div>
 
         {/* Grouped Navigation */}
-        <div className="p-3">
+        <div className="p-3" style={{ backgroundColor: 'hsl(var(--card))' }}>
           {mobileNavGroups.map((group, groupIndex) => (
             <div key={group.label} className={cn(groupIndex > 0 && "mt-4")}>
               <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 px-2">
@@ -205,7 +206,7 @@ export function MobileNav({ searchQuery = '', onSearchChange }: MobileNavProps) 
         </div>
 
         {/* Dashboard Quick Access */}
-        <div className="p-3 border-t border-border">
+        <div className="p-3 border-t border-border" style={{ backgroundColor: 'hsl(var(--card))' }}>
           <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 px-2">
             Asset Lists
           </h3>
