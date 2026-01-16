@@ -17,9 +17,9 @@ interface CompanyChatListProps {
 }
 
 export function CompanyChatList({ selectedChatId, onSelectChat, onNewChat }: CompanyChatListProps) {
-  const { user } = useAuth();
+  const { user, loading: authLoading, signIn } = useAuth();
   const userId = user?.id || null;
-  const { chats, isLoading, refresh } = useCompanyChats();
+  const { chats, isLoading, refresh, requiresAuth } = useCompanyChats();
   const [archiving, setArchiving] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -106,9 +106,25 @@ export function CompanyChatList({ selectedChatId, onSelectChat, onNewChat }: Com
 
       {/* Chat List - Scrollable middle section */}
       <div className="flex-1 min-h-0 overflow-y-auto scrollbar-minimal">
-        {isLoading ? (
+        {authLoading || isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : requiresAuth ? (
+          <div className="px-4 py-12 text-center">
+            <div className="inline-flex p-3 bg-muted/50 rounded-full mb-4">
+              <MessageSquare className="w-6 h-6 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium text-foreground mb-1">Sign in to view chats</p>
+            <p className="text-xs text-muted-foreground mb-6">
+              Your research chats are private and require authentication
+            </p>
+            <button
+              onClick={() => signIn()}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+            >
+              Sign In with Google
+            </button>
           </div>
         ) : chats.length === 0 ? (
           <div className="px-4 py-12 text-center">

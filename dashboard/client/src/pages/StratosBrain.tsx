@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Brain, Plus, MessageSquare, Trash2, Loader2, ChevronLeft, ChevronRight, Menu } from 'lucide-react';
+import { Brain, Plus, MessageSquare, Trash2, Loader2, ChevronLeft, ChevronRight, Menu, LogIn } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { BrainChatInterface } from '@/components/BrainChatInterface';
 import {
@@ -12,9 +12,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 
 export default function StratosBrain() {
-  const { user } = useAuth();
+  const { user, loading: authLoading, signIn } = useAuth();
   const userId = user?.id || null;
-  const { chats, isLoading, refresh } = useBrainChats();
+  const { chats, isLoading, refresh, requiresAuth } = useBrainChats();
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
@@ -23,14 +23,18 @@ export default function StratosBrain() {
 
   // Select the first chat by default, or create one if none exist
   useEffect(() => {
-    if (!isLoading && chats.length > 0 && !selectedChatId) {
+    if (!isLoading && !requiresAuth && chats.length > 0 && !selectedChatId) {
       setSelectedChatId(chats[0].chat_id);
     }
-  }, [chats, isLoading, selectedChatId]);
+  }, [chats, isLoading, selectedChatId, requiresAuth]);
 
   const selectedChat = chats.find((c) => c.chat_id === selectedChatId);
 
   const handleCreateChat = async () => {
+    if (requiresAuth) {
+      signIn();
+      return;
+    }
     setIsCreating(true);
     try {
       const newChat = await createBrainChat('New Chat', userId);
@@ -66,6 +70,9 @@ export default function StratosBrain() {
     setSelectedChatId(chatId);
     setMobileSidebarOpen(false);
   };
+
+  // Show loading state while auth is being checked
+  const showLoading = authLoading || isLoading;
 
   return (
     <DashboardLayout>
@@ -131,18 +138,34 @@ export default function StratosBrain() {
             >
               {isCreating ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
+              ) : requiresAuth ? (
+                <LogIn className="w-4 h-4" />
               ) : (
                 <Plus className="w-4 h-4" />
               )}
-              {!sidebarCollapsed && <span className="text-sm font-medium">New Chat</span>}
+              {!sidebarCollapsed && <span className="text-sm font-medium">{requiresAuth ? 'Sign In' : 'New Chat'}</span>}
             </button>
           </div>
 
           {/* Chat List */}
           <div className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-minimal">
-            {isLoading ? (
+            {showLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : requiresAuth ? (
+              <div className={cn('text-center py-8 px-4', sidebarCollapsed && 'hidden')}>
+                <LogIn className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">Sign in to view chats</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Your chats are private and require authentication
+                </p>
+                <button
+                  onClick={() => signIn()}
+                  className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+                >
+                  Sign In with Google
+                </button>
               </div>
             ) : chats.length === 0 ? (
               <div className={cn('text-center py-8', sidebarCollapsed && 'hidden')}>
@@ -206,7 +229,28 @@ export default function StratosBrain() {
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          {selectedChat ? (
+          {requiresAuth ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center max-w-md px-4">
+                <div className="inline-flex p-4 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full mb-4">
+                  <Brain className="w-12 h-12 text-purple-500" />
+                </div>
+                <h2 className="text-2xl font-bold text-foreground mb-2">
+                  Sign In to Use Stratos Brain
+                </h2>
+                <p className="text-muted-foreground mb-6">
+                  Your autonomous Chief Investment Officer. Sign in to screen markets, analyze macro conditions, and build investment theses.
+                </p>
+                <button
+                  onClick={() => signIn()}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl transition-all font-medium"
+                >
+                  <LogIn className="w-5 h-5" />
+                  Sign In with Google
+                </button>
+              </div>
+            </div>
+          ) : selectedChat ? (
             <BrainChatInterface chat={selectedChat} onRefresh={refresh} />
           ) : (
             <div className="flex-1 flex items-center justify-center">

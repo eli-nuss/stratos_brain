@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, UserProfile } from '@/lib/supabase';
+import { mutate } from 'swr';
+import { updateCachedAuth } from '@/lib/api-config';
 
 interface AuthContextType {
   user: User | null;
@@ -9,9 +11,21 @@ interface AuthContextType {
   loading: boolean;
   signInWithEmail: (email: string) => Promise<{ error: Error | null }>;
   signInWithGoogle: () => Promise<{ error: Error | null }>;
+  signIn: () => Promise<{ error: Error | null }>; // Shortcut for signInWithGoogle
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
+
+// Clear all SWR cache on auth state change to prevent stale data
+const clearAllCache = () => {
+  console.log('[Auth] Clearing all SWR cache...');
+  // Clear all SWR cache entries
+  mutate(
+    () => true, // Match all keys
+    undefined,  // Set data to undefined
+    { revalidate: false } // Don't revalidate immediately
+  );
+};
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -164,6 +178,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (isMounted) {
             setSession(currentSession);
             setUser(currentSession?.user ?? null);
+            
+            // Update cached auth for API calls
+            await updateCachedAuth();
+            
+            // Clear SWR cache on auth state change to prevent stale data
+            clearAllCache();
           }
           
           if (currentSession?.user) {
@@ -270,7 +290,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setProfile(null);
     setSession(null);
+    
+    // Update cached auth and clear SWR cache
+    await updateCachedAuth();
+    clearAllCache();
   };
+
+  // Shortcut for signInWithGoogle
+  const signIn = signInWithGoogle;
 
   const value = {
     user,
@@ -279,6 +306,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     signInWithEmail,
     signInWithGoogle,
+    signIn,
     signOut,
     refreshProfile,
   };

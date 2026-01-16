@@ -19,6 +19,7 @@ import InvestorWatchlist from "./pages/InvestorWatchlist";
 import ResearchNotes from "./pages/ResearchNotes";
 import { AuthCallback } from "./pages/AuthCallback";
 import FeedbackButton from "./components/FeedbackButton";
+import { VersionCheck } from "./components/VersionCheck";
 
 
 function Router() {
@@ -72,6 +73,7 @@ function App() {
               <Router />
               <FeedbackButton />
               <FloatingNotepad />
+              <VersionCheck />
             </TooltipProvider>
           </NotepadProvider>
         </AuthProvider>
