@@ -4,6 +4,8 @@
  * Contains the authentication headers needed for Supabase Edge Functions
  */
 
+import { supabase } from './supabase';
+
 // Use direct Supabase URL since Vercel rewrites don't forward auth headers
 export const API_BASE = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/control-api';
 
@@ -13,14 +15,57 @@ export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // Stratos API key for additional authentication
 export const STRATOS_API_KEY = 'stratos_brain_api_key_2024';
 
+// Cache for current user ID to avoid async calls in sync functions
+let cachedUserId: string | null = null;
+let cachedAccessToken: string | null = null;
+
+// Initialize and update cached user info
+export async function updateCachedAuth() {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    cachedUserId = session?.user?.id || null;
+    cachedAccessToken = session?.access_token || null;
+  } catch {
+    cachedUserId = null;
+    cachedAccessToken = null;
+  }
+}
+
+// Get cached user ID (synchronous)
+export function getCachedUserId(): string | null {
+  return cachedUserId;
+}
+
+// Get cached access token (synchronous)
+export function getCachedAccessToken(): string | null {
+  return cachedAccessToken;
+}
+
+// Set up auth state listener to keep cache updated
+supabase.auth.onAuthStateChange((_event, session) => {
+  cachedUserId = session?.user?.id || null;
+  cachedAccessToken = session?.access_token || null;
+});
+
+// Initialize cache on module load
+updateCachedAuth();
+
 /**
  * Get the default headers for API requests
+ * Includes user ID header if authenticated
  */
 export function getApiHeaders(): HeadersInit {
-  return {
-    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+  const headers: HeadersInit = {
+    'Authorization': `Bearer ${cachedAccessToken || SUPABASE_ANON_KEY}`,
     'x-stratos-key': STRATOS_API_KEY,
   };
+  
+  // Add user ID header if authenticated
+  if (cachedUserId) {
+    (headers as Record<string, string>)['x-user-id'] = cachedUserId;
+  }
+  
+  return headers;
 }
 
 /**

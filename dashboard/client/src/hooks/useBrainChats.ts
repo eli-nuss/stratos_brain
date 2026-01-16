@@ -119,13 +119,17 @@ export interface BrainJob {
 }
 
 // Hook to list all brain chats for the current user
+// Requires authentication - returns empty array if not logged in
 export function useBrainChats() {
-  const { user, session } = useAuth();
+  const { user, session, loading: authLoading } = useAuth();
   const userId = user?.id || null;
   const accessToken = session?.access_token || null;
   
+  // Only fetch when user is authenticated (chats are user-specific)
+  const shouldFetch = !authLoading && userId !== null;
+  
   const { data, error, isLoading, mutate } = useSWR<{ chats: BrainChat[] }>(
-    '/api/global-chat-api/chats',
+    shouldFetch ? '/api/global-chat-api/chats' : null,
     createFetcher(userId, accessToken),
     {
       refreshInterval: 30000, // Refresh every 30 seconds
@@ -134,9 +138,11 @@ export function useBrainChats() {
 
   return {
     chats: data?.chats || [],
-    isLoading,
+    isLoading: authLoading || isLoading,
     error,
     refresh: mutate,
+    // Indicate if user needs to log in to use chat
+    requiresAuth: !authLoading && !userId,
   };
 }
 

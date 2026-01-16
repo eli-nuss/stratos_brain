@@ -37,12 +37,15 @@ export interface ResearchNote {
 export function useResearchNotes(contextType?: NoteContextType, contextId?: string) {
   const { user } = useAuth();
   
-  let url = user?.id ? `${API_BASE}/dashboard/research-notes?user_id=${user.id}` : null;
+  // Only fetch if user is authenticated (user ID is passed in headers via api-config)
+  let url = user?.id ? `${API_BASE}/dashboard/research-notes` : null;
   if (url && contextType) {
-    url += `&context_type=${contextType}`;
-  }
-  if (url && contextId) {
-    url += `&context_id=${contextId}`;
+    url += `?context_type=${contextType}`;
+    if (contextId) {
+      url += `&context_id=${contextId}`;
+    }
+  } else if (url && contextId) {
+    url += `?context_id=${contextId}`;
   }
   
   const { data, error, isLoading, mutate } = useSWR<ResearchNote[]>(
@@ -88,9 +91,10 @@ export function useResearchNote(noteId: number | null) {
 export function useContextNote(context: NoteContext | null) {
   const { user } = useAuth();
   
+  // Only fetch if user is authenticated (user ID is passed in headers via api-config)
   let url = null;
   if (user?.id && context) {
-    url = `${API_BASE}/dashboard/research-notes/context?user_id=${user.id}&context_type=${context.type}`;
+    url = `${API_BASE}/dashboard/research-notes/context?context_type=${context.type}`;
     if (context.id) {
       url += `&context_id=${context.id}`;
     }
@@ -114,8 +118,8 @@ export function useContextNote(context: NoteContext | null) {
 }
 
 // Create a new research note
+// Note: user_id is now passed in headers via api-config, no need to pass it in body
 export async function createResearchNote(
-  userId: string,
   title: string,
   content?: string,
   is_favorite?: boolean,
@@ -127,7 +131,6 @@ export async function createResearchNote(
     method: 'POST',
     headers: getJsonApiHeaders(),
     body: JSON.stringify({ 
-      user_id: userId,
       title, 
       content, 
       is_favorite, 

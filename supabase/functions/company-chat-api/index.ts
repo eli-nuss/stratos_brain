@@ -491,11 +491,25 @@ serve(async (req: Request) => {
     console.log(`[company-chat-api] Request: ${req.method} ${rawPath} -> path: ${path}`)
     
     const userId = req.headers.get('x-user-id') || null
+    
+    // Helper to require authentication
+    const requireAuth = () => {
+      if (!userId) {
+        return new Response(JSON.stringify({ error: 'Authentication required. Please sign in to use chat features.' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+      return null
+    }
 
     // Route handling
     switch (true) {
-      // GET /chats - List all company chats for the current user
+      // GET /chats - List all company chats for the current user (REQUIRES AUTH)
       case req.method === 'GET' && path === '/chats': {
+        const authError = requireAuth()
+        if (authError) return authError
+        
         let query = supabase
           .from('company_chats')
           .select(`
@@ -509,12 +523,7 @@ serve(async (req: Request) => {
             user_id
           `)
           .eq('status', 'active')
-        
-        if (userId) {
-          query = query.eq('user_id', userId)
-        } else {
-          query = query.is('user_id', null)
-        }
+          .eq('user_id', userId)
         
         const { data, error } = await query.order('last_message_at', { ascending: false, nullsFirst: false })
         
@@ -541,8 +550,11 @@ serve(async (req: Request) => {
         })
       }
 
-      // POST /chats - Create or get a chat for a company
+      // POST /chats - Create or get a chat for a company (REQUIRES AUTH)
       case req.method === 'POST' && path === '/chats': {
+        const authError = requireAuth()
+        if (authError) return authError
+        
         const body = await req.json()
         const { asset_id, asset_type, display_name } = body
         
@@ -553,16 +565,12 @@ serve(async (req: Request) => {
           })
         }
         
+        // Check for existing chat for this user and asset
         let existingChatQuery = supabase
           .from('company_chats')
           .select('*')
           .eq('asset_id', asset_id)
-        
-        if (userId) {
-          existingChatQuery = existingChatQuery.eq('user_id', userId)
-        } else {
-          existingChatQuery = existingChatQuery.is('user_id', null)
-        }
+          .eq('user_id', userId)
         
         const { data: existingChat } = await existingChatQuery.single()
         
@@ -607,14 +615,19 @@ serve(async (req: Request) => {
         })
       }
 
-      // GET /chats/:chatId - Get a specific chat
+      // GET /chats/:chatId - Get a specific chat (REQUIRES AUTH)
       case req.method === 'GET' && /^\/chats\/[a-f0-9-]+$/.test(path): {
+        const authError = requireAuth()
+        if (authError) return authError
+        
         const chatId = path.split('/').pop()
         
+        // Only return chat if it belongs to the user
         const { data: chat, error } = await supabase
           .from('company_chats')
           .select('*')
           .eq('chat_id', chatId)
+          .eq('user_id', userId)
           .single()
         
         if (error || !chat) {
@@ -629,11 +642,29 @@ serve(async (req: Request) => {
         })
       }
 
-      // GET /chats/:chatId/messages - Get messages for a chat
+      // GET /chats/:chatId/messages - Get messages for a chat (REQUIRES AUTH)
       case req.method === 'GET' && /^\/chats\/[a-f0-9-]+\/messages$/.test(path): {
+        const authError = requireAuth()
+        if (authError) return authError
+        
         const chatId = path.split('/')[2]
         const limit = parseInt(url.searchParams.get('limit') || '50')
         const offset = parseInt(url.searchParams.get('offset') || '0')
+        
+        // Verify chat belongs to user
+        const { data: chat } = await supabase
+          .from('company_chats')
+          .select('chat_id')
+          .eq('chat_id', chatId)
+          .eq('user_id', userId)
+          .single()
+        
+        if (!chat) {
+          return new Response(JSON.stringify({ error: 'Chat not found' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
         
         const { data: messages, error } = await supabase
           .from('chat_messages')
@@ -658,8 +689,11 @@ serve(async (req: Request) => {
         })
       }
 
-      // POST /chats/:chatId/messages - Send a message (async job-based)
+      // POST /chats/:chatId/messages - Send a message (async job-based) (REQUIRES AUTH)
       case req.method === 'POST' && /^\/chats\/[a-f0-9-]+\/messages$/.test(path): {
+        const authError = requireAuth()
+        if (authError) return authError
+        
         const chatId = path.split('/')[2]
         const body = await req.json()
         const { content } = body
@@ -671,10 +705,12 @@ serve(async (req: Request) => {
           })
         }
         
+        // Verify chat belongs to user
         const { data: chat, error: chatError } = await supabase
           .from('company_chats')
           .select('*')
           .eq('chat_id', chatId)
+          .eq('user_id', userId)
           .single()
         
         if (chatError || !chat) {

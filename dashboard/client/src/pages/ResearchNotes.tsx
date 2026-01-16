@@ -88,7 +88,7 @@ export default function ResearchNotes() {
     
     setIsCreating(true);
     try {
-      const newNote = await createResearchNote(user.id, 'Untitled Note', '', false, 'general');
+      const newNote = await createResearchNote('Untitled Note', '', false, 'general');
       setSelectedNoteId(newNote.id);
       setShowMobileEditor(true);
       mutate();

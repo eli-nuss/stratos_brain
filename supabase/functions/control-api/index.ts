@@ -65,81 +65,95 @@ interface EnqueueRequest {
 }
 
 // Check if the request is for a public dashboard endpoint (read-only or chat)
+// NOTE: User-specific features (notes, research-notes, chats) require authentication
 function isPublicDashboardEndpoint(req: Request): boolean {
   const url = new URL(req.url)
   const path = url.pathname.replace('/control-api', '')
   
-  // Allow public read access to dashboard GET endpoints
+  // Allow public read access to dashboard GET endpoints (data views)
   if (req.method === 'GET' && path.startsWith('/dashboard/')) {
+    // EXCEPT: notes and research-notes require auth for user-specific data
+    if (path.startsWith('/dashboard/notes') || path.startsWith('/dashboard/research-notes')) {
+      return false
+    }
+    // EXCEPT: table-settings require auth for user-specific settings
+    if (path.startsWith('/dashboard/table-settings')) {
+      return false
+    }
     return true
   }
   
-  // Allow public access to dashboard chat endpoint (POST)
-  if (req.method === 'POST' && path === '/dashboard/chat') {
+  // Allow public access to dashboard chat endpoint (POST) - REMOVED, requires auth now
+  // if (req.method === 'POST' && path === '/dashboard/chat') {
+  //   return true
+  // }
+  
+  // NOTE: notes endpoints now require auth (user-specific)
+  // if (path.startsWith('/dashboard/notes') || path.startsWith('/dashboard/files')) {
+  //   return true
+  // }
+  
+  // Allow public access to files endpoints (shared asset files)
+  if (path.startsWith('/dashboard/files')) {
     return true
   }
   
-  // Allow public access to notes endpoints (all methods)
-  if (path.startsWith('/dashboard/notes') || path.startsWith('/dashboard/files')) {
-    return true
-  }
+  // NOTE: research-notes endpoints now require auth (user-specific)
+  // if (path.startsWith('/dashboard/research-notes')) {
+  //   return true
+  // }
   
-  // Allow public access to research-notes endpoints (all methods)
-  if (path.startsWith('/dashboard/research-notes')) {
-    return true
-  }
-  
-  // Allow public access to watchlist endpoints (all methods)
+  // Allow public access to watchlist endpoints (all methods) - SHARED
   if (path.startsWith('/dashboard/watchlist')) {
     return true
   }
   
-  // Allow public access to stock-lists endpoints (all methods)
+  // Allow public access to stock-lists endpoints (all methods) - SHARED
   if (path.startsWith('/dashboard/stock-lists')) {
     return true
   }
   
-  // Allow public access to reviewed endpoints (all methods)
+  // Allow public access to reviewed endpoints (all methods) - SHARED
   if (path.startsWith('/dashboard/reviewed')) {
     return true
   }
   
-  // Allow public access to asset-tags endpoints (all methods)
+  // Allow public access to asset-tags endpoints (all methods) - SHARED
   if (path.startsWith('/dashboard/asset-tags')) {
     return true
   }
   
-  // Allow public access to create-document endpoint
+  // Allow public access to create-document endpoint - SHARED
   if (req.method === 'POST' && path === '/dashboard/create-document') {
     return true
   }
   
-  // Allow public access to templates endpoints (all methods)
+  // Allow public access to templates endpoints (all methods) - SHARED
   if (path.startsWith('/dashboard/templates')) {
     return true
   }
   
-  // Allow public access to chat-config endpoints (all methods)
+  // Allow public access to chat-config endpoints (all methods) - SHARED config
   if (path.startsWith('/dashboard/chat-config')) {
     return true
   }
   
-  // Allow public access to model-portfolio endpoints (all methods)
+  // Allow public access to model-portfolio endpoints (all methods) - SHARED
   if (path.startsWith('/dashboard/model-portfolio')) {
     return true
   }
   
-  // Allow public access to core-portfolio endpoints (all methods)
+  // Allow public access to core-portfolio endpoints (all methods) - SHARED
   if (path.startsWith('/dashboard/core-portfolio')) {
     return true
   }
   
-  // Allow public access to core-portfolio-holdings endpoints (all methods)
+  // Allow public access to core-portfolio-holdings endpoints (all methods) - SHARED
   if (path.startsWith('/dashboard/core-portfolio-holdings')) {
     return true
   }
   
-  // Allow public access to model-portfolio-holdings endpoints (all methods)
+  // Allow public access to model-portfolio-holdings endpoints (all methods) - SHARED
   if (path.startsWith('/dashboard/model-portfolio-holdings')) {
     return true
   }
@@ -190,6 +204,36 @@ function validateAuth(req: Request): { valid: boolean; error?: string } {
     valid: false, 
     error: 'Unauthorized. Provide x-stratos-key header or valid JWT.' 
   }
+}
+
+// Extract user ID from JWT token
+function getUserIdFromRequest(req: Request): string | null {
+  const authHeader = req.headers.get('authorization')
+  if (!authHeader?.startsWith('Bearer ')) {
+    return null
+  }
+  
+  try {
+    // Decode JWT payload (base64url encoded)
+    const token = authHeader.substring(7)
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    
+    // Decode the payload (second part)
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
+    return payload.sub || null
+  } catch {
+    return null
+  }
+}
+
+// Check if user is authenticated (has valid JWT with user ID)
+function requireAuth(req: Request): { authenticated: boolean; userId: string | null; error?: string } {
+  const userId = getUserIdFromRequest(req)
+  if (!userId) {
+    return { authenticated: false, userId: null, error: 'Authentication required. Please sign in.' }
+  }
+  return { authenticated: true, userId }
 }
 
 serve(async (req) => {
@@ -1719,8 +1763,17 @@ If asked about something not in the data, acknowledge the limitation.`
         })
       }
 
-      // GET /dashboard/notes/:asset_id - Get notes for an asset
+      // GET /dashboard/notes/:asset_id - Get notes for an asset (USER-SPECIFIC)
       case req.method === 'GET' && /^\/dashboard\/notes\/\d+$/.test(path): {
+        // Require authentication for user-specific notes
+        const authCheck = requireAuth(req)
+        if (!authCheck.authenticated) {
+          return new Response(JSON.stringify({ error: authCheck.error }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
         const assetId = parseInt(path.split('/').pop() || '0')
         
         if (!assetId) {
@@ -1730,11 +1783,12 @@ If asked about something not in the data, acknowledge the limitation.`
           })
         }
         
-        // Get all notes for this asset, ordered by most recent first
+        // Get all notes for this asset belonging to this user, ordered by most recent first
         const { data: notes, error: notesError } = await supabase
           .from('asset_notes')
-          .select('note_id, note_text, created_at, updated_at')
+          .select('note_id, note_text, created_at, updated_at, user_id')
           .eq('asset_id', assetId)
+          .eq('user_id', authCheck.userId)
           .order('updated_at', { ascending: false })
         
         if (notesError) {
@@ -1753,8 +1807,17 @@ If asked about something not in the data, acknowledge the limitation.`
         })
       }
 
-      // POST /dashboard/notes - Create a new note for an asset
+      // POST /dashboard/notes - Create a new note for an asset (USER-SPECIFIC)
       case req.method === 'POST' && path === '/dashboard/notes': {
+        // Require authentication for creating notes
+        const authCheck = requireAuth(req)
+        if (!authCheck.authenticated) {
+          return new Response(JSON.stringify({ error: authCheck.error }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
         const body = await req.json()
         const { asset_id, note_text } = body
         
@@ -1769,7 +1832,8 @@ If asked about something not in the data, acknowledge the limitation.`
           .from('asset_notes')
           .insert({
             asset_id,
-            note_text: note_text.trim()
+            note_text: note_text.trim(),
+            user_id: authCheck.userId
           })
           .select()
           .single()
@@ -1787,8 +1851,17 @@ If asked about something not in the data, acknowledge the limitation.`
         })
       }
 
-      // PUT /dashboard/notes/:note_id - Update a note
+      // PUT /dashboard/notes/:note_id - Update a note (USER-SPECIFIC)
       case req.method === 'PUT' && /^\/dashboard\/notes\/\d+$/.test(path): {
+        // Require authentication for updating notes
+        const authCheck = requireAuth(req)
+        if (!authCheck.authenticated) {
+          return new Response(JSON.stringify({ error: authCheck.error }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
         const noteId = parseInt(path.split('/').pop() || '0')
         const body = await req.json()
         const { note_text } = body
@@ -1800,6 +1873,7 @@ If asked about something not in the data, acknowledge the limitation.`
           })
         }
         
+        // Only update if the note belongs to this user
         const { data: note, error: updateError } = await supabase
           .from('asset_notes')
           .update({
@@ -1807,6 +1881,7 @@ If asked about something not in the data, acknowledge the limitation.`
             updated_at: new Date().toISOString()
           })
           .eq('note_id', noteId)
+          .eq('user_id', authCheck.userId)
           .select()
           .single()
         
@@ -1822,8 +1897,17 @@ If asked about something not in the data, acknowledge the limitation.`
         })
       }
 
-      // DELETE /dashboard/notes/:note_id - Delete a note
+      // DELETE /dashboard/notes/:note_id - Delete a note (USER-SPECIFIC)
       case req.method === 'DELETE' && /^\/dashboard\/notes\/\d+$/.test(path): {
+        // Require authentication for deleting notes
+        const authCheck = requireAuth(req)
+        if (!authCheck.authenticated) {
+          return new Response(JSON.stringify({ error: authCheck.error }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
         const noteId = parseInt(path.split('/').pop() || '0')
         
         if (!noteId) {
@@ -1833,10 +1917,12 @@ If asked about something not in the data, acknowledge the limitation.`
           })
         }
         
+        // Only delete if the note belongs to this user
         const { error: deleteError } = await supabase
           .from('asset_notes')
           .delete()
           .eq('note_id', noteId)
+          .eq('user_id', authCheck.userId)
         
         if (deleteError) {
           return new Response(JSON.stringify({ error: deleteError.message }), {
@@ -4996,19 +5082,21 @@ If asked about something not in the data, acknowledge the limitation.`
 
       // ==================== RESEARCH NOTES ENDPOINTS ====================
 
-      // GET /dashboard/research-notes - Get all research notes for a user
-      // Query params: user_id (required), context_type (optional), context_id (optional)
+      // GET /dashboard/research-notes - Get all research notes for a user (USER-SPECIFIC)
+      // Query params: context_type (optional), context_id (optional)
       case req.method === 'GET' && path === '/dashboard/research-notes': {
-        const userId = url.searchParams.get('user_id')
-        const contextType = url.searchParams.get('context_type')
-        const contextId = url.searchParams.get('context_id')
-        
-        if (!userId) {
-          return new Response(JSON.stringify({ error: 'user_id is required' }), {
-            status: 400,
+        // Require authentication for user-specific research notes
+        const authCheck = requireAuth(req)
+        if (!authCheck.authenticated) {
+          return new Response(JSON.stringify({ error: authCheck.error }), {
+            status: 401,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
         }
+        
+        const userId = authCheck.userId
+        const contextType = url.searchParams.get('context_type')
+        const contextId = url.searchParams.get('context_id')
         
         let query = supabase
           .from('research_notes')
@@ -5101,15 +5189,24 @@ If asked about something not in the data, acknowledge the limitation.`
         })
       }
 
-      // GET /dashboard/research-notes/context - Get or create note for a specific context
-      // Query params: user_id (required), context_type (required), context_id (required for asset/stock_list)
+      // GET /dashboard/research-notes/context - Get or create note for a specific context (USER-SPECIFIC)
+      // Query params: context_type (required), context_id (required for asset/stock_list)
       case req.method === 'GET' && path === '/dashboard/research-notes/context': {
-        const userId = url.searchParams.get('user_id')
+        // Require authentication for user-specific research notes
+        const authCheck = requireAuth(req)
+        if (!authCheck.authenticated) {
+          return new Response(JSON.stringify({ error: authCheck.error }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const userId = authCheck.userId
         const contextType = url.searchParams.get('context_type')
         const contextId = url.searchParams.get('context_id')
         
-        if (!userId || !contextType) {
-          return new Response(JSON.stringify({ error: 'user_id and context_type are required' }), {
+        if (!contextType) {
+          return new Response(JSON.stringify({ error: 'context_type is required' }), {
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
@@ -5230,10 +5327,20 @@ If asked about something not in the data, acknowledge the limitation.`
         })
       }
 
-      // GET /dashboard/research-notes/:id - Get a single research note
+      // GET /dashboard/research-notes/:id - Get a single research note (USER-SPECIFIC)
       case req.method === 'GET' && /^\/dashboard\/research-notes\/\d+$/.test(path): {
+        // Require authentication
+        const authCheck = requireAuth(req)
+        if (!authCheck.authenticated) {
+          return new Response(JSON.stringify({ error: authCheck.error }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
         const noteId = parseInt(path.split('/').pop()!)
         
+        // Only fetch note if it belongs to the authenticated user
         const { data: note, error } = await supabase
           .from('research_notes')
           .select(`
@@ -5244,6 +5351,7 @@ If asked about something not in the data, acknowledge the limitation.`
             )
           `)
           .eq('id', noteId)
+          .eq('user_id', authCheck.userId)
           .single()
         
         if (error) {
@@ -5286,10 +5394,19 @@ If asked about something not in the data, acknowledge the limitation.`
         })
       }
 
-      // POST /dashboard/research-notes - Create a new research note
+      // POST /dashboard/research-notes - Create a new research note (USER-SPECIFIC)
       case req.method === 'POST' && path === '/dashboard/research-notes': {
+        // Require authentication
+        const authCheck = requireAuth(req)
+        if (!authCheck.authenticated) {
+          return new Response(JSON.stringify({ error: authCheck.error }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
         const body = await req.json()
-        const { title, content, is_favorite, asset_ids, user_id, context_type, context_id } = body
+        const { title, content, is_favorite, asset_ids, context_type, context_id } = body
         
         if (!title?.trim()) {
           return new Response(JSON.stringify({ error: 'title is required' }), {
@@ -5298,21 +5415,14 @@ If asked about something not in the data, acknowledge the limitation.`
           })
         }
         
-        if (!user_id) {
-          return new Response(JSON.stringify({ error: 'user_id is required' }), {
-            status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-        }
-        
-        // Create the note
+        // Create the note with authenticated user's ID
         const { data: note, error: noteError } = await supabase
           .from('research_notes')
           .insert({
             title: title.trim(),
             content: content || '',
             is_favorite: is_favorite || false,
-            user_id: user_id,
+            user_id: authCheck.userId,
             context_type: context_type || 'general',
             context_id: context_id || null
           })
@@ -5344,8 +5454,17 @@ If asked about something not in the data, acknowledge the limitation.`
         })
       }
 
-      // PUT /dashboard/research-notes/:id - Update a research note
+      // PUT /dashboard/research-notes/:id - Update a research note (USER-SPECIFIC)
       case req.method === 'PUT' && /^\/dashboard\/research-notes\/\d+$/.test(path): {
+        // Require authentication
+        const authCheck = requireAuth(req)
+        if (!authCheck.authenticated) {
+          return new Response(JSON.stringify({ error: authCheck.error }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
         const noteId = parseInt(path.split('/').pop()!)
         const body = await req.json()
         const { title, content, is_favorite } = body
@@ -5355,10 +5474,12 @@ If asked about something not in the data, acknowledge the limitation.`
         if (content !== undefined) updates.content = content
         if (is_favorite !== undefined) updates.is_favorite = is_favorite
         
+        // Only update if note belongs to authenticated user
         const { data: note, error } = await supabase
           .from('research_notes')
           .update(updates)
           .eq('id', noteId)
+          .eq('user_id', authCheck.userId)
           .select()
           .single()
         
@@ -5374,14 +5495,25 @@ If asked about something not in the data, acknowledge the limitation.`
         })
       }
 
-      // DELETE /dashboard/research-notes/:id - Delete a research note
+      // DELETE /dashboard/research-notes/:id - Delete a research note (USER-SPECIFIC)
       case req.method === 'DELETE' && /^\/dashboard\/research-notes\/\d+$/.test(path): {
+        // Require authentication
+        const authCheck = requireAuth(req)
+        if (!authCheck.authenticated) {
+          return new Response(JSON.stringify({ error: authCheck.error }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
         const noteId = parseInt(path.split('/').pop()!)
         
+        // Only delete if note belongs to authenticated user
         const { error } = await supabase
           .from('research_notes')
           .delete()
           .eq('id', noteId)
+          .eq('user_id', authCheck.userId)
         
         if (error) {
           return new Response(JSON.stringify({ error: error.message }), {
@@ -5395,8 +5527,17 @@ If asked about something not in the data, acknowledge the limitation.`
         })
       }
 
-      // POST /dashboard/research-notes/:id/assets - Add asset to a research note
+      // POST /dashboard/research-notes/:id/assets - Add asset to a research note (USER-SPECIFIC)
       case req.method === 'POST' && /^\/dashboard\/research-notes\/\d+\/assets$/.test(path): {
+        // Require authentication
+        const authCheck = requireAuth(req)
+        if (!authCheck.authenticated) {
+          return new Response(JSON.stringify({ error: authCheck.error }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
         const noteId = parseInt(path.split('/')[3])
         const body = await req.json()
         const { asset_id } = body
@@ -5404,6 +5545,21 @@ If asked about something not in the data, acknowledge the limitation.`
         if (!asset_id) {
           return new Response(JSON.stringify({ error: 'asset_id is required' }), {
             status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Verify note belongs to user before adding asset
+        const { data: existingNote } = await supabase
+          .from('research_notes')
+          .select('id')
+          .eq('id', noteId)
+          .eq('user_id', authCheck.userId)
+          .single()
+        
+        if (!existingNote) {
+          return new Response(JSON.stringify({ error: 'Note not found or access denied' }), {
+            status: 404,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
         }
@@ -5439,11 +5595,35 @@ If asked about something not in the data, acknowledge the limitation.`
         })
       }
 
-      // DELETE /dashboard/research-notes/:id/assets/:asset_id - Remove asset from a research note
+      // DELETE /dashboard/research-notes/:id/assets/:asset_id - Remove asset from a research note (USER-SPECIFIC)
       case req.method === 'DELETE' && /^\/dashboard\/research-notes\/\d+\/assets\/\d+$/.test(path): {
+        // Require authentication
+        const authCheck = requireAuth(req)
+        if (!authCheck.authenticated) {
+          return new Response(JSON.stringify({ error: authCheck.error }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
         const pathParts = path.split('/')
         const noteId = parseInt(pathParts[3])
         const assetId = parseInt(pathParts[5])
+        
+        // Verify note belongs to user before removing asset
+        const { data: existingNote } = await supabase
+          .from('research_notes')
+          .select('id')
+          .eq('id', noteId)
+          .eq('user_id', authCheck.userId)
+          .single()
+        
+        if (!existingNote) {
+          return new Response(JSON.stringify({ error: 'Note not found or access denied' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
         
         const { error } = await supabase
           .from('research_note_assets')
@@ -5469,12 +5649,22 @@ If asked about something not in the data, acknowledge the limitation.`
         })
       }
 
-      // PATCH /dashboard/research-notes/:id/favorite - Toggle favorite status
+      // PATCH /dashboard/research-notes/:id/favorite - Toggle favorite status (USER-SPECIFIC)
       case req.method === 'PATCH' && /^\/dashboard\/research-notes\/\d+\/favorite$/.test(path): {
+        // Require authentication
+        const authCheck = requireAuth(req)
+        if (!authCheck.authenticated) {
+          return new Response(JSON.stringify({ error: authCheck.error }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
         const noteId = parseInt(path.split('/')[3])
         const body = await req.json()
         const { is_favorite } = body
         
+        // Only update if note belongs to authenticated user
         const { data: note, error } = await supabase
           .from('research_notes')
           .update({ 
@@ -5482,6 +5672,7 @@ If asked about something not in the data, acknowledge the limitation.`
             updated_at: new Date().toISOString()
           })
           .eq('id', noteId)
+          .eq('user_id', authCheck.userId)
           .select()
           .single()
         
@@ -5493,6 +5684,129 @@ If asked about something not in the data, acknowledge the limitation.`
         }
         
         return new Response(JSON.stringify(note), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // ==================== USER TABLE SETTINGS ENDPOINTS ====================
+
+      // GET /dashboard/table-settings/:table_key - Get user's table settings (USER-SPECIFIC)
+      case req.method === 'GET' && /^\/dashboard\/table-settings\/[\w-]+$/.test(path): {
+        // Require authentication
+        const authCheck = requireAuth(req)
+        if (!authCheck.authenticated) {
+          return new Response(JSON.stringify({ error: authCheck.error }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const tableKey = path.split('/').pop()!
+        
+        const { data: settings, error } = await supabase
+          .from('user_table_settings')
+          .select('*')
+          .eq('user_id', authCheck.userId)
+          .eq('table_key', tableKey)
+          .single()
+        
+        if (error && error.code !== 'PGRST116') {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Return settings or null if not found (user hasn't customized yet)
+        return new Response(JSON.stringify(settings || null), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // PUT /dashboard/table-settings/:table_key - Save user's table settings (USER-SPECIFIC)
+      case req.method === 'PUT' && /^\/dashboard\/table-settings\/[\w-]+$/.test(path): {
+        // Require authentication
+        const authCheck = requireAuth(req)
+        if (!authCheck.authenticated) {
+          return new Response(JSON.stringify({ error: authCheck.error }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const tableKey = path.split('/').pop()!
+        const body = await req.json()
+        const { 
+          visible_columns, 
+          column_order, 
+          column_widths,
+          sort_by,
+          sort_order,
+          secondary_sort_by,
+          secondary_sort_order,
+          filters
+        } = body
+        
+        // Upsert the settings
+        const { data: settings, error } = await supabase
+          .from('user_table_settings')
+          .upsert({
+            user_id: authCheck.userId,
+            table_key: tableKey,
+            visible_columns: visible_columns || [],
+            column_order: column_order || [],
+            column_widths: column_widths || {},
+            sort_by: sort_by || null,
+            sort_order: sort_order || 'desc',
+            secondary_sort_by: secondary_sort_by || null,
+            secondary_sort_order: secondary_sort_order || 'desc',
+            filters: filters || {},
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id,table_key'
+          })
+          .select()
+          .single()
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(settings), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // DELETE /dashboard/table-settings/:table_key - Reset user's table settings (USER-SPECIFIC)
+      case req.method === 'DELETE' && /^\/dashboard\/table-settings\/[\w-]+$/.test(path): {
+        // Require authentication
+        const authCheck = requireAuth(req)
+        if (!authCheck.authenticated) {
+          return new Response(JSON.stringify({ error: authCheck.error }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const tableKey = path.split('/').pop()!
+        
+        const { error } = await supabase
+          .from('user_table_settings')
+          .delete()
+          .eq('user_id', authCheck.userId)
+          .eq('table_key', tableKey)
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }

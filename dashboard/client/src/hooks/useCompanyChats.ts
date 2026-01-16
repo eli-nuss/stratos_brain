@@ -145,19 +145,19 @@ export interface JobCreatedResponse {
 }
 
 // Hook to list all company chats for the current user
+// Requires authentication - returns empty array if not logged in
 export function useCompanyChats() {
   const { user, session, loading: authLoading } = useAuth();
   const userId = user?.id || null;
   const accessToken = session?.access_token || null;
   
-  // IMPORTANT: Don't fetch until auth is loaded to prevent showing public chats briefly
-  // When userId is null during auth loading, the API returns legacy/public chats
-  // We only want to fetch when we have a valid userId OR auth has finished loading (user is not logged in)
+  // IMPORTANT: Don't fetch until auth is loaded
+  // Only fetch when user is authenticated (chats are user-specific)
   const shouldFetch = !authLoading && userId !== null;
   
   const { data, error, isLoading, mutate } = useSWR<{ chats: CompanyChat[] }>(
     // Only create the SWR key when we should fetch - null key means no fetch
-    shouldFetch ? `/api/company-chat-api/chats?user=${userId}` : null,
+    shouldFetch ? `/api/company-chat-api/chats` : null,
     createFetcher(userId, accessToken),
     {
       refreshInterval: 30000, // Refresh every 30 seconds
@@ -172,6 +172,8 @@ export function useCompanyChats() {
     isLoading: authLoading || isLoading,
     error,
     refresh: mutate,
+    // Indicate if user needs to log in to use chat
+    requiresAuth: !authLoading && !userId,
   };
 }
 

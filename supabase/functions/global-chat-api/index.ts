@@ -250,19 +250,31 @@ Deno.serve(async (req: Request) => {
   const url = new URL(req.url)
   const path = url.pathname.replace(/^\/global-chat-api/, '') || '/'
   const userId = req.headers.get('x-user-id')
+  
+  // Helper to require authentication
+  const requireAuth = () => {
+    if (!userId) {
+      return new Response(JSON.stringify({ error: 'Authentication required. Please sign in to use Stratos Brain chat.' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+    return null
+  }
 
   try {
-    // GET /chats - List all brain chats
+    // GET /chats - List all brain chats (REQUIRES AUTH)
     if (req.method === 'GET' && path === '/chats') {
+      const authError = requireAuth()
+      if (authError) return authError
+      
+      // Only return chats belonging to this user
       let query = supabase
         .from('brain_chats')
         .select('*')
         .eq('status', 'active')
+        .eq('user_id', userId)
         .order('last_message_at', { ascending: false, nullsFirst: false })
-      
-      if (userId) {
-        query = query.or(`user_id.eq.${userId},user_id.is.null`)
-      }
       
       const { data, error } = await query
       if (error) throw error
@@ -272,8 +284,11 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    // POST /chats - Create new brain chat
+    // POST /chats - Create new brain chat (REQUIRES AUTH)
     if (req.method === 'POST' && path === '/chats') {
+      const authError = requireAuth()
+      if (authError) return authError
+      
       const body = await req.json()
       const title = body.title || 'New Chat'
       
@@ -281,7 +296,7 @@ Deno.serve(async (req: Request) => {
         .from('brain_chats')
         .insert({
           title,
-          user_id: userId || null,
+          user_id: userId,
           status: 'active'
         })
         .select()
@@ -295,9 +310,11 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    // GET /chats/:chatId - Get chat details
+    // GET /chats/:chatId - Get chat details (REQUIRES AUTH)
     const chatMatch = path.match(/^\/chats\/([a-f0-9-]+)$/)
     if (req.method === 'GET' && chatMatch) {
+      const authError = requireAuth()
+      if (authError) return authError
       const chatId = chatMatch[1]
       
       const { data: chat, error } = await supabase
@@ -318,15 +335,20 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    // DELETE /chats/:chatId - Delete chat
+    // DELETE /chats/:chatId - Delete chat (REQUIRES AUTH)
     const deleteMatch = path.match(/^\/chats\/([a-f0-9-]+)$/)
     if (req.method === 'DELETE' && deleteMatch) {
+      const authError = requireAuth()
+      if (authError) return authError
+      
       const chatId = deleteMatch[1]
       
+      // Only delete if chat belongs to user
       const { error } = await supabase
         .from('brain_chats')
         .update({ status: 'archived' })
         .eq('chat_id', chatId)
+        .eq('user_id', userId)
       
       if (error) throw error
       
@@ -335,11 +357,29 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    // GET /chats/:chatId/messages - Get messages
+    // GET /chats/:chatId/messages - Get messages (REQUIRES AUTH)
     const messagesMatch = path.match(/^\/chats\/([a-f0-9-]+)\/messages$/)
     if (req.method === 'GET' && messagesMatch) {
+      const authError = requireAuth()
+      if (authError) return authError
+      
       const chatId = messagesMatch[1]
       const limit = parseInt(url.searchParams.get('limit') || '50')
+      
+      // Verify chat belongs to user
+      const { data: chat } = await supabase
+        .from('brain_chats')
+        .select('chat_id')
+        .eq('chat_id', chatId)
+        .eq('user_id', userId)
+        .single()
+      
+      if (!chat) {
+        return new Response(JSON.stringify({ error: 'Chat not found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
       
       const { data: messages, error } = await supabase
         .from('brain_messages')
@@ -355,9 +395,12 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    // POST /chats/:chatId/messages - Send message (async job-based)
+    // POST /chats/:chatId/messages - Send message (async job-based) (REQUIRES AUTH)
     const sendMatch = path.match(/^\/chats\/([a-f0-9-]+)\/messages$/)
     if (req.method === 'POST' && sendMatch) {
+      const authError = requireAuth()
+      if (authError) return authError
+      
       const chatId = sendMatch[1]
       const body = await req.json()
       const { content } = body
@@ -369,11 +412,12 @@ Deno.serve(async (req: Request) => {
         })
       }
       
-      // Verify chat exists
+      // Verify chat exists and belongs to user
       const { data: chat, error: chatError } = await supabase
         .from('brain_chats')
         .select('*')
         .eq('chat_id', chatId)
+        .eq('user_id', userId)
         .single()
       
       if (chatError || !chat) {
