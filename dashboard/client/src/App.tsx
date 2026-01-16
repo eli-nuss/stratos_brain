@@ -20,6 +20,7 @@ import ResearchNotes from "./pages/ResearchNotes";
 import { AuthCallback } from "./pages/AuthCallback";
 import FeedbackButton from "./components/FeedbackButton";
 import { VersionCheck } from "./components/VersionCheck";
+import { StaleAuthHandler } from "./components/StaleAuthHandler";
 
 
 function Router() {
@@ -74,6 +75,7 @@ function App() {
               <FeedbackButton />
               <FloatingNotepad />
               <VersionCheck />
+              <StaleAuthHandler />
             </TooltipProvider>
           </NotepadProvider>
         </AuthProvider>

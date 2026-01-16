@@ -2,6 +2,7 @@
  * API Configuration
  * 
  * Contains the authentication headers needed for Supabase Edge Functions
+ * Includes automatic stale auth detection and recovery
  */
 
 import { supabase } from './supabase';
@@ -18,6 +19,13 @@ export const STRATOS_API_KEY = 'stratos_brain_api_key_2024';
 // Cache for current user ID to avoid async calls in sync functions
 let cachedUserId: string | null = null;
 let cachedAccessToken: string | null = null;
+let authErrorCount = 0;
+let lastAuthErrorTime = 0;
+const AUTH_ERROR_THRESHOLD = 3;
+const AUTH_ERROR_WINDOW = 10000; // 10 seconds
+
+// Flag to track if we're currently recovering from stale auth
+let isRecoveringAuth = false;
 
 // Initialize and update cached user info
 export async function updateCachedAuth() {
@@ -25,6 +33,8 @@ export async function updateCachedAuth() {
     const { data: { session } } = await supabase.auth.getSession();
     cachedUserId = session?.user?.id || null;
     cachedAccessToken = session?.access_token || null;
+    // Reset error count on successful auth update
+    authErrorCount = 0;
   } catch {
     cachedUserId = null;
     cachedAccessToken = null;
@@ -41,10 +51,113 @@ export function getCachedAccessToken(): string | null {
   return cachedAccessToken;
 }
 
+// Check if we have a cached auth token (user appears to be logged in)
+export function hasAuthToken(): boolean {
+  return cachedAccessToken !== null && cachedAccessToken !== SUPABASE_ANON_KEY;
+}
+
+// Force refresh the auth token
+async function forceRefreshToken(): Promise<boolean> {
+  console.log('[Auth Recovery] Attempting to refresh token...');
+  try {
+    const { data, error } = await supabase.auth.refreshSession();
+    if (error) {
+      console.error('[Auth Recovery] Token refresh failed:', error.message);
+      return false;
+    }
+    if (data.session) {
+      cachedUserId = data.session.user?.id || null;
+      cachedAccessToken = data.session.access_token || null;
+      console.log('[Auth Recovery] Token refreshed successfully');
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.error('[Auth Recovery] Token refresh exception:', err);
+    return false;
+  }
+}
+
+// Clear stale auth and force re-login
+async function clearStaleAuth(): Promise<void> {
+  console.log('[Auth Recovery] Clearing stale auth data...');
+  
+  // Clear cached values
+  cachedUserId = null;
+  cachedAccessToken = null;
+  
+  // Clear Supabase local storage
+  try {
+    // Sign out to clear all auth state
+    await supabase.auth.signOut({ scope: 'local' });
+  } catch (err) {
+    console.error('[Auth Recovery] Error during signout:', err);
+  }
+  
+  // Clear any remaining localStorage items related to Supabase
+  const keysToRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && (key.includes('supabase') || key.includes('sb-'))) {
+      keysToRemove.push(key);
+    }
+  }
+  keysToRemove.forEach(key => {
+    console.log('[Auth Recovery] Removing localStorage key:', key);
+    localStorage.removeItem(key);
+  });
+  
+  // Notify user
+  console.log('[Auth Recovery] Stale auth cleared. Please sign in again.');
+  
+  // Dispatch custom event so UI can react
+  window.dispatchEvent(new CustomEvent('stale-auth-cleared'));
+}
+
+// Handle auth errors and trigger recovery if needed
+async function handleAuthError(): Promise<boolean> {
+  const now = Date.now();
+  
+  // Reset counter if outside the error window
+  if (now - lastAuthErrorTime > AUTH_ERROR_WINDOW) {
+    authErrorCount = 0;
+  }
+  
+  authErrorCount++;
+  lastAuthErrorTime = now;
+  
+  console.log(`[Auth Recovery] Auth error count: ${authErrorCount}/${AUTH_ERROR_THRESHOLD}`);
+  
+  // If we've hit the threshold, try to recover
+  if (authErrorCount >= AUTH_ERROR_THRESHOLD && !isRecoveringAuth) {
+    isRecoveringAuth = true;
+    
+    // First try to refresh the token
+    const refreshed = await forceRefreshToken();
+    if (refreshed) {
+      authErrorCount = 0;
+      isRecoveringAuth = false;
+      return true; // Token refreshed, retry the request
+    }
+    
+    // If refresh failed, clear stale auth
+    await clearStaleAuth();
+    isRecoveringAuth = false;
+    
+    // Reload the page to get fresh state
+    window.location.reload();
+    return false;
+  }
+  
+  return false;
+}
+
 // Set up auth state listener to keep cache updated
 supabase.auth.onAuthStateChange((_event, session) => {
   cachedUserId = session?.user?.id || null;
   cachedAccessToken = session?.access_token || null;
+  // Reset error count on auth state change
+  authErrorCount = 0;
 });
 
 // Initialize cache on module load
@@ -52,11 +165,14 @@ updateCachedAuth();
 
 /**
  * Get the default headers for API requests
- * Includes user ID header if authenticated
+ * Uses anon key if no valid auth token is available
  */
 export function getApiHeaders(): HeadersInit {
+  // If we have a cached access token, use it; otherwise use anon key
+  const authToken = cachedAccessToken || SUPABASE_ANON_KEY;
+  
   const headers: HeadersInit = {
-    'Authorization': `Bearer ${cachedAccessToken || SUPABASE_ANON_KEY}`,
+    'Authorization': `Bearer ${authToken}`,
     'x-stratos-key': STRATOS_API_KEY,
   };
   
@@ -80,7 +196,7 @@ export function getJsonApiHeaders(): HeadersInit {
 
 /**
  * Enhanced fetcher for SWR hooks with auth headers
- * Converts /api/dashboard paths to direct Supabase URLs
+ * Includes automatic stale auth detection and recovery
  */
 export async function apiFetcher<T = unknown>(url: string): Promise<T> {
   // Convert /api/dashboard paths to direct Supabase URL
@@ -98,14 +214,34 @@ export async function apiFetcher<T = unknown>(url: string): Promise<T> {
     const errorText = await response.text();
     console.error(`[API] Error [${response.status}] on ${url}: ${errorText}`);
     
-    // Return empty array for auth errors to prevent UI breakage
+    // Handle auth errors with automatic recovery
     if (response.status === 401 || response.status === 403) {
-      console.warn('[API] Auth error, returning empty data');
+      console.warn('[API] Auth error detected');
+      
+      // Only try to recover if we thought we were logged in
+      if (hasAuthToken()) {
+        const recovered = await handleAuthError();
+        if (recovered) {
+          // Retry the request with refreshed token
+          console.log('[API] Retrying request after token refresh...');
+          const retryResponse = await fetch(fullUrl, {
+            headers: getApiHeaders(),
+          });
+          if (retryResponse.ok) {
+            return retryResponse.json();
+          }
+        }
+      }
+      
+      // Return empty array for auth errors to prevent UI breakage
       return [] as unknown as T;
     }
     
     throw new Error(`API Error: ${response.status}`);
   }
+  
+  // Reset error count on successful request
+  authErrorCount = 0;
   
   const data = await response.json();
   
@@ -166,7 +302,7 @@ export const staticDataSwrConfig = {
 export const API_HEADERS = getApiHeaders();
 
 /**
- * POST request helper
+ * POST request helper with auth recovery
  */
 export async function apiPost<T = unknown>(url: string, body: unknown): Promise<T> {
   // Convert /api/dashboard paths to direct Supabase URL
@@ -183,6 +319,20 @@ export async function apiPost<T = unknown>(url: string, body: unknown): Promise<
   });
   
   if (!response.ok) {
+    // Handle auth errors with automatic recovery
+    if ((response.status === 401 || response.status === 403) && hasAuthToken()) {
+      const recovered = await handleAuthError();
+      if (recovered) {
+        const retryResponse = await fetch(fullUrl, {
+          method: 'POST',
+          headers: getJsonApiHeaders(),
+          body: JSON.stringify(body),
+        });
+        if (retryResponse.ok) {
+          return retryResponse.json();
+        }
+      }
+    }
     throw new Error(`API POST Error: ${response.status}`);
   }
   
@@ -190,7 +340,7 @@ export async function apiPost<T = unknown>(url: string, body: unknown): Promise<
 }
 
 /**
- * PUT request helper
+ * PUT request helper with auth recovery
  */
 export async function apiPut<T = unknown>(url: string, body: unknown): Promise<T> {
   // Convert /api/dashboard paths to direct Supabase URL
@@ -207,6 +357,20 @@ export async function apiPut<T = unknown>(url: string, body: unknown): Promise<T
   });
   
   if (!response.ok) {
+    // Handle auth errors with automatic recovery
+    if ((response.status === 401 || response.status === 403) && hasAuthToken()) {
+      const recovered = await handleAuthError();
+      if (recovered) {
+        const retryResponse = await fetch(fullUrl, {
+          method: 'PUT',
+          headers: getJsonApiHeaders(),
+          body: JSON.stringify(body),
+        });
+        if (retryResponse.ok) {
+          return retryResponse.json();
+        }
+      }
+    }
     throw new Error(`API PUT Error: ${response.status}`);
   }
   
@@ -214,7 +378,7 @@ export async function apiPut<T = unknown>(url: string, body: unknown): Promise<T
 }
 
 /**
- * PATCH request helper
+ * PATCH request helper with auth recovery
  */
 export async function apiPatch<T = unknown>(url: string, body: unknown): Promise<T> {
   // Convert /api/dashboard paths to direct Supabase URL
@@ -231,6 +395,20 @@ export async function apiPatch<T = unknown>(url: string, body: unknown): Promise
   });
   
   if (!response.ok) {
+    // Handle auth errors with automatic recovery
+    if ((response.status === 401 || response.status === 403) && hasAuthToken()) {
+      const recovered = await handleAuthError();
+      if (recovered) {
+        const retryResponse = await fetch(fullUrl, {
+          method: 'PATCH',
+          headers: getJsonApiHeaders(),
+          body: JSON.stringify(body),
+        });
+        if (retryResponse.ok) {
+          return retryResponse.json();
+        }
+      }
+    }
     throw new Error(`API PATCH Error: ${response.status}`);
   }
   
@@ -238,7 +416,7 @@ export async function apiPatch<T = unknown>(url: string, body: unknown): Promise
 }
 
 /**
- * DELETE request helper
+ * DELETE request helper with auth recovery
  */
 export async function apiDelete(url: string): Promise<void> {
   // Convert /api/dashboard paths to direct Supabase URL
@@ -254,6 +432,19 @@ export async function apiDelete(url: string): Promise<void> {
   });
   
   if (!response.ok) {
+    // Handle auth errors with automatic recovery
+    if ((response.status === 401 || response.status === 403) && hasAuthToken()) {
+      const recovered = await handleAuthError();
+      if (recovered) {
+        const retryResponse = await fetch(fullUrl, {
+          method: 'DELETE',
+          headers: getApiHeaders(),
+        });
+        if (retryResponse.ok) {
+          return;
+        }
+      }
+    }
     throw new Error(`API DELETE Error: ${response.status}`);
   }
 }
