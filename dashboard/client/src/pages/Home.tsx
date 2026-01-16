@@ -117,7 +117,8 @@ export default function Home() {
   // Check if current tab is a stock list
   const isStockListTab = activeTab.startsWith("list-");
   const currentListId = isStockListTab ? parseInt(activeTab.split("-")[1]) : null;
-  const currentList = currentListId ? lists.find((l: StockList) => l.id === currentListId) : null;
+  const safeLists = Array.isArray(lists) ? lists : [];
+  const currentList = currentListId ? safeLists.find((l: StockList) => l.id === currentListId) : null;
 
   // Update notepad context based on current view
   const { setContext } = useNotepad();
@@ -161,7 +162,7 @@ export default function Home() {
     <DashboardLayout 
       activeTab={activeTab} 
       onTabChange={handleTabChange}
-      stockLists={lists}
+      stockLists={safeLists}
       onListCreated={mutateLists}
       onListsReordered={handleListsReordered}
       onListDeleted={mutateLists}

@@ -109,6 +109,8 @@ export function ListSidebar({
   onListRenamed,
   className = '',
 }: ListSidebarProps) {
+  // Ensure stockLists is an array before operations
+  const safeStockLists = Array.isArray(stockLists) ? stockLists : [];
 
   const [showAllLists, setShowAllLists] = useState(false);
   const [contextMenu, setContextMenu] = useState<{
@@ -154,9 +156,9 @@ export function ListSidebar({
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
-      const oldIndex = stockLists.findIndex((list) => list.id === active.id);
-      const newIndex = stockLists.findIndex((list) => list.id === over.id);
-      const newOrder = arrayMove(stockLists, oldIndex, newIndex);
+      const oldIndex = safeStockLists.findIndex((list) => list.id === active.id);
+      const newIndex = safeStockLists.findIndex((list) => list.id === over.id);
+      const newOrder = arrayMove(safeStockLists, oldIndex, newIndex);
       
       if (onListsReordered) {
         onListsReordered(newOrder);
@@ -249,7 +251,7 @@ export function ListSidebar({
     }
   };
 
-  const visibleLists = showAllLists ? stockLists : stockLists.slice(0, 20);
+  const visibleLists = showAllLists ? safeStockLists : safeStockLists.slice(0, 20);
 
   // Context menu portal
   const contextMenuPortal = contextMenu.isOpen && createPortal(
@@ -433,7 +435,7 @@ export function ListSidebar({
           onDragEnd={handleDragEnd}
         >
           <SortableContext
-            items={stockLists.map((list) => list.id)}
+            items={safeStockLists.map((list) => list.id)}
             strategy={verticalListSortingStrategy}
           >
             <div className="space-y-0.5">
@@ -450,7 +452,7 @@ export function ListSidebar({
           </SortableContext>
         </DndContext>
         
-        {stockLists.length > 5 && (
+        {safeStockLists.length > 5 && (
           <button
             onClick={() => setShowAllLists(!showAllLists)}
             className="w-full mt-2 px-2 py-1.5 text-[11px] text-muted-foreground hover:text-foreground flex items-center justify-center gap-1"
@@ -458,7 +460,7 @@ export function ListSidebar({
             {showAllLists ? (
               <><ChevronUp className="w-3 h-3" /> Show less</>
             ) : (
-              <><ChevronDown className="w-3 h-3" /> +{stockLists.length - 5} more</>
+              <><ChevronDown className="w-3 h-3" /> +{safeStockLists.length - 5} more</>
             )}
           </button>
         )}
