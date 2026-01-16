@@ -2,7 +2,35 @@ import useSWR from 'swr'
 
 const API_BASE = '/api'
 
-const fetcher = (url: string) => fetch(url).then(res => res.json())
+// Enhanced fetcher with error handling and retry logic
+const fetcher = async (url: string) => {
+  const response = await fetch(url)
+  
+  // Check if response is ok
+  if (!response.ok) {
+    const errorText = await response.text()
+    console.error(`API Error [${response.status}]: ${errorText}`)
+    
+    // Return empty array for auth errors to prevent UI breakage
+    if (response.status === 401 || response.status === 403) {
+      console.warn('Auth error on API call, returning empty data')
+      return []
+    }
+    
+    throw new Error(`API Error: ${response.status}`)
+  }
+  
+  const data = await response.json()
+  
+  // Handle error responses that return as JSON
+  if (data && typeof data === 'object' && 'code' in data && 'message' in data) {
+    console.error(`API returned error: ${data.message}`)
+    // Return empty array for error responses to prevent UI breakage
+    return []
+  }
+  
+  return data
+}
 
 interface WatchlistItem {
   asset_id: number
@@ -12,7 +40,20 @@ interface WatchlistItem {
 export function useWatchlist() {
   const { data, error, isLoading, mutate } = useSWR<WatchlistItem[]>(
     `${API_BASE}/dashboard/watchlist`,
-    fetcher
+    fetcher,
+    {
+      // Retry on error
+      errorRetryCount: 3,
+      errorRetryInterval: 1000,
+      // Revalidate on focus to catch stale data
+      revalidateOnFocus: true,
+      // Keep previous data while revalidating
+      keepPreviousData: true,
+      // Handle errors gracefully
+      onError: (err) => {
+        console.error('Watchlist fetch error:', err)
+      }
+    }
   )
 
   // Ensure data is an array before mapping
@@ -87,7 +128,20 @@ export function useWatchlist() {
 export function useWatchlistAssets() {
   const { data, error, isLoading, mutate } = useSWR(
     `${API_BASE}/dashboard/watchlist/assets`,
-    fetcher
+    fetcher,
+    {
+      // Retry on error
+      errorRetryCount: 3,
+      errorRetryInterval: 1000,
+      // Revalidate on focus to catch stale data
+      revalidateOnFocus: true,
+      // Keep previous data while revalidating
+      keepPreviousData: true,
+      // Handle errors gracefully
+      onError: (err) => {
+        console.error('Watchlist assets fetch error:', err)
+      }
+    }
   )
 
   // Ensure data is an array

@@ -27,6 +27,12 @@
   ],
   "headers": [
     {
+      "source": "/api/dashboard/:path*",
+      "headers": [
+        { "key": "x-stratos-key", "value": "stratos_brain_api_key_2024" }
+      ]
+    },
+    {
       "source": "/api/company-chat-api/:path*",
       "headers": [
         { "key": "x-stratos-key", "value": "stratos_brain_api_key_2024" }
