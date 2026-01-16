@@ -1,32 +1,5 @@
 import useSWR from 'swr';
-
-// Enhanced fetcher with error handling
-const fetcher = async (url: string) => {
-  const response = await fetch(url);
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`API Error [${response.status}]: ${errorText}`);
-    
-    // Return empty array for auth errors to prevent UI breakage
-    if (response.status === 401 || response.status === 403) {
-      console.warn('Auth error on API call, returning empty data');
-      return [];
-    }
-    
-    throw new Error(`API Error: ${response.status}`);
-  }
-  
-  const data = await response.json();
-  
-  // Handle error responses that return as JSON
-  if (data && typeof data === 'object' && 'code' in data && 'message' in data) {
-    console.error(`API returned error: ${data.message}`);
-    return [];
-  }
-  
-  return data;
-};
+import { apiFetcher, defaultSwrConfig, getJsonApiHeaders, API_BASE } from '../lib/api-config';
 
 export interface StockList {
   id: number;
@@ -40,17 +13,9 @@ export interface StockList {
 // Get all stock lists
 export function useStockLists() {
   const { data, error, isLoading, mutate } = useSWR<StockList[]>(
-    '/api/dashboard/stock-lists',
-    fetcher,
-    {
-      errorRetryCount: 3,
-      errorRetryInterval: 1000,
-      revalidateOnFocus: true,
-      keepPreviousData: true,
-      onError: (err) => {
-        console.error('Stock lists fetch error:', err);
-      }
-    }
+    `${API_BASE}/dashboard/stock-lists`,
+    apiFetcher,
+    defaultSwrConfig
   );
 
   // Ensure data is an array
@@ -67,17 +32,9 @@ export function useStockLists() {
 // Get assets in a specific list
 export function useStockListAssets(listId: number | null) {
   const { data, error, isLoading, mutate } = useSWR(
-    listId ? `/api/dashboard/stock-lists/${listId}/assets` : null,
-    fetcher,
-    {
-      errorRetryCount: 3,
-      errorRetryInterval: 1000,
-      revalidateOnFocus: true,
-      keepPreviousData: true,
-      onError: (err) => {
-        console.error('Stock list assets fetch error:', err);
-      }
-    }
+    listId ? `${API_BASE}/dashboard/stock-lists/${listId}/assets` : null,
+    apiFetcher,
+    defaultSwrConfig
   );
 
   // Ensure data is an array
@@ -94,17 +51,9 @@ export function useStockListAssets(listId: number | null) {
 // Get lists that contain a specific asset
 export function useAssetLists(assetId: number | null) {
   const { data, error, isLoading, mutate } = useSWR<StockList[]>(
-    assetId ? `/api/dashboard/stock-lists/asset/${assetId}` : null,
-    fetcher,
-    {
-      errorRetryCount: 3,
-      errorRetryInterval: 1000,
-      revalidateOnFocus: true,
-      keepPreviousData: true,
-      onError: (err) => {
-        console.error('Asset lists fetch error:', err);
-      }
-    }
+    assetId ? `${API_BASE}/dashboard/stock-lists/asset/${assetId}` : null,
+    apiFetcher,
+    defaultSwrConfig
   );
 
   // Ensure data is an array
@@ -120,9 +69,9 @@ export function useAssetLists(assetId: number | null) {
 
 // Add asset to a list
 export async function addToList(listId: number, assetId: number) {
-  const response = await fetch(`/api/dashboard/stock-lists/${listId}/assets`, {
+  const response = await fetch(`${API_BASE}/dashboard/stock-lists/${listId}/assets`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getJsonApiHeaders(),
     body: JSON.stringify({ asset_id: assetId }),
   });
   return response.json();
@@ -130,8 +79,9 @@ export async function addToList(listId: number, assetId: number) {
 
 // Remove asset from a list
 export async function removeFromList(listId: number, assetId: number) {
-  const response = await fetch(`/api/dashboard/stock-lists/${listId}/assets/${assetId}`, {
+  const response = await fetch(`${API_BASE}/dashboard/stock-lists/${listId}/assets/${assetId}`, {
     method: 'DELETE',
+    headers: getJsonApiHeaders(),
   });
   return response.json();
 }

@@ -2,9 +2,17 @@ import useSWR from 'swr'
 
 const API_BASE = '/api'
 
-// Enhanced fetcher with error handling and retry logic
+// Supabase anon key for API authentication
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indmb2diYWlwaXFvb3RqcnNwcmRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxOTQ4NDQsImV4cCI6MjA4MTc3MDg0NH0.DWjb0nVian7a9njxbGR9VjAsWQuWuHI375PgEHH1TRw';
+
+// Enhanced fetcher with auth header and error handling
 const fetcher = async (url: string) => {
-  const response = await fetch(url)
+  const response = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'x-stratos-key': 'stratos_brain_api_key_2024',
+    }
+  })
   
   // Check if response is ok
   if (!response.ok) {
@@ -64,7 +72,11 @@ export function useWatchlist() {
     try {
       const response = await fetch(`${API_BASE}/dashboard/watchlist`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'x-stratos-key': 'stratos_brain_api_key_2024',
+        },
         body: JSON.stringify({ asset_id: assetId })
       })
       
@@ -85,7 +97,11 @@ export function useWatchlist() {
   const removeFromWatchlist = async (assetId: number) => {
     try {
       const response = await fetch(`${API_BASE}/dashboard/watchlist/${assetId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'x-stratos-key': 'stratos_brain_api_key_2024',
+        }
       })
       
       if (!response.ok) {

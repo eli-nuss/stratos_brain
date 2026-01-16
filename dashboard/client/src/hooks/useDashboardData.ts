@@ -1,6 +1,5 @@
 import useSWR from "swr";
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { apiFetcher, defaultSwrConfig, API_BASE } from "../lib/api-config";
 
 export type AssetType = "crypto" | "equity";
 export type TableType = "inflections_bullish" | "inflections_bearish" | "trends" | "risk";
@@ -34,24 +33,25 @@ export function useDashboardData({
 
   switch (type) {
     case "inflections_bullish":
-      endpoint = "/api/dashboard/inflections";
+      endpoint = `${API_BASE}/dashboard/inflections`;
       params.append("direction", "bullish");
       break;
     case "inflections_bearish":
-      endpoint = "/api/dashboard/inflections";
+      endpoint = `${API_BASE}/dashboard/inflections`;
       params.append("direction", "bearish");
       break;
     case "trends":
-      endpoint = "/api/dashboard/trends";
+      endpoint = `${API_BASE}/dashboard/trends`;
       break;
     case "risk":
-      endpoint = "/api/dashboard/risk";
+      endpoint = `${API_BASE}/dashboard/risk`;
       break;
   }
 
   const url = `${endpoint}?${params.toString()}`;
   
-  const { data, error, isLoading } = useSWR(date ? url : null, fetcher, {
+  const { data, error, isLoading } = useSWR(date ? url : null, apiFetcher, {
+    ...defaultSwrConfig,
     refreshInterval: 60000,
     keepPreviousData: false,
   });

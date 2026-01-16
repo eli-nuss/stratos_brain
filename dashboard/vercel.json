@@ -3,12 +3,11 @@
   "buildCommand": "pnpm run build",
   "outputDirectory": "dist/public",
   "framework": "vite",
-  "functions": {
-    "api/**/*.ts": {
-      "runtime": "@vercel/node@3.0.0"
-    }
-  },
   "rewrites": [
+    {
+      "source": "/api/dashboard/:path*",
+      "destination": "https://wfogbaipiqootjrsprde.supabase.co/functions/v1/control-api/dashboard/:path*"
+    },
     {
       "source": "/api/company-chat-api/:path*",
       "destination": "https://wfogbaipiqootjrsprde.supabase.co/functions/v1/company-chat-api/:path*"
@@ -24,26 +23,6 @@
     {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/api/company-chat-api/:path*",
-      "headers": [
-        { "key": "x-stratos-key", "value": "stratos_brain_api_key_2024" }
-      ]
-    },
-    {
-      "source": "/api/global-chat-api/:path*",
-      "headers": [
-        { "key": "x-stratos-key", "value": "stratos_brain_api_key_2024" }
-      ]
-    },
-    {
-      "source": "/api/investor-api/:path*",
-      "headers": [
-        { "key": "x-stratos-key", "value": "stratos_brain_api_key_2024" }
-      ]
     }
   ]
 }

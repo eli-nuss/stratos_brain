@@ -1,7 +1,6 @@
 import useSWR, { mutate as globalMutate } from "swr";
 import { useAuth } from "@/contexts/AuthContext";
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { apiFetcher, defaultSwrConfig, getJsonApiHeaders, getApiHeaders, API_BASE } from "../lib/api-config";
 
 export type NoteContextType = 'general' | 'asset' | 'stock_list';
 
@@ -38,7 +37,7 @@ export interface ResearchNote {
 export function useResearchNotes(contextType?: NoteContextType, contextId?: string) {
   const { user } = useAuth();
   
-  let url = user?.id ? `/api/dashboard/research-notes?user_id=${user.id}` : null;
+  let url = user?.id ? `${API_BASE}/dashboard/research-notes?user_id=${user.id}` : null;
   if (url && contextType) {
     url += `&context_type=${contextType}`;
   }
@@ -48,8 +47,9 @@ export function useResearchNotes(contextType?: NoteContextType, contextId?: stri
   
   const { data, error, isLoading, mutate } = useSWR<ResearchNote[]>(
     url,
-    fetcher,
+    apiFetcher,
     {
+      ...defaultSwrConfig,
       revalidateOnFocus: false,
     }
   );
@@ -68,9 +68,10 @@ export function useResearchNotes(contextType?: NoteContextType, contextId?: stri
 // Hook to get a single research note
 export function useResearchNote(noteId: number | null) {
   const { data, error, isLoading, mutate } = useSWR<ResearchNote>(
-    noteId ? `/api/dashboard/research-notes/${noteId}` : null,
-    fetcher,
+    noteId ? `${API_BASE}/dashboard/research-notes/${noteId}` : null,
+    apiFetcher,
     {
+      ...defaultSwrConfig,
       revalidateOnFocus: false,
     }
   );
@@ -89,7 +90,7 @@ export function useContextNote(context: NoteContext | null) {
   
   let url = null;
   if (user?.id && context) {
-    url = `/api/dashboard/research-notes/context?user_id=${user.id}&context_type=${context.type}`;
+    url = `${API_BASE}/dashboard/research-notes/context?user_id=${user.id}&context_type=${context.type}`;
     if (context.id) {
       url += `&context_id=${context.id}`;
     }
@@ -97,8 +98,9 @@ export function useContextNote(context: NoteContext | null) {
   
   const { data, error, isLoading, mutate } = useSWR<ResearchNote>(
     url,
-    fetcher,
+    apiFetcher,
     {
+      ...defaultSwrConfig,
       revalidateOnFocus: false,
     }
   );
@@ -121,9 +123,9 @@ export async function createResearchNote(
   context_id?: string,
   asset_ids?: number[]
 ): Promise<ResearchNote> {
-  const response = await fetch('/api/dashboard/research-notes', {
+  const response = await fetch(`${API_BASE}/dashboard/research-notes`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getJsonApiHeaders(),
     body: JSON.stringify({ 
       user_id: userId,
       title, 
@@ -141,7 +143,7 @@ export async function createResearchNote(
   }
   
   const note = await response.json();
-  globalMutate((key: string) => typeof key === 'string' && key.startsWith('/api/dashboard/research-notes'));
+  globalMutate((key: string) => typeof key === 'string' && key.startsWith(`${API_BASE}/dashboard/research-notes`));
   return note;
 }
 
@@ -150,9 +152,9 @@ export async function updateResearchNote(
   noteId: number,
   updates: { title?: string; content?: string; is_favorite?: boolean }
 ): Promise<ResearchNote> {
-  const response = await fetch(`/api/dashboard/research-notes/${noteId}`, {
+  const response = await fetch(`${API_BASE}/dashboard/research-notes/${noteId}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getJsonApiHeaders(),
     body: JSON.stringify(updates),
   });
   
@@ -162,14 +164,15 @@ export async function updateResearchNote(
   }
   
   const note = await response.json();
-  globalMutate((key: string) => typeof key === 'string' && key.startsWith('/api/dashboard/research-notes'));
+  globalMutate((key: string) => typeof key === 'string' && key.startsWith(`${API_BASE}/dashboard/research-notes`));
   return note;
 }
 
 // Delete a research note
 export async function deleteResearchNote(noteId: number): Promise<void> {
-  const response = await fetch(`/api/dashboard/research-notes/${noteId}`, {
+  const response = await fetch(`${API_BASE}/dashboard/research-notes/${noteId}`, {
     method: 'DELETE',
+    headers: getApiHeaders(),
   });
   
   if (!response.ok) {
@@ -177,14 +180,14 @@ export async function deleteResearchNote(noteId: number): Promise<void> {
     throw new Error(error.error || 'Failed to delete note');
   }
   
-  globalMutate((key: string) => typeof key === 'string' && key.startsWith('/api/dashboard/research-notes'));
+  globalMutate((key: string) => typeof key === 'string' && key.startsWith(`${API_BASE}/dashboard/research-notes`));
 }
 
 // Add asset to a research note
 export async function addAssetToNote(noteId: number, assetId: number): Promise<void> {
-  const response = await fetch(`/api/dashboard/research-notes/${noteId}/assets`, {
+  const response = await fetch(`${API_BASE}/dashboard/research-notes/${noteId}/assets`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getJsonApiHeaders(),
     body: JSON.stringify({ asset_id: assetId }),
   });
   
@@ -193,13 +196,14 @@ export async function addAssetToNote(noteId: number, assetId: number): Promise<v
     throw new Error(error.error || 'Failed to add asset to note');
   }
   
-  globalMutate((key: string) => typeof key === 'string' && key.startsWith('/api/dashboard/research-notes'));
+  globalMutate((key: string) => typeof key === 'string' && key.startsWith(`${API_BASE}/dashboard/research-notes`));
 }
 
 // Remove asset from a research note
 export async function removeAssetFromNote(noteId: number, assetId: number): Promise<void> {
-  const response = await fetch(`/api/dashboard/research-notes/${noteId}/assets/${assetId}`, {
+  const response = await fetch(`${API_BASE}/dashboard/research-notes/${noteId}/assets/${assetId}`, {
     method: 'DELETE',
+    headers: getApiHeaders(),
   });
   
   if (!response.ok) {
@@ -207,14 +211,14 @@ export async function removeAssetFromNote(noteId: number, assetId: number): Prom
     throw new Error(error.error || 'Failed to remove asset from note');
   }
   
-  globalMutate((key: string) => typeof key === 'string' && key.startsWith('/api/dashboard/research-notes'));
+  globalMutate((key: string) => typeof key === 'string' && key.startsWith(`${API_BASE}/dashboard/research-notes`));
 }
 
 // Toggle favorite status
 export async function toggleNoteFavorite(noteId: number, isFavorite: boolean): Promise<ResearchNote> {
-  const response = await fetch(`/api/dashboard/research-notes/${noteId}/favorite`, {
+  const response = await fetch(`${API_BASE}/dashboard/research-notes/${noteId}/favorite`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getJsonApiHeaders(),
     body: JSON.stringify({ is_favorite: isFavorite }),
   });
   
@@ -224,7 +228,7 @@ export async function toggleNoteFavorite(noteId: number, isFavorite: boolean): P
   }
   
   const note = await response.json();
-  globalMutate((key: string) => typeof key === 'string' && key.startsWith('/api/dashboard/research-notes'));
+  globalMutate((key: string) => typeof key === 'string' && key.startsWith(`${API_BASE}/dashboard/research-notes`));
   return note;
 }
 

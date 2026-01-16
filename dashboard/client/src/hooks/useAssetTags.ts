@@ -1,8 +1,5 @@
 import useSWR from 'swr';
-
-const API_BASE = '/api/dashboard';
-
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+import { apiFetcher, defaultSwrConfig, getJsonApiHeaders, getApiHeaders, API_BASE } from '../lib/api-config';
 
 export type AssetTag = 'interesting' | 'maybe' | 'no';
 
@@ -14,7 +11,11 @@ export interface AssetTagItem {
 }
 
 export function useAssetTags() {
-  const { data, error, mutate } = useSWR<AssetTagItem[]>(`${API_BASE}/asset-tags`, fetcher);
+  const { data, error, mutate } = useSWR<AssetTagItem[]>(
+    `${API_BASE}/dashboard/asset-tags`,
+    apiFetcher,
+    defaultSwrConfig
+  );
   
   // Ensure data is an array
   const safeData = Array.isArray(data) ? data : [];
@@ -34,9 +35,9 @@ export function useAssetTags() {
 
 export async function setAssetTag(assetId: number, tag: AssetTag): Promise<boolean> {
   try {
-    const response = await fetch(`${API_BASE}/asset-tags/${assetId}`, {
+    const response = await fetch(`${API_BASE}/dashboard/asset-tags/${assetId}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getJsonApiHeaders(),
       body: JSON.stringify({ tag })
     });
     return response.ok;
@@ -48,8 +49,9 @@ export async function setAssetTag(assetId: number, tag: AssetTag): Promise<boole
 
 export async function clearAssetTag(assetId: number): Promise<boolean> {
   try {
-    const response = await fetch(`${API_BASE}/asset-tags/${assetId}`, {
-      method: 'DELETE'
+    const response = await fetch(`${API_BASE}/dashboard/asset-tags/${assetId}`, {
+      method: 'DELETE',
+      headers: getApiHeaders(),
     });
     return response.ok;
   } catch (error) {

@@ -1,6 +1,5 @@
 import useSWR, { mutate as globalMutate } from "swr";
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { apiFetcher, defaultSwrConfig, getJsonApiHeaders, getApiHeaders, API_BASE } from "../lib/api-config";
 
 export interface AssetNote {
   note_id: number;
@@ -18,9 +17,10 @@ interface NotesResponse {
 // Hook to get notes for a single asset
 export function useAssetNotes(assetId: number | null) {
   const { data, error, isLoading, mutate } = useSWR<NotesResponse>(
-    assetId ? `/api/dashboard/notes/${assetId}` : null,
-    fetcher,
+    assetId ? `${API_BASE}/dashboard/notes/${assetId}` : null,
+    apiFetcher,
     {
+      ...defaultSwrConfig,
       revalidateOnFocus: false,
     }
   );
@@ -44,9 +44,9 @@ export function useAssetNotesMap(assetIds: number[]) {
 
 // Create a new note
 export async function createNote(assetId: number, noteText: string): Promise<AssetNote> {
-  const response = await fetch('/api/dashboard/notes', {
+  const response = await fetch(`${API_BASE}/dashboard/notes`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getJsonApiHeaders(),
     body: JSON.stringify({ asset_id: assetId, note_text: noteText }),
   });
   
@@ -58,16 +58,16 @@ export async function createNote(assetId: number, noteText: string): Promise<Ass
   const note = await response.json();
   
   // Revalidate the notes for this asset
-  globalMutate(`/api/dashboard/notes/${assetId}`);
+  globalMutate(`${API_BASE}/dashboard/notes/${assetId}`);
   
   return note;
 }
 
 // Update an existing note
 export async function updateNote(noteId: number, noteText: string, assetId: number): Promise<AssetNote> {
-  const response = await fetch(`/api/dashboard/notes/${noteId}`, {
+  const response = await fetch(`${API_BASE}/dashboard/notes/${noteId}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getJsonApiHeaders(),
     body: JSON.stringify({ note_text: noteText }),
   });
   
@@ -79,15 +79,16 @@ export async function updateNote(noteId: number, noteText: string, assetId: numb
   const note = await response.json();
   
   // Revalidate the notes for this asset
-  globalMutate(`/api/dashboard/notes/${assetId}`);
+  globalMutate(`${API_BASE}/dashboard/notes/${assetId}`);
   
   return note;
 }
 
 // Delete a note
 export async function deleteNote(noteId: number, assetId: number): Promise<void> {
-  const response = await fetch(`/api/dashboard/notes/${noteId}`, {
+  const response = await fetch(`${API_BASE}/dashboard/notes/${noteId}`, {
     method: 'DELETE',
+    headers: getApiHeaders(),
   });
   
   if (!response.ok) {
@@ -96,7 +97,7 @@ export async function deleteNote(noteId: number, assetId: number): Promise<void>
   }
   
   // Revalidate the notes for this asset
-  globalMutate(`/api/dashboard/notes/${assetId}`);
+  globalMutate(`${API_BASE}/dashboard/notes/${assetId}`);
 }
 
 // Format date for display

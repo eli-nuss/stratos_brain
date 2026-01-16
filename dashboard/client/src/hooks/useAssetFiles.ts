@@ -1,6 +1,5 @@
 import useSWR, { mutate } from 'swr'
-
-const API_BASE = import.meta.env.VITE_API_URL || 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/control-api'
+import { apiFetcher, defaultSwrConfig, getApiHeaders, API_BASE } from '../lib/api-config'
 
 interface AssetFile {
   file_id: number
@@ -17,12 +16,11 @@ interface FilesResponse {
   files: AssetFile[]
 }
 
-const fetcher = (url: string) => fetch(url).then(res => res.json())
-
 export function useAssetFiles(assetId: number | null) {
   const { data, error, isLoading } = useSWR<FilesResponse>(
     assetId ? `${API_BASE}/dashboard/files/${assetId}` : null,
-    fetcher
+    apiFetcher,
+    defaultSwrConfig
   )
 
   const uploadFile = async (file: File, description?: string) => {
@@ -37,6 +35,7 @@ export function useAssetFiles(assetId: number | null) {
     
     const response = await fetch(`${API_BASE}/dashboard/files`, {
       method: 'POST',
+      headers: getApiHeaders(),
       body: formData
     })
     
@@ -55,7 +54,8 @@ export function useAssetFiles(assetId: number | null) {
 
   const deleteFile = async (fileId: number) => {
     const response = await fetch(`${API_BASE}/dashboard/files/${fileId}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: getApiHeaders(),
     })
     
     if (!response.ok) {

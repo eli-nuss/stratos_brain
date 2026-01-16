@@ -1,6 +1,5 @@
 import useSWR from "swr";
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { apiFetcher, defaultSwrConfig, API_BASE } from "../lib/api-config";
 
 export type AssetType = "crypto" | "equity";
 export type SortField = "weighted_score" | "symbol" | "score_delta" | "inflection_score" | "ai_confidence" | "ai_setup_quality_score" | "ai_direction_score" | "fvs_score" | "market_cap" | "return_1d" | "return_7d" | "return_30d" | "return_365d" | "close" | "dollar_volume_7d" | "dollar_volume_30d" | "industry" | "pe_ratio" | "forward_pe" | "peg_ratio" | "price_to_sales_ttm" | "forward_ps" | "psg" | "revenue_growth_yoy" | "interesting_first";
@@ -81,12 +80,13 @@ export function useAllAssets({
     params.append("industry", industry);
   }
 
-  const url = `/api/dashboard/all-assets?${params.toString()}`;
+  const url = `${API_BASE}/dashboard/all-assets?${params.toString()}`;
 
   const { data, error, isLoading, mutate } = useSWR<AllAssetsResponse>(
     date ? url : null,
-    fetcher,
+    apiFetcher,
     {
+      ...defaultSwrConfig,
       refreshInterval: 60000,
       keepPreviousData: true,
     }
