@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { 
   Menu, 
@@ -9,7 +9,6 @@ import {
   CheckSquare, 
   Settings,
   Search,
-  Activity,
   Brain,
   Users,
   StickyNote,
@@ -21,7 +20,8 @@ import {
   BarChart3,
   Package,
   Briefcase,
-  PieChart
+  PieChart,
+  ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -59,7 +59,7 @@ const mobileNavGroups = [
 
 // Dashboard quick access tabs
 const dashboardTabs = [
-  { href: '/', label: 'Dashboard', icon: Home },
+  { href: '/', label: 'Home', icon: Home },
   { href: '/watchlist', label: 'Watchlist', icon: Star },
   { href: '/equities', label: 'Equities', icon: TrendingUp },
   { href: '/crypto', label: 'Crypto', icon: Bitcoin },
@@ -81,9 +81,29 @@ export function MobileNav({ searchQuery = '', onSearchChange }: MobileNavProps) 
   const [isOpen, setIsOpen] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [location] = useLocation();
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const toggleMenu = () => setIsOpen(!isOpen);
   const closeMenu = () => setIsOpen(false);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isOpen]);
+
+  // Close menu on route change
+  useEffect(() => {
+    closeMenu();
+  }, [location]);
 
   // Check if we're on the main dashboard
   const isMainDashboard = location === "/" || location === "/watchlist" || 
@@ -94,9 +114,8 @@ export function MobileNav({ searchQuery = '', onSearchChange }: MobileNavProps) 
 
   return (
     <>
-      {/* Mobile Menu Button - visible only on small screens (in header) */}
-      <div className="flex items-center gap-1 md:hidden">
-        {/* Only show hamburger in header - search is in bottom nav */}
+      {/* Mobile Menu Button and Dropdown Container */}
+      <div className="relative md:hidden" ref={menuRef}>
         <button
           onClick={toggleMenu}
           className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
@@ -105,6 +124,106 @@ export function MobileNav({ searchQuery = '', onSearchChange }: MobileNavProps) 
         >
           {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
+
+        {/* Dropdown Menu - Opens Downward */}
+        {isOpen && (
+          <div 
+            className="absolute top-full right-0 mt-2 w-72 max-h-[calc(100vh-120px)] overflow-y-auto rounded-lg border border-border shadow-xl z-[100]"
+            style={{ backgroundColor: 'hsl(222, 47%, 11%)' }}
+          >
+            {/* Quick Navigation Links */}
+            <div className="p-2 border-b border-border">
+              <div className="grid grid-cols-3 gap-1">
+                {dashboardTabs.slice(0, 6).map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = location === tab.href;
+                  
+                  return (
+                    <Link
+                      key={tab.href}
+                      href={tab.href}
+                      onClick={closeMenu}
+                      className={cn(
+                        'flex flex-col items-center gap-1 p-2 rounded-lg transition-colors text-center',
+                        isActive
+                          ? 'bg-primary/20 text-primary'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+                      )}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span className="text-[10px] font-medium truncate w-full">{tab.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Grouped Navigation */}
+            <div className="p-2">
+              {mobileNavGroups.map((group, groupIndex) => (
+                <div key={group.label} className={cn(groupIndex > 0 && "mt-3 pt-3 border-t border-border/50")}>
+                  <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 px-2">
+                    {group.label}
+                  </h3>
+                  <nav className="space-y-0.5">
+                    {group.items.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = location === item.href;
+                      
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={closeMenu}
+                          className={cn(
+                            'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors',
+                            isActive
+                              ? 'bg-primary/20 text-primary font-medium'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+                          )}
+                        >
+                          <Icon className="w-4 h-4 flex-shrink-0" />
+                          <span className="text-sm flex-1">{item.label}</span>
+                          <ChevronRight className="w-3 h-3 opacity-50" />
+                        </Link>
+                      );
+                    })}
+                  </nav>
+                </div>
+              ))}
+            </div>
+
+            {/* More Asset Lists */}
+            <div className="p-2 border-t border-border">
+              <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 px-2">
+                More Lists
+              </h3>
+              <div className="grid grid-cols-2 gap-1">
+                {dashboardTabs.slice(6).map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = location === tab.href;
+                  
+                  return (
+                    <Link
+                      key={tab.href}
+                      href={tab.href}
+                      onClick={closeMenu}
+                      className={cn(
+                        'flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors',
+                        isActive
+                          ? 'bg-primary/20 text-primary font-medium'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+                      )}
+                    >
+                      <Icon className="w-3 h-3 flex-shrink-0" />
+                      <span className="text-xs truncate">{tab.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Search Modal Overlay */}
@@ -114,7 +233,8 @@ export function MobileNav({ searchQuery = '', onSearchChange }: MobileNavProps) 
           onClick={() => setShowSearch(false)}
         >
           <div 
-            className="absolute top-0 left-0 right-0 p-4 bg-card border-b border-border animate-in slide-in-from-top duration-300"
+            className="absolute top-0 left-0 right-0 p-4 border-b border-border animate-in slide-in-from-top duration-300"
+            style={{ backgroundColor: 'hsl(222, 47%, 11%)' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="relative">
@@ -138,110 +258,11 @@ export function MobileNav({ searchQuery = '', onSearchChange }: MobileNavProps) 
         </div>
       )}
 
-      {/* Mobile Menu Overlay */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black/60 z-[55] md:hidden animate-in fade-in duration-200"
-          onClick={closeMenu}
-        />
-      )}
-
-      {/* Mobile Menu Drawer */}
-      <div
-        className={cn(
-          'fixed top-0 right-0 h-full w-72 border-l border-border z-[56] md:hidden',
-          'transform transition-transform duration-300 ease-out overflow-y-auto',
-          isOpen ? 'translate-x-0' : 'translate-x-full'
-        )}
-        style={{ backgroundColor: 'hsl(var(--card))' }}
-      >
-        {/* Drawer Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 z-10" style={{ backgroundColor: 'hsl(var(--card))' }}>
-          <div className="flex items-center gap-2">
-            <Activity className="w-5 h-5 text-primary" />
-            <span className="font-semibold text-sm">STRATOSBRAIN</span>
-          </div>
-          <button
-            onClick={closeMenu}
-            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-            aria-label="Close menu"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Grouped Navigation */}
-        <div className="p-3" style={{ backgroundColor: 'hsl(var(--card))' }}>
-          {mobileNavGroups.map((group, groupIndex) => (
-            <div key={group.label} className={cn(groupIndex > 0 && "mt-4")}>
-              <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 px-2">
-                {group.label}
-              </h3>
-              <nav className="space-y-0.5">
-                {group.items.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = location === item.href;
-                  
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={closeMenu}
-                      className={cn(
-                        'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
-                        'min-h-[44px]',
-                        isActive
-                          ? 'bg-primary/10 text-primary font-medium'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                      )}
-                    >
-                      <Icon className="w-4 h-4 flex-shrink-0" />
-                      <span className="text-sm">{item.label}</span>
-                    </Link>
-                  );
-                })}
-              </nav>
-            </div>
-          ))}
-        </div>
-
-        {/* Dashboard Quick Access */}
-        <div className="p-3 border-t border-border" style={{ backgroundColor: 'hsl(var(--card))' }}>
-          <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 px-2">
-            Asset Lists
-          </h3>
-          <nav className="grid grid-cols-2 gap-1">
-            {dashboardTabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = location === tab.href;
-              
-              return (
-                <Link
-                  key={tab.href}
-                  href={tab.href}
-                  onClick={closeMenu}
-                  className={cn(
-                    'flex items-center gap-2 px-2 py-2 rounded-lg transition-colors',
-                    'min-h-[40px]',
-                    isActive
-                      ? 'bg-primary/10 text-primary font-medium'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                  )}
-                >
-                  <Icon className="w-3.5 h-3.5 flex-shrink-0" />
-                  <span className="text-xs truncate">{tab.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* Footer spacer for bottom nav */}
-        <div className="h-24" />
-      </div>
-
       {/* Bottom Navigation Bar - Fixed at bottom on mobile */}
-      <div className="fixed bottom-0 left-0 right-0 h-16 bg-card border-t border-border z-[50] md:hidden safe-area-inset-bottom">
+      <div 
+        className="fixed bottom-0 left-0 right-0 h-16 border-t border-border z-[50] md:hidden safe-area-inset-bottom"
+        style={{ backgroundColor: 'hsl(222, 47%, 11%)' }}
+      >
         <nav className="flex items-center justify-around h-full px-2">
           {bottomNavItems.map((item) => {
             const Icon = item.icon;
@@ -279,12 +300,12 @@ export function MobileNav({ searchQuery = '', onSearchChange }: MobileNavProps) 
             <span className="text-[10px] font-medium">Search</span>
           </button>
           
-          {/* More button to open drawer */}
+          {/* More button to open dropdown */}
           <button
             onClick={toggleMenu}
             className={cn(
               'flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg transition-colors min-w-[60px]',
-              'text-muted-foreground hover:text-foreground'
+              isOpen ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
             )}
           >
             <Menu className="w-5 h-5" />
