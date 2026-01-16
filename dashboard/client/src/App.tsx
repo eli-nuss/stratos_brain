@@ -14,6 +14,7 @@ import CompanyChat from "./pages/CompanyChat";
 import TodoList from "./pages/TodoList";
 import StratosBrain from "./pages/StratosBrain";
 import InvestorWatchlist from "./pages/InvestorWatchlist";
+import ResearchNotes from "./pages/ResearchNotes";
 import { AuthCallback } from "./pages/AuthCallback";
 import FeedbackButton from "./components/FeedbackButton";
 
@@ -41,6 +42,7 @@ function Router() {
       <Route path={"/brain"} component={StratosBrain} />
       <Route path={"/smart-money"} component={InvestorWatchlist} />
       <Route path={"/todo"} component={TodoList} />
+      <Route path={"/notes"} component={ResearchNotes} />
       <Route path={"/auth/callback"} component={AuthCallback} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}

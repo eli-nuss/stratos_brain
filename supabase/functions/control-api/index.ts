@@ -84,6 +84,11 @@ function isPublicDashboardEndpoint(req: Request): boolean {
     return true
   }
   
+  // Allow public access to research-notes endpoints (all methods)
+  if (path.startsWith('/dashboard/research-notes')) {
+    return true
+  }
+  
   // Allow public access to watchlist endpoints (all methods)
   if (path.startsWith('/dashboard/watchlist')) {
     return true
@@ -4985,6 +4990,325 @@ If asked about something not in the data, acknowledge the limitation.`
           data: data || [],
           total: count || 0
         }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // ==================== RESEARCH NOTES ENDPOINTS ====================
+
+      // GET /dashboard/research-notes - Get all research notes
+      case req.method === 'GET' && path === '/dashboard/research-notes': {
+        const { data: notes, error } = await supabase
+          .from('research_notes')
+          .select(`
+            *,
+            research_note_assets (
+              asset_id,
+              added_at
+            )
+          `)
+          .order('is_favorite', { ascending: false })
+          .order('updated_at', { ascending: false })
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Get asset details for linked assets
+        const assetIds = new Set<number>()
+        notes?.forEach(note => {
+          note.research_note_assets?.forEach((link: { asset_id: number }) => {
+            assetIds.add(link.asset_id)
+          })
+        })
+        
+        let assetMap = new Map<number, { symbol: string; name: string; asset_type: string }>()
+        if (assetIds.size > 0) {
+          const { data: assets } = await supabase
+            .from('assets')
+            .select('asset_id, symbol, name, asset_type')
+            .in('asset_id', Array.from(assetIds))
+          
+          assets?.forEach(asset => {
+            assetMap.set(asset.asset_id, {
+              symbol: asset.symbol,
+              name: asset.name,
+              asset_type: asset.asset_type
+            })
+          })
+        }
+        
+        // Enrich notes with asset details
+        const enrichedNotes = notes?.map(note => ({
+          ...note,
+          assets: note.research_note_assets?.map((link: { asset_id: number; added_at: string }) => ({
+            asset_id: link.asset_id,
+            added_at: link.added_at,
+            ...assetMap.get(link.asset_id)
+          })) || []
+        }))
+        
+        return new Response(JSON.stringify(enrichedNotes), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /dashboard/research-notes/:id - Get a single research note
+      case req.method === 'GET' && /^\/dashboard\/research-notes\/\d+$/.test(path): {
+        const noteId = parseInt(path.split('/').pop()!)
+        
+        const { data: note, error } = await supabase
+          .from('research_notes')
+          .select(`
+            *,
+            research_note_assets (
+              asset_id,
+              added_at
+            )
+          `)
+          .eq('id', noteId)
+          .single()
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: error.code === 'PGRST116' ? 404 : 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Get asset details
+        const assetIds = note.research_note_assets?.map((link: { asset_id: number }) => link.asset_id) || []
+        let assetMap = new Map<number, { symbol: string; name: string; asset_type: string }>()
+        
+        if (assetIds.length > 0) {
+          const { data: assets } = await supabase
+            .from('assets')
+            .select('asset_id, symbol, name, asset_type')
+            .in('asset_id', assetIds)
+          
+          assets?.forEach(asset => {
+            assetMap.set(asset.asset_id, {
+              symbol: asset.symbol,
+              name: asset.name,
+              asset_type: asset.asset_type
+            })
+          })
+        }
+        
+        const enrichedNote = {
+          ...note,
+          assets: note.research_note_assets?.map((link: { asset_id: number; added_at: string }) => ({
+            asset_id: link.asset_id,
+            added_at: link.added_at,
+            ...assetMap.get(link.asset_id)
+          })) || []
+        }
+        
+        return new Response(JSON.stringify(enrichedNote), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // POST /dashboard/research-notes - Create a new research note
+      case req.method === 'POST' && path === '/dashboard/research-notes': {
+        const body = await req.json()
+        const { title, content, is_favorite, asset_ids } = body
+        
+        if (!title?.trim()) {
+          return new Response(JSON.stringify({ error: 'title is required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Create the note
+        const { data: note, error: noteError } = await supabase
+          .from('research_notes')
+          .insert({
+            title: title.trim(),
+            content: content || '',
+            is_favorite: is_favorite || false
+          })
+          .select()
+          .single()
+        
+        if (noteError) {
+          return new Response(JSON.stringify({ error: noteError.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Link assets if provided
+        if (asset_ids && Array.isArray(asset_ids) && asset_ids.length > 0) {
+          const links = asset_ids.map(asset_id => ({
+            note_id: note.id,
+            asset_id
+          }))
+          
+          await supabase
+            .from('research_note_assets')
+            .insert(links)
+        }
+        
+        return new Response(JSON.stringify(note), {
+          status: 201,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // PUT /dashboard/research-notes/:id - Update a research note
+      case req.method === 'PUT' && /^\/dashboard\/research-notes\/\d+$/.test(path): {
+        const noteId = parseInt(path.split('/').pop()!)
+        const body = await req.json()
+        const { title, content, is_favorite } = body
+        
+        const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
+        if (title !== undefined) updates.title = title.trim()
+        if (content !== undefined) updates.content = content
+        if (is_favorite !== undefined) updates.is_favorite = is_favorite
+        
+        const { data: note, error } = await supabase
+          .from('research_notes')
+          .update(updates)
+          .eq('id', noteId)
+          .select()
+          .single()
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: error.code === 'PGRST116' ? 404 : 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(note), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // DELETE /dashboard/research-notes/:id - Delete a research note
+      case req.method === 'DELETE' && /^\/dashboard\/research-notes\/\d+$/.test(path): {
+        const noteId = parseInt(path.split('/').pop()!)
+        
+        const { error } = await supabase
+          .from('research_notes')
+          .delete()
+          .eq('id', noteId)
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // POST /dashboard/research-notes/:id/assets - Add asset to a research note
+      case req.method === 'POST' && /^\/dashboard\/research-notes\/\d+\/assets$/.test(path): {
+        const noteId = parseInt(path.split('/')[3])
+        const body = await req.json()
+        const { asset_id } = body
+        
+        if (!asset_id) {
+          return new Response(JSON.stringify({ error: 'asset_id is required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        const { data, error } = await supabase
+          .from('research_note_assets')
+          .insert({ note_id: noteId, asset_id })
+          .select()
+          .single()
+        
+        if (error) {
+          if (error.code === '23505') {
+            return new Response(JSON.stringify({ error: 'Asset already linked to this note' }), {
+              status: 409,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            })
+          }
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Update the note's updated_at timestamp
+        await supabase
+          .from('research_notes')
+          .update({ updated_at: new Date().toISOString() })
+          .eq('id', noteId)
+        
+        return new Response(JSON.stringify(data), {
+          status: 201,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // DELETE /dashboard/research-notes/:id/assets/:asset_id - Remove asset from a research note
+      case req.method === 'DELETE' && /^\/dashboard\/research-notes\/\d+\/assets\/\d+$/.test(path): {
+        const pathParts = path.split('/')
+        const noteId = parseInt(pathParts[3])
+        const assetId = parseInt(pathParts[5])
+        
+        const { error } = await supabase
+          .from('research_note_assets')
+          .delete()
+          .eq('note_id', noteId)
+          .eq('asset_id', assetId)
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Update the note's updated_at timestamp
+        await supabase
+          .from('research_notes')
+          .update({ updated_at: new Date().toISOString() })
+          .eq('id', noteId)
+        
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // PATCH /dashboard/research-notes/:id/favorite - Toggle favorite status
+      case req.method === 'PATCH' && /^\/dashboard\/research-notes\/\d+\/favorite$/.test(path): {
+        const noteId = parseInt(path.split('/')[3])
+        const body = await req.json()
+        const { is_favorite } = body
+        
+        const { data: note, error } = await supabase
+          .from('research_notes')
+          .update({ 
+            is_favorite: is_favorite,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', noteId)
+          .select()
+          .single()
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: error.code === 'PGRST116' ? 404 : 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify(note), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }

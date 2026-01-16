@@ -371,7 +371,14 @@
                                                                                             | `etfs` | ETF tracking for subsectors | `etf_id`, `symbol`, `name`, `description`, `subsector` |
                                                                                             | `etf_holdings` | ETF constituent holdings | `id`, `etf_id`, `asset_id`, `weight_pct`, `as_of_date` |
                                                                                          
-                                                                                            ### 5.12 Token & Crypto Tables
+### 5.12 Research Notes Tables
+
+| Table | Purpose | Key Columns |
+|-------|---------|-------------|
+| `research_notes` | User research notes for groups of companies | `id`, `title`, `content`, `is_favorite`, `created_at`, `updated_at` |
+| `research_note_assets` | Junction table linking notes to assets | `id`, `note_id`, `asset_id`, `added_at` |
+
+                                                                                            ### 5.13 Token & Crypto Tables
                                                                                          
                                                                                             | Table | Purpose | Key Columns |
                                                                                             |-------|---------|-------------|
@@ -502,6 +509,18 @@ PATCH /api/dashboard/model-portfolio-holdings/:id  # Update holding
 DELETE /api/dashboard/model-portfolio-holdings/:id  # Remove holding
                                                                             ```
 
+#### Research Notes
+```
+GET    /api/dashboard/research-notes              # List all research notes
+GET    /api/dashboard/research-notes/:id          # Get single note with linked assets
+POST   /api/dashboard/research-notes              # Create new note
+PUT    /api/dashboard/research-notes/:id          # Update note title/content
+DELETE /api/dashboard/research-notes/:id          # Delete note
+POST   /api/dashboard/research-notes/:id/assets   # Link asset to note
+DELETE /api/dashboard/research-notes/:id/assets/:asset_id  # Unlink asset
+PATCH  /api/dashboard/research-notes/:id/favorite # Toggle favorite status
+```
+
                                                                                             ---
 
                                                                                             ## 9. Frontend Architecture
@@ -522,11 +541,13 @@ DELETE /api/dashboard/model-portfolio-holdings/:id  # Remove holding
                                                                                             ├── hooks/               # Custom data hooks
                                                                                             │   ├── useAllAssets.ts
                                                                                             │   ├── useDashboardData.ts
-                                                                                            │   └── useCompanyChats.ts
+                                                                                            │   ├── useCompanyChats.ts
+                                                                                            │   └── useResearchNotes.ts
                                                                                             ├── pages/               # Route pages
                                                                                             │   ├── Home.tsx
                                                                                             │   ├── CompanyChat.tsx
-                                                                                            │   └── SmartMoney.tsx
+                                                                                            │   ├── SmartMoney.tsx
+                                                                                            │   └── ResearchNotes.tsx
                                                                                             └── lib/                 # Utilities
                                                                                                 ├── supabase.ts
                                                                                                 └── portfolioMath.ts  # Risk calculations, correlation, volatility
@@ -548,6 +569,7 @@ DELETE /api/dashboard/model-portfolio-holdings/:id  # Remove holding
 | `RiskAttribution` | Dual donut charts showing Capital vs Risk allocation with concentration warnings |
 | `TimeTravelBacktester` | Historical performance simulation with SPY/BTC comparison |
 | `AIInvestmentCommittee` | LLM-powered portfolio critique with actionable recommendations |
+| `ResearchNotes` | Notes page for tracking research on groups of companies with favorites |
 
                                                                                             ### 9.3 Data Flow
 
