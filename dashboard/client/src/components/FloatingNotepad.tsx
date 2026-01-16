@@ -174,13 +174,13 @@ export default function FloatingNotepad() {
   // Don't render if user is not logged in
   if (!user) return null;
 
-  // Floating button (always visible)
+  // Floating button (always visible) - positioned to the left of the feedback button
   const floatingButton = (
     <button
       onClick={() => openNotepad(currentContext || { type: 'general' })}
       className={cn(
-        "fixed bottom-6 right-6 z-50 p-3 rounded-full shadow-lg transition-all",
-        "bg-primary text-primary-foreground hover:bg-primary/90",
+        "fixed bottom-6 right-20 z-50 p-3 rounded-full shadow-lg transition-all",
+        "bg-amber-500 text-white hover:bg-amber-600",
         "hover:scale-105 active:scale-95",
         isOpen && "hidden"
       )}
