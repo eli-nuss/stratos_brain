@@ -141,7 +141,9 @@ function DraggableHeader({
 }
 
 export default function CustomizableStockListTable({ list, onAssetClick }: CustomizableStockListTableProps) {
-  const { assets, isLoading, mutate: mutateAssets } = useStockListAssets(list.id);
+  const { assets: rawAssets, isLoading, mutate: mutateAssets } = useStockListAssets(list.id);
+  // Ensure assets is always an array
+  const assets = Array.isArray(rawAssets) ? rawAssets : [];
   const { mutate: mutateWatchlist } = useWatchlist();
   const { tagsMap } = useAssetTags();
   const { 

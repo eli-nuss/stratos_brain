@@ -21,7 +21,9 @@ const PAGE_SIZE = 50;
 
 
 export default function StockListTable({ list, onAssetClick }: StockListTableProps) {
-  const { assets, isLoading, mutate: mutateAssets } = useStockListAssets(list.id);
+  const { assets: rawAssets, isLoading, mutate: mutateAssets } = useStockListAssets(list.id);
+  // Ensure assets is always an array
+  const assets = Array.isArray(rawAssets) ? rawAssets : [];
   const { mutate: mutateWatchlist } = useWatchlist();
   const [page, setPage] = useState(0);
   const { sortBy, sortOrder, handleSort } = useSortPreferences(`stocklist-legacy-${list.id}`);

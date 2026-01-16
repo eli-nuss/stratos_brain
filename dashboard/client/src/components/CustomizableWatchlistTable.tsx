@@ -139,7 +139,9 @@ function DraggableHeader({
 }
 
 export default function CustomizableWatchlistTable({ onAssetClick }: CustomizableWatchlistTableProps) {
-  const { assets, isLoading, mutate: mutateAssets } = useWatchlistAssets();
+  const { assets: rawAssets, isLoading, mutate: mutateAssets } = useWatchlistAssets();
+  // Ensure assets is always an array
+  const assets = Array.isArray(rawAssets) ? rawAssets : [];
   const { addToWatchlist, mutate: mutateWatchlist } = useWatchlist();
   const { tagsMap } = useAssetTags();
   const { 
