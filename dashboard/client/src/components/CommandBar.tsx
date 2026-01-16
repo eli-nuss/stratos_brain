@@ -123,8 +123,9 @@ export function CommandBar({ className = '' }: CommandBarProps) {
         className={`flex items-center gap-2 px-3 py-1.5 bg-muted/30 hover:bg-muted/50 border border-border/50 rounded-lg text-sm text-muted-foreground transition-all group ${className}`}
       >
         <Search className="w-4 h-4" />
-        <span className="hidden md:inline">Search ticker, command, or ask Stratos...</span>
-        <span className="md:hidden">Search...</span>
+        <span className="hidden lg:inline">Search ticker or command...</span>
+        <span className="hidden md:inline lg:hidden">Search...</span>
+        <span className="md:hidden">Search</span>
         <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-muted/50 rounded border border-border/50 ml-auto">
           <Command className="w-2.5 h-2.5" />K
         </kbd>
@@ -152,7 +153,7 @@ export function CommandBar({ className = '' }: CommandBarProps) {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Search ticker, command, or ask Stratos..."
+                placeholder="Search ticker or command..."
                 className="flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground/60"
                 autoComplete="off"
                 autoCorrect="off"
