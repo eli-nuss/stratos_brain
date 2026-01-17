@@ -151,14 +151,27 @@ export function useCompanyChats() {
   const userId = user?.id || null;
   const accessToken = session?.access_token || null;
   
+  // Also check localStorage for auth token as a fallback
+  // This helps when the auth context hasn't fully propagated yet
+  const hasLocalStorageAuth = typeof window !== 'undefined' && 
+    Object.keys(localStorage).some(key => 
+      key.startsWith('sb-') && key.endsWith('-auth-token')
+    );
+  
   // IMPORTANT: Don't fetch until auth is loaded
   // Only fetch when user is authenticated (chats are user-specific)
-  const shouldFetch = !authLoading && userId !== null;
+  // Use either context user OR localStorage auth as indicator
+  const isAuthenticated = userId !== null || (hasLocalStorageAuth && !authLoading);
+  const shouldFetch = !authLoading && isAuthenticated;
+  
+  // If we have localStorage auth but no userId yet, try to get it from localStorage
+  const effectiveUserId = userId || getUserId();
+  const effectiveAccessToken = accessToken || getAccessToken();
   
   const { data, error, isLoading, mutate } = useSWR<{ chats: CompanyChat[] }>(
     // Only create the SWR key when we should fetch - null key means no fetch
     shouldFetch ? `/api/company-chat-api/chats` : null,
-    createFetcher(userId, accessToken),
+    createFetcher(effectiveUserId, effectiveAccessToken),
     {
       refreshInterval: 30000, // Refresh every 30 seconds
       revalidateOnFocus: true,
@@ -173,7 +186,8 @@ export function useCompanyChats() {
     error,
     refresh: mutate,
     // Indicate if user needs to log in to use chat
-    requiresAuth: !authLoading && !userId,
+    // Only show requiresAuth if we're sure there's no auth (context AND localStorage)
+    requiresAuth: !authLoading && !userId && !hasLocalStorageAuth,
   };
 }
 
