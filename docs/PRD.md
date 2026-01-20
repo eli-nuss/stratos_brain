@@ -1016,3 +1016,39 @@ The system automatically detects and recovers from stale authentication tokens:
                                                                                             - [ ] ---
                                                                                            
                                                                                             - [ ] *This is a living document. Please update as the product evolves.*
+
+
+### 9.4 Authentication System (v2 - Robust Auth)
+
+**Objective:** Implement a resilient authentication system that provides a seamless user experience, survives deployments, and gracefully handles session-related issues without requiring manual user intervention (e.g., clearing cache).
+
+#### 9.4.1 Core Principles
+
+1.  **Single Source of Truth**: A new centralized utility, `lib/auth-storage.ts`, manages all interactions with `localStorage` for auth tokens. This eliminates inconsistencies where different parts of the app might look for different keys.
+2.  **Centralized Logic**: The `AuthContext` is the primary interface for authentication state within the React application. It is responsible for initializing, refreshing, and managing the user session.
+3.  **Resilient API Calls**: All API requests are funneled through a set of helpers in `lib/api-config.ts` which automatically attach authentication headers and include logic for recovering from stale authentication tokens.
+4.  **Graceful Failure & Recovery**: The system is designed to detect and automatically recover from common authentication failures, such as expired tokens or session desynchronization.
+
+#### 9.4.2 Key Components
+
+| Component | File Path | Purpose |
+|---|---|---|
+| **Auth Storage Utility** | `lib/auth-storage.ts` | Provides a single, consistent interface for reading from and writing to `localStorage`. It defines a single storage key (`stratos-auth-token`) and provides synchronous getters for the user ID and access token. |
+| **Auth Context** | `contexts/AuthContext.tsx` | Manages the application's auth state (`user`, `session`, `profile`, `loading`). It listens for auth changes from Supabase, handles sign-in/sign-out logic, and fetches user profiles. It now includes more robust initialization and session refresh logic. |
+| **API Configuration** | `lib/api-config.ts` | Centralizes API endpoint configuration and header generation. It includes an `apiFetcher` for SWR that automatically handles auth errors, attempts to refresh the token, and, if that fails, clears the stale session. |
+| **Stale Auth Handler** | `components/StaleAuthHandler.tsx` | A global component that periodically checks the health of the stored authentication token. If it detects a corrupt or expired token, it will automatically clear the session and prompt the user to sign in again. |
+| **Version Check** | `components/VersionCheck.tsx` | Detects when a new version of the application has been deployed. It now ensures that the user's session is preserved during a refresh, preventing forced logouts on deployment. |
+| **Auth Callback Page** | `pages/AuthCallback.tsx` | The page that handles the OAuth callback from Supabase. It has been made more robust with better error handling and a timeout to prevent it from getting stuck. |
+
+#### 9.4.3 Authentication Flow
+
+1.  **Initialization**: On application load, the `AuthProvider` attempts to load a session from Supabase. It uses the `auth-storage` utility to check for a pre-existing token, which helps in faster initialization.
+2.  **API Requests**: When a component makes an API call (e.g., via a `useSWR` hook), it uses the `apiFetcher`. This fetcher gets the latest auth token from `auth-storage` and adds it to the request headers.
+3.  **Token Expiration & Refresh**: If an API call fails with a 401 Unauthorized error, the `apiFetcher` in `api-config.ts` triggers a recovery process:
+    *   It first attempts to silently refresh the token using `supabase.auth.refreshSession()`.
+    *   If the refresh is successful, the original API request is automatically retried with the new token.
+    *   If the refresh fails, it assumes the session is irrevocably stale. It then calls `clearAllAuthData()` to wipe the invalid token from `localStorage` and triggers a `stale-auth-cleared` event.
+4.  **Stale Session Handling**: The `StaleAuthHandler` listens for the `stale-auth-cleared` event and displays a toast notification informing the user that their session has expired and they need to sign in again.
+5.  **Sign Out**: When the user signs out, the `signOut` function in `AuthContext` is called. This function tells Supabase to invalidate the token, calls `clearAllAuthData()` to ensure no local data is left behind, and clears all user-specific data from the SWR cache.
+
+This new architecture ensures that the application is much more resilient to common authentication problems and provides a smoother experience for the user.

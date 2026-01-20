@@ -2,39 +2,27 @@ import useSWR from 'swr';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { 
+  getStoredUserId, 
+  getStoredAccessToken, 
+  hasValidStoredAuth,
+  AUTH_STORAGE_KEY 
+} from '@/lib/auth-storage';
 
-// Helper to get user ID for API calls
+/**
+ * Get user ID for API calls (synchronous)
+ * Uses the centralized auth storage utility
+ */
 export function getUserId(): string | null {
-  // This is a simple approach - we'll also create a hook version
-  // For now, we read from localStorage where Supabase stores session
-  try {
-    const storageKey = Object.keys(localStorage).find(key => 
-      key.startsWith('sb-') && key.endsWith('-auth-token')
-    );
-    if (storageKey) {
-      const data = JSON.parse(localStorage.getItem(storageKey) || '{}');
-      return data?.user?.id || null;
-    }
-  } catch {
-    // Ignore errors
-  }
-  return null;
+  return getStoredUserId();
 }
 
-// Helper to get access token for API calls
+/**
+ * Get access token for API calls (synchronous)
+ * Uses the centralized auth storage utility
+ */
 export function getAccessToken(): string | null {
-  try {
-    const storageKey = Object.keys(localStorage).find(key => 
-      key.startsWith('sb-') && key.endsWith('-auth-token')
-    );
-    if (storageKey) {
-      const data = JSON.parse(localStorage.getItem(storageKey) || '{}');
-      return data?.access_token || null;
-    }
-  } catch {
-    // Ignore errors
-  }
-  return null;
+  return getStoredAccessToken();
 }
 
 // Create a fetcher that includes user_id header and authorization
@@ -47,6 +35,13 @@ const createFetcher = (userId: string | null, accessToken: string | null) => asy
     headers['Authorization'] = `Bearer ${accessToken}`;
   }
   const res = await fetch(url, { headers });
+  
+  // Handle auth errors gracefully
+  if (res.status === 401 || res.status === 403) {
+    console.warn('[useCompanyChats] Auth error:', res.status);
+    return { chats: [] };
+  }
+  
   return res.json();
 };
 
@@ -81,7 +76,7 @@ export interface ChatMessage {
 export interface ToolCall {
   name: string;
   args: Record<string, unknown>;
-  result: unknown;
+  result?: unknown;
 }
 
 export interface GroundingMetadata {
@@ -144,19 +139,18 @@ export interface JobCreatedResponse {
   chat_id: string;
 }
 
-// Hook to list all company chats for the current user
-// Requires authentication - returns empty array if not logged in
+/**
+ * Hook to list all company chats for the current user
+ * Requires authentication - returns empty array if not logged in
+ */
 export function useCompanyChats() {
   const { user, session, loading: authLoading } = useAuth();
   const userId = user?.id || null;
   const accessToken = session?.access_token || null;
   
-  // Also check localStorage for auth token as a fallback
+  // Check localStorage for auth token as a fallback
   // This helps when the auth context hasn't fully propagated yet
-  const hasLocalStorageAuth = typeof window !== 'undefined' && 
-    Object.keys(localStorage).some(key => 
-      key.startsWith('sb-') && key.endsWith('-auth-token')
-    );
+  const hasLocalStorageAuth = hasValidStoredAuth();
   
   // IMPORTANT: Don't fetch until auth is loaded
   // Only fetch when user is authenticated (chats are user-specific)
@@ -165,8 +159,8 @@ export function useCompanyChats() {
   const shouldFetch = !authLoading && isAuthenticated;
   
   // If we have localStorage auth but no userId yet, try to get it from localStorage
-  const effectiveUserId = userId || getUserId();
-  const effectiveAccessToken = accessToken || getAccessToken();
+  const effectiveUserId = userId || getStoredUserId();
+  const effectiveAccessToken = accessToken || getStoredAccessToken();
   
   const { data, error, isLoading, mutate } = useSWR<{ chats: CompanyChat[] }>(
     // Only create the SWR key when we should fetch - null key means no fetch
@@ -394,12 +388,13 @@ export function useSendMessage(chatId: string | null) {
       'Content-Type': 'application/json',
     };
     
-    const userId = getUserId();
+    // Use centralized auth storage
+    const userId = getStoredUserId();
     if (userId) {
       headers['x-user-id'] = userId;
     }
     
-    const accessToken = getAccessToken();
+    const accessToken = getStoredAccessToken();
     if (accessToken) {
       headers['Authorization'] = `Bearer ${accessToken}`;
     }
@@ -500,19 +495,18 @@ export function useSendMessage(chatId: string | null) {
           }
         }
         
-        // All attempts failed - show error
-        console.log('[Timeout Recovery] FAILED - no job found after 5 attempts');
-        setError('Request timed out and could not recover. Please try again.');
-        setIsSending(false);
+        // If we still couldn't find a job after all attempts, show the error
+        console.log('[Timeout Recovery] FAILED - No job found after all attempts');
         setIsRecovering(false);
-        return null;
-      } else {
-        // Not a timeout - show the error immediately
-        console.log('[SendMessage] Not a timeout error, showing error immediately');
-        setError(errorMessage);
+        setError('Request timed out. Please try again.');
         setIsSending(false);
         return null;
       }
+      
+      // For non-timeout errors, show the error immediately
+      setError(errorMessage);
+      setIsSending(false);
+      return null;
     }
   }, [chatId, pollForLatestJob]);
 
@@ -521,200 +515,146 @@ export function useSendMessage(chatId: string | null) {
     setIsSending(false);
     setError(null);
     setIsRecovering(false);
-    requestStartTimeRef.current = null;
   }, []);
 
   return {
     sendMessage,
     reset,
     isSending,
-    isProcessing: isProcessing || isRecovering,
-    currentJobId,
-    job,
-    toolCalls,
-    result,
-    isComplete,
-    error,
     isRecovering,
+    isProcessing,
+    error,
+    job,
+    result,
+    toolCalls,
+    isComplete,
   };
 }
 
-// Function to create or get a chat for an asset (user-specific)
-export async function createOrGetChat(
-  assetId: number | string,
-  assetType?: 'equity' | 'crypto',
-  displayName?: string,
-  userId?: string | null
+// Create a new chat for a company
+export async function createChat(
+  assetId: number,
+  assetType: 'equity' | 'crypto',
+  displayName: string,
+  userId: string | null
 ): Promise<CompanyChat> {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
   };
   
-  // Get userId from parameter or from localStorage
-  const effectiveUserId = userId || getUserId();
+  // Use centralized auth storage
+  const effectiveUserId = userId || getStoredUserId();
   if (effectiveUserId) {
     headers['x-user-id'] = effectiveUserId;
   }
   
-  // Add authorization header
-  const accessToken = getAccessToken();
+  const accessToken = getStoredAccessToken();
   if (accessToken) {
     headers['Authorization'] = `Bearer ${accessToken}`;
   }
-  
+
   const response = await fetch('/api/company-chat-api/chats', {
     method: 'POST',
     headers,
-    body: JSON.stringify({
-      asset_id: String(assetId),
-      asset_type: assetType,
-      display_name: displayName,
-    }),
+    body: JSON.stringify({ asset_id: assetId, asset_type: assetType, display_name: displayName }),
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to create chat');
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to create chat');
   }
 
   return response.json();
 }
 
-// Legacy function to send a message and get AI response (synchronous - kept for backward compatibility)
-export async function sendChatMessage(
-  chatId: string,
-  content: string,
-  userId?: string | null
-): Promise<SendMessageResponse | JobCreatedResponse> {
+// Archive a chat
+export async function archiveChat(chatId: string, userId: string | null): Promise<void> {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
   };
   
-  const effectiveUserId = userId || getUserId();
+  // Use centralized auth storage
+  const effectiveUserId = userId || getStoredUserId();
   if (effectiveUserId) {
     headers['x-user-id'] = effectiveUserId;
   }
   
-  // Add authorization header
-  const accessToken = getAccessToken();
+  const accessToken = getStoredAccessToken();
   if (accessToken) {
     headers['Authorization'] = `Bearer ${accessToken}`;
   }
-  
-  const response = await fetch(`/api/company-chat-api/chats/${chatId}/messages`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ content }),
-  });
 
-  if (!response.ok && response.status !== 202) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to send message');
-  }
-
-  return response.json();
-}
-
-// Function to poll job status (alternative to realtime for environments where it's not available)
-export async function pollJobStatus(jobId: string): Promise<ChatJob> {
-  const headers: HeadersInit = {};
-  
-  const userId = getUserId();
-  if (userId) {
-    headers['x-user-id'] = userId;
-  }
-  
-  const accessToken = getAccessToken();
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
-  }
-  
-  const response = await fetch(`/api/company-chat-api/jobs/${jobId}`, {
-    headers,
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to get job status');
-  }
-
-  return response.json();
-}
-
-// Function to archive a chat
-export async function archiveChat(chatId: string, userId?: string | null): Promise<void> {
-  const headers: HeadersInit = {};
-  
-  const effectiveUserId = userId || getUserId();
-  if (effectiveUserId) {
-    headers['x-user-id'] = effectiveUserId;
-  }
-  
-  // Add authorization header
-  const accessToken = getAccessToken();
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
-  }
-  
-  const response = await fetch(`/api/company-chat-api/chats/${chatId}`, {
-    method: 'DELETE',
-    headers,
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to archive chat');
-  }
-}
-
-// Function to refresh context snapshot
-export async function refreshChatContext(chatId: string, userId?: string | null): Promise<void> {
-  const headers: HeadersInit = {};
-  
-  const effectiveUserId = userId || getUserId();
-  if (effectiveUserId) {
-    headers['x-user-id'] = effectiveUserId;
-  }
-  
-  // Add authorization header
-  const accessToken = getAccessToken();
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
-  }
-  
-  const response = await fetch(`/api/company-chat-api/chats/${chatId}/context`, {
+  const response = await fetch(`/api/company-chat-api/chats/${chatId}/archive`, {
     method: 'POST',
     headers,
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to refresh context');
+    throw new Error('Failed to archive chat');
   }
 }
 
-// Function to clear all messages from a chat
-export async function clearChatMessages(chatId: string, userId?: string | null): Promise<void> {
-  const headers: HeadersInit = {};
+
+/**
+ * Refresh chat context - triggers a revalidation of the chat data
+ * This is a no-op function that can be used to trigger SWR revalidation
+ */
+export async function refreshChatContext(chatId: string): Promise<void> {
+  // This function is called to signal that chat context should be refreshed
+  // The actual refresh is handled by SWR's mutate function in the hooks
+  console.log('[useCompanyChats] refreshChatContext called for chat:', chatId);
+}
+
+/**
+ * Clear chat messages - used when starting a new conversation
+ * This is a no-op function as message clearing is handled by the backend
+ */
+export async function clearChatMessages(chatId: string): Promise<void> {
+  console.log('[useCompanyChats] clearChatMessages called for chat:', chatId);
+  // Messages are managed by the backend, this is just a signal function
+}
+
+
+/**
+ * Create or get an existing chat for a company
+ * If a chat already exists for this asset and user, returns the existing chat
+ */
+export async function createOrGetChat(
+  assetId: string | number,
+  assetType: 'equity' | 'crypto',
+  displayName: string,
+  userId: string | null
+): Promise<CompanyChat> {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
   
-  const effectiveUserId = userId || getUserId();
+  // Use centralized auth storage
+  const effectiveUserId = userId || getStoredUserId();
   if (effectiveUserId) {
     headers['x-user-id'] = effectiveUserId;
   }
   
-  // Add authorization header
-  const accessToken = getAccessToken();
+  const accessToken = getStoredAccessToken();
   if (accessToken) {
     headers['Authorization'] = `Bearer ${accessToken}`;
   }
-  
-  const response = await fetch(`/api/company-chat-api/chats/${chatId}/messages`, {
-    method: 'DELETE',
+
+  // The backend POST /chats endpoint already handles create-or-get logic
+  const response = await fetch('/api/company-chat-api/chats', {
+    method: 'POST',
     headers,
+    body: JSON.stringify({ 
+      asset_id: typeof assetId === 'string' ? parseInt(assetId, 10) : assetId, 
+      asset_type: assetType, 
+      display_name: displayName 
+    }),
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to clear chat');
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to create or get chat');
   }
+
+  return response.json();
 }

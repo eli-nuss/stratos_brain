@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { notifyAuthStateChanged } from '@/lib/auth-storage';
 
 export function AuthCallback() {
   const { user, loading } = useAuth();
@@ -8,6 +9,7 @@ export function AuthCallback() {
   const [error, setError] = useState<string | null>(null);
   const [hasRedirected, setHasRedirected] = useState(false);
   const manualExchangeAttempted = useRef(false);
+  const initRef = useRef(false);
 
   // Log every render to track state changes
   console.log('[AuthCallback] Render - loading:', loading, 'user:', user?.email || 'null', 'status:', status, 'hasRedirected:', hasRedirected);
@@ -30,8 +32,13 @@ export function AuthCallback() {
     setStatus('success');
     setHasRedirected(true);
     
-    // Redirect immediately
-    window.location.href = '/watchlist';
+    // Notify that auth state changed
+    notifyAuthStateChanged('login');
+    
+    // Small delay to ensure state is saved before redirect
+    setTimeout(() => {
+      window.location.href = '/watchlist';
+    }, 100);
   }, [user, hasRedirected]);
 
   // Manually exchange the OAuth code if Supabase didn't do it automatically
@@ -56,7 +63,7 @@ export function AuthCallback() {
       if (error) {
         console.error('[AuthCallback] Code exchange error:', error);
         // If the code was already used, try to get the existing session
-        if (error.message.includes('already used') || error.message.includes('invalid')) {
+        if (error.message.includes('already used') || error.message.includes('invalid') || error.message.includes('expired')) {
           console.log('[AuthCallback] Code may have been used, checking for existing session...');
           const { data: sessionData } = await supabase.auth.getSession();
           if (sessionData?.session?.user) {
@@ -72,13 +79,18 @@ export function AuthCallback() {
       
       if (data?.session?.user) {
         console.log('[AuthCallback] Manual exchange successful:', data.session.user.email);
+        // Notify auth state changed
+        notifyAuthStateChanged('login');
+        
         // The auth state change listener should pick this up
         // But let's also directly redirect if needed
         const email = data.session.user.email || '';
         if (email.endsWith('@stratos.xyz')) {
           setStatus('success');
           setHasRedirected(true);
-          window.location.href = '/watchlist';
+          setTimeout(() => {
+            window.location.href = '/watchlist';
+          }, 100);
         } else {
           setError('Access restricted to @stratos.xyz email addresses only.');
           setStatus('error');
@@ -92,6 +104,10 @@ export function AuthCallback() {
   }, []);
 
   useEffect(() => {
+    // Prevent double initialization
+    if (initRef.current) return;
+    initRef.current = true;
+    
     console.log('[AuthCallback] useEffect triggered - loading:', loading, 'user:', user?.email || 'null');
     
     // Check for error in URL params
@@ -106,54 +122,47 @@ export function AuthCallback() {
       return;
     }
 
-    // If still loading, wait a bit then try manual exchange
+    // Check if we have a code that needs to be exchanged
+    const code = urlParams.get('code');
+    
+    // If we have a code, try to exchange it immediately
+    // This is more reliable than waiting for Supabase's auto-detection
+    if (code && !manualExchangeAttempted.current) {
+      console.log('[AuthCallback] Code present, attempting exchange...');
+      manualCodeExchange();
+    }
+  }, [manualCodeExchange]);
+
+  // Separate effect to handle user state changes
+  useEffect(() => {
     if (loading) {
       console.log('[AuthCallback] Still loading auth state...');
-      // After 2 seconds of loading, try manual exchange
-      const timer = setTimeout(() => {
-        if (!user && !hasRedirected) {
-          manualCodeExchange();
-        }
-      }, 2000);
-      return () => clearTimeout(timer);
+      return;
     }
 
     // If we have a user, redirect
-    if (user) {
+    if (user && !hasRedirected) {
       handleRedirect();
-      return;
     }
-
-    // Check if we have a code that might still be processing
-    const code = urlParams.get('code');
-    if (code && !manualExchangeAttempted.current) {
-      console.log('[AuthCallback] Code present, attempting manual exchange...');
-      manualCodeExchange();
-      return;
-    }
-
-    // No user, no code, no loading - show error
-    if (!code) {
-      console.log('[AuthCallback] No user, no code, not loading - showing error');
-      setError('No authentication data found. Please try signing in again.');
-      setStatus('error');
-    }
-  }, [user, loading, handleRedirect, manualCodeExchange]);
+  }, [user, loading, handleRedirect, hasRedirected]);
 
   // Add a timeout to prevent infinite loading
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (status === 'processing' && !hasRedirected) {
-        console.log('[AuthCallback] Timeout reached after 10s');
+        console.log('[AuthCallback] Timeout reached after 15s');
         // Try one more time to get the session
         supabase.auth.getSession().then(({ data }) => {
           if (data?.session?.user) {
             const email = data.session.user.email || '';
             if (email.endsWith('@stratos.xyz')) {
               console.log('[AuthCallback] Found session on timeout, redirecting...');
+              notifyAuthStateChanged('login');
               setStatus('success');
               setHasRedirected(true);
-              window.location.href = '/watchlist';
+              setTimeout(() => {
+                window.location.href = '/watchlist';
+              }, 100);
               return;
             }
           }
@@ -164,7 +173,7 @@ export function AuthCallback() {
           setStatus('error');
         });
       }
-    }, 10000);
+    }, 15000);
 
     return () => clearTimeout(timeout);
   }, [status, hasRedirected]);

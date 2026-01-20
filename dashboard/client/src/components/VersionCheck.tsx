@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
+import { hasValidStoredAuth } from '@/lib/auth-storage';
 
 // This version should be updated with each deployment
 // It's used to detect stale tabs that need to be refreshed
-const APP_VERSION = '2.0.0-auth-fix';
+const APP_VERSION = '2.1.0-robust-auth';
 
 // Key used to store version in localStorage
 const VERSION_KEY = 'stratos_app_version';
@@ -20,6 +21,12 @@ export function VersionCheck() {
     
     if (storedVersion && storedVersion !== APP_VERSION) {
       console.log(`[VersionCheck] Version mismatch: stored=${storedVersion}, current=${APP_VERSION}`);
+      
+      // Check if user has valid auth - if so, we need to be careful about refresh
+      const hasAuth = hasValidStoredAuth();
+      console.log(`[VersionCheck] User has valid auth: ${hasAuth}`);
+      
+      // Show the refresh prompt
       setNeedsRefresh(true);
     } else {
       // Store current version
@@ -54,8 +61,21 @@ export function VersionCheck() {
   const handleRefresh = () => {
     // Update version before refreshing to prevent infinite refresh loop
     localStorage.setItem(VERSION_KEY, APP_VERSION);
+    
+    // IMPORTANT: Do NOT clear auth data on version refresh
+    // The auth data should persist across version updates
+    // Only clear auth data when explicitly signing out or when auth is stale
+    
     // Force a hard refresh to bypass cache
+    // Using location.reload() preserves the current URL and auth state
     window.location.reload();
+  };
+
+  const handleDismiss = () => {
+    // User can dismiss the prompt, but we'll still update the version
+    // so they don't see it again until the next actual update
+    localStorage.setItem(VERSION_KEY, APP_VERSION);
+    setNeedsRefresh(false);
   };
 
   if (!needsRefresh) {
@@ -70,14 +90,25 @@ export function VersionCheck() {
           <div className="flex-1">
             <p className="font-medium text-sm">Update Available</p>
             <p className="text-xs opacity-90 mt-1">
-              A new version of Stratos Brain is available. Please refresh to get the latest features and fixes.
+              A new version of Stratos Brain is available. Refresh to get the latest features and fixes.
             </p>
-            <button
-              onClick={handleRefresh}
-              className="mt-3 px-4 py-1.5 bg-primary-foreground text-primary rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
-            >
-              Refresh Now
-            </button>
+            <p className="text-xs opacity-75 mt-1">
+              Your login session will be preserved.
+            </p>
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={handleRefresh}
+                className="px-4 py-1.5 bg-primary-foreground text-primary rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
+              >
+                Refresh Now
+              </button>
+              <button
+                onClick={handleDismiss}
+                className="px-3 py-1.5 bg-transparent text-primary-foreground/80 rounded-md text-sm hover:text-primary-foreground transition-colors"
+              >
+                Later
+              </button>
+            </div>
           </div>
         </div>
       </div>

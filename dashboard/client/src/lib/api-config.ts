@@ -3,9 +3,18 @@
  * 
  * Contains the authentication headers needed for Supabase Edge Functions
  * Includes automatic stale auth detection and recovery
+ * 
+ * v2: Refactored to use centralized auth-storage utility for consistency
  */
 
 import { supabase } from './supabase';
+import { 
+  getStoredUserId, 
+  getStoredAccessToken, 
+  hasValidStoredAuth,
+  clearAllAuthData,
+  AUTH_STATE_CHANGED_EVENT 
+} from './auth-storage';
 
 // Use direct Supabase URL since Vercel rewrites don't forward auth headers
 export const API_BASE = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/control-api';
@@ -16,9 +25,7 @@ export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // Stratos API key for additional authentication
 export const STRATOS_API_KEY = 'stratos_brain_api_key_2024';
 
-// Cache for current user ID to avoid async calls in sync functions
-let cachedUserId: string | null = null;
-let cachedAccessToken: string | null = null;
+// Auth error tracking for stale auth detection
 let authErrorCount = 0;
 let lastAuthErrorTime = 0;
 const AUTH_ERROR_THRESHOLD = 3;
@@ -27,36 +34,79 @@ const AUTH_ERROR_WINDOW = 10000; // 10 seconds
 // Flag to track if we're currently recovering from stale auth
 let isRecoveringAuth = false;
 
-// Initialize and update cached user info
-export async function updateCachedAuth() {
+// Cache for auth data - updated via Supabase auth state listener
+let cachedUserId: string | null = null;
+let cachedAccessToken: string | null = null;
+
+/**
+ * Initialize cached auth from storage
+ * This is called on module load and after auth state changes
+ */
+function initCachedAuth(): void {
+  cachedUserId = getStoredUserId();
+  cachedAccessToken = getStoredAccessToken();
+  console.log('[api-config] Auth cache initialized:', {
+    hasUserId: !!cachedUserId,
+    hasToken: !!cachedAccessToken
+  });
+}
+
+// Initialize on module load
+initCachedAuth();
+
+/**
+ * Update cached auth from Supabase session
+ * This should be called when auth state changes
+ */
+export async function updateCachedAuth(): Promise<void> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     cachedUserId = session?.user?.id || null;
     cachedAccessToken = session?.access_token || null;
     // Reset error count on successful auth update
     authErrorCount = 0;
-  } catch {
-    cachedUserId = null;
-    cachedAccessToken = null;
+    console.log('[api-config] Auth cache updated from session:', {
+      hasUserId: !!cachedUserId,
+      hasToken: !!cachedAccessToken
+    });
+  } catch (err) {
+    console.error('[api-config] Failed to update cached auth:', err);
+    // Fall back to storage
+    initCachedAuth();
   }
 }
 
-// Get cached user ID (synchronous)
+/**
+ * Get cached user ID (synchronous)
+ * Falls back to storage if cache is empty
+ */
 export function getCachedUserId(): string | null {
-  return cachedUserId;
+  if (cachedUserId) return cachedUserId;
+  // Fall back to storage
+  return getStoredUserId();
 }
 
-// Get cached access token (synchronous)
+/**
+ * Get cached access token (synchronous)
+ * Falls back to storage if cache is empty
+ */
 export function getCachedAccessToken(): string | null {
-  return cachedAccessToken;
+  if (cachedAccessToken) return cachedAccessToken;
+  // Fall back to storage
+  return getStoredAccessToken();
 }
 
-// Check if we have a cached auth token (user appears to be logged in)
+/**
+ * Check if we have a valid auth token (user appears to be logged in)
+ */
 export function hasAuthToken(): boolean {
-  return cachedAccessToken !== null && cachedAccessToken !== SUPABASE_ANON_KEY;
+  const token = getCachedAccessToken();
+  return token !== null && token !== SUPABASE_ANON_KEY;
 }
 
-// Force refresh the auth token
+/**
+ * Force refresh the auth token via Supabase
+ */
 async function forceRefreshToken(): Promise<boolean> {
   console.log('[Auth Recovery] Attempting to refresh token...');
   try {
@@ -78,7 +128,10 @@ async function forceRefreshToken(): Promise<boolean> {
   }
 }
 
-// Clear stale auth and force re-login
+/**
+ * Clear stale auth and force re-login
+ * This is the nuclear option when token refresh fails
+ */
 async function clearStaleAuth(): Promise<void> {
   console.log('[Auth Recovery] Clearing stale auth data...');
   
@@ -86,26 +139,15 @@ async function clearStaleAuth(): Promise<void> {
   cachedUserId = null;
   cachedAccessToken = null;
   
-  // Clear Supabase local storage
+  // Sign out to clear Supabase state
   try {
-    // Sign out to clear all auth state
     await supabase.auth.signOut({ scope: 'local' });
   } catch (err) {
     console.error('[Auth Recovery] Error during signout:', err);
   }
   
-  // Clear any remaining localStorage items related to Supabase
-  const keysToRemove: string[] = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key && (key.includes('supabase') || key.includes('sb-'))) {
-      keysToRemove.push(key);
-    }
-  }
-  keysToRemove.forEach(key => {
-    console.log('[Auth Recovery] Removing localStorage key:', key);
-    localStorage.removeItem(key);
-  });
+  // Clear all auth data from storage
+  clearAllAuthData();
   
   // Notify user
   console.log('[Auth Recovery] Stale auth cleared. Please sign in again.');
@@ -114,7 +156,10 @@ async function clearStaleAuth(): Promise<void> {
   window.dispatchEvent(new CustomEvent('stale-auth-cleared'));
 }
 
-// Handle auth errors and trigger recovery if needed
+/**
+ * Handle auth errors and trigger recovery if needed
+ * Returns true if the request should be retried
+ */
 async function handleAuthError(): Promise<boolean> {
   const now = Date.now();
   
@@ -152,24 +197,31 @@ async function handleAuthError(): Promise<boolean> {
   return false;
 }
 
-// Set up auth state listener to keep cache updated
+// Listen for auth state changes from Supabase
 supabase.auth.onAuthStateChange((_event, session) => {
+  console.log('[api-config] Auth state changed:', _event);
   cachedUserId = session?.user?.id || null;
   cachedAccessToken = session?.access_token || null;
   // Reset error count on auth state change
   authErrorCount = 0;
 });
 
-// Initialize cache on module load
-updateCachedAuth();
+// Also listen for our custom auth state changed event
+if (typeof window !== 'undefined') {
+  window.addEventListener(AUTH_STATE_CHANGED_EVENT, () => {
+    console.log('[api-config] Custom auth state changed event received');
+    initCachedAuth();
+  });
+}
 
 /**
  * Get the default headers for API requests
  * Uses anon key if no valid auth token is available
  */
 export function getApiHeaders(): HeadersInit {
-  // If we have a cached access token, use it; otherwise use anon key
-  const authToken = cachedAccessToken || SUPABASE_ANON_KEY;
+  // Get the current token, preferring cache but falling back to storage
+  const authToken = getCachedAccessToken() || SUPABASE_ANON_KEY;
+  const userId = getCachedUserId();
   
   const headers: HeadersInit = {
     'Authorization': `Bearer ${authToken}`,
@@ -177,8 +229,8 @@ export function getApiHeaders(): HeadersInit {
   };
   
   // Add user ID header if authenticated
-  if (cachedUserId) {
-    (headers as Record<string, string>)['x-user-id'] = cachedUserId;
+  if (userId) {
+    (headers as Record<string, string>)['x-user-id'] = userId;
   }
   
   return headers;
@@ -418,7 +470,7 @@ export async function apiPatch<T = unknown>(url: string, body: unknown): Promise
 /**
  * DELETE request helper with auth recovery
  */
-export async function apiDelete(url: string): Promise<void> {
+export async function apiDelete<T = unknown>(url: string): Promise<T> {
   // Convert /api/dashboard paths to direct Supabase URL
   const fullUrl = url.startsWith('/api/dashboard') 
     ? url.replace('/api/dashboard', API_BASE + '/dashboard')
@@ -441,10 +493,12 @@ export async function apiDelete(url: string): Promise<void> {
           headers: getApiHeaders(),
         });
         if (retryResponse.ok) {
-          return;
+          return retryResponse.json();
         }
       }
     }
     throw new Error(`API DELETE Error: ${response.status}`);
   }
+  
+  return response.json();
 }
