@@ -138,6 +138,46 @@ python3 -m src.stratos_engine.ingest_fundamentals --limit 5000
 
 ---
 
+## Historical Financials Tab Issue
+
+### Root Cause
+
+The "Historical Financials" tab shows "No historical financial data available" because the `equity_quarterly_fundamentals` and `equity_annual_fundamentals` tables are **not populated** for many assets.
+
+**Current State (before fix):**
+- Total active equities: 4,458
+- With quarterly fundamentals: 1,256 (28%)
+- Missing quarterly fundamentals: 3,202 (72%)
+
+The `ingest_fundamentals.py` script only processes assets by market cap order with a limit, so smaller-cap stocks never get their historical data fetched.
+
+### Solution
+
+Created `scripts/backfill_quarterly_fundamentals.py` to batch-fill missing fundamentals data:
+
+```bash
+# Process specific symbols
+python3 scripts/backfill_quarterly_fundamentals.py --symbols LUNR VSAT IRDM
+
+# Process top N missing assets by market cap
+python3 scripts/backfill_quarterly_fundamentals.py --limit 100
+```
+
+### Data Populated
+
+After running the backfill script for Space stocks:
+
+| Symbol | Company | Quarterly Records | Annual Records |
+|--------|---------|-------------------|----------------|
+| LUNR | Intuitive Machines | 20 | 5 |
+| VSAT | Viasat | 81 | 20 |
+| IRDM | Iridium Communications | 72 | 18 |
+| FLY | Firefly Aerospace | 7 | 2 |
+| KRMN | Karman Holdings | 8 | 3 |
+| VOYG | Voyager Technologies | 5 | 2 |
+
+---
+
 ## Verification Steps
 
 After implementing fixes, verify with:
