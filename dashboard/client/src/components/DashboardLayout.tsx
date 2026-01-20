@@ -155,7 +155,8 @@ export default function DashboardLayout({
                   
                   {/* Dropdown Menu */}
                   {isOpen && (
-                    <div className="absolute top-full left-0 mt-1 py-1 bg-card border border-border rounded-lg shadow-lg min-w-[160px] z-50">
+                    <div className="absolute top-full left-0 pt-1 z-50">
+                      <div className="py-1 bg-card border border-border rounded-lg shadow-lg min-w-[160px]">
                       {group.items.map((item) => {
                         const Icon = item.icon;
                         const itemActive = location === item.href;
@@ -175,6 +176,7 @@ export default function DashboardLayout({
                           </Link>
                         );
                       })}
+                      </div>
                     </div>
                   )}
                 </div>
