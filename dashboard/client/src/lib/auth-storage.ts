@@ -32,6 +32,17 @@ interface StoredAuthData {
   };
 }
 
+// Key for storing user profile separately (for cross-tab sync)
+export const PROFILE_STORAGE_KEY = 'stratos-user-profile';
+
+// Interface for cached profile
+export interface CachedProfile {
+  id: string;
+  email: string;
+  display_name: string | null;
+  cached_at: number;
+}
+
 /**
  * Get the raw auth data from localStorage
  * Returns null if no data exists or if parsing fails
@@ -99,6 +110,9 @@ export function clearAllAuthData(): void {
   
   // Remove the main auth storage key
   localStorage.removeItem(AUTH_STORAGE_KEY);
+  
+  // Remove the profile cache
+  localStorage.removeItem(PROFILE_STORAGE_KEY);
   
   // Also remove any legacy Supabase keys that might exist
   const keysToRemove: string[] = [];
@@ -204,4 +218,75 @@ export function checkAuthHealth(): { healthy: boolean; issues: string[] } {
     healthy: issues.length === 0,
     issues
   };
+}
+
+
+/**
+ * Cache user profile to localStorage for cross-tab sync
+ */
+export function cacheUserProfile(profile: { id: string; email: string; display_name: string | null }): void {
+  if (typeof window === 'undefined') return;
+  
+  const cached: CachedProfile = {
+    ...profile,
+    cached_at: Date.now()
+  };
+  
+  try {
+    localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(cached));
+    console.log('[auth-storage] Profile cached:', profile.display_name);
+    
+    // Notify other tabs
+    window.dispatchEvent(new CustomEvent(AUTH_STATE_CHANGED_EVENT, {
+      detail: { type: 'profile-updated' }
+    }));
+  } catch (err) {
+    console.warn('[auth-storage] Failed to cache profile:', err);
+  }
+}
+
+/**
+ * Get cached user profile from localStorage (synchronous)
+ */
+export function getCachedProfile(): CachedProfile | null {
+  if (typeof window === 'undefined') return null;
+  
+  try {
+    const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
+    if (!raw) return null;
+    
+    const profile = JSON.parse(raw) as CachedProfile;
+    
+    // Check if cache is still valid (24 hours)
+    const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+    if (Date.now() - profile.cached_at > maxAge) {
+      console.log('[auth-storage] Profile cache expired');
+      return null;
+    }
+    
+    return profile;
+  } catch (err) {
+    console.warn('[auth-storage] Failed to get cached profile:', err);
+    return null;
+  }
+}
+
+/**
+ * Get display name from cached profile or auth data
+ * This provides a consistent display name across tabs
+ */
+export function getDisplayName(): string | null {
+  // First try cached profile
+  const profile = getCachedProfile();
+  if (profile?.display_name) {
+    return profile.display_name;
+  }
+  
+  // Fall back to auth data email
+  const authData = getStoredAuthData();
+  if (authData?.user?.email) {
+    return authData.user.email.split('@')[0];
+  }
+  
+  return null;
 }

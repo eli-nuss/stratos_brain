@@ -8,6 +8,8 @@ import {
   clearAllAuthData,
   hasValidStoredAuth,
   getStoredUserId,
+  cacheUserProfile,
+  getCachedProfile,
   AUTH_STATE_CHANGED_EVENT 
 } from '@/lib/auth-storage';
 
@@ -58,7 +60,20 @@ const ALLOWED_DOMAINS = ['stratos.xyz'];
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  // Initialize profile from cache for instant display
+  const [profile, setProfile] = useState<UserProfile | null>(() => {
+    const cached = getCachedProfile();
+    if (cached) {
+      return {
+        id: cached.id,
+        email: cached.email,
+        display_name: cached.display_name,
+        created_at: '',
+        updated_at: ''
+      };
+    }
+    return null;
+  });
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const initialized = useRef(false);
@@ -66,8 +81,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const maxInitAttempts = 3;
 
   // Fetch user profile from our user_profiles table
-  const fetchProfile = useCallback(async (userId: string) => {
+  // Also caches the profile for cross-tab sync
+  const fetchProfile = useCallback(async (userId: string, email?: string) => {
     try {
+      // First check if we have a cached profile
+      const cached = getCachedProfile();
+      if (cached && cached.id === userId) {
+        console.log('[Auth] Using cached profile:', cached.display_name);
+        // Return cached immediately, but still fetch fresh in background
+        const cachedProfile: UserProfile = {
+          id: cached.id,
+          email: cached.email,
+          display_name: cached.display_name,
+          created_at: '',
+          updated_at: ''
+        };
+        
+        // Fetch fresh profile in background to update cache
+        supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', userId)
+          .single()
+          .then(({ data }) => {
+            if (data) {
+              cacheUserProfile({
+                id: data.id,
+                email: data.email,
+                display_name: data.display_name
+              });
+            }
+          });
+        
+        return cachedProfile;
+      }
+      
       const { data, error } = await supabase
         .from('user_profiles')
         .select('*')
@@ -78,6 +126,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('[Auth] Error fetching profile:', error);
         return null;
       }
+      
+      // Cache the profile for cross-tab sync
+      if (data) {
+        cacheUserProfile({
+          id: data.id,
+          email: data.email,
+          display_name: data.display_name
+        });
+      }
+      
       return data as UserProfile;
     } catch (err) {
       console.error('[Auth] Error fetching profile:', err);
