@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated:** January 16, 2026 (v1.1 - Auth System Documentation)  
+**Last Updated:** January 20, 2026 (v1.2 - Extended Financial Metrics)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -283,9 +283,13 @@
                                                                                          
                                                                                             | Table | Purpose | Key Columns |
                                                                                             |-------|---------|-------------|
-                                                                                            | `equity_metadata` | Company information | `asset_id`, `company_name`, `sector`, `industry` |
-                                                                                            | `equity_annual_fundamentals` | Annual financial data | `asset_id`, `fiscal_year`, `revenue`, `net_income` |
-                                                                                            | `equity_quarterly_fundamentals` | Quarterly financial data | `asset_id`, `fiscal_quarter`, `revenue`, `eps` |
+| `equity_metadata` | Company information + ratios | `asset_id`, `symbol`, `sector`, `industry`, `current_ratio`, `debt_to_equity`, `roic`, `roce`, `fcf_yield`, `graham_number`, etc. |
+| `equity_annual_fundamentals` | Annual financial data + growth | `asset_id`, `fiscal_year`, `revenue`, `net_income`, `revenue_growth`, `eps_growth`, `three_year_revenue_cagr`, etc. |
+| `equity_quarterly_fundamentals` | Quarterly financial data + growth | `asset_id`, `fiscal_quarter`, `revenue`, `eps`, `revenue_growth`, `net_income_growth`, `fcf_growth`, etc. |
+| `equity_ratios_quarterly` | Historical ratio trends | `asset_id`, `fiscal_date`, `current_ratio`, `debt_to_equity`, `roic`, `roce`, `gross_profit_margin`, etc. |
+| `equity_earnings_history` | Earnings beats/misses | `asset_id`, `fiscal_date`, `eps_estimated`, `eps_actual`, `eps_surprise_pct`, `revenue_surprise_pct` |
+| `equity_dividend_history` | Dividend payments | `asset_id`, `ex_dividend_date`, `dividend_amount`, `dividend_type`, `payment_date` |
+| `equity_stock_splits` | Stock split events | `asset_id`, `split_date`, `split_numerator`, `split_denominator` |
                                                                                             | `fundamental_scores` | Calculated fundamental scores | `asset_id`, `value_score`, `growth_score`, `quality_score` |
                                                                                             | `fundamental_snapshot` | Monthly pre-calculated fundamentals | `asset_id`, `snapshot_date`, `pe_ratio`, `pb_ratio` |
                                                                                             | `fundamental_score_history` | Historical score tracking | `asset_id`, `score_date`, `composite_score` |
