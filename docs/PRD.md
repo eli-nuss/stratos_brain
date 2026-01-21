@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated:** January 20, 2026 (v1.2 - Extended Financial Metrics)  
+**Last Updated:** January 21, 2026 (v1.3 - EV+MC Display)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -508,7 +508,7 @@
                                                                                             #### Dashboard Data
                                                                                             ```
                                                                                             GET  /api/dashboard/all-assets     # All assets with scores
-                                                                                            GET  /api/dashboard/asset/:id      # Single asset detail
+                                                                                            GET  /api/dashboard/asset/:id      # Single asset detail (now includes enterprise_value for equities)
                                                                                             GET  /api/dashboard/inflections    # Inflection signals
                                                                                             GET  /api/dashboard/health         # Pipeline status
                                                                                             ```
@@ -591,7 +591,7 @@ PATCH  /api/dashboard/research-notes/:id/favorite # Toggle favorite status
                                                                                             |-----------|---------|
                                                                                             | `DashboardLayout` | Main app shell with navigation |
                                                                                             | `CustomizableAssetTable` | Flexible data table with sorting/filtering, including tag-based sorting (Interesting first) |
-                                                                                            | `AssetDetail` | Modal with charts, AI analysis, trade plan |
+                                                                                            | `AssetDetail` | Modal with charts, AI analysis, trade plan, and EV+MC display for equities |
                                                                                             | `CompanyChatInterface` | Chat UI with code blocks and citations |
                                                                                             | `SmartMoneyTracker` | Institutional holdings visualization |
 | `PortfolioSandbox` | Interactive portfolio construction with weight sliders |
