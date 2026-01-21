@@ -550,6 +550,37 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               </button>
               {!collapsedSections['about'] && (
               <div className="p-4 space-y-3">
+                {/* EV + MC Display for equities */}
+                {asset.asset_type === 'equity' && (asset.enterprise_value || asset.market_cap) && (
+                  <div className="flex items-center gap-3 pb-2 border-b border-border/50">
+                    {asset.enterprise_value && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-wide">EV</span>
+                        <span className="text-xs font-mono font-medium text-foreground">
+                          {asset.enterprise_value >= 1e12 ? `$${(asset.enterprise_value / 1e12).toFixed(2)}T` :
+                           asset.enterprise_value >= 1e9 ? `$${(asset.enterprise_value / 1e9).toFixed(2)}B` :
+                           asset.enterprise_value >= 1e6 ? `$${(asset.enterprise_value / 1e6).toFixed(1)}M` :
+                           `$${asset.enterprise_value.toLocaleString()}`}
+                        </span>
+                      </div>
+                    )}
+                    {asset.enterprise_value && asset.market_cap && (
+                      <span className="text-muted-foreground/50">+</span>
+                    )}
+                    {asset.market_cap && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-wide">MC</span>
+                        <span className="text-xs font-mono font-medium text-foreground">
+                          {asset.market_cap >= 1e12 ? `$${(asset.market_cap / 1e12).toFixed(2)}T` :
+                           asset.market_cap >= 1e9 ? `$${(asset.market_cap / 1e9).toFixed(2)}B` :
+                           asset.market_cap >= 1e6 ? `$${(asset.market_cap / 1e6).toFixed(1)}M` :
+                           `$${asset.market_cap.toLocaleString()}`}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Category Badge */}
                 {asset.category && (
                   <div className="flex items-center gap-2">

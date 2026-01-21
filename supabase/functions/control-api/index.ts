@@ -1150,16 +1150,19 @@ ${markdownToHtml(markdown)}
           asset.piotroski_f_score = enrichedAsset.piotroski_f_score
         }
         
-        // Get company description from equity_metadata
+        // Get company description and enterprise_value from equity_metadata
         if (asset.asset_type === 'equity') {
           const { data: metadataDesc } = await supabase
             .from('equity_metadata')
-            .select('description')
+            .select('description, enterprise_value')
             .eq('asset_id', assetId)
             .single()
           
           if (metadataDesc?.description) {
             asset.short_description = metadataDesc.description
+          }
+          if (metadataDesc?.enterprise_value) {
+            asset.enterprise_value = metadataDesc.enterprise_value
           }
         }
         
