@@ -221,8 +221,8 @@ export default function CustomizableAssetTable({
   const { mutate: mutateWatchlist } = useWatchlist();
   const { tagsMap } = useAssetTags();
   
-  // Get global search query from context (synced with ⌘K search bar)
-  const { globalSearchQuery, isCommandBarOpen } = useSearchContext();
+  // Get search state from context (synced with ⌘K search bar)
+  const { globalSearchQuery, isCommandBarOpen, appliedFilter, clearFilter } = useSearchContext();
   const tableType = assetType === "crypto" ? "crypto" : "equity";
   const { 
     config, 
@@ -300,8 +300,10 @@ export default function CustomizableAssetTable({
   }, [initialIndustry, initialSector, initialCategory]);
 
   // Use global search query from the ⌘K command bar
-  // Only apply search when command bar is open and there's a query
-  const effectiveSearch = isCommandBarOpen && globalSearchQuery.length >= 1 ? globalSearchQuery : undefined;
+  // When command bar is open, use live query; when closed, use the applied filter
+  const effectiveSearch = isCommandBarOpen 
+    ? (globalSearchQuery.length >= 1 ? globalSearchQuery : undefined)
+    : (appliedFilter.length >= 1 ? appliedFilter : undefined);
   
   const { data = [], total, isLoading, isTagSorting } = useAllAssets({
     assetType,
@@ -792,6 +794,13 @@ export default function CustomizableAssetTable({
             <div className="flex items-center gap-2 px-2 py-1 bg-primary/10 border border-primary/30 rounded text-xs text-primary">
               <span>Filtering: "{effectiveSearch}"</span>
               <span className="text-muted-foreground">({total} results)</span>
+              <button
+                onClick={clearFilter}
+                className="ml-1 p-0.5 hover:bg-primary/20 rounded transition-colors"
+                title="Clear filter"
+              >
+                <X className="w-3 h-3" />
+              </button>
             </div>
           )}
           

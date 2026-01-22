@@ -124,7 +124,7 @@ export function UnifiedCommandBar({ className = '' }: UnifiedCommandBarProps) {
   const [, setLocation] = useLocation();
   
   // Use shared search context to sync with table
-  const { setGlobalSearchQuery, setIsCommandBarOpen } = useSearchContext();
+  const { setGlobalSearchQuery, setIsCommandBarOpen, applyFilter, appliedFilter } = useSearchContext();
 
   // Use unified search hook
   const {
@@ -157,6 +157,21 @@ export function UnifiedCommandBar({ className = '' }: UnifiedCommandBarProps) {
   useEffect(() => {
     setIsCommandBarOpen(isOpen);
   }, [isOpen, setIsCommandBarOpen]);
+  
+  // When closing the command bar, apply the current query as a persistent filter
+  useEffect(() => {
+    if (!isOpen && debouncedQuery.length > 0) {
+      // Apply the filter when closing with a query
+      applyFilter(debouncedQuery);
+    }
+  }, [isOpen, debouncedQuery, applyFilter]);
+  
+  // When opening, restore the applied filter to the query input
+  useEffect(() => {
+    if (isOpen && appliedFilter && query.length === 0) {
+      setQuery(appliedFilter);
+    }
+  }, [isOpen, appliedFilter]);
 
   // ============================================================================
   // Flatten results for keyboard navigation
