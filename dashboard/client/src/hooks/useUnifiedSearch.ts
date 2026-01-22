@@ -9,7 +9,12 @@
  * - Custom Lists
  * - Recent Items
  * 
- * @version 1.0.0
+ * Features:
+ * - Fuzzy matching for typo tolerance (e.g., "Nvdia" → NVIDIA)
+ * - Ticker aliases (e.g., "Google" → GOOGL)
+ * - Relevance-based scoring and sorting
+ * 
+ * @version 1.1.0
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -17,6 +22,12 @@ import useSWR from 'swr';
 import { apiFetcher, API_BASE } from '@/lib/api-config';
 import { useUserPreferences, PREFERENCE_KEYS } from './useUserPreferences';
 import { useStockLists, StockList } from './useStockLists';
+import { 
+  fuzzyMatch, 
+  resolveTickerAlias, 
+  getTickerAliases,
+  FuzzyMatchResult 
+} from '@/lib/fuzzySearch';
 
 // ============================================================================
 // Types
@@ -36,6 +47,10 @@ export interface AssetResult {
   industry?: string | null;
   sector?: string | null;
   category?: string | null;
+  // Fuzzy match metadata
+  matchScore?: number;
+  matchType?: FuzzyMatchResult['matchType'];
+  matchedVia?: string; // e.g., "alias: google"
 }
 
 export interface IndustryResult {
@@ -43,6 +58,7 @@ export interface IndustryResult {
   name: string;
   asset_type: 'equity';
   count: number;
+  matchScore?: number;
 }
 
 export interface SectorResult {
@@ -50,6 +66,7 @@ export interface SectorResult {
   name: string;
   asset_type: 'equity';
   count: number;
+  matchScore?: number;
 }
 
 export interface CategoryResult {
@@ -57,6 +74,7 @@ export interface CategoryResult {
   name: string;
   asset_type: 'crypto';
   count: number;
+  matchScore?: number;
 }
 
 export interface ListResult {
@@ -67,6 +85,7 @@ export interface ListResult {
   icon?: string;
   color?: string;
   asset_count?: number;
+  matchScore?: number;
 }
 
 export interface RecentItem {
@@ -102,6 +121,7 @@ export interface GroupedResults {
 const RECENT_ITEMS_KEY = 'recent_search_items';
 const MAX_RECENT_ITEMS = 10;
 const DEBOUNCE_MS = 200;
+const FUZZY_MIN_SCORE = 35; // Minimum score to include fuzzy matches
 
 // Static list of industries for quick matching
 const EQUITY_INDUSTRIES = [
@@ -170,6 +190,8 @@ interface UseUnifiedSearchOptions {
   maxResultsPerCategory?: number;
   /** Enable recent items tracking */
   enableRecent?: boolean;
+  /** Enable fuzzy matching */
+  enableFuzzy?: boolean;
 }
 
 interface UseUnifiedSearchReturn {
@@ -192,6 +214,7 @@ export function useUnifiedSearch(options: UseUnifiedSearchOptions = {}): UseUnif
     minChars = 1,
     maxResultsPerCategory = 8,
     enableRecent = true,
+    enableFuzzy = true,
   } = options;
 
   // State
@@ -210,6 +233,28 @@ export function useUnifiedSearch(options: UseUnifiedSearchOptions = {}): UseUnif
     }, DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [query]);
+
+  // ============================================================================
+  // Resolve Ticker Aliases
+  // ============================================================================
+  
+  // Check if the query matches any ticker aliases
+  const resolvedTickers = useMemo(() => {
+    if (!enableFuzzy || debouncedQuery.length < 2) return [];
+    return resolveTickerAlias(debouncedQuery);
+  }, [debouncedQuery, enableFuzzy]);
+
+  // Build search queries - include both original query and resolved aliases
+  const searchQueries = useMemo(() => {
+    const queries = [debouncedQuery];
+    // Add resolved tickers to search
+    resolvedTickers.forEach((ticker) => {
+      if (!queries.includes(ticker)) {
+        queries.push(ticker);
+      }
+    });
+    return queries;
+  }, [debouncedQuery, resolvedTickers]);
 
   // ============================================================================
   // Recent Items Management
@@ -257,16 +302,16 @@ export function useUnifiedSearch(options: UseUnifiedSearchOptions = {}): UseUnif
   }, [enableRecent, isLoggedIn, setPreference]);
 
   // ============================================================================
-  // Asset Search (API)
+  // Asset Search (API) - Search with original query and resolved aliases
   // ============================================================================
 
   const shouldSearchAssets = debouncedQuery.length >= minChars && 
     (category === 'all' || category === 'assets');
 
-  // Search both crypto and equity
+  // Primary search with original query
   const { data: cryptoData, isLoading: cryptoLoading } = useSWR<{ data: any[] }>(
     shouldSearchAssets
-      ? `${API_BASE}/dashboard/all-assets?search=${encodeURIComponent(debouncedQuery)}&asset_type=crypto&limit=${maxResultsPerCategory}`
+      ? `${API_BASE}/dashboard/all-assets?search=${encodeURIComponent(debouncedQuery)}&asset_type=crypto&limit=${maxResultsPerCategory * 2}`
       : null,
     apiFetcher,
     { dedupingInterval: 1000 }
@@ -274,116 +319,162 @@ export function useUnifiedSearch(options: UseUnifiedSearchOptions = {}): UseUnif
 
   const { data: equityData, isLoading: equityLoading } = useSWR<{ data: any[] }>(
     shouldSearchAssets
-      ? `${API_BASE}/dashboard/all-assets?search=${encodeURIComponent(debouncedQuery)}&asset_type=equity&limit=${maxResultsPerCategory}`
+      ? `${API_BASE}/dashboard/all-assets?search=${encodeURIComponent(debouncedQuery)}&asset_type=equity&limit=${maxResultsPerCategory * 2}`
+      : null,
+    apiFetcher,
+    { dedupingInterval: 1000 }
+  );
+
+  // Additional search for resolved ticker aliases (if different from original query)
+  const aliasSearchQuery = resolvedTickers.length > 0 ? resolvedTickers[0] : null;
+  const shouldSearchAlias = shouldSearchAssets && aliasSearchQuery && 
+    aliasSearchQuery.toLowerCase() !== debouncedQuery.toLowerCase();
+
+  const { data: aliasCryptoData } = useSWR<{ data: any[] }>(
+    shouldSearchAlias
+      ? `${API_BASE}/dashboard/all-assets?search=${encodeURIComponent(aliasSearchQuery!)}&asset_type=crypto&limit=${maxResultsPerCategory}`
+      : null,
+    apiFetcher,
+    { dedupingInterval: 1000 }
+  );
+
+  const { data: aliasEquityData } = useSWR<{ data: any[] }>(
+    shouldSearchAlias
+      ? `${API_BASE}/dashboard/all-assets?search=${encodeURIComponent(aliasSearchQuery!)}&asset_type=equity&limit=${maxResultsPerCategory}`
       : null,
     apiFetcher,
     { dedupingInterval: 1000 }
   );
 
   // ============================================================================
-  // Industry/Sector/Category Search (Client-side)
+  // Industry/Sector/Category Search (Client-side with Fuzzy Matching)
   // ============================================================================
 
   const industryResults = useMemo((): (IndustryResult | SectorResult | CategoryResult)[] => {
     if (debouncedQuery.length < minChars) return [];
     if (category !== 'all' && category !== 'industries') return [];
 
-    const queryLower = debouncedQuery.toLowerCase();
-    const results: (IndustryResult | SectorResult | CategoryResult)[] = [];
+    const results: (IndustryResult | SectorResult | CategoryResult & { matchScore: number })[] = [];
 
-    // Search industries
+    // Search industries with fuzzy matching
     EQUITY_INDUSTRIES.forEach((industry) => {
-      if (industry.toLowerCase().includes(queryLower)) {
+      const match = fuzzyMatch(debouncedQuery, industry);
+      if (match.score >= FUZZY_MIN_SCORE) {
         results.push({
           type: 'industry',
           name: industry,
           asset_type: 'equity',
-          count: 0, // Will be populated by API if needed
+          count: 0,
+          matchScore: match.score,
         });
       }
     });
 
-    // Search sectors
+    // Search sectors with fuzzy matching
     EQUITY_SECTORS.forEach((sector) => {
-      if (sector.toLowerCase().includes(queryLower)) {
+      const match = fuzzyMatch(debouncedQuery, sector);
+      if (match.score >= FUZZY_MIN_SCORE) {
         results.push({
           type: 'sector',
           name: sector,
           asset_type: 'equity',
           count: 0,
+          matchScore: match.score,
         });
       }
     });
 
-    // Search crypto categories
+    // Search crypto categories with fuzzy matching
     CRYPTO_CATEGORIES.forEach((cat) => {
-      if (cat.toLowerCase().includes(queryLower)) {
+      const match = fuzzyMatch(debouncedQuery, cat);
+      if (match.score >= FUZZY_MIN_SCORE) {
         results.push({
           type: 'category',
           name: cat,
           asset_type: 'crypto',
           count: 0,
+          matchScore: match.score,
         });
       }
     });
 
-    // Sort by relevance (exact match first, then starts with, then contains)
-    results.sort((a, b) => {
-      const aName = a.name.toLowerCase();
-      const bName = b.name.toLowerCase();
-
-      // Exact match first
-      if (aName === queryLower && bName !== queryLower) return -1;
-      if (bName === queryLower && aName !== queryLower) return 1;
-
-      // Starts with second
-      if (aName.startsWith(queryLower) && !bName.startsWith(queryLower)) return -1;
-      if (bName.startsWith(queryLower) && !aName.startsWith(queryLower)) return 1;
-
-      return 0;
-    });
+    // Sort by match score (highest first)
+    results.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
 
     return results.slice(0, maxResultsPerCategory);
   }, [debouncedQuery, minChars, category, maxResultsPerCategory]);
 
   // ============================================================================
-  // List Search (Client-side)
+  // List Search (Client-side with Fuzzy Matching)
   // ============================================================================
 
   const listResults = useMemo((): ListResult[] => {
     if (debouncedQuery.length < minChars) return [];
     if (category !== 'all' && category !== 'lists') return [];
 
-    const queryLower = debouncedQuery.toLowerCase();
+    const results: (ListResult & { matchScore: number })[] = [];
 
-    return stockLists
-      .filter((list) => list.name.toLowerCase().includes(queryLower))
-      .map((list) => ({
-        type: 'list' as const,
-        id: list.id,
-        name: list.name,
-        description: list.description,
-        icon: list.icon,
-        color: list.color,
-      }))
-      .slice(0, maxResultsPerCategory);
+    stockLists.forEach((list) => {
+      // Match against list name and description
+      const nameMatch = fuzzyMatch(debouncedQuery, list.name);
+      const descMatch = list.description 
+        ? fuzzyMatch(debouncedQuery, list.description) 
+        : { score: 0, matchType: 'none' as const };
+      
+      const bestScore = Math.max(nameMatch.score, descMatch.score * 0.8); // Description match weighted less
+
+      if (bestScore >= FUZZY_MIN_SCORE) {
+        results.push({
+          type: 'list',
+          id: list.id,
+          name: list.name,
+          description: list.description,
+          icon: list.icon,
+          color: list.color,
+          matchScore: bestScore,
+        });
+      }
+    });
+
+    // Sort by match score
+    results.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
+
+    return results.slice(0, maxResultsPerCategory);
   }, [debouncedQuery, minChars, category, stockLists, maxResultsPerCategory]);
 
   // ============================================================================
-  // Combine Results
+  // Combine and Score Asset Results
   // ============================================================================
 
   const assetResults = useMemo((): AssetResult[] => {
-    const allAssets: AssetResult[] = [];
+    const allAssets: (AssetResult & { matchScore: number })[] = [];
     const seenIds = new Set<number>();
 
-    // Combine crypto and equity results
-    const cryptoAssets = cryptoData?.data || [];
-    const equityAssets = equityData?.data || [];
-
-    [...cryptoAssets, ...equityAssets].forEach((asset) => {
-      if (!seenIds.has(asset.asset_id)) {
+    // Helper to process assets and add match scores
+    const processAssets = (assets: any[], source: 'direct' | 'alias') => {
+      assets.forEach((asset) => {
+        if (seenIds.has(asset.asset_id)) return;
         seenIds.add(asset.asset_id);
+
+        // Get aliases for this ticker
+        const aliases = getTickerAliases(asset.symbol);
+        
+        // Calculate match score
+        const symbolMatch = fuzzyMatch(debouncedQuery, asset.symbol, aliases);
+        const nameMatch = fuzzyMatch(debouncedQuery, asset.name || '');
+        
+        // Use the better match
+        let bestMatch = symbolMatch.score >= nameMatch.score ? symbolMatch : nameMatch;
+        let matchedVia: string | undefined;
+
+        // If this came from alias search, boost the score
+        if (source === 'alias' && bestMatch.score < 50) {
+          bestMatch = { score: 85, matchType: 'alias' };
+          matchedVia = `alias: ${debouncedQuery}`;
+        } else if (bestMatch.matchedAlias) {
+          matchedVia = `alias: ${bestMatch.matchedAlias}`;
+        }
+
         allAssets.push({
           type: 'asset',
           asset_id: asset.asset_id,
@@ -396,33 +487,35 @@ export function useUnifiedSearch(options: UseUnifiedSearchOptions = {}): UseUnif
           industry: asset.industry,
           sector: asset.sector,
           category: asset.category,
+          matchScore: bestMatch.score,
+          matchType: bestMatch.matchType,
+          matchedVia,
         });
-      }
-    });
+      });
+    };
 
-    // Sort by relevance
-    const queryLower = debouncedQuery.toLowerCase();
+    // Process direct search results
+    const cryptoAssets = cryptoData?.data || [];
+    const equityAssets = equityData?.data || [];
+    processAssets([...cryptoAssets, ...equityAssets], 'direct');
+
+    // Process alias search results
+    const aliasCryptoAssets = aliasCryptoData?.data || [];
+    const aliasEquityAssets = aliasEquityData?.data || [];
+    processAssets([...aliasCryptoAssets, ...aliasEquityAssets], 'alias');
+
+    // Sort by match score, then by market cap for ties
     allAssets.sort((a, b) => {
-      const aSymbol = a.symbol.toLowerCase();
-      const bSymbol = b.symbol.toLowerCase();
-
-      // Exact symbol match first
-      if (aSymbol === queryLower && bSymbol !== queryLower) return -1;
-      if (bSymbol === queryLower && aSymbol !== queryLower) return 1;
-
-      // Symbol starts with query second
-      if (aSymbol.startsWith(queryLower) && !bSymbol.startsWith(queryLower)) return -1;
-      if (bSymbol.startsWith(queryLower) && !aSymbol.startsWith(queryLower)) return 1;
-
-      // Then by market cap
+      const scoreDiff = (b.matchScore || 0) - (a.matchScore || 0);
+      if (scoreDiff !== 0) return scoreDiff;
       return (b.market_cap || 0) - (a.market_cap || 0);
     });
 
-    return allAssets.slice(0, maxResultsPerCategory * 2); // Allow more assets
-  }, [cryptoData, equityData, debouncedQuery, maxResultsPerCategory]);
+    return allAssets.slice(0, maxResultsPerCategory * 2);
+  }, [cryptoData, equityData, aliasCryptoData, aliasEquityData, debouncedQuery, maxResultsPerCategory]);
 
   // ============================================================================
-  // Filtered Recent Items
+  // Filtered Recent Items (with Fuzzy Matching)
   // ============================================================================
 
   const filteredRecentItems = useMemo((): RecentItem[] => {
@@ -433,14 +526,23 @@ export function useUnifiedSearch(options: UseUnifiedSearchOptions = {}): UseUnif
       return recentItems.slice(0, 5);
     }
 
-    const queryLower = debouncedQuery.toLowerCase();
-    return recentItems
-      .filter((item) => {
-        const name = item.name?.toLowerCase() || '';
-        const symbol = item.symbol?.toLowerCase() || '';
-        return name.includes(queryLower) || symbol.includes(queryLower);
+    // Filter recent items with fuzzy matching
+    const matched = recentItems
+      .map((item) => {
+        const nameMatch = fuzzyMatch(debouncedQuery, item.name || '');
+        const symbolMatch = item.symbol 
+          ? fuzzyMatch(debouncedQuery, item.symbol, getTickerAliases(item.symbol))
+          : { score: 0, matchType: 'none' as const };
+        
+        return {
+          item,
+          score: Math.max(nameMatch.score, symbolMatch.score),
+        };
       })
-      .slice(0, 5);
+      .filter(({ score }) => score >= FUZZY_MIN_SCORE)
+      .sort((a, b) => b.score - a.score);
+
+    return matched.map(({ item }) => item).slice(0, 5);
   }, [recentItems, debouncedQuery, enableRecent, category]);
 
   // ============================================================================

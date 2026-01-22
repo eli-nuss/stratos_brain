@@ -379,6 +379,11 @@ export function UnifiedCommandBar({ className = '' }: UnifiedCommandBarProps) {
         <div className="flex items-center gap-2">
           <span className="font-medium text-sm">{asset.symbol}</span>
           <span className="text-xs text-muted-foreground truncate">{asset.name}</span>
+          {asset.matchedVia && (
+            <span className="text-[9px] text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded">
+              {asset.matchedVia}
+            </span>
+          )}
         </div>
         {asset.industry && (
           <div className="text-[10px] text-muted-foreground truncate">{asset.industry}</div>
