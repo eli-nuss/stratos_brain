@@ -16,7 +16,26 @@ const corsHeaders = {
 // Gemini API configuration
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
 const GEMINI_MODEL = 'gemini-3-flash-preview'
-const API_VERSION = 'v2025.01.13.unified'
+const API_VERSION = 'v2025.01.21.realtime-broadcast'
+
+// Broadcast event to Supabase Realtime channel for real-time updates
+async function broadcastEvent(
+  supabase: ReturnType<typeof createClient>,
+  jobId: string,
+  event: string,
+  payload: Record<string, unknown>
+): Promise<void> {
+  try {
+    const channel = supabase.channel(`chat_job:${jobId}`)
+    await channel.send({
+      type: 'broadcast',
+      event: event,
+      payload: payload
+    })
+  } catch (err) {
+    console.error(`Failed to broadcast ${event}:`, err)
+  }
+}
 
 // Chat config interface
 interface ChatConfig {
@@ -395,7 +414,7 @@ ${guidelines}
 ${responseFormat}`
 }
 
-// Call Gemini with unified function calling
+// Call Gemini with unified function calling and real-time broadcasting
 async function callGeminiWithTools(
   messages: Array<{ role: string; parts: Array<{ text?: string; functionCall?: unknown; functionResponse?: unknown }> }>,
   systemInstruction: string,
@@ -403,7 +422,8 @@ async function callGeminiWithTools(
   chatConfig: ChatConfig = {},
   logTool?: (toolName: string, status: 'started' | 'completed' | 'failed', data?: Record<string, unknown>) => Promise<void>,
   assetId?: number,
-  ticker?: string
+  ticker?: string,
+  jobId?: string  // For real-time broadcasting
 ): Promise<{
   response: string;
   toolCalls: unknown[];
@@ -468,6 +488,12 @@ async function callGeminiWithTools(
     // OPTIMIZATION: Execute all function calls in parallel for faster response
     console.log(`Executing ${functionCallParts.length} function(s) in parallel...`)
     
+    // BROADCAST: Tool start events for real-time UI updates
+    if (jobId) {
+      const toolNames = functionCallParts.map((p: { functionCall?: { name: string } }) => p.functionCall?.name || 'unknown')
+      await broadcastEvent(supabase, jobId, 'tool_start', { tools: toolNames })
+    }
+    
     // Log all tool starts first (non-blocking)
     if (logTool) {
       await Promise.all(functionCallParts.map(async (part: { functionCall?: { name: string; args: Record<string, unknown> } }) => {
@@ -521,6 +547,15 @@ async function callGeminiWithTools(
       console.log(`✓ ${fc.name} completed: ${(result as { error?: string }).error ? 'ERROR' : 'OK'}`)
     }
     
+    // BROADCAST: Tool complete events for real-time UI updates
+    if (jobId) {
+      const results = parallelResults.map(r => ({
+        name: r.fc.name,
+        success: !(r.result as { error?: string }).error
+      }))
+      await broadcastEvent(supabase, jobId, 'tool_complete', { results })
+    }
+    
     messages.push({ role: 'model', parts: content.parts })
     messages.push({ role: 'function', parts: functionResponses })
     
@@ -552,6 +587,19 @@ async function callGeminiWithTools(
   
   const textParts = candidate?.content?.parts?.filter((p: { text?: string }) => p.text) || []
   const responseText = textParts.map((p: { text: string }) => p.text).join('\n')
+  
+  // BROADCAST: Stream text chunks for real-time UI updates
+  if (jobId && responseText) {
+    const chunkSize = 50  // Characters per chunk
+    for (let i = 0; i < responseText.length; i += chunkSize) {
+      const chunk = responseText.slice(i, i + chunkSize)
+      await broadcastEvent(supabase, jobId, 'text_chunk', { text: chunk })
+      // Small delay to prevent flooding the socket
+      await new Promise(r => setTimeout(r, 15))
+    }
+    // Send done event with full text
+    await broadcastEvent(supabase, jobId, 'done', { full_text: responseText })
+  }
   
   return {
     response: responseText || 'I apologize, but I was unable to generate a response.',
@@ -968,7 +1016,8 @@ serve(async (req: Request) => {
               chatConfig,
               logTool,
               asset.asset_id,
-              asset.symbol
+              asset.symbol,
+              jobId  // Pass jobId for real-time broadcasting
             )
             const latencyMs = Date.now() - startTime
             
@@ -1005,6 +1054,10 @@ serve(async (req: Request) => {
             
           } catch (err) {
             console.error('Background task failed:', err)
+            // BROADCAST: Error event for real-time UI updates
+            await broadcastEvent(supabase, jobId, 'error', { 
+              message: err instanceof Error ? err.message : 'Unknown error' 
+            })
             await updateJob('failed', { 
               error_message: err instanceof Error ? err.message : 'Unknown error',
               completed_at: new Date().toISOString()

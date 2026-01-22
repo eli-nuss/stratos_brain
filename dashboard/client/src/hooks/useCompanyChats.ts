@@ -239,16 +239,29 @@ export function useChatMessages(chatId: string | null, limit = 50) {
 }
 
 // Hook to subscribe to job updates via Supabase Realtime
+// Now includes broadcast channel subscription for real-time streaming
 export function useChatJob(jobId: string | null) {
   const [job, setJob] = useState<ChatJob | null>(null);
   const [isComplete, setIsComplete] = useState(false);
+  // Real-time streaming state
+  const [streamingText, setStreamingText] = useState<string>('');
+  const [activeTools, setActiveTools] = useState<string[]>([]);
+  const [isStreaming, setIsStreaming] = useState(false);
 
   useEffect(() => {
     if (!jobId) {
       setJob(null);
       setIsComplete(false);
+      setStreamingText('');
+      setActiveTools([]);
+      setIsStreaming(false);
       return;
     }
+    
+    // Reset streaming state for new job
+    setStreamingText('');
+    setActiveTools([]);
+    setIsStreaming(true);
 
     // Initial fetch
     const fetchJob = async () => {
@@ -268,9 +281,9 @@ export function useChatJob(jobId: string | null) {
 
     fetchJob();
 
-    // Subscribe to realtime updates
-    const channel = supabase
-      .channel(`job-${jobId}`)
+    // Subscribe to realtime updates (postgres changes)
+    const dbChannel = supabase
+      .channel(`job-db-${jobId}`)
       .on(
         'postgres_changes',
         {
@@ -284,13 +297,42 @@ export function useChatJob(jobId: string | null) {
           setJob(updatedJob);
           if (updatedJob.status === 'completed' || updatedJob.status === 'failed') {
             setIsComplete(true);
+            setIsStreaming(false);
           }
         }
       )
       .subscribe();
+    
+    // Subscribe to broadcast channel for real-time streaming
+    const broadcastChannel = supabase
+      .channel(`chat_job:${jobId}`)
+      .on('broadcast', { event: 'tool_start' }, (payload) => {
+        console.log('[Broadcast] tool_start:', payload.payload);
+        const tools = payload.payload?.tools as string[] || [];
+        setActiveTools(tools);
+      })
+      .on('broadcast', { event: 'tool_complete' }, (payload) => {
+        console.log('[Broadcast] tool_complete:', payload.payload);
+        setActiveTools([]);
+      })
+      .on('broadcast', { event: 'text_chunk' }, (payload) => {
+        console.log('[Broadcast] text_chunk:', payload.payload);
+        const text = payload.payload?.text as string || '';
+        setStreamingText(prev => prev + text);
+      })
+      .on('broadcast', { event: 'done' }, (payload) => {
+        console.log('[Broadcast] done:', payload.payload);
+        setIsStreaming(false);
+      })
+      .on('broadcast', { event: 'error' }, (payload) => {
+        console.log('[Broadcast] error:', payload.payload);
+        setIsStreaming(false);
+      })
+      .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(dbChannel);
+      supabase.removeChannel(broadcastChannel);
     };
   }, [jobId]);
 
@@ -303,6 +345,10 @@ export function useChatJob(jobId: string | null) {
     toolCalls: job?.tool_calls || [],
     result: job?.result,
     error: job?.error_message,
+    // Real-time streaming state
+    streamingText,
+    activeTools,
+    isStreaming,
   };
 }
 
@@ -315,7 +361,7 @@ export function useSendMessage(chatId: string | null) {
   const [isRecovering, setIsRecovering] = useState(false);
   const requestStartTimeRef = useRef<number | null>(null);
 
-  const { job, isComplete, isProcessing, toolCalls, result, error: jobError } = useChatJob(currentJobId);
+  const { job, isComplete, isProcessing, toolCalls, result, error: jobError, streamingText, activeTools, isStreaming } = useChatJob(currentJobId);
 
   // Reset when job completes
   useEffect(() => {
@@ -528,6 +574,10 @@ export function useSendMessage(chatId: string | null) {
     result,
     toolCalls,
     isComplete,
+    // Real-time streaming state
+    streamingText,
+    activeTools,
+    isStreaming,
   };
 }
 

@@ -8,7 +8,7 @@ import {
   ChatMessage,
   CompanyChat,
 } from '@/hooks/useCompanyChats';
-import { useStreamingChat } from '@/hooks/useStreamingChat';
+// useStreamingChat removed - now using broadcast streaming via useSendMessage
 import { useAuth } from '@/contexts/AuthContext';
 import { ThinkingSection } from './ThinkingSection';
 import { MarkdownRenderer } from './MarkdownRenderer';
@@ -459,55 +459,21 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Toggle for streaming mode (faster responses)
-  const [useStreaming, setUseStreaming] = useState(true);
-  
-  // Use the new job-based message sending hook (fallback)
+  // Use the job-based message sending hook with broadcast streaming
   const {
-    sendMessage: sendMessageJob,
+    sendMessage,
     reset: resetSendState,
-    isSending: isSendingJob,
-    isProcessing: isProcessingJob,
-    toolCalls: toolCallsJob,
-    isComplete: isCompleteJob,
-    error: errorJob,
+    isSending,
+    isProcessing,
+    toolCalls,
+    isComplete,
+    error,
     isRecovering,
-  } = useSendMessage(chat.chat_id);
-  
-  // Use the streaming chat hook (faster)
-  const {
-    sendMessage: sendMessageStream,
+    // Real-time broadcast streaming state
+    streamingText,
+    activeTools,
     isStreaming,
-    currentText: streamingText,
-    toolsInProgress,
-    completedTools,
-    error: streamError,
-    thinkingMessage,
-    reset: resetStreamState,
-  } = useStreamingChat(chat.chat_id, {
-    onComplete: () => {
-      refreshMessages();
-      onRefresh?.();
-      setPendingUserMessage(null);
-    },
-  });
-  
-  // Unified state based on mode
-  const isSending = useStreaming ? isStreaming : isSendingJob;
-  const isProcessing = useStreaming ? isStreaming : isProcessingJob;
-  const error = useStreaming ? streamError : errorJob;
-  const isComplete = useStreaming ? !isStreaming && !streamError : isCompleteJob;
-  
-  // Convert streaming tool progress to job-style tool calls for UI compatibility
-  const toolCalls = useStreaming 
-    ? [
-        ...toolsInProgress.map(name => ({ tool_name: name, status: 'started' as const, timestamp: new Date().toISOString() })),
-        ...completedTools.map(t => ({ tool_name: t.name, status: t.success ? 'completed' as const : 'failed' as const, timestamp: new Date().toISOString() }))
-      ]
-    : toolCallsJob;
-  
-  // Unified send function
-  const sendMessage = useStreaming ? sendMessageStream : sendMessageJob;
+  } = useSendMessage(chat.chat_id);
 
   // Show fundamentals panel by default on larger screens
   useEffect(() => {
@@ -697,19 +663,13 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
             </div>
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
-            <button
-              onClick={() => setUseStreaming(!useStreaming)}
-              className={cn(
-                "flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md transition-colors",
-                useStreaming 
-                  ? "text-yellow-500 bg-yellow-500/10" 
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
-              )}
-              title={useStreaming ? 'Streaming mode (faster)' : 'Standard mode'}
-            >
-              <Zap className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{useStreaming ? 'Fast' : 'Standard'}</span>
-            </button>
+            {/* Real-time streaming indicator */}
+            {isStreaming && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-yellow-500 bg-yellow-500/10 rounded-md">
+                <Zap className="w-3.5 h-3.5 animate-pulse" />
+                <span className="hidden sm:inline">Live</span>
+              </div>
+            )}
             <button
               onClick={handleSummarizeChat}
               disabled={isSummarizing || messages.length === 0}
@@ -835,15 +795,25 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
               </div>
               <div className="flex-1 max-w-[85%]">
                 {/* Streaming text - show real-time response */}
-                {useStreaming && streamingText && (
+                {streamingText && (
                   <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-3 mb-2">
                     <MarkdownRenderer content={streamingText} />
                     <span className="inline-block w-2 h-4 bg-primary/60 animate-pulse ml-0.5" />
                   </div>
                 )}
                 
+                {/* Active tools indicator from broadcast */}
+                {activeTools && activeTools.length > 0 && !streamingText && (
+                  <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-3 mb-2">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Running: {activeTools.join(', ')}</span>
+                    </div>
+                  </div>
+                )}
+                
                 {/* Thinking/Processing indicator */}
-                {(!streamingText || !useStreaming) && (
+                {!streamingText && !activeTools?.length && (
                   <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-3 min-w-[200px]">
                     <div className="flex items-center gap-3 mb-2">
                       <div className="flex gap-1">
@@ -852,7 +822,7 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
                         <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                       </div>
                       <span className="text-sm text-muted-foreground">
-                        {thinkingMessage || (isRecovering ? 'Reconnecting to analysis...' : isProcessing ? 'Analyzing...' : 'Starting...')}
+                        {isRecovering ? 'Reconnecting to analysis...' : isProcessing ? 'Analyzing...' : 'Starting...'}
                       </span>
                     </div>
                     {/* Real-time tool execution progress */}
