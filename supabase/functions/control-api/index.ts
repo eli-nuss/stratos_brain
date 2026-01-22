@@ -1326,9 +1326,10 @@ ${markdownToHtml(markdown)}
           }
         }
         
-        // Optional search by symbol
+        // Optional search by symbol OR name
         if (search) {
-          query = query.ilike('symbol', `%${search}%`)
+          // Use OR filter to search both symbol and name
+          query = query.or(`symbol.ilike.%${search}%,name.ilike.%${search}%`)
         }
 
         // Apply filters
