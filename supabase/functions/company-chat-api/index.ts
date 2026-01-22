@@ -352,6 +352,13 @@ ${groundingRules}
 
 **If fundamentals look good BUT institutions are distributing, you MUST warn the user.**
 
+## TOOL CALLING PROTOCOL (CRITICAL FOR RELIABILITY)
+**When calling any tool, you MUST properly escape all JSON values.** Ensure:
+- String values are properly quoted and escaped (e.g., newlines as \\n, quotes as \\")
+- Numeric values are simple numbers without trailing zeros or scientific notation issues
+- Boolean values are lowercase true/false
+- If you're unsure about a parameter format, use simple, clean values
+
 ## Available Tools (Unified Library - All 23 Tools)
 
 ### Asset-Specific Tools (Auto-injected with asset_id: ${asset.asset_id})
@@ -636,12 +643,46 @@ async function callGeminiWithTools(
       if (cand.finishReason !== 'STOP') {
         console.warn(`⚠️ Finish Reason after tools was ${cand.finishReason} (not STOP). Safety Ratings:`, JSON.stringify(cand.safetyRatings, null, 2))
         
-        // If MALFORMED_FUNCTION_CALL, log the full request for debugging
+        // If MALFORMED_FUNCTION_CALL, log details and attempt recovery
         if (cand.finishReason === 'MALFORMED_FUNCTION_CALL') {
-          console.error('🔴 MALFORMED_FUNCTION_CALL detected! Logging full request details:')
+          console.error('🔴 MALFORMED_FUNCTION_CALL detected! Attempting recovery...')
           console.error('Model parts sent:', JSON.stringify(modelParts, null, 2))
           console.error('Function responses sent:', JSON.stringify(functionResponses, null, 2))
-          console.error('Full messages array length:', messages.length)
+          
+          // Recovery: Ask the model to summarize the tool results without making new function calls
+          const recoveryMessage = {
+            role: 'user',
+            parts: [{ text: 'Please summarize the tool results above and provide your analysis. Do not call any more tools - just analyze the data you have received.' }]
+          }
+          messages.push(recoveryMessage)
+          
+          // Make a recovery request with function calling disabled
+          const recoveryResponse = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: messages,
+                systemInstruction: { parts: [{ text: systemInstruction }] },
+                // Disable tools for recovery to prevent another malformed call
+                generationConfig: {
+                  temperature: 0.3,
+                  maxOutputTokens: 4096
+                }
+              })
+            }
+          )
+          
+          if (recoveryResponse.ok) {
+            const recoveryData = await recoveryResponse.json()
+            if (recoveryData.candidates?.[0]?.content?.parts) {
+              console.log('✅ Recovery successful!')
+              candidate = recoveryData.candidates[0]
+              break // Exit the loop with the recovered response
+            }
+          }
+          console.error('❌ Recovery failed, continuing with original error')
         }
       }
     }
