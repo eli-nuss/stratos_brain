@@ -240,6 +240,7 @@ async function* streamGeminiWithTools(
       const followUpReader = followUpResponse.body?.getReader()
       if (followUpReader) {
         let followUpBuffer = ''
+        let hasReceivedTokens = false
         
         try {
           while (true) {
@@ -263,6 +264,7 @@ async function* streamGeminiWithTools(
                   if (candidate?.content?.parts) {
                     for (const part of candidate.content.parts) {
                       if (part.text) {
+                        hasReceivedTokens = true
                         accumulatedText += part.text
                         yield { type: 'token', data: { text: part.text }, timestamp: new Date().toISOString() }
                       }
@@ -276,6 +278,50 @@ async function* streamGeminiWithTools(
           }
         } finally {
           followUpReader.releaseLock()
+        }
+        
+        // If streaming didn't return any tokens, try non-streaming fallback
+        if (!hasReceivedTokens) {
+          yield { type: 'thinking', data: { message: 'Generating response...' }, timestamp: new Date().toISOString() }
+          
+          const fallbackResponse = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...requestBody, contents: messages })
+            }
+          )
+          
+          if (fallbackResponse.ok) {
+            const fallbackData = await fallbackResponse.json()
+            const fallbackText = fallbackData.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || '').join('') || ''
+            if (fallbackText) {
+              accumulatedText = fallbackText
+              yield { type: 'token', data: { text: fallbackText }, timestamp: new Date().toISOString() }
+            }
+          }
+        }
+      }
+    } else {
+      // Follow-up streaming failed, try non-streaming
+      yield { type: 'thinking', data: { message: 'Generating response...' }, timestamp: new Date().toISOString() }
+      
+      const fallbackResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...requestBody, contents: messages })
+        }
+      )
+      
+      if (fallbackResponse.ok) {
+        const fallbackData = await fallbackResponse.json()
+        const fallbackText = fallbackData.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || '').join('') || ''
+        if (fallbackText) {
+          accumulatedText = fallbackText
+          yield { type: 'token', data: { text: fallbackText }, timestamp: new Date().toISOString() }
         }
       }
     }
