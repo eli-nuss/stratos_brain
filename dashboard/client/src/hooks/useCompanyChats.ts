@@ -418,7 +418,7 @@ export function useSendMessage(chatId: string | null) {
     }
   }, [chatId]);
 
-  const sendMessage = useCallback(async (content: string): Promise<string | null> => {
+  const sendMessage = useCallback(async (content: string, model?: 'flash' | 'pro'): Promise<string | null> => {
     if (!chatId) {
       setError('No chat selected');
       return null;
@@ -455,7 +455,7 @@ export function useSendMessage(chatId: string | null) {
       const response = await fetch(`/api/company-chat-api/chats/${chatId}/messages`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, model: model || 'flash' }),  // Default to flash for speed
         signal: controller.signal,
       });
 

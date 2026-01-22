@@ -454,6 +454,8 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summaryResult, setSummaryResult] = useState<{ title: string; content: string; public_url?: string } | null>(null);
   const [showFundamentals, setShowFundamentals] = useState(false);
+  // Model selection: 'flash' (fast, default) or 'pro' (powerful)
+  const [selectedModel, setSelectedModel] = useState<'flash' | 'pro'>('flash');
   // Optimistic user message - shown immediately while waiting for API response
   const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -520,7 +522,7 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
     // Show user message immediately (optimistic update)
     setPendingUserMessage(userMessage);
 
-    await sendMessage(userMessage);
+    await sendMessage(userMessage, selectedModel);
   };
 
   const handleRefreshContext = async () => {
@@ -913,6 +915,24 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
         {/* Input - fixed at bottom of chat column */}
         <div className="flex-shrink-0 p-4 border-t border-border bg-card">
           <div className="flex gap-3 items-end max-w-4xl mx-auto">
+            {/* Model Toggle */}
+            <div className="flex-shrink-0">
+              <button
+                onClick={() => setSelectedModel(selectedModel === 'flash' ? 'pro' : 'flash')}
+                disabled={isSending || isProcessing}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-medium transition-all",
+                  "border disabled:opacity-50 disabled:cursor-not-allowed",
+                  selectedModel === 'flash'
+                    ? "bg-amber-500/10 border-amber-500/30 text-amber-500 hover:bg-amber-500/20"
+                    : "bg-purple-500/10 border-purple-500/30 text-purple-500 hover:bg-purple-500/20"
+                )}
+                title={selectedModel === 'flash' ? 'Flash: Faster responses' : 'Pro: More powerful analysis'}
+              >
+                <Zap className={cn("w-3.5 h-3.5", selectedModel === 'flash' ? "text-amber-500" : "text-purple-500")} />
+                <span className="hidden sm:inline">{selectedModel === 'flash' ? 'Flash' : 'Pro'}</span>
+              </button>
+            </div>
             <div className="flex-1 relative">
               <textarea
                 ref={inputRef}
@@ -944,7 +964,7 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
             </button>
           </div>
           <p className="text-[10px] text-muted-foreground mt-2 text-center hidden sm:block">
-            Press Enter to send • Shift+Enter for new line
+            Press Enter to send • Shift+Enter for new line • {selectedModel === 'flash' ? '⚡ Flash mode (faster)' : '🔮 Pro mode (powerful)'}
           </p>
         </div>
       </div>

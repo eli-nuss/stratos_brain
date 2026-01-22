@@ -15,7 +15,9 @@ const corsHeaders = {
 
 // Gemini API configuration
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
-const GEMINI_MODEL = 'gemini-3-pro-preview'
+const GEMINI_MODEL_PRO = 'gemini-3-pro-preview'
+const GEMINI_MODEL_FLASH = 'gemini-2.5-flash-preview-05-20'  // Faster model for quick queries
+const GEMINI_MODEL = GEMINI_MODEL_PRO  // Default to Pro for backward compatibility
 const API_VERSION = 'v2025.01.21.realtime-broadcast'
 
 // Broadcast event to Supabase Realtime channel for real-time updates
@@ -997,7 +999,15 @@ serve(async (req: Request) => {
         
         const chatId = path.split('/')[2]
         const body = await req.json()
-        const { content } = body
+        const { content, model: requestedModel } = body
+        
+        // Validate model selection: 'flash' (fast) or 'pro' (powerful)
+        // Default to Flash for speed - users can toggle to Pro for complex analysis
+        const selectedModel = requestedModel === 'pro' ? GEMINI_MODEL_PRO : 
+                              requestedModel === 'flash' ? GEMINI_MODEL_FLASH : 
+                              GEMINI_MODEL_FLASH  // Default to Flash
+        
+        console.log(`[Model Selection] Requested: ${requestedModel || 'default'}, Using: ${selectedModel}`)
         
         if (!content) {
           return new Response(JSON.stringify({ error: 'content is required' }), {
@@ -1133,14 +1143,17 @@ serve(async (req: Request) => {
               hasOnePager: !!preloadedDocs.onePager 
             })
             
-            const systemPrompt = buildSystemPrompt(asset, chat.context_snapshot, chatConfig, preloadedDocs)
+            // Override chatConfig model with user-selected model
+            const configWithModel = { ...chatConfig, model: selectedModel }
+            
+            const systemPrompt = buildSystemPrompt(asset, chat.context_snapshot, configWithModel, preloadedDocs)
             
             const startTime = Date.now()
             const geminiResult = await callGeminiWithTools(
               geminiMessages, 
               systemPrompt, 
               supabase, 
-              chatConfig,
+              configWithModel,  // Use config with user-selected model
               logTool,
               asset.asset_id,
               asset.symbol,
@@ -1159,7 +1172,7 @@ serve(async (req: Request) => {
                 executable_code: geminiResult.codeExecutions.length > 0 ? (geminiResult.codeExecutions[0] as { code?: string })?.code : null,
                 code_execution_result: geminiResult.codeExecutions.length > 0 ? JSON.stringify((geminiResult.codeExecutions[0] as { result?: unknown })?.result) : null,
                 grounding_metadata: geminiResult.groundingMetadata,
-                model: chatConfig.model || GEMINI_MODEL,
+                model: selectedModel,  // Log the actual model used
                 latency_ms: latencyMs
               })
               .select()
@@ -1237,7 +1250,14 @@ serve(async (req: Request) => {
       case req.method === 'POST' && /^\/chats\/[a-f0-9-]+\/messages\/sync$/.test(path): {
         const chatId = path.split('/')[2]
         const body = await req.json()
-        const { content } = body
+        const { content, model: requestedModel } = body
+        
+        // Validate model selection: 'flash' (fast) or 'pro' (powerful)
+        const selectedModel = requestedModel === 'pro' ? GEMINI_MODEL_PRO : 
+                              requestedModel === 'flash' ? GEMINI_MODEL_FLASH : 
+                              GEMINI_MODEL_FLASH  // Default to Flash
+        
+        console.log(`[Model Selection - Sync] Requested: ${requestedModel || 'default'}, Using: ${selectedModel}`)
         
         if (!content) {
           return new Response(JSON.stringify({ error: 'content is required' }), {
@@ -1319,14 +1339,16 @@ serve(async (req: Request) => {
             })
           }
         }
-        const systemPrompt = buildSystemPrompt(asset, chat.context_snapshot, chatConfig, preloadedDocs)
+        // Override chatConfig model with user-selected model
+        const configWithModel = { ...chatConfig, model: selectedModel }
+        const systemPrompt = buildSystemPrompt(asset, chat.context_snapshot, configWithModel, preloadedDocs)
         
         const startTime = Date.now()
         const geminiResult = await callGeminiWithToolsSafe(
           geminiMessages, 
           systemPrompt, 
           supabase, 
-          chatConfig,
+          configWithModel,  // Use config with user-selected model
           undefined,
           asset.asset_id,
           asset.symbol
@@ -1344,7 +1366,7 @@ serve(async (req: Request) => {
             executable_code: geminiResult.codeExecutions.length > 0 ? (geminiResult.codeExecutions[0] as { code?: string })?.code : null,
             code_execution_result: geminiResult.codeExecutions.length > 0 ? JSON.stringify((geminiResult.codeExecutions[0] as { result?: unknown })?.result) : null,
             grounding_metadata: geminiResult.groundingMetadata,
-            model: chatConfig.model || GEMINI_MODEL,
+            model: selectedModel,  // Log the actual model used
             latency_ms: latencyMs
           })
           .select()
