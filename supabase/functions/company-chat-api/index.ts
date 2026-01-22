@@ -19,19 +19,37 @@ const GEMINI_MODEL = 'gemini-3-flash-preview'
 const API_VERSION = 'v2025.01.21.realtime-broadcast'
 
 // Broadcast event to Supabase Realtime channel for real-time updates
+// Uses REST API for reliable broadcasting from edge functions
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || ''
+const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+
 async function broadcastEvent(
-  supabase: ReturnType<typeof createClient>,
   jobId: string,
   event: string,
   payload: Record<string, unknown>
 ): Promise<void> {
   try {
-    const channel = supabase.channel(`chat_job:${jobId}`)
-    await channel.send({
-      type: 'broadcast',
-      event: event,
-      payload: payload
+    const response = await fetch(`${SUPABASE_URL}/realtime/v1/api/broadcast`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messages: [{
+          topic: `chat_job:${jobId}`,
+          event: event,
+          payload: payload,
+          private: false  // Public channel so clients can subscribe without auth
+        }]
+      })
     })
+    
+    if (!response.ok) {
+      console.error(`Broadcast ${event} failed:`, response.status, await response.text())
+    } else {
+      console.log(`Broadcast ${event} sent successfully to chat_job:${jobId}`)
+    }
   } catch (err) {
     console.error(`Failed to broadcast ${event}:`, err)
   }
@@ -491,7 +509,7 @@ async function callGeminiWithTools(
     // BROADCAST: Tool start events for real-time UI updates
     if (jobId) {
       const toolNames = functionCallParts.map((p: { functionCall?: { name: string } }) => p.functionCall?.name || 'unknown')
-      await broadcastEvent(supabase, jobId, 'tool_start', { tools: toolNames })
+      await broadcastEvent(jobId, 'tool_start', { tools: toolNames })
     }
     
     // Log all tool starts first (non-blocking)
@@ -553,7 +571,7 @@ async function callGeminiWithTools(
         name: r.fc.name,
         success: !(r.result as { error?: string }).error
       }))
-      await broadcastEvent(supabase, jobId, 'tool_complete', { results })
+      await broadcastEvent(jobId, 'tool_complete', { results })
     }
     
     messages.push({ role: 'model', parts: content.parts })
@@ -593,12 +611,12 @@ async function callGeminiWithTools(
     const chunkSize = 50  // Characters per chunk
     for (let i = 0; i < responseText.length; i += chunkSize) {
       const chunk = responseText.slice(i, i + chunkSize)
-      await broadcastEvent(supabase, jobId, 'text_chunk', { text: chunk })
+      await broadcastEvent(jobId, 'text_chunk', { text: chunk })
       // Small delay to prevent flooding the socket
       await new Promise(r => setTimeout(r, 15))
     }
     // Send done event with full text
-    await broadcastEvent(supabase, jobId, 'done', { full_text: responseText })
+    await broadcastEvent(jobId, 'done', { full_text: responseText })
   }
   
   return {
@@ -1055,7 +1073,7 @@ serve(async (req: Request) => {
           } catch (err) {
             console.error('Background task failed:', err)
             // BROADCAST: Error event for real-time UI updates
-            await broadcastEvent(supabase, jobId, 'error', { 
+            await broadcastEvent(jobId, 'error', { 
               message: err instanceof Error ? err.message : 'Unknown error' 
             })
             await updateJob('failed', { 
