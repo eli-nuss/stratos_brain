@@ -30,15 +30,30 @@ interface ChatConfig {
   response_format?: string;
 }
 
-// Fetch chat config from database
+// OPTIMIZATION: In-memory cache for chat configuration with 5-minute TTL
+interface CachedConfig {
+  config: ChatConfig;
+  expiry: number;
+}
+let chatConfigCache: CachedConfig | null = null;
+const CHAT_CONFIG_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+// Fetch chat config from database with caching
 async function fetchChatConfig(supabase: ReturnType<typeof createClient>): Promise<ChatConfig> {
+  // Check cache first
+  if (chatConfigCache && chatConfigCache.expiry > Date.now()) {
+    console.log('Using cached chat config (TTL remaining:', Math.round((chatConfigCache.expiry - Date.now()) / 1000), 's)')
+    return chatConfigCache.config
+  }
+  
+  console.log('Fetching fresh chat config from database...')
   const { data, error } = await supabase
     .from('chat_config')
     .select('config_key, config_value')
   
   if (error) {
     console.log('Failed to fetch chat config, using defaults:', error.message)
-    return {}
+    return chatConfigCache?.config || {}
   }
   
   const config: ChatConfig = {}
@@ -53,16 +68,45 @@ async function fetchChatConfig(supabase: ReturnType<typeof createClient>): Promi
     else if (row.config_key === 'response_format') config.response_format = row.config_value
   }
   
+  // Update cache
+  chatConfigCache = {
+    config,
+    expiry: Date.now() + CHAT_CONFIG_CACHE_TTL_MS
+  }
+  console.log('Chat config cached for 5 minutes')
+  
   return config
 }
 
-// Fetch latest AI-generated documents for an asset
+// OPTIMIZATION: Document cache with hash-based invalidation
+interface CachedDocuments {
+  deepResearch: string | null;
+  memo: string | null;
+  onePager: string | null;
+  cacheKey: string; // Hash of file paths + created_at timestamps
+  cachedAt: number;
+}
+
+const documentCache = new Map<number, CachedDocuments>();
+const DOCUMENT_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+// Generate cache key from file metadata
+function generateDocCacheKey(files: Array<{ file_type: string; file_path: string; created_at: string }>): string {
+  return files
+    .filter(f => ['deep_research', 'memo', 'one_pager'].includes(f.file_type))
+    .map(f => `${f.file_type}:${f.created_at}`)
+    .sort()
+    .join('|')
+}
+
+// Fetch latest AI-generated documents for an asset with caching
 async function fetchLatestDocuments(supabase: ReturnType<typeof createClient>, assetId: number): Promise<{
   deepResearch: string | null;
   memo: string | null;
   onePager: string | null;
 }> {
   try {
+    // First, get file metadata (fast query)
     const { data: files } = await supabase
       .from('asset_files')
       .select('file_type, file_path, description, created_at')
@@ -73,6 +117,22 @@ async function fetchLatestDocuments(supabase: ReturnType<typeof createClient>, a
     if (!files || files.length === 0) {
       return { deepResearch: null, memo: null, onePager: null }
     }
+    
+    // Generate cache key from file metadata
+    const cacheKey = generateDocCacheKey(files)
+    const cached = documentCache.get(assetId)
+    
+    // Check if cache is valid (same files, not expired)
+    if (cached && cached.cacheKey === cacheKey && (Date.now() - cached.cachedAt) < DOCUMENT_CACHE_TTL_MS) {
+      console.log(`[Doc Cache] HIT for asset ${assetId} (age: ${Math.round((Date.now() - cached.cachedAt) / 1000)}s)`)
+      return {
+        deepResearch: cached.deepResearch,
+        memo: cached.memo,
+        onePager: cached.onePager
+      }
+    }
+    
+    console.log(`[Doc Cache] MISS for asset ${assetId} - fetching documents...`)
     
     const latestByType: Record<string, { file_path: string; description?: string }> = {}
     for (const file of files) {
@@ -100,6 +160,27 @@ async function fetchLatestDocuments(supabase: ReturnType<typeof createClient>, a
       fetchContent(latestByType['one_pager'])
     ])
     
+    // Update cache
+    documentCache.set(assetId, {
+      deepResearch,
+      memo,
+      onePager,
+      cacheKey,
+      cachedAt: Date.now()
+    })
+    console.log(`[Doc Cache] Cached documents for asset ${assetId}`)
+    
+    // Cleanup old cache entries (keep max 50 assets cached)
+    if (documentCache.size > 50) {
+      const entries = Array.from(documentCache.entries())
+      entries.sort((a, b) => a[1].cachedAt - b[1].cachedAt)
+      const toRemove = entries.slice(0, entries.length - 50)
+      for (const [key] of toRemove) {
+        documentCache.delete(key)
+      }
+      console.log(`[Doc Cache] Cleaned up ${toRemove.length} old entries`)
+    }
+    
     return { deepResearch, memo, onePager }
   } catch (error) {
     console.error('Error fetching latest documents:', error)
@@ -107,13 +188,49 @@ async function fetchLatestDocuments(supabase: ReturnType<typeof createClient>, a
   }
 }
 
+// OPTIMIZATION: Compact system prompt for faster responses (reduced token count)
+function buildCompactSystemPrompt(
+  asset: Record<string, unknown>,
+  contextSnapshot: Record<string, unknown> | null
+): string {
+  const today = new Date().toISOString().split('T')[0]
+  
+  return `You are Stratos (API ${API_VERSION}), an elite autonomous financial analyst for ${asset.name} (${asset.symbol}).
+
+## Context
+- **Symbol**: ${asset.symbol} | **Asset ID**: ${asset.asset_id} | **Type**: ${asset.asset_type}
+- **Sector**: ${asset.sector || 'N/A'} | **Industry**: ${asset.industry || 'N/A'}
+- **Today**: ${today}
+
+## Critical Rules
+1. **Data First**: Query database/docs before making claims. Your training data is outdated.
+2. **Math via Python**: Use \`execute_python\` for ALL calculations.
+3. **Cite Sources**: Quote specific documents (e.g., "10-K 2024, Risk Factors").
+
+## Tools Available
+- **Fundamentals**: get_asset_fundamentals, get_price_history, get_technical_indicators
+- **Analysis**: get_ai_reviews, get_active_signals, get_sector_comparison
+- **Documents**: get_company_docs, search_company_docs, get_deep_research_report
+- **Market**: get_macro_context, get_institutional_flows, get_market_pulse
+- **Utility**: execute_python, perform_grounded_research, generate_dynamic_ui
+
+${contextSnapshot ? `## Latest Data\n${JSON.stringify(contextSnapshot, null, 1).slice(0, 2000)}` : ''}
+
+Be concise, data-driven, and actionable.`
+}
+
 // Build system prompt for company chat - Universal Analyst Protocol
 function buildSystemPrompt(
   asset: Record<string, unknown>, 
   contextSnapshot: Record<string, unknown> | null, 
   chatConfig: ChatConfig = {},
-  preloadedDocs: { deepResearch: string | null; memo: string | null; onePager: string | null } = { deepResearch: null, memo: null, onePager: null }
+  preloadedDocs: { deepResearch: string | null; memo: string | null; onePager: string | null } = { deepResearch: null, memo: null, onePager: null },
+  useCompactMode: boolean = false
 ): string {
+  // Use compact mode for faster responses when documents aren't needed
+  if (useCompactMode) {
+    return buildCompactSystemPrompt(asset, contextSnapshot)
+  }
   const today = new Date().toISOString().split('T')[0];
   
   const intro = chatConfig.system_prompt_intro 
@@ -348,27 +465,40 @@ async function callGeminiWithTools(
     
     const functionResponses: Array<{ functionResponse: { name: string; response: unknown } }> = []
     
-    for (const part of functionCallParts) {
-      const fc = part.functionCall as { name: string; args: Record<string, unknown> }
-      console.log(`Executing function: ${fc.name}`)
-      
-      // Log tool start
-      if (logTool) {
+    // OPTIMIZATION: Execute all function calls in parallel for faster response
+    console.log(`Executing ${functionCallParts.length} function(s) in parallel...`)
+    
+    // Log all tool starts first (non-blocking)
+    if (logTool) {
+      await Promise.all(functionCallParts.map(async (part: { functionCall?: { name: string; args: Record<string, unknown> } }) => {
+        const fc = part.functionCall as { name: string; args: Record<string, unknown> }
         const startData: Record<string, unknown> = { args: fc.args }
         if (fc.name === 'execute_python' && fc.args.code) {
           startData.code = String(fc.args.code).slice(0, 500)
           startData.purpose = fc.args.purpose
         }
         await logTool(fc.name, 'started', startData).catch(e => console.error('Failed to log tool start:', e))
-      }
-      
-      // Execute using unified handler with asset context
-      const result = await executeUnifiedTool(fc.name, fc.args, supabase, {
-        assetId,
-        ticker,
-        chatType: 'company'
+      }))
+    }
+    
+    // Execute all tools in parallel
+    const parallelResults = await Promise.all(
+      functionCallParts.map(async (part: { functionCall?: { name: string; args: Record<string, unknown> } }) => {
+        const fc = part.functionCall as { name: string; args: Record<string, unknown> }
+        console.log(`Executing function: ${fc.name}`)
+        
+        const result = await executeUnifiedTool(fc.name, fc.args, supabase, {
+          assetId,
+          ticker,
+          chatType: 'company'
+        })
+        
+        return { fc, result }
       })
-      
+    )
+    
+    // Process results and log completions
+    for (const { fc, result } of parallelResults) {
       // Log tool completion
       if (logTool) {
         const completionData: Record<string, unknown> = {}

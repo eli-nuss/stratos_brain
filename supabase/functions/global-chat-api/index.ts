@@ -172,19 +172,33 @@ async function callGeminiWithTools(
     
     const functionResponses: Array<{ functionResponse: { name: string; response: unknown } }> = []
     
-    for (const part of functionCallParts) {
-      const fc = part.functionCall as { name: string; args: Record<string, unknown> }
-      console.log(`Executing function: ${fc.name}`)
-      
-      if (logTool) {
+    // OPTIMIZATION: Execute all function calls in parallel for faster response
+    console.log(`Executing ${functionCallParts.length} function(s) in parallel...`)
+    
+    // Log all tool starts first (non-blocking)
+    if (logTool) {
+      await Promise.all(functionCallParts.map(async (part: { functionCall?: { name: string; args: Record<string, unknown> } }) => {
+        const fc = part.functionCall as { name: string; args: Record<string, unknown> }
         await logTool(fc.name, 'started').catch(e => console.error('Failed to log tool start:', e))
-      }
-      
-      // Execute using unified handler - no asset context for global chat
-      const result = await executeUnifiedTool(fc.name, fc.args, supabase, {
-        chatType: 'global'
+      }))
+    }
+    
+    // Execute all tools in parallel
+    const parallelResults = await Promise.all(
+      functionCallParts.map(async (part: { functionCall?: { name: string; args: Record<string, unknown> } }) => {
+        const fc = part.functionCall as { name: string; args: Record<string, unknown> }
+        console.log(`Executing function: ${fc.name}`)
+        
+        const result = await executeUnifiedTool(fc.name, fc.args, supabase, {
+          chatType: 'global'
+        })
+        
+        return { fc, result }
       })
-      
+    )
+    
+    // Process results and log completions
+    for (const { fc, result } of parallelResults) {
       if (logTool) {
         await logTool(fc.name, (result as { error?: string }).error ? 'failed' : 'completed').catch(e => console.error('Failed to log tool completion:', e))
       }
@@ -196,6 +210,7 @@ async function callGeminiWithTools(
       }
       
       functionResponses.push({ functionResponse: { name: fc.name, response: result } })
+      console.log(`✓ ${fc.name} completed: ${(result as { error?: string }).error ? 'ERROR' : 'OK'}`)
     }
     
     messages.push({ role: 'model', parts: content.parts })

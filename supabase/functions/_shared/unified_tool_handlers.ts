@@ -86,10 +86,149 @@ Provide a detailed, well-structured response with citations where appropriate.` 
   }
 }
 
-// Execute Python code using E2B sandbox
-export async function executePythonCode(code: string, purpose: string): Promise<unknown> {
+// ============================================================================
+// E2B SANDBOX POOL - OPTIMIZATION FOR FASTER PYTHON EXECUTION
+// ============================================================================
+
+interface PooledSandbox {
+  sandboxId: string;
+  accessToken: string;
+  createdAt: number;
+  lastUsedAt: number;
+  inUse: boolean;
+}
+
+// Warm pool of pre-created sandboxes
+const sandboxPool: PooledSandbox[] = [];
+const SANDBOX_POOL_SIZE = 2; // Keep 2 warm sandboxes ready
+const SANDBOX_TTL_MS = 4 * 60 * 1000; // 4 minutes (E2B default timeout is 5 min)
+const SANDBOX_IDLE_CLEANUP_MS = 2 * 60 * 1000; // Cleanup idle sandboxes after 2 min
+
+// Create a new sandbox
+async function createSandbox(): Promise<PooledSandbox | null> {
   const E2B_API_KEY = getEnvVar('E2B_API_KEY')
   const E2B_API_URL = 'https://api.e2b.dev'
+  
+  if (!E2B_API_KEY) return null
+  
+  try {
+    console.log('[E2B Pool] Creating new sandbox...')
+    const startTime = Date.now()
+    
+    const createResponse = await fetch(`${E2B_API_URL}/sandboxes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': E2B_API_KEY,
+      },
+      body: JSON.stringify({
+        templateID: 'code-interpreter-v1',
+        timeoutMs: 300000, // 5 minutes
+      }),
+    })
+
+    if (!createResponse.ok) {
+      console.log(`[E2B Pool] Failed to create sandbox: ${createResponse.status}`)
+      return null
+    }
+
+    const sandbox = await createResponse.json()
+    const sandboxId = sandbox.sandboxID || sandbox.sandboxId || sandbox.id
+    if (!sandboxId) return null
+    
+    const elapsed = Date.now() - startTime
+    console.log(`[E2B Pool] Sandbox ${sandboxId} created in ${elapsed}ms`)
+
+    return {
+      sandboxId,
+      accessToken: sandbox.envdAccessToken || '',
+      createdAt: Date.now(),
+      lastUsedAt: Date.now(),
+      inUse: false
+    }
+  } catch (error) {
+    console.log(`[E2B Pool] Error creating sandbox: ${error}`)
+    return null
+  }
+}
+
+// Get an available sandbox from pool or create new one
+async function acquireSandbox(): Promise<PooledSandbox | null> {
+  const now = Date.now()
+  
+  // Clean up expired sandboxes
+  for (let i = sandboxPool.length - 1; i >= 0; i--) {
+    const sb = sandboxPool[i]
+    if (now - sb.createdAt > SANDBOX_TTL_MS) {
+      console.log(`[E2B Pool] Removing expired sandbox ${sb.sandboxId}`)
+      sandboxPool.splice(i, 1)
+      // Fire-and-forget cleanup
+      deleteSandbox(sb.sandboxId).catch(() => {})
+    }
+  }
+  
+  // Find available sandbox in pool
+  const available = sandboxPool.find(sb => !sb.inUse && (now - sb.createdAt) < SANDBOX_TTL_MS)
+  if (available) {
+    available.inUse = true
+    available.lastUsedAt = now
+    console.log(`[E2B Pool] Reusing pooled sandbox ${available.sandboxId} (age: ${Math.round((now - available.createdAt) / 1000)}s)`)
+    return available
+  }
+  
+  // No available sandbox, create new one
+  const newSandbox = await createSandbox()
+  if (newSandbox) {
+    newSandbox.inUse = true
+    sandboxPool.push(newSandbox)
+    return newSandbox
+  }
+  
+  return null
+}
+
+// Release sandbox back to pool
+function releaseSandbox(sandboxId: string) {
+  const sb = sandboxPool.find(s => s.sandboxId === sandboxId)
+  if (sb) {
+    sb.inUse = false
+    sb.lastUsedAt = Date.now()
+    console.log(`[E2B Pool] Released sandbox ${sandboxId} back to pool (pool size: ${sandboxPool.length})`)
+  }
+}
+
+// Delete a sandbox
+async function deleteSandbox(sandboxId: string): Promise<void> {
+  const E2B_API_KEY = getEnvVar('E2B_API_KEY')
+  const E2B_API_URL = 'https://api.e2b.dev'
+  try {
+    await fetch(`${E2B_API_URL}/sandboxes/${sandboxId}`, { 
+      method: 'DELETE', 
+      headers: { 'X-API-Key': E2B_API_KEY } 
+    })
+    console.log(`[E2B Pool] Deleted sandbox ${sandboxId}`)
+  } catch { /* ignore */ }
+}
+
+// Pre-warm the pool (call this on function startup)
+export async function warmSandboxPool(): Promise<void> {
+  const currentPoolSize = sandboxPool.filter(sb => !sb.inUse && (Date.now() - sb.createdAt) < SANDBOX_TTL_MS).length
+  const needed = SANDBOX_POOL_SIZE - currentPoolSize
+  
+  if (needed > 0) {
+    console.log(`[E2B Pool] Pre-warming ${needed} sandbox(es)...`)
+    const warmPromises = Array(needed).fill(null).map(async () => {
+      const sb = await createSandbox()
+      if (sb) sandboxPool.push(sb)
+    })
+    await Promise.all(warmPromises)
+    console.log(`[E2B Pool] Pool warmed. Current size: ${sandboxPool.length}`)
+  }
+}
+
+// Execute Python code using pooled E2B sandbox
+export async function executePythonCode(code: string, purpose: string): Promise<unknown> {
+  const E2B_API_KEY = getEnvVar('E2B_API_KEY')
   
   if (!E2B_API_KEY) {
     return {
@@ -101,39 +240,23 @@ export async function executePythonCode(code: string, purpose: string): Promise<
     }
   }
 
+  // Acquire sandbox from pool
+  const sandbox = await acquireSandbox()
+  if (!sandbox) {
+    return { success: false, purpose, code, output: null, error: 'Failed to acquire sandbox from pool' }
+  }
+
   try {
-    // Create sandbox
-    const createResponse = await fetch(`${E2B_API_URL}/sandboxes`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': E2B_API_KEY,
-      },
-      body: JSON.stringify({
-        templateID: 'code-interpreter-v1',
-        timeoutMs: 60000,
-      }),
-    })
-
-    if (!createResponse.ok) {
-      return { success: false, purpose, code, output: null, error: `Failed to create sandbox: ${createResponse.status}` }
-    }
-
-    const sandbox = await createResponse.json()
-    const sandboxId = sandbox.sandboxID || sandbox.sandboxId || sandbox.id
-    if (!sandboxId) {
-      return { success: false, purpose, code, output: null, error: 'Failed to get sandbox ID' }
-    }
-
+    const startTime = Date.now()
+    
     // Execute code
-    const executeUrl = `https://49999-${sandboxId}.e2b.dev/execute`
-    const accessToken = sandbox.envdAccessToken || ''
+    const executeUrl = `https://49999-${sandbox.sandboxId}.e2b.dev/execute`
     
     const executeResponse = await fetch(executeUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Access-Token': accessToken,
+        'X-Access-Token': sandbox.accessToken,
       },
       body: JSON.stringify({ code, language: 'python' }),
     })
@@ -155,13 +278,22 @@ export async function executePythonCode(code: string, purpose: string): Promise<
         }
       }
     } else {
+      // If execution failed, sandbox might be dead - remove from pool
+      const idx = sandboxPool.findIndex(s => s.sandboxId === sandbox.sandboxId)
+      if (idx >= 0) sandboxPool.splice(idx, 1)
       executionResult.error = `Execution failed: ${executeResponse.status}`
     }
 
-    // Cleanup sandbox
-    try {
-      await fetch(`${E2B_API_URL}/sandboxes/${sandboxId}`, { method: 'DELETE', headers: { 'X-API-Key': E2B_API_KEY } })
-    } catch { /* ignore */ }
+    const elapsed = Date.now() - startTime
+    console.log(`[E2B Pool] Code executed in ${elapsed}ms`)
+
+    // Release sandbox back to pool (don't delete - reuse!)
+    if (!executionResult.error || !executionResult.error.includes('Execution failed')) {
+      releaseSandbox(sandbox.sandboxId)
+      
+      // Async: replenish pool if needed
+      warmSandboxPool().catch(() => {})
+    }
 
     const output = executionResult.stdout.join('')
     const errorOutput = executionResult.stderr.join('')
@@ -172,6 +304,10 @@ export async function executePythonCode(code: string, purpose: string): Promise<
 
     return { success: true, purpose, code, output: output || '(No output)', error: errorOutput || null }
   } catch (error) {
+    // On error, remove sandbox from pool
+    const idx = sandboxPool.findIndex(s => s.sandboxId === sandbox.sandboxId)
+    if (idx >= 0) sandboxPool.splice(idx, 1)
+    
     return { success: false, purpose, code, output: null, error: error instanceof Error ? error.message : "Unknown error" }
   }
 }
