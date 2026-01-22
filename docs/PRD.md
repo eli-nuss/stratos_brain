@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 21, 2026 (v1.7 - Global Latency Optimizations)  
+**Last Updated: January 21, 2026 (v1.8 - MALFORMED_FUNCTION_CALL Fix)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -1043,6 +1043,7 @@ The streaming architecture now uses Supabase Realtime to broadcast events from t
                                                                                             - [ ] | Context window limits | Chunking, summarization |
                                                                                             - [ ] | Code execution timeout | 60-second limit |
                                                                                             - [ ] | Search grounding accuracy | Citation verification |
+                                                                                            - [ ] | Gemini MALFORMED_FUNCTION_CALL | JSON escaping instructions + automatic recovery |
                                                                                            
                                                                                             - [ ] ---
                                                                                            
