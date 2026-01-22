@@ -493,11 +493,16 @@ async function callGeminiWithTools(
   
   let data = await response.json()
   
-  // Debug logging for empty candidates
+  // Debug logging for empty candidates and finishReason
   if (!data.candidates || data.candidates.length === 0) {
-    console.error('⚠️ Gemini returned NO CANDIDATES. Dump:', JSON.stringify(data, null, 2))
+    console.error('⚠️ Gemini returned NO CANDIDATES. Full Response:', JSON.stringify(data, null, 2))
     if (data.promptFeedback) {
       console.error('⚠️ Block Reason:', JSON.stringify(data.promptFeedback, null, 2))
+    }
+  } else {
+    const cand = data.candidates[0]
+    if (cand.finishReason !== 'STOP') {
+      console.warn(`⚠️ Finish Reason was ${cand.finishReason} (not STOP). Safety Ratings:`, JSON.stringify(cand.safetyRatings, null, 2))
     }
   }
   
@@ -618,11 +623,16 @@ async function callGeminiWithTools(
     
     data = await response.json()
     
-    // Debug logging for empty candidates after tool execution
+    // Debug logging for empty candidates and finishReason after tool execution
     if (!data.candidates || data.candidates.length === 0) {
-      console.error('⚠️ Gemini returned NO CANDIDATES after tool execution. Dump:', JSON.stringify(data, null, 2))
+      console.error('⚠️ Gemini returned NO CANDIDATES after tool execution. Full Response:', JSON.stringify(data, null, 2))
       if (data.promptFeedback) {
         console.error('⚠️ Block Reason:', JSON.stringify(data.promptFeedback, null, 2))
+      }
+    } else {
+      const cand = data.candidates[0]
+      if (cand.finishReason !== 'STOP') {
+        console.warn(`⚠️ Finish Reason after tools was ${cand.finishReason} (not STOP). Safety Ratings:`, JSON.stringify(cand.safetyRatings, null, 2))
       }
     }
     
