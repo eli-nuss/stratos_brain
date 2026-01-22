@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 22, 2026 (v2.0 - Chat System Parity & Real-time Streaming)  
+**Last Updated: January 22, 2026 (v2.1 - Persistent Python & Interactive UI)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -813,8 +813,12 @@ The system prompt uses a configurable structure with two modes:
 **Compact Mode** (streaming): Minimal prompt for faster responses (~500 tokens)
 
 ```
+
 You are Stratos, an elite autonomous financial analyst for {company_name} ({symbol}).
 
+## Interactive UI
+- For DCF, scenario analysis, or any model where the user should be able to adjust inputs, use the `InteractiveModel` component with `generate_dynamic_ui`.
+- This creates sliders for user interaction.
 ## Context
 - Symbol: {symbol} | Asset ID: {asset_id} | Type: {asset_type}
 - Sector: {sector} | Industry: {industry}
@@ -830,7 +834,7 @@ You are Stratos, an elite autonomous financial analyst for {company_name} ({symb
 - Analysis: get_ai_reviews, get_active_signals, get_sector_comparison
 - Documents: get_company_docs, search_company_docs, get_deep_research_report
 - Market: get_macro_context, get_institutional_flows, get_market_pulse
-- Utility: execute_python, perform_grounded_research, generate_dynamic_ui
+- Utility: execute_python, perform_grounded_research, generate_dynamic_ui (for charts, tables, and interactive models)
 ```
 
 ### 10.4 Performance Optimizations (v2025.01.22)
@@ -845,7 +849,7 @@ The chat system includes several performance optimizations for faster response t
 | **Global Tool Caching** | 5-minute cache for read-only data tools (fundamentals, technicals, etc.) | Instant on repeat |
 | **Parallel Tool Execution** | All function calls execute simultaneously via Promise.all() | 40-60% reduction |
 | **Chat Config Caching** | In-memory cache with 5-minute TTL | 50-100ms per request |
-| **E2B Sandbox Pooling** | Warm pool of 2 pre-created sandboxes, reused across requests | 2-5s per Python call |
+| **Persistent Python Sessions** | Stateful E2B sandboxes per chat session (10-min TTL) | Variables persist across turns |
 | **Document Caching** | Hash-based invalidation with 10-minute TTL | 500ms-2s per request |
 | **Real-time Broadcast Streaming** | Supabase Realtime for event-based streaming | First update in <1s |
 | **Compact System Prompt** | 70% reduction in token count for simple queries | Faster processing |
