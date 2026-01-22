@@ -1,18 +1,41 @@
 import React from 'react';
+import { useState, useMemo } from 'react';
 import { 
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend 
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
+import { AlertTriangle, TrendingUp, TrendingDown, Minus, Calculator, RefreshCw } from 'lucide-react';
 
 // Types corresponding to the Gemini Tool Definition
 interface GenerativeUIToolCall {
-  componentType: 'FinancialChart' | 'MetricCard' | 'RiskGauge' | 'DataTable' | 'ComparisonChart';
+  componentType: 'FinancialChart' | 'MetricCard' | 'RiskGauge' | 'DataTable' | 'ComparisonChart' | 'InteractiveModel';
   title: string;
   data: any;
   insight?: string;
+}
+
+// Interactive Model variable type
+interface InteractiveVariable {
+  name: string;
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  unit?: string;  // e.g., '%', '$', 'x'
+}
+
+// Interactive Model data structure
+interface InteractiveModelData {
+  modelType: 'dcf' | 'scenario' | 'sensitivity' | 'custom';
+  variables: InteractiveVariable[];
+  formula?: string;  // Optional formula description
+  baseValue?: number;  // Starting value for calculations
+  outputs?: { name: string; label: string; formula: string }[];  // Multiple output calculations
 }
 
 // Color palette for charts
@@ -340,6 +363,11 @@ export const GenerativeUIRenderer = ({ toolCall }: { toolCall: GenerativeUIToolC
     );
   }
 
+  // 6. INTERACTIVE MODEL RENDERER (DCF, Scenario, Sensitivity Analysis)
+  if (componentType === 'InteractiveModel') {
+    return <InteractiveModelComponent title={title} data={data as InteractiveModelData} insight={insight} />;
+  }
+
   // Fallback for unknown component types
   return (
     <Card className="w-full my-4 border-red-700 bg-red-950/20">
@@ -355,5 +383,208 @@ export const GenerativeUIRenderer = ({ toolCall }: { toolCall: GenerativeUIToolC
     </Card>
   );
 };
+
+// Separate component for InteractiveModel to use hooks properly
+const InteractiveModelComponent = ({ 
+  title, 
+  data, 
+  insight 
+}: { 
+  title: string; 
+  data: InteractiveModelData; 
+  insight?: string 
+}) => {
+  // Initialize local state with the variable values
+  const initialVars = useMemo(() => {
+    const vars: Record<string, number> = {};
+    (data.variables || []).forEach(v => {
+      vars[v.name] = v.value;
+    });
+    return vars;
+  }, [data.variables]);
+
+  const [localVars, setLocalVars] = useState<Record<string, number>>(initialVars);
+
+  // Reset to initial values
+  const handleReset = () => {
+    setLocalVars(initialVars);
+  };
+
+  // Calculate output values based on current variables
+  const calculateOutputs = useMemo(() => {
+    const results: Record<string, number> = {};
+    const baseValue = data.baseValue || 0;
+
+    // Simple DCF-style calculation
+    if (data.modelType === 'dcf') {
+      const growthRate = (localVars['growth_rate'] || 0) / 100;
+      const discountRate = (localVars['discount_rate'] || 10) / 100;
+      const terminalMultiple = localVars['terminal_multiple'] || 10;
+      const years = localVars['projection_years'] || 5;
+      const currentFCF = localVars['current_fcf'] || baseValue;
+
+      // Project FCF for each year and discount
+      let presentValue = 0;
+      let projectedFCF = currentFCF;
+      for (let i = 1; i <= years; i++) {
+        projectedFCF = projectedFCF * (1 + growthRate);
+        presentValue += projectedFCF / Math.pow(1 + discountRate, i);
+      }
+
+      // Terminal value
+      const terminalValue = (projectedFCF * terminalMultiple) / Math.pow(1 + discountRate, years);
+      const enterpriseValue = presentValue + terminalValue;
+
+      results['enterprise_value'] = enterpriseValue;
+      results['terminal_value'] = terminalValue;
+      results['pv_cash_flows'] = presentValue;
+    }
+
+    // Scenario analysis
+    if (data.modelType === 'scenario') {
+      const revenueGrowth = (localVars['revenue_growth'] || 0) / 100;
+      const marginChange = (localVars['margin_change'] || 0) / 100;
+      const multipleChange = (localVars['multiple_change'] || 0) / 100;
+      const baseRevenue = localVars['base_revenue'] || baseValue;
+      const baseMargin = (localVars['base_margin'] || 20) / 100;
+      const baseMultiple = localVars['base_multiple'] || 15;
+
+      const projectedRevenue = baseRevenue * (1 + revenueGrowth);
+      const projectedMargin = baseMargin + marginChange;
+      const projectedEarnings = projectedRevenue * projectedMargin;
+      const projectedMultiple = baseMultiple * (1 + multipleChange);
+      const projectedValue = projectedEarnings * projectedMultiple;
+
+      results['projected_revenue'] = projectedRevenue;
+      results['projected_earnings'] = projectedEarnings;
+      results['projected_value'] = projectedValue;
+      results['implied_upside'] = ((projectedValue / baseValue) - 1) * 100;
+    }
+
+    // Sensitivity analysis (simple)
+    if (data.modelType === 'sensitivity' || data.modelType === 'custom') {
+      // For custom, just multiply all variables together with base value
+      let result = baseValue || 1;
+      Object.entries(localVars).forEach(([key, value]) => {
+        if (key.includes('multiplier') || key.includes('factor')) {
+          result *= value;
+        } else if (key.includes('rate') || key.includes('growth')) {
+          result *= (1 + value / 100);
+        }
+      });
+      results['calculated_value'] = result;
+    }
+
+    return results;
+  }, [localVars, data.modelType, data.baseValue]);
+
+  // Format large numbers
+  const formatValue = (value: number) => {
+    if (Math.abs(value) >= 1e12) return `$${(value / 1e12).toFixed(2)}T`;
+    if (Math.abs(value) >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
+    if (Math.abs(value) >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
+    if (Math.abs(value) >= 1e3) return `$${(value / 1e3).toFixed(2)}K`;
+    return `$${value.toFixed(2)}`;
+  };
+
+  // Get model type label
+  const modelTypeLabels: Record<string, string> = {
+    dcf: 'DCF Valuation',
+    scenario: 'Scenario Analysis',
+    sensitivity: 'Sensitivity Analysis',
+    custom: 'Custom Model'
+  };
+
+  return (
+    <Card className="w-full my-4 border-purple-700/50 bg-gradient-to-br from-slate-900 to-purple-950/30">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Calculator className="w-5 h-5 text-purple-400" />
+            <CardTitle className="text-sm font-medium text-slate-300">{title}</CardTitle>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-purple-400 bg-purple-900/30 px-2 py-1 rounded">
+              {modelTypeLabels[data.modelType] || 'Interactive'}
+            </span>
+            <button
+              onClick={handleReset}
+              className="p-1 hover:bg-slate-700 rounded transition-colors"
+              title="Reset to initial values"
+            >
+              <RefreshCw className="w-4 h-4 text-slate-400" />
+            </button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {/* Variable Sliders */}
+        <div className="space-y-4 mb-6">
+          {(data.variables || []).map((variable) => (
+            <div key={variable.name} className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm text-slate-400">{variable.label}</Label>
+                <span className="text-sm font-medium text-white">
+                  {variable.unit === '%' ? `${localVars[variable.name]?.toFixed(1)}%` :
+                   variable.unit === '$' ? formatValue(localVars[variable.name] || 0) :
+                   variable.unit === 'x' ? `${localVars[variable.name]?.toFixed(1)}x` :
+                   localVars[variable.name]?.toFixed(1)}
+                </span>
+              </div>
+              <Slider
+                value={[localVars[variable.name] || variable.value]}
+                min={variable.min}
+                max={variable.max}
+                step={variable.step}
+                onValueChange={(val) => setLocalVars({ ...localVars, [variable.name]: val[0] })}
+                className="w-full"
+              />
+              <div className="flex justify-between text-xs text-slate-500">
+                <span>{variable.unit === '%' ? `${variable.min}%` : variable.min}</span>
+                <span>{variable.unit === '%' ? `${variable.max}%` : variable.max}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Output Values */}
+        <div className="border-t border-slate-700 pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {Object.entries(calculateOutputs).map(([key, value]) => (
+              <div key={key} className="bg-slate-800/50 rounded-lg p-3">
+                <div className="text-xs text-slate-400 mb-1">
+                  {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                </div>
+                <div className={`text-xl font-bold ${
+                  key.includes('upside') 
+                    ? value > 0 ? 'text-green-400' : 'text-red-400'
+                    : 'text-white'
+                }`}>
+                  {key.includes('upside') || key.includes('rate') || key.includes('growth')
+                    ? `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`
+                    : formatValue(value)
+                  }
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Formula description if provided */}
+        {data.formula && (
+          <div className="mt-4 p-2 bg-slate-800/30 rounded text-xs text-slate-400">
+            <span className="font-semibold">Formula:</span> {data.formula}
+          </div>
+        )}
+
+        {/* Insight */}
+        {insight && (
+          <div className="mt-3 p-2 bg-blue-950/30 border border-blue-900/50 rounded text-xs text-blue-200">
+            <span className="font-semibold">💡 Analyst Note:</span> {insight}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 
 export default GenerativeUIRenderer;

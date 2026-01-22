@@ -557,7 +557,8 @@ async function callGeminiWithTools(
         const result = await executeUnifiedTool(fc.name, fc.args, supabase, {
           assetId,
           ticker,
-          chatType: 'company'
+          chatType: 'company',
+          chatId: chatConfig.chatId  // For persistent E2B Python sessions
         })
         
         return { fc, result }

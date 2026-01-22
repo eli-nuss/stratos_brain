@@ -562,20 +562,20 @@ export const UNIFIED_TOOL_DECLARATIONS = [
     }
   },
   
-  // Python code execution
+  // Python code execution - STATEFUL: Variables persist across calls in the same chat!
   {
     name: "execute_python",
-    description: "Execute Python code in a sandboxed environment for calculations, data analysis, visualizations, or any computational task. NumPy, Pandas, Matplotlib are available. Use this for accurate math, statistical analysis, and generating charts.",
+    description: "Execute Python code in a STATEFUL Jupyter-like environment. **Variables defined in previous calls are preserved!** This means you can: (1) Define a DataFrame in one call, (2) Filter or transform it in the next call, (3) Plot it in a third call. NumPy, Pandas, Matplotlib are pre-imported. Use this for iterative data analysis, calculations, and visualizations.",
     parameters: {
       type: "object",
       properties: {
         code: { 
           type: "string", 
-          description: "The Python code to execute. Must be valid Python 3 syntax. If data_context is specified, the data will be pre-loaded into a 'df' DataFrame variable." 
+          description: "Python code to execute. Variables from previous executions in this chat are still available. If data_context is specified, data will be pre-loaded into 'df'." 
         },
         purpose: { 
           type: "string", 
-          description: "Brief description of what this code does (for logging and debugging)" 
+          description: "Brief description of what this code does (for logging)" 
         },
         data_context: {
           type: "object",
@@ -614,8 +614,8 @@ export const UNIFIED_TOOL_DECLARATIONS = [
       properties: {
         componentType: { 
           type: "string", 
-          enum: ["FinancialChart", "MetricCard", "RiskGauge", "DataTable", "ComparisonChart"],
-          description: "The type of React component to render." 
+          enum: ["FinancialChart", "MetricCard", "RiskGauge", "DataTable", "ComparisonChart", "InteractiveModel"],
+          description: "The type of React component to render. Use InteractiveModel for DCF, scenario analysis, or any model where the user should be able to adjust inputs." 
         },
         title: { 
           type: "string", 
@@ -623,7 +623,7 @@ export const UNIFIED_TOOL_DECLARATIONS = [
         },
         data: { 
           type: "object", 
-          description: "STRICT JSON data. Schemas: FinancialChart: {type: 'line'|'bar', metric: string, points: [{label: string, value: number}]}. MetricCard: {metrics: [{label: string, value: string, trend: number}]}. DataTable: {headers: string[], rows: string[][]}. ComparisonChart: {items: [{name: string, value: number}]}." 
+          description: "STRICT JSON data. Schemas: FinancialChart: {type: 'line'|'bar', metric: string, points: [{label: string, value: number}]}. MetricCard: {metrics: [{label: string, value: string, trend: number}]}. DataTable: {headers: string[], rows: string[][]}. ComparisonChart: {items: [{name: string, value: number}]}. InteractiveModel: {modelType: 'dcf'|'scenario'|'sensitivity'|'custom', baseValue: number, variables: [{name: string, label: string, value: number, min: number, max: number, step: number, unit?: '%'|'$'|'x'}], formula?: string}." 
         },
         insight: { 
           type: "string", 

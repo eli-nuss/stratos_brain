@@ -98,11 +98,107 @@ interface PooledSandbox {
   inUse: boolean;
 }
 
-// Warm pool of pre-created sandboxes
+// Warm pool of pre-created sandboxes (for stateless execution)
 const sandboxPool: PooledSandbox[] = [];
 const SANDBOX_POOL_SIZE = 2; // Keep 2 warm sandboxes ready
 const SANDBOX_TTL_MS = 4 * 60 * 1000; // 4 minutes (E2B default timeout is 5 min)
 const SANDBOX_IDLE_CLEANUP_MS = 2 * 60 * 1000; // Cleanup idle sandboxes after 2 min
+
+// ============================================================================
+// PERSISTENT SANDBOX SESSIONS - For stateful Python execution across chat turns
+// ============================================================================
+
+interface PersistentSandbox extends PooledSandbox {
+  chatId: string;  // The chat this sandbox is bound to
+  variableHistory: string[];  // Track defined variables for context
+}
+
+// Map of chatId -> persistent sandbox for stateful execution
+const persistentSandboxes = new Map<string, PersistentSandbox>();
+const PERSISTENT_SANDBOX_TTL_MS = 10 * 60 * 1000; // 10 minutes for persistent sessions
+
+// Get or create a persistent sandbox for a chat
+async function getOrCreatePersistentSandbox(chatId: string): Promise<PersistentSandbox | null> {
+  const now = Date.now();
+  
+  // Check if we have an existing sandbox for this chat
+  const existing = persistentSandboxes.get(chatId);
+  if (existing && (now - existing.createdAt) < PERSISTENT_SANDBOX_TTL_MS) {
+    existing.lastUsedAt = now;
+    console.log(`[E2B Persistent] Reusing sandbox ${existing.sandboxId} for chat ${chatId} (age: ${Math.round((now - existing.createdAt) / 1000)}s)`);
+    return existing;
+  }
+  
+  // Clean up expired sandbox if exists
+  if (existing) {
+    console.log(`[E2B Persistent] Cleaning up expired sandbox ${existing.sandboxId} for chat ${chatId}`);
+    persistentSandboxes.delete(chatId);
+    deleteSandbox(existing.sandboxId).catch(() => {});
+  }
+  
+  // Create a new persistent sandbox
+  const newSandbox = await createSandbox();
+  if (!newSandbox) return null;
+  
+  const persistentSandbox: PersistentSandbox = {
+    ...newSandbox,
+    chatId,
+    variableHistory: []
+  };
+  
+  persistentSandboxes.set(chatId, persistentSandbox);
+  console.log(`[E2B Persistent] Created new sandbox ${persistentSandbox.sandboxId} for chat ${chatId}`);
+  
+  // Initialize with common imports
+  const initCode = `
+import pandas as pd
+import numpy as np
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import json
+from datetime import datetime, timedelta
+
+# Helper function to display dataframes nicely
+def show(df, n=10):
+    if isinstance(df, pd.DataFrame):
+        print(df.head(n).to_string())
+    else:
+        print(df)
+
+print("🐍 Python session initialized. Variables will persist across calls.")
+`;
+  
+  // Run init code (fire and forget)
+  try {
+    const executeUrl = `https://49999-${persistentSandbox.sandboxId}.e2b.dev/execute`;
+    await fetch(executeUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Access-Token': persistentSandbox.accessToken,
+      },
+      body: JSON.stringify({ code: initCode, language: 'python' }),
+    });
+    console.log(`[E2B Persistent] Initialized sandbox with common imports`);
+  } catch (e) {
+    console.log(`[E2B Persistent] Warning: Failed to initialize sandbox: ${e}`);
+  }
+  
+  return persistentSandbox;
+}
+
+// Cleanup expired persistent sandboxes (call periodically)
+function cleanupExpiredPersistentSandboxes(): void {
+  const now = Date.now();
+  for (const [chatId, sandbox] of persistentSandboxes.entries()) {
+    if (now - sandbox.lastUsedAt > PERSISTENT_SANDBOX_TTL_MS) {
+      console.log(`[E2B Persistent] Cleaning up idle sandbox ${sandbox.sandboxId} for chat ${chatId}`);
+      persistentSandboxes.delete(chatId);
+      deleteSandbox(sandbox.sandboxId).catch(() => {});
+    }
+  }
+}
 
 // Create a new sandbox
 async function createSandbox(): Promise<PooledSandbox | null> {
@@ -226,7 +322,110 @@ export async function warmSandboxPool(): Promise<void> {
   }
 }
 
-// Execute Python code using pooled E2B sandbox
+// Execute Python code in a STATEFUL session (persistent sandbox for the chat)
+// Variables defined in previous calls are preserved!
+export async function executePythonCodeStateful(code: string, chatId: string): Promise<unknown> {
+  const E2B_API_KEY = getEnvVar('E2B_API_KEY')
+  
+  if (!E2B_API_KEY) {
+    return {
+      success: false,
+      code,
+      output: null,
+      error: "E2B API key not configured",
+      stateful: true
+    }
+  }
+  
+  // Cleanup expired sandboxes periodically
+  cleanupExpiredPersistentSandboxes();
+
+  // Get or create persistent sandbox for this chat
+  const sandbox = await getOrCreatePersistentSandbox(chatId);
+  if (!sandbox) {
+    return { success: false, code, output: null, error: 'Failed to acquire persistent sandbox', stateful: true }
+  }
+
+  try {
+    const startTime = Date.now()
+    
+    // Execute code in the persistent sandbox
+    const executeUrl = `https://49999-${sandbox.sandboxId}.e2b.dev/execute`
+    
+    const executeResponse = await fetch(executeUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Access-Token': sandbox.accessToken,
+      },
+      body: JSON.stringify({ code, language: 'python' }),
+    })
+
+    const executionResult: { stdout: string[]; stderr: string[]; error?: string } = { stdout: [], stderr: [] }
+
+    if (executeResponse.ok) {
+      const responseText = await executeResponse.text()
+      const lines = responseText.split('\n').filter(line => line.trim())
+      
+      for (const line of lines) {
+        try {
+          const parsed = JSON.parse(line)
+          if (parsed.type === 'stdout' && parsed.text) executionResult.stdout.push(parsed.text)
+          else if (parsed.type === 'stderr' && parsed.text) executionResult.stderr.push(parsed.text)
+          else if (parsed.error) executionResult.error = parsed.error
+        } catch {
+          if (line.trim()) executionResult.stdout.push(line)
+        }
+      }
+    } else {
+      // If execution failed, sandbox might be dead - remove from persistent map
+      persistentSandboxes.delete(chatId);
+      executionResult.error = `Execution failed: ${executeResponse.status}`
+    }
+
+    const elapsed = Date.now() - startTime
+    console.log(`[E2B Persistent] Code executed in ${elapsed}ms (sandbox: ${sandbox.sandboxId})`)
+
+    const output = executionResult.stdout.join('')
+    const errorOutput = executionResult.stderr.join('')
+    
+    if (executionResult.error) {
+      return { 
+        success: false, 
+        code, 
+        output: output || null, 
+        error: executionResult.error + (errorOutput ? `\n${errorOutput}` : ''),
+        stateful: true,
+        sandbox_id: sandbox.sandboxId,
+        session_age_seconds: Math.round((Date.now() - sandbox.createdAt) / 1000)
+      }
+    }
+
+    return { 
+      success: true, 
+      code, 
+      output: output || '(No output)', 
+      error: errorOutput || null,
+      stateful: true,
+      sandbox_id: sandbox.sandboxId,
+      session_age_seconds: Math.round((Date.now() - sandbox.createdAt) / 1000),
+      note: 'Variables from this execution are preserved for future calls in this chat.'
+    }
+  } catch (error) {
+    // On error, remove sandbox from persistent map
+    persistentSandboxes.delete(chatId);
+    
+    return { 
+      success: false, 
+      code, 
+      output: null, 
+      error: error instanceof Error ? error.message : "Unknown error",
+      stateful: true
+    }
+  }
+}
+
+// Execute Python code using pooled E2B sandbox (stateless - for backwards compatibility)
 export async function executePythonCode(code: string, purpose: string): Promise<unknown> {
   const E2B_API_KEY = getEnvVar('E2B_API_KEY')
   
@@ -352,6 +551,7 @@ export async function executeUnifiedTool(
     assetId?: number
     ticker?: string
     chatType?: 'company' | 'global'
+    chatId?: string  // For persistent E2B sandbox sessions
   }
 ): Promise<ToolResult> {
   
@@ -403,6 +603,7 @@ async function executeToolInternal(
     assetId?: number
     ticker?: string
     chatType?: 'company' | 'global'
+    chatId?: string  // For persistent E2B sandbox sessions
   }
 ): Promise<ToolResult> {
   switch (name) {
@@ -1734,6 +1935,14 @@ print(f"✅ Data loaded: {len(df)} rows, columns: {list(df.columns)}")
         }
       }
       
+      // Use stateful execution if chatId is available (persistent session)
+      if (context?.chatId) {
+        console.log(`[execute_python] Using STATEFUL execution for chat ${context.chatId}`);
+        return { execution_result: await executePythonCodeStateful(currentCode, context.chatId) }
+      }
+      
+      // Fall back to stateless execution (backwards compatibility)
+      console.log(`[execute_python] Using STATELESS execution (no chatId provided)`);
       return { execution_result: await executePythonCode(currentCode, purpose) }
     }
 

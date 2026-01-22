@@ -159,7 +159,8 @@ async function callGeminiWithTools(
   supabase: ReturnType<typeof createClient>,
   logTool?: (toolName: string, status: 'started' | 'completed' | 'failed') => Promise<void>,
   modelOverride?: string,
-  jobId?: string  // For real-time streaming broadcasts
+  jobId?: string,  // For real-time streaming broadcasts
+  chatId?: string  // For persistent E2B Python sessions
 ): Promise<{
   response: string;
   toolCalls: unknown[];
@@ -243,7 +244,8 @@ async function callGeminiWithTools(
         console.log(`Executing function: ${fc.name}`)
         
         const result = await executeUnifiedTool(fc.name, fc.args, supabase, {
-          chatType: 'global'
+          chatType: 'global',
+          chatId  // For persistent E2B Python sessions
         })
         
         return { fc, result }
@@ -673,7 +675,7 @@ Deno.serve(async (req: Request) => {
           // Call Gemini
           const systemPrompt = buildSystemPrompt()
           const startTime = Date.now()
-          const geminiResult = await callGeminiWithTools(geminiMessages, systemPrompt, supabase, logTool, selectedModel, jobId)
+          const geminiResult = await callGeminiWithTools(geminiMessages, systemPrompt, supabase, logTool, selectedModel, jobId, chatId)
           const latencyMs = Date.now() - startTime
           
           // Save assistant message
