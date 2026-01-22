@@ -13,6 +13,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useSearchContext } from '@/contexts/SearchContext';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'wouter';
 import {
@@ -121,6 +122,9 @@ export function UnifiedCommandBar({ className = '' }: UnifiedCommandBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const [, setLocation] = useLocation();
+  
+  // Use shared search context to sync with table
+  const { setGlobalSearchQuery, setIsCommandBarOpen } = useSearchContext();
 
   // Use unified search hook
   const {
@@ -139,6 +143,20 @@ export function UnifiedCommandBar({ className = '' }: UnifiedCommandBarProps) {
     maxResultsPerCategory: 6,
     enableRecent: true,
   });
+
+  // ============================================================================
+  // Sync with global search context
+  // ============================================================================
+  
+  // Sync the debounced query with the global context so the table can use it
+  useEffect(() => {
+    setGlobalSearchQuery(debouncedQuery);
+  }, [debouncedQuery, setGlobalSearchQuery]);
+  
+  // Sync open state with context
+  useEffect(() => {
+    setIsCommandBarOpen(isOpen);
+  }, [isOpen, setIsCommandBarOpen]);
 
   // ============================================================================
   // Flatten results for keyboard navigation

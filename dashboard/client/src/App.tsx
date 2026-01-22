@@ -7,6 +7,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { NotepadProvider } from "./contexts/NoteContext";
+import { SearchProvider } from "./contexts/SearchContext";
 import FloatingNotepad from "./components/FloatingNotepad";
 import { PageLoader } from "./components/PageLoader";
 import LazyErrorBoundary from "./components/LazyErrorBoundary";
@@ -125,14 +126,16 @@ function App() {
       >
         <AuthProvider>
           <NotepadProvider>
-            <TooltipProvider>
+            <SearchProvider>
+              <TooltipProvider>
               <Toaster />
               <Router />
               <FeedbackButton />
               <FloatingNotepad />
               <VersionCheck />
               <StaleAuthHandler />
-            </TooltipProvider>
+              </TooltipProvider>
+            </SearchProvider>
           </NotepadProvider>
         </AuthProvider>
       </ThemeProvider>

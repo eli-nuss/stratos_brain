@@ -1,6 +1,7 @@
 // Customizable Asset Table with drag-and-drop column reordering and show/hide
 import { useState, useCallback, useEffect } from "react";
-import { TrendingUp, TrendingDown, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, X, GripVertical, Activity, LayoutGrid, Table2, Star } from "lucide-react";
+import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Info, X, GripVertical, Activity, LayoutGrid, Table2, Star } from "lucide-react";
+import { useSearchContext } from "@/contexts/SearchContext";
 import { useAllAssets, AssetType } from "@/hooks/useAllAssets";
 import { useSortPreferences, SortField, SortOrder } from "@/hooks/useSortPreferences";
 import { useColumnConfig, ColumnDef, ALL_COLUMNS } from "@/hooks/useColumnConfig";
@@ -219,6 +220,9 @@ export default function CustomizableAssetTable({
 }: CustomizableAssetTableProps) {
   const { mutate: mutateWatchlist } = useWatchlist();
   const { tagsMap } = useAssetTags();
+  
+  // Get global search query from context (synced with ⌘K search bar)
+  const { globalSearchQuery, isCommandBarOpen } = useSearchContext();
   const tableType = assetType === "crypto" ? "crypto" : "equity";
   const { 
     config, 
@@ -232,8 +236,7 @@ export default function CustomizableAssetTable({
   
   const [page, setPage] = useState(0);
   const { sortBy, sortOrder, handleSort } = useSortPreferences(assetType);
-  const [search, setSearch] = useState("");
-  const [searchInput, setSearchInput] = useState("");
+
   const [showFilters, setShowFilters] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isMobileView, setIsMobileView] = useState(false);
@@ -296,6 +299,10 @@ export default function CustomizableAssetTable({
     }
   }, [initialIndustry, initialSector, initialCategory]);
 
+  // Use global search query from the ⌘K command bar
+  // Only apply search when command bar is open and there's a query
+  const effectiveSearch = isCommandBarOpen && globalSearchQuery.length >= 1 ? globalSearchQuery : undefined;
+  
   const { data = [], total, isLoading, isTagSorting } = useAllAssets({
     assetType,
     date,
@@ -303,7 +310,7 @@ export default function CustomizableAssetTable({
     offset: page * PAGE_SIZE,
     sortBy,
     sortOrder,
-    search: search || undefined,
+    search: effectiveSearch,
     industry: assetType === "equity" && filterInputs.industry ? filterInputs.industry : undefined,
   });
 
@@ -474,11 +481,7 @@ export default function CustomizableAssetTable({
     setPage(0);
   };
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSearch(searchInput);
-    setPage(0);
-  };
+
 
   const applyThresholdFilters = () => {
     const newThresholds: FilterThresholds = {};
@@ -784,6 +787,14 @@ export default function CustomizableAssetTable({
         </div>
         
         <div className="flex items-center gap-2">
+          {/* Show active search indicator when global search is filtering */}
+          {effectiveSearch && (
+            <div className="flex items-center gap-2 px-2 py-1 bg-primary/10 border border-primary/30 rounded text-xs text-primary">
+              <span>Filtering: "{effectiveSearch}"</span>
+              <span className="text-muted-foreground">({total} results)</span>
+            </div>
+          )}
+          
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`text-xs px-2 py-1 rounded border transition-colors ${
@@ -794,28 +805,6 @@ export default function CustomizableAssetTable({
           >
             {showFilters ? "Hide" : "Show"} Filters {hasActiveFilters && `(${Object.keys(filterThresholds).length})`}
           </button>
-
-          <form onSubmit={handleSearch} className="flex items-center gap-1 flex-1">
-            <div className="relative flex-1">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search symbol..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                className="w-full pl-7 pr-2 py-1 text-xs bg-background border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-            {search && (
-              <button
-                type="button"
-                onClick={() => { setSearch(""); setSearchInput(""); setPage(0); }}
-                className="p-1 text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
-          </form>
         </div>
 
         {/* Filters panel */}
