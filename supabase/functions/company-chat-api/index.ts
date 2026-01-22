@@ -647,7 +647,18 @@ async function callGeminiWithTools(
   }
   
   const textParts = candidate?.content?.parts?.filter((p: { text?: string }) => p.text) || []
-  const responseText = textParts.map((p: { text: string }) => p.text).join('\n')
+  let responseText = textParts.map((p: { text: string }) => p.text).join('\n')
+  
+  // If no response text, add debug info to help diagnose the issue
+  if (!responseText && candidate) {
+    const finishReason = candidate.finishReason || 'UNKNOWN'
+    const safetyRatings = candidate.safetyRatings ? JSON.stringify(candidate.safetyRatings) : 'none'
+    console.error(`Empty response - finishReason: ${finishReason}, safetyRatings: ${safetyRatings}`)
+    responseText = `I apologize, but I was unable to generate a response. Debug: finishReason=${finishReason}`
+  } else if (!responseText) {
+    console.error('No candidate returned from Gemini')
+    responseText = 'I apologize, but I was unable to generate a response. Debug: No candidate returned.'
+  }
   
   // BROADCAST: Stream text chunks for real-time UI updates
   if (jobId && responseText) {
@@ -663,7 +674,7 @@ async function callGeminiWithTools(
   }
   
   return {
-    response: responseText || 'I apologize, but I was unable to generate a response.',
+    response: responseText,
     toolCalls,
     codeExecutions,
     groundingMetadata
