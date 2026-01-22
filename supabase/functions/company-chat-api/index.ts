@@ -390,9 +390,35 @@ ${groundingRules}
 
 ### Utility Tools
 - **perform_grounded_research**: Universal Search for external knowledge
-- **execute_python**: Run calculations and data analysis
-- **generate_dynamic_ui**: Create tables and charts
+- **execute_python**: Run calculations and data analysis (STATEFUL - variables persist across turns)
+- **generate_dynamic_ui**: Create tables, charts, and INTERACTIVE MODELS
 - **create_and_export_document**: Generate downloadable documents
+
+### Interactive Model Instructions (IMPORTANT)
+When the user asks for an "interactive" DCF, scenario analysis, or any model where they want to adjust inputs:
+1. Use `generate_dynamic_ui` with `componentType: 'InteractiveModel'`
+2. Include `modelType` ('dcf', 'scenario', 'sensitivity', or 'custom')
+3. Define `variables` array with sliders: `{name, label, value, min, max, step, unit}`
+4. Set `baseValue` for calculations
+
+Example for DCF:
+```json
+{
+  "componentType": "InteractiveModel",
+  "title": "Interactive DCF Model",
+  "data": {
+    "modelType": "dcf",
+    "baseValue": 100000000000,
+    "variables": [
+      {"name": "growth_rate", "label": "Revenue Growth Rate", "value": 5, "min": -10, "max": 30, "step": 0.5, "unit": "%"},
+      {"name": "discount_rate", "label": "Discount Rate (WACC)", "value": 10, "min": 5, "max": 20, "step": 0.5, "unit": "%"},
+      {"name": "terminal_multiple", "label": "Terminal Multiple", "value": 15, "min": 5, "max": 30, "step": 1, "unit": "x"},
+      {"name": "current_fcf", "label": "Current FCF", "value": 100000000000, "min": 50000000000, "max": 200000000000, "step": 1000000000, "unit": "$"}
+    ]
+  },
+  "insight": "Adjust the sliders to see how different assumptions affect the valuation."
+}
+```
 
 ## Company Context
 - **Symbol**: ${asset.symbol}
