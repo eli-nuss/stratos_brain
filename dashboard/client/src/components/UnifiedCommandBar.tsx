@@ -281,7 +281,7 @@ export function UnifiedCommandBar({ className = '' }: UnifiedCommandBarProps) {
             list_id: item.data.id,
             name: item.data.name,
           });
-          setLocation(`/lists/${item.data.id}`);
+          setLocation(`/list/${item.data.id}`);
           break;
 
         case 'recent':
@@ -289,7 +289,7 @@ export function UnifiedCommandBar({ className = '' }: UnifiedCommandBarProps) {
           if (item.data.item_type === 'asset' && item.data.asset_id) {
             setLocation(`/asset/${item.data.asset_id}`);
           } else if (item.data.item_type === 'list' && item.data.list_id) {
-            setLocation(`/lists/${item.data.list_id}`);
+            setLocation(`/list/${item.data.list_id}`);
           } else if (item.data.item_type === 'industry') {
             if (item.data.asset_type === 'crypto') {
               setLocation(`/crypto?category=${encodeURIComponent(item.data.name)}`);

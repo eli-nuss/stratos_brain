@@ -201,7 +201,7 @@ export function MobileNav({ searchQuery = '', onSearchChange }: MobileNavProps) 
       list_id: list.id,
       name: list.name,
     });
-    setLocation(`/lists/${list.id}`);
+    setLocation(`/list/${list.id}`);
     setShowSearch(false);
     setQuery('');
   }, [addRecentItem, setLocation, setQuery]);
@@ -210,7 +210,7 @@ export function MobileNav({ searchQuery = '', onSearchChange }: MobileNavProps) 
     if (item.item_type === 'asset' && item.asset_id) {
       setLocation(`/asset/${item.asset_id}`);
     } else if (item.item_type === 'list' && item.list_id) {
-      setLocation(`/lists/${item.list_id}`);
+      setLocation(`/list/${item.list_id}`);
     } else if (item.item_type === 'industry') {
       if (item.asset_type === 'crypto') {
         setLocation(`/crypto?category=${encodeURIComponent(item.name)}`);
