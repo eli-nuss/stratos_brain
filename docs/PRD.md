@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated:** January 21, 2026 (v1.4 - Unified Search)  
+**Last Updated:** January 21, 2026 (v1.5 - Chat Performance Optimizations)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -806,26 +806,79 @@ The system automatically detects and recovers from stale authentication tokens:
 
                                                                                             ### 10.3 System Prompt Structure
 
-                                                                                            ```
-                                                                                            You are an AI research analyst for {company_name} ({asset_id}).
+The system prompt uses a configurable structure with two modes:
 
-                                                                                            ## Capabilities
-                                                                                            1. Code Execution: Python with pandas, numpy, matplotlib
-                                                                                            2. Web Search: Real-time news and market updates
-                                                                                            3. Database Access: Fundamentals, signals, scores, price history
+**Full Mode** (default): Comprehensive prompt with all protocols, tool documentation, and pre-loaded documents (~4000 tokens)
 
-                                                                                            ## Context
-                                                                                            - Asset Type: {asset_type}
-                                                                                            - Current Date: {current_date}
-                                                                                            - Latest Price: ${latest_price}
-                                                                                            - Market Cap: {market_cap}
+**Compact Mode** (streaming): Minimal prompt for faster responses (~500 tokens)
 
-                                                                                            ## Guidelines
-                                                                                            - Cite sources when using web search
-                                                                                            - Show code when performing calculations
-                                                                                            - Use database functions for accurate data
-                                                                                            - Provide actionable insights
-                                                                                            ```
+```
+You are Stratos, an elite autonomous financial analyst for {company_name} ({symbol}).
+
+## Context
+- Symbol: {symbol} | Asset ID: {asset_id} | Type: {asset_type}
+- Sector: {sector} | Industry: {industry}
+- Today: {current_date}
+
+## Critical Rules
+1. Data First: Query database/docs before making claims.
+2. Math via Python: Use execute_python for ALL calculations.
+3. Cite Sources: Quote specific documents (e.g., "10-K 2024, Risk Factors").
+
+## Tools Available
+- Fundamentals: get_asset_fundamentals, get_price_history, get_technical_indicators
+- Analysis: get_ai_reviews, get_active_signals, get_sector_comparison
+- Documents: get_company_docs, search_company_docs, get_deep_research_report
+- Market: get_macro_context, get_institutional_flows, get_market_pulse
+- Utility: execute_python, perform_grounded_research, generate_dynamic_ui
+```
+
+### 10.4 Performance Optimizations (v2025.01.21)
+
+The chat system includes several performance optimizations for faster response times:
+
+| Optimization | Impact | Time Saved |
+|--------------|--------|------------|
+| **Parallel Tool Execution** | All function calls execute simultaneously via Promise.all() | 40-60% reduction |
+| **Chat Config Caching** | In-memory cache with 5-minute TTL | 50-100ms per request |
+| **E2B Sandbox Pooling** | Warm pool of 2 pre-created sandboxes, reused across requests | 2-5s per Python call |
+| **Document Caching** | Hash-based invalidation with 10-minute TTL | 500ms-2s per request |
+| **Response Streaming** | SSE endpoint for real-time token streaming | First token in <1s |
+| **Compact System Prompt** | 70% reduction in token count for simple queries | Faster processing |
+
+#### Streaming Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    STREAMING CHAT ARCHITECTURE                          │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  Frontend                       Edge Function                           │
+│  ┌───────────────┐             ┌───────────────────────────────────┐   │
+│  │ useStreaming  │────POST────▶│ company-chat-stream               │   │
+│  │ Chat Hook     │             │                                   │   │
+│  │               │◀───SSE──────│ Events:                           │   │
+│  │ • connected   │             │ • connected                       │   │
+│  │ • thinking    │             │ • thinking                        │   │
+│  │ • tool_start  │             │ • tool_start / tool_complete      │   │
+│  │ • token       │             │ • token (real-time text)          │   │
+│  │ • done        │             │ • done / error                    │   │
+│  └───────────────┘             └───────────────────────────────────┘   │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/company-chat-api/chats/:chatId/messages` | POST | Job-based async processing (original) |
+| `/company-chat-stream/stream/:chatId` | POST | Real-time SSE streaming (new) |
+
+#### Frontend Hooks
+
+- `useSendMessage(chatId)` - Original job-based hook with Supabase Realtime
+- `useStreamingChat(chatId)` - New SSE streaming hook for instant feedback
 
                                                                                             ---
 
