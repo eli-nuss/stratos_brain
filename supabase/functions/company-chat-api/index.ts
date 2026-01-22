@@ -16,7 +16,7 @@ const corsHeaders = {
 // Gemini API configuration
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
 const GEMINI_MODEL_PRO = 'gemini-3-pro-preview'
-const GEMINI_MODEL_FLASH = 'gemini-2.5-flash-preview-05-20'  // Faster model for quick queries
+const GEMINI_MODEL_FLASH = 'gemini-3-flash-preview'  // Faster model for quick queries
 const GEMINI_MODEL = GEMINI_MODEL_PRO  // Default to Pro for backward compatibility
 const API_VERSION = 'v2025.01.21.realtime-broadcast'
 
