@@ -17,6 +17,10 @@
       "destination": "https://wfogbaipiqootjrsprde.supabase.co/functions/v1/global-chat-api/:path*"
     },
     {
+      "source": "/api/company-chat-stream/:path*",
+      "destination": "https://wfogbaipiqootjrsprde.supabase.co/functions/v1/company-chat-stream/:path*"
+    },
+    {
       "source": "/api/investor-api/:path*",
       "destination": "https://wfogbaipiqootjrsprde.supabase.co/functions/v1/investor-api/:path*"
     },

@@ -460,7 +460,8 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Toggle for streaming mode (faster responses)
-  const [useStreaming, setUseStreaming] = useState(true);
+  // NOTE: Disabled by default until streaming endpoint is fully deployed
+  const [useStreaming, setUseStreaming] = useState(false);
   
   // Use the new job-based message sending hook (fallback)
   const {
