@@ -136,76 +136,69 @@ function generateDocCacheKey(files: Array<{ file_type: string; file_path: string
     .join('|')
 }
 
-// Fetch latest AI-generated documents for an asset with caching
+// OPTIMIZATION: Only fetch One Pager by default to reduce context bloat
+// Deep Research Report adds ~10k-30k tokens per request - let the model fetch it via tool if needed
 async function fetchLatestDocuments(supabase: ReturnType<typeof createClient>, assetId: number): Promise<{
   deepResearch: string | null;
   memo: string | null;
   onePager: string | null;
 }> {
   try {
-    // First, get file metadata (fast query)
-    const { data: files } = await supabase
+    // Only fetch the One Pager (high-level summary) by default
+    // Deep Research and Memo can be fetched via get_deep_research_report tool when needed
+    const { data: onePagerFile } = await supabase
       .from('asset_files')
-      .select('file_type, file_path, description, created_at')
+      .select('file_path, created_at')
       .eq('asset_id', assetId)
-      .in('file_type', ['deep_research', 'memo', 'one_pager'])
+      .eq('file_type', 'one_pager')
       .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
     
-    if (!files || files.length === 0) {
+    if (!onePagerFile) {
+      console.log(`[Doc Cache] No One Pager found for asset ${assetId}`)
       return { deepResearch: null, memo: null, onePager: null }
     }
     
-    // Generate cache key from file metadata
-    const cacheKey = generateDocCacheKey(files)
+    // Generate cache key from One Pager metadata only
+    const cacheKey = `one_pager:${onePagerFile.created_at}`
     const cached = documentCache.get(assetId)
     
-    // Check if cache is valid (same files, not expired)
+    // Check if cache is valid (same file, not expired)
     if (cached && cached.cacheKey === cacheKey && (Date.now() - cached.cachedAt) < DOCUMENT_CACHE_TTL_MS) {
-      console.log(`[Doc Cache] HIT for asset ${assetId} (age: ${Math.round((Date.now() - cached.cachedAt) / 1000)}s)`)
+      console.log(`[Doc Cache] HIT for asset ${assetId} One Pager (age: ${Math.round((Date.now() - cached.cachedAt) / 1000)}s)`)
       return {
-        deepResearch: cached.deepResearch,
-        memo: cached.memo,
+        deepResearch: null,  // Not pre-loaded - use get_deep_research_report tool
+        memo: null,          // Not pre-loaded - use get_deep_research_report tool
         onePager: cached.onePager
       }
     }
     
-    console.log(`[Doc Cache] MISS for asset ${assetId} - fetching documents...`)
+    console.log(`[Doc Cache] MISS for asset ${assetId} - fetching One Pager only...`)
     
-    const latestByType: Record<string, { file_path: string; description?: string }> = {}
-    for (const file of files) {
-      if (!latestByType[file.file_type]) {
-        latestByType[file.file_type] = { file_path: file.file_path, description: file.description }
-      }
-    }
-    
-    const fetchContent = async (fileInfo: { file_path: string; description?: string } | undefined): Promise<string | null> => {
-      if (!fileInfo) return null
-      try {
-        const response = await fetch(fileInfo.file_path)
-        if (!response.ok) return null
+    // Fetch only the One Pager content
+    let onePagerContent: string | null = null
+    try {
+      const response = await fetch(onePagerFile.file_path)
+      if (response.ok) {
         const text = await response.text()
-        return text.length > 30000 ? text.substring(0, 30000) + '\n\n[Document truncated for context limits...]' : text
-      } catch (e) {
-        console.error('Error fetching document:', e)
-        return null
+        onePagerContent = text.length > 10000 
+          ? text.substring(0, 10000) + '\n\n[One Pager truncated...]' 
+          : text
       }
+    } catch (e) {
+      console.error('Error fetching One Pager:', e)
     }
     
-    const [deepResearch, memo, onePager] = await Promise.all([
-      fetchContent(latestByType['deep_research']),
-      fetchContent(latestByType['memo']),
-      fetchContent(latestByType['one_pager'])
-    ])
-    
-    // Update cache
+    // Update cache with One Pager only
     documentCache.set(assetId, {
-      deepResearch,
-      memo,
-      onePager,
+      deepResearch: null,
+      memo: null,
+      onePager: onePagerContent,
       cacheKey,
       cachedAt: Date.now()
     })
-    console.log(`[Doc Cache] Cached documents for asset ${assetId}`)
+    console.log(`[Doc Cache] Cached One Pager for asset ${assetId} (saved ~15k tokens by not loading Deep Research)`)
     
     // Cleanup old cache entries (keep max 50 assets cached)
     if (documentCache.size > 50) {
@@ -218,9 +211,9 @@ async function fetchLatestDocuments(supabase: ReturnType<typeof createClient>, a
       console.log(`[Doc Cache] Cleaned up ${toRemove.length} old entries`)
     }
     
-    return { deepResearch, memo, onePager }
+    return { deepResearch: null, memo: null, onePager: onePagerContent }
   } catch (error) {
-    console.error('Error fetching latest documents:', error)
+    console.error('Error fetching One Pager:', error)
     return { deepResearch: null, memo: null, onePager: null }
   }
 }
@@ -1030,17 +1023,22 @@ serve(async (req: Request) => {
           try {
             await updateJob('processing', { status_message: 'Starting analysis...' })
             
-            const chatConfig = await fetchChatConfig(supabase)
+            // OPTIMIZATION: Parallelize setup phase - fetch config, last message, and One Pager simultaneously
+            const setupStartTime = Date.now()
+            const [chatConfig, lastMessageResult, preloadedDocs] = await Promise.all([
+              fetchChatConfig(supabase),
+              supabase
+                .from('chat_messages')
+                .select('sequence_num')
+                .eq('chat_id', chatId)
+                .order('sequence_num', { ascending: false })
+                .limit(1)
+                .single(),
+              fetchLatestDocuments(supabase, parseInt(chat.asset_id))
+            ])
+            console.log(`[Perf] Setup phase completed in ${Date.now() - setupStartTime}ms (parallel)`)
             
-            const { data: lastMessage } = await supabase
-              .from('chat_messages')
-              .select('sequence_num')
-              .eq('chat_id', chatId)
-              .order('sequence_num', { ascending: false })
-              .limit(1)
-              .single()
-            
-            const nextSeq = (lastMessage?.sequence_num || 0) + 1
+            const nextSeq = (lastMessageResult.data?.sequence_num || 0) + 1
             
             const { error: userMsgError } = await supabase
               .from('chat_messages')
@@ -1071,7 +1069,6 @@ serve(async (req: Request) => {
               }
             }
             
-            const preloadedDocs = await fetchLatestDocuments(supabase, parseInt(chat.asset_id))
             console.log('Pre-loaded docs:', { 
               hasDeepResearch: !!preloadedDocs.deepResearch, 
               hasMemo: !!preloadedDocs.memo, 
@@ -1217,17 +1214,22 @@ serve(async (req: Request) => {
           })
         }
         
-        const chatConfig = await fetchChatConfig(supabase)
+        // OPTIMIZATION: Parallelize setup phase - fetch config, last message, and One Pager simultaneously
+        const setupStartTime = Date.now()
+        const [chatConfig, lastMessageResult, preloadedDocs] = await Promise.all([
+          fetchChatConfig(supabase),
+          supabase
+            .from('chat_messages')
+            .select('sequence_num')
+            .eq('chat_id', chatId)
+            .order('sequence_num', { ascending: false })
+            .limit(1)
+            .single(),
+          fetchLatestDocuments(supabase, parseInt(chat.asset_id))
+        ])
+        console.log(`[Perf] Setup phase completed in ${Date.now() - setupStartTime}ms (parallel)`)
         
-        const { data: lastMessage } = await supabase
-          .from('chat_messages')
-          .select('sequence_num')
-          .eq('chat_id', chatId)
-          .order('sequence_num', { ascending: false })
-          .limit(1)
-          .single()
-        
-        const nextSeq = (lastMessage?.sequence_num || 0) + 1
+        const nextSeq = (lastMessageResult.data?.sequence_num || 0) + 1
         
         const { data: userMessage, error: userMsgError } = await supabase
           .from('chat_messages')
@@ -1259,8 +1261,6 @@ serve(async (req: Request) => {
             })
           }
         }
-        
-        const preloadedDocs = await fetchLatestDocuments(supabase, parseInt(chat.asset_id))
         const systemPrompt = buildSystemPrompt(asset, chat.context_snapshot, chatConfig, preloadedDocs)
         
         const startTime = Date.now()

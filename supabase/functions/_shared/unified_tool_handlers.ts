@@ -313,6 +313,34 @@ export async function executePythonCode(code: string, purpose: string): Promise<
 }
 
 // ============================================================================
+// GLOBAL TOOL CACHE - OPTIMIZATION FOR REPEATED QUERIES
+// ============================================================================
+
+// Simple in-memory cache for the life of the function instance
+const GLOBAL_TOOL_CACHE = new Map<string, { data: ToolResult; timestamp: number }>()
+const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+
+// Tools that are safe to cache (read-only data queries)
+const CACHEABLE_TOOLS = [
+  'get_asset_fundamentals',
+  'get_price_history',
+  'get_technical_indicators',
+  'get_active_signals',
+  'get_macro_context',
+  'get_institutional_flows',
+  'get_market_pulse',
+  'get_sector_comparison',
+  'get_ai_reviews',
+  'get_financial_calendar'
+]
+
+// Generate a unique cache key for a tool call
+function generateToolCacheKey(name: string, args: ToolArgs, assetId?: number): string {
+  const argsKey = JSON.stringify(args, Object.keys(args).sort())
+  return `${name}:${argsKey}:${assetId || 'global'}`
+}
+
+// ============================================================================
 // MAIN TOOL EXECUTOR
 // ============================================================================
 
@@ -331,6 +359,52 @@ export async function executeUnifiedTool(
   const effectiveAssetId = args.asset_id as number || context?.assetId
   const effectiveTicker = (args.ticker as string || args.symbol as string || context?.ticker)?.toUpperCase()
   
+  // OPTIMIZATION: Check cache for cacheable tools
+  const cacheKey = generateToolCacheKey(name, args, effectiveAssetId)
+  if (CACHEABLE_TOOLS.includes(name)) {
+    const cached = GLOBAL_TOOL_CACHE.get(cacheKey)
+    if (cached && (Date.now() - cached.timestamp < CACHE_TTL_MS)) {
+      console.log(`⚡ [Tool Cache] HIT: ${name} (age: ${Math.round((Date.now() - cached.timestamp) / 1000)}s)`)
+      return { ...cached.data, _cached: true }
+    }
+  }
+  
+  // Execute the tool
+  const result = await executeToolInternal(name, args, supabase, effectiveAssetId, effectiveTicker, context)
+  
+  // OPTIMIZATION: Cache successful results for cacheable tools
+  if (CACHEABLE_TOOLS.includes(name) && !result.error) {
+    GLOBAL_TOOL_CACHE.set(cacheKey, { data: result, timestamp: Date.now() })
+    console.log(`📦 [Tool Cache] STORED: ${name}`)
+    
+    // Cleanup old cache entries (keep max 100 entries)
+    if (GLOBAL_TOOL_CACHE.size > 100) {
+      const entries = Array.from(GLOBAL_TOOL_CACHE.entries())
+      entries.sort((a, b) => a[1].timestamp - b[1].timestamp)
+      const toRemove = entries.slice(0, entries.length - 100)
+      for (const [key] of toRemove) {
+        GLOBAL_TOOL_CACHE.delete(key)
+      }
+      console.log(`[Tool Cache] Cleaned up ${toRemove.length} old entries`)
+    }
+  }
+  
+  return result
+}
+
+// Internal tool execution (separated for caching wrapper)
+async function executeToolInternal(
+  name: string,
+  args: ToolArgs,
+  supabase: SupabaseClient,
+  effectiveAssetId: number | undefined,
+  effectiveTicker: string | undefined,
+  context?: {
+    assetId?: number
+    ticker?: string
+    chatType?: 'company' | 'global'
+  }
+): Promise<ToolResult> {
   switch (name) {
     // ========================================================================
     // MARKET-WIDE TOOLS
