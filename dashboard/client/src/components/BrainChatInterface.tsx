@@ -298,6 +298,7 @@ export function BrainChatInterface({ chat, onRefresh }: BrainChatInterfaceProps)
   const [isClearingChat, setIsClearingChat] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summaryResult, setSummaryResult] = useState<{ title: string; content: string; public_url?: string } | null>(null);
+  const [selectedModel, setSelectedModel] = useState<'flash' | 'pro'>('flash');
   // Optimistic user message - shown immediately while waiting for job to complete
   const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -349,7 +350,7 @@ export function BrainChatInterface({ chat, onRefresh }: BrainChatInterfaceProps)
     // Show optimistic user message immediately
     setPendingUserMessage(userMessage);
 
-    await sendMessage(userMessage);
+    await sendMessage(userMessage, selectedModel);
   };
 
   const handleClearChat = async () => {
@@ -663,13 +664,26 @@ export function BrainChatInterface({ chat, onRefresh }: BrainChatInterfaceProps)
       {/* Input */}
       <div className="flex-shrink-0 p-4 border-t border-border bg-card">
         <div className="flex gap-3 items-end max-w-4xl mx-auto">
+          {/* Model Toggle Button */}
+          <button
+            onClick={() => setSelectedModel(selectedModel === 'flash' ? 'pro' : 'flash')}
+            className={cn(
+              "p-3 rounded-xl transition-all hover:scale-105 active:scale-95 flex-shrink-0",
+              selectedModel === 'flash'
+                ? "bg-amber-500/20 text-amber-500 hover:bg-amber-500/30"
+                : "bg-purple-500/20 text-purple-500 hover:bg-purple-500/30"
+            )}
+            title={selectedModel === 'flash' ? 'Flash Mode (faster)' : 'Pro Mode (more powerful)'}
+          >
+            {selectedModel === 'flash' ? '⚡' : '🔮'}
+          </button>
           <div className="flex-1 relative">
             <textarea
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask me to screen stocks, analyze markets, or build a portfolio..."
+              placeholder={selectedModel === 'flash' ? '⚡ Flash mode (faster) - Ask me anything...' : '🔮 Pro mode (powerful) - Ask me anything...'}
               className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder-muted-foreground resize-none focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all"
               rows={1}
               disabled={isSending}

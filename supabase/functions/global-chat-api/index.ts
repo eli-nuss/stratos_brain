@@ -11,8 +11,10 @@ import { executeUnifiedTool } from '../_shared/unified_tool_handlers.ts'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || ''
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
-const GEMINI_MODEL = 'gemini-3-flash-preview'
-const API_VERSION = 'v2025.01.13.unified' // Version for debugging deployments
+const GEMINI_MODEL_PRO = 'gemini-3-pro-preview'
+const GEMINI_MODEL_FLASH = 'gemini-3-flash-preview'
+const GEMINI_MODEL = GEMINI_MODEL_FLASH  // Default to Flash for speed
+const API_VERSION = 'v2025.01.22.model-toggle' // Version for debugging deployments
 
 // CORS headers
 const corsHeaders = {
@@ -117,7 +119,8 @@ async function callGeminiWithTools(
   messages: Array<{ role: string; parts: Array<{ text?: string; functionCall?: unknown; functionResponse?: unknown }> }>,
   systemInstruction: string,
   supabase: ReturnType<typeof createClient>,
-  logTool?: (toolName: string, status: 'started' | 'completed' | 'failed') => Promise<void>
+  logTool?: (toolName: string, status: 'started' | 'completed' | 'failed') => Promise<void>,
+  modelOverride?: string
 ): Promise<{
   response: string;
   toolCalls: unknown[];
@@ -139,8 +142,10 @@ async function callGeminiWithTools(
     }
   }
   
+  const modelToUse = modelOverride || GEMINI_MODEL
+  
   let response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${GEMINI_API_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -418,7 +423,11 @@ Deno.serve(async (req: Request) => {
       
       const chatId = sendMatch[1]
       const body = await req.json()
-      const { content } = body
+      const { content, model: requestedModel } = body
+      
+      // Model selection: 'flash' (default) or 'pro'
+      const selectedModel = requestedModel === 'pro' ? GEMINI_MODEL_PRO : GEMINI_MODEL_FLASH
+      console.log(`[Model Selection] Using: ${selectedModel} (requested: ${requestedModel || 'default'})`)
       
       if (!content) {
         return new Response(JSON.stringify({ error: 'content is required' }), {
@@ -533,7 +542,7 @@ Deno.serve(async (req: Request) => {
           // Call Gemini
           const systemPrompt = buildSystemPrompt()
           const startTime = Date.now()
-          const geminiResult = await callGeminiWithTools(geminiMessages, systemPrompt, supabase, logTool)
+          const geminiResult = await callGeminiWithTools(geminiMessages, systemPrompt, supabase, logTool, selectedModel)
           const latencyMs = Date.now() - startTime
           
           // Save assistant message
@@ -546,7 +555,7 @@ Deno.serve(async (req: Request) => {
               content: geminiResult.response,
               tool_calls: geminiResult.toolCalls.length > 0 ? geminiResult.toolCalls : null,
               grounding_metadata: geminiResult.groundingMetadata,
-              model: GEMINI_MODEL,
+              model: selectedModel,
               latency_ms: latencyMs
             })
             .select()
