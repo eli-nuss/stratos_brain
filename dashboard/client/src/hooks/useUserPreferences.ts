@@ -125,4 +125,5 @@ export const PREFERENCE_KEYS = {
   HIDDEN_COLUMNS: (viewId: string) => `hidden_columns_${viewId}`,
   COLUMN_ORDER: (viewId: string) => `column_order_${viewId}`,
   COLUMN_WIDTHS: (viewId: string) => `column_widths_${viewId}`,
+  RECENT_SEARCH_ITEMS: 'recent_search_items',
 } as const;

@@ -39,6 +39,12 @@ interface CustomizableAssetTableProps {
   date?: string;
   onAssetClick: (assetId: string) => void;
   showWatchlistColumn?: boolean;
+  /** Initial industry filter from URL */
+  initialIndustry?: string;
+  /** Initial sector filter from URL */
+  initialSector?: string;
+  /** Initial category filter from URL (crypto) */
+  initialCategory?: string;
 }
 
 const PAGE_SIZE = 50;
@@ -206,7 +212,10 @@ export default function CustomizableAssetTable({
   assetType, 
   date, 
   onAssetClick, 
-  showWatchlistColumn = true 
+  showWatchlistColumn = true,
+  initialIndustry,
+  initialSector,
+  initialCategory,
 }: CustomizableAssetTableProps) {
   const { mutate: mutateWatchlist } = useWatchlist();
   const { tagsMap } = useAssetTags();
@@ -267,9 +276,25 @@ export default function CustomizableAssetTable({
     forwardPsMax: "",
     psgMin: "",
     psgMax: "",
-    category: "",
-    industry: "",
+    category: initialCategory || "",
+    industry: initialIndustry || initialSector || "",
   });
+
+  // Update filter inputs when initial values change (from URL navigation)
+  useEffect(() => {
+    if (initialIndustry || initialSector) {
+      setFilterInputs(prev => ({
+        ...prev,
+        industry: initialIndustry || initialSector || ""
+      }));
+    }
+    if (initialCategory) {
+      setFilterInputs(prev => ({
+        ...prev,
+        category: initialCategory || ""
+      }));
+    }
+  }, [initialIndustry, initialSector, initialCategory]);
 
   const { data = [], total, isLoading, isTagSorting } = useAllAssets({
     assetType,

@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
 import { MobileNav } from "@/components/MobileNav";
-import { CommandBar } from "@/components/CommandBar";
+import { UnifiedCommandBar } from "@/components/UnifiedCommandBar";
 import { DataStatusIndicator } from "@/components/DataStatusIndicator";
 import { ListSidebar } from "@/components/ListSidebar";
 import { StockList } from "@/hooks/useStockLists";
@@ -221,7 +221,7 @@ export default function DashboardLayout({
 
         {/* Center: Command Bar - hidden on mobile, use bottom nav search instead */}
         <div className="hidden md:flex flex-1 justify-center max-w-md mx-auto">
-          <CommandBar className="w-full" />
+          <UnifiedCommandBar className="w-full" />
         </div>
 
         {/* Spacer for mobile to push right items to the end */}

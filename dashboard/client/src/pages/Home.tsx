@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useLocation, useRoute } from "wouter";
+import { useState, useEffect, useMemo } from "react";
+import { useLocation, useRoute, useSearch } from "wouter";
 import DashboardLayout from "@/components/DashboardLayout";
 import CustomizableAssetTable from "@/components/CustomizableAssetTable";
 import CustomizableWatchlistTable from "@/components/CustomizableWatchlistTable";
@@ -22,9 +22,20 @@ export type TabType = "watchlist" | "model-portfolio" | "model-portfolio-sandbox
 
 export default function Home() {
   const [location, setLocation] = useLocation();
+  const searchString = useSearch();
   const [, listParams] = useRoute("/list/:listId");
   const [, assetParams] = useRoute("/asset/:assetId");
   const { lists, mutate: mutateLists } = useStockLists();
+
+  // Parse URL search params for filters
+  const urlParams = useMemo(() => {
+    const params = new URLSearchParams(searchString);
+    return {
+      industry: params.get('industry') || undefined,
+      sector: params.get('sector') || undefined,
+      category: params.get('category') || undefined,
+    };
+  }, [searchString]);
 
   // Track the previous view for when closing asset detail
   const [previousView, setPreviousView] = useState<string>("/watchlist");
@@ -36,8 +47,8 @@ export default function Home() {
   const getTabFromUrl = (): TabType => {
     // If we're on an asset page, use the previous view's tab
     if (location.startsWith("/asset/")) {
-      if (previousView === "/equities") return "equity";
-      if (previousView === "/crypto") return "crypto";
+      if (previousView === "/equities" || previousView.startsWith("/equities?")) return "equity";
+      if (previousView === "/crypto" || previousView.startsWith("/crypto?")) return "crypto";
       if (previousView === "/model-portfolio") return "model-portfolio";
       if (previousView === "/core-portfolio") return "core-portfolio";
       if (previousView.startsWith("/list/")) {
@@ -46,8 +57,8 @@ export default function Home() {
       }
       return "watchlist";
     }
-    if (location === "/equities") return "equity";
-    if (location === "/crypto") return "crypto";
+    if (location === "/equities" || location.startsWith("/equities?")) return "equity";
+    if (location === "/crypto" || location.startsWith("/crypto?")) return "crypto";
     if (location === "/etfs") return "etfs";
     if (location === "/indices") return "indices";
     if (location === "/commodities") return "commodities";
@@ -109,7 +120,7 @@ export default function Home() {
   };
 
   // Get latest date for the active tab
-  const { data: health } = useSWR("/api/dashboard/health", apiFetcher);
+  const { data: health } = useSWR<{ latest_dates?: { equity?: string; crypto?: string } }>("/api/dashboard/health", apiFetcher);
   const assetType = activeTab === "crypto" ? "crypto" : activeTab === "equity" ? "equity" : undefined;
   const date = assetType ? health?.latest_dates?.[assetType] : undefined;
 
@@ -157,6 +168,14 @@ export default function Home() {
     mutateLists(newOrder, false);
   };
 
+  // Determine filter title for display
+  const filterTitle = useMemo(() => {
+    if (urlParams.industry) return `Industry: ${urlParams.industry}`;
+    if (urlParams.sector) return `Sector: ${urlParams.sector}`;
+    if (urlParams.category) return `Category: ${urlParams.category}`;
+    return null;
+  }, [urlParams]);
+
   return (
     <DashboardLayout 
       activeTab={activeTab} 
@@ -168,6 +187,27 @@ export default function Home() {
       onListRenamed={mutateLists}
     >
       <div className="h-[calc(100vh-10rem)] sm:h-[calc(100vh-8rem)]">
+        {/* Filter banner when coming from search */}
+        {filterTitle && (activeTab === "equity" || activeTab === "crypto") && (
+          <div className="mb-3 flex items-center justify-between bg-primary/10 border border-primary/20 rounded-lg px-4 py-2">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-primary">{filterTitle}</span>
+              <span className="text-xs text-muted-foreground">
+                (filtered from search)
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                // Clear the filter by navigating without params
+                setLocation(activeTab === "equity" ? "/equities" : "/crypto");
+              }}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Clear filter
+            </button>
+          </div>
+        )}
+
         {activeTab === "watchlist" ? (
           <CustomizableWatchlistTable
             key="watchlist"
@@ -197,10 +237,13 @@ export default function Home() {
           />
         ) : (
           <CustomizableAssetTable
-            key={`all-${activeTab}`}
+            key={`all-${activeTab}-${urlParams.industry || ''}-${urlParams.sector || ''}-${urlParams.category || ''}`}
             assetType={activeTab as "crypto" | "equity"}
             date={date}
             onAssetClick={handleAssetClick}
+            initialIndustry={urlParams.industry}
+            initialSector={urlParams.sector}
+            initialCategory={urlParams.category}
           />
         )}
       </div>
