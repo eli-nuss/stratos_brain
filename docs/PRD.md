@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 22, 2026 (v1.9 - Model Toggle & Speed Optimization)  
+**Last Updated: January 22, 2026 (v2.0 - Chat System Parity & Real-time Streaming)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -866,7 +866,15 @@ The following tools are cached to provide instant responses on repeated queries:
 
 #### Streaming Architecture (Supabase Realtime)
 
-The streaming architecture now uses Supabase Realtime to broadcast events from the main `company-chat-api` function. This provides a more robust and scalable solution than the previous SSE implementation, which suffered from edge function timeouts.
+Both **Company Chat** and **Global Brain Chat** now use the same streaming architecture via Supabase Realtime. This provides a robust and scalable solution for real-time updates.
+
+**Feature Parity (v2.0):** Both chat systems now have identical functionality:
+- Real-time streaming via Supabase Broadcast
+- MALFORMED_FUNCTION_CALL recovery with automatic fallback
+- Thought signature preservation for Gemini 3
+- Correct function response format (`role: 'user'`)
+- Pro/Flash model toggle
+- Parallel tool execution
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -892,12 +900,19 @@ The streaming architecture now uses Supabase Realtime to broadcast events from t
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/company-chat-api/chats/:chatId/messages` | POST | Job-based async processing (original) |
-
+| `/company-chat-api/chats/:chatId/messages` | POST | Company-specific chat (job-based async) |
+| `/global-chat-api/chats/:chatId/messages` | POST | Global Brain chat (job-based async) |
 
 #### Frontend Hooks
 
-- `useSendMessage(chatId)` - Job-based hook that now also subscribes to the Supabase Realtime channel for live updates.
+| Hook | Chat Type | Features |
+|------|-----------|----------|
+| `useSendMessage(chatId)` | Company Chat | Job-based + Realtime streaming |
+| `useSendBrainMessage(chatId)` | Global Brain | Job-based + Realtime streaming |
+
+Both hooks subscribe to Supabase Realtime channels for live updates:
+- `company_job:{jobId}` - Company chat events
+- `brain_job:{jobId}` - Global Brain chat events
 
 
                                                                                             ---
