@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 21, 2026 (v1.6 - Gemini API Fix & Realtime Streaming)s)  
+**Last Updated: January 21, 2026 (v1.7 - Global Latency Optimizations)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -839,12 +839,29 @@ The chat system includes several performance optimizations for faster response t
 
 | Optimization | Impact | Time Saved |
 |--------------|--------|------------|
+| **Context Bloat Fix** | Only load One Pager by default (not Deep Research) | 3-5 seconds |
+| **Parallel Setup Phase** | Config, last message, and docs fetched via Promise.all() | 1-2 seconds |
+| **Global Tool Caching** | 5-minute cache for read-only data tools (fundamentals, technicals, etc.) | Instant on repeat |
 | **Parallel Tool Execution** | All function calls execute simultaneously via Promise.all() | 40-60% reduction |
 | **Chat Config Caching** | In-memory cache with 5-minute TTL | 50-100ms per request |
 | **E2B Sandbox Pooling** | Warm pool of 2 pre-created sandboxes, reused across requests | 2-5s per Python call |
 | **Document Caching** | Hash-based invalidation with 10-minute TTL | 500ms-2s per request |
 | **Real-time Broadcast Streaming** | Supabase Realtime for event-based streaming | First update in <1s |
 | **Compact System Prompt** | 70% reduction in token count for simple queries | Faster processing |
+
+#### Cacheable Tools (5-minute TTL)
+
+The following tools are cached to provide instant responses on repeated queries:
+- `get_asset_fundamentals` - Financial metrics and ratios
+- `get_price_history` - Historical OHLCV data
+- `get_technical_indicators` - RSI, MACD, moving averages
+- `get_active_signals` - Trading signals
+- `get_macro_context` - Market regime and rates
+- `get_institutional_flows` - 13F data
+- `get_market_pulse` - Market overview
+- `get_sector_comparison` - Peer comparison
+- `get_ai_reviews` - Previous AI analysis
+- `get_financial_calendar` - Earnings dates
 
 #### Streaming Architecture (Supabase Realtime)
 
