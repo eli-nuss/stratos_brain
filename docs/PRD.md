@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 21, 2026 (v1.8 - MALFORMED_FUNCTION_CALL Fix)  
+**Last Updated: January 22, 2026 (v1.9 - Model Toggle & Speed Optimization)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -833,12 +833,13 @@ You are Stratos, an elite autonomous financial analyst for {company_name} ({symb
 - Utility: execute_python, perform_grounded_research, generate_dynamic_ui
 ```
 
-### 10.4 Performance Optimizations (v2025.01.21)
+### 10.4 Performance Optimizations (v2025.01.22)
 
 The chat system includes several performance optimizations for faster response times:
 
 | Optimization | Impact | Time Saved |
 |--------------|--------|------------|
+| **Model Toggle (Flash/Pro)** | User-selectable model (Flash default) | 2-3x faster responses |
 | **Context Bloat Fix** | Only load One Pager by default (not Deep Research) | 3-5 seconds |
 | **Parallel Setup Phase** | Config, last message, and docs fetched via Promise.all() | 1-2 seconds |
 | **Global Tool Caching** | 5-minute cache for read-only data tools (fundamentals, technicals, etc.) | Instant on repeat |
