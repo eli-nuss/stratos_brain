@@ -586,5 +586,6 @@ const InteractiveModelComponent = ({
       </CardContent>
     </Card>
   );
+};
 
 export default GenerativeUIRenderer;
