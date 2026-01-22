@@ -1,6 +1,6 @@
 // Company Chat Streaming API - Real-time SSE streaming for chat responses
-// Implements correct Gemini 3 thought signature handling per official docs
-// Deployment trigger: 2025-01-21-streaming-v7-correct-signatures
+// Matches the working company-chat-api pattern but with streaming
+// Deployment trigger: 2025-01-21-streaming-v8-match-working
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -11,8 +11,8 @@ import { executeUnifiedTool } from '../_shared/unified_tool_handlers.ts'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || ''
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
-const GEMINI_MODEL = 'gemini-3-pro-preview'
-const API_VERSION = 'v2025.01.21.streaming-v7'
+const GEMINI_MODEL = 'gemini-3-pro-preview'  // User requested this model
+const API_VERSION = 'v2025.01.21.streaming-v8'
 
 // CORS headers
 const corsHeaders = {
@@ -27,43 +27,6 @@ const sseHeaders = {
   'Content-Type': 'text/event-stream',
   'Cache-Control': 'no-cache',
   'Connection': 'keep-alive',
-}
-
-// Chat configuration interface
-interface ChatConfig {
-  model?: string;
-  temperature?: number;
-  max_output_tokens?: number;
-}
-
-// In-memory cache for chat configuration
-interface CachedConfig {
-  config: ChatConfig;
-  expiry: number;
-}
-let chatConfigCache: CachedConfig | null = null;
-const CHAT_CONFIG_CACHE_TTL_MS = 5 * 60 * 1000;
-
-async function fetchChatConfig(supabase: ReturnType<typeof createClient>): Promise<ChatConfig> {
-  if (chatConfigCache && chatConfigCache.expiry > Date.now()) {
-    return chatConfigCache.config
-  }
-  
-  const { data, error } = await supabase
-    .from('chat_config')
-    .select('config_key, config_value')
-  
-  if (error) return chatConfigCache?.config || {}
-  
-  const config: ChatConfig = {}
-  for (const row of data || []) {
-    if (row.config_key === 'model') config.model = row.config_value
-    else if (row.config_key === 'temperature') config.temperature = parseFloat(row.config_value)
-    else if (row.config_key === 'max_output_tokens') config.max_output_tokens = parseInt(row.config_value)
-  }
-  
-  chatConfigCache = { config, expiry: Date.now() + CHAT_CONFIG_CACHE_TTL_MS }
-  return config
 }
 
 // Build a compact system prompt for streaming (optimized for speed)
@@ -91,92 +54,19 @@ function formatSSE(event: SSEEvent): string {
   return `data: ${JSON.stringify(event)}\n\n`
 }
 
-// Gemini API content structure - matches official REST API format
+// Gemini API content structure - matches working company-chat-api
 interface GeminiPart {
   text?: string
   functionCall?: { name: string; args: Record<string, unknown> }
   functionResponse?: { name: string; response: unknown }
-  thoughtSignature?: string  // Base64 encoded, sibling to functionCall/text
 }
 
 interface GeminiContent {
-  role: 'user' | 'model'
+  role: 'user' | 'model' | 'function'  // 'function' role for function responses
   parts: GeminiPart[]
 }
 
-// Process streaming response and extract parts with thought signatures
-async function processStreamingResponse(
-  response: Response
-): Promise<{ parts: GeminiPart[]; accumulatedText: string }> {
-  const reader = response.body?.getReader()
-  if (!reader) {
-    throw new Error('Failed to get response stream')
-  }
-  
-  const decoder = new TextDecoder()
-  let buffer = ''
-  let accumulatedText = ''
-  const parts: GeminiPart[] = []
-  
-  try {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      
-      buffer += decoder.decode(value, { stream: true })
-      
-      // Process complete SSE events
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-      
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const jsonStr = line.slice(6).trim()
-          if (jsonStr === '[DONE]') continue
-          
-          try {
-            const data = JSON.parse(jsonStr)
-            const candidate = data.candidates?.[0]
-            
-            if (candidate?.content?.parts) {
-              for (const part of candidate.content.parts) {
-                // Build the part object preserving thought signature
-                const geminiPart: GeminiPart = {}
-                
-                if (part.text !== undefined) {
-                  geminiPart.text = part.text
-                  accumulatedText += part.text
-                }
-                
-                if (part.functionCall) {
-                  geminiPart.functionCall = part.functionCall
-                }
-                
-                // CRITICAL: Capture thought signature as sibling (per Gemini 3 docs)
-                if (part.thoughtSignature) {
-                  geminiPart.thoughtSignature = part.thoughtSignature
-                }
-                
-                // Only add if we have meaningful content
-                if (geminiPart.text !== undefined || geminiPart.functionCall) {
-                  parts.push(geminiPart)
-                }
-              }
-            }
-          } catch (_e) {
-            // Ignore parse errors for incomplete chunks
-          }
-        }
-      }
-    }
-  } finally {
-    reader.releaseLock()
-  }
-  
-  return { parts, accumulatedText }
-}
-
-// Streaming Gemini call with tool execution and correct thought signature handling
+// Streaming Gemini call with tool execution - matches working pattern
 async function* streamGeminiWithTools(
   messages: GeminiContent[],
   systemInstruction: string,
@@ -186,203 +76,129 @@ async function* streamGeminiWithTools(
 ): AsyncGenerator<SSEEvent> {
   const toolCalls: Array<{ name: string; args: Record<string, unknown>; result: unknown }> = []
   
-  const baseRequestBody = {
+  const requestBody = {
+    contents: messages,
     systemInstruction: { parts: [{ text: systemInstruction }] },
     tools: [{ functionDeclarations: UNIFIED_TOOL_DECLARATIONS }],
     generationConfig: {
-      temperature: 1.0,  // Gemini 3 recommends keeping at 1.0
-      maxOutputTokens: 4096,
+      temperature: 0.7,
+      maxOutputTokens: 8192,
       candidateCount: 1
-    },
-    // Use low thinking level for faster responses
-    thinkingConfig: {
-      thinkingLevel: 'low'
     }
   }
   
   yield { type: 'thinking', data: { message: 'Processing your request...' }, timestamp: new Date().toISOString() }
   
-  // Initial streaming request
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?key=${GEMINI_API_KEY}&alt=sse`,
+  // Initial request - use non-streaming for reliability, then stream final response
+  let response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...baseRequestBody, contents: messages })
+      body: JSON.stringify(requestBody)
     }
   )
   
   if (!response.ok) {
     const errorText = await response.text()
     console.error('Gemini API error:', response.status, errorText)
-    yield { type: 'error', data: { message: `Gemini API error: ${response.status}`, details: errorText }, timestamp: new Date().toISOString() }
+    yield { type: 'error', data: { message: `Gemini API error: ${response.status}`, details: errorText.substring(0, 500) }, timestamp: new Date().toISOString() }
     return
   }
   
-  // Process streaming response
-  const { parts: modelParts, accumulatedText: initialText } = await processStreamingResponse(response)
+  let data = await response.json()
+  let candidate = data.candidates?.[0]
   
-  // Stream any text tokens from initial response
-  if (initialText) {
-    yield { type: 'token', data: { text: initialText }, timestamp: new Date().toISOString() }
-  }
+  const maxIterations = 10
+  let iteration = 0
   
-  // Check for function calls
-  const functionCallParts = modelParts.filter(p => p.functionCall)
-  
-  if (functionCallParts.length === 0) {
-    // No function calls, we're done
-    yield { type: 'done', data: { fullText: initialText, toolCalls: [] }, timestamp: new Date().toISOString() }
-    return
-  }
-  
-  // Execute function calls
-  yield { type: 'thinking', data: { message: `Executing ${functionCallParts.length} tool(s)...` }, timestamp: new Date().toISOString() }
-  
-  // Yield tool_start events
-  for (const part of functionCallParts) {
-    if (part.functionCall) {
-      yield { type: 'tool_start', data: { tool: part.functionCall.name, args: part.functionCall.args }, timestamp: new Date().toISOString() }
-    }
-  }
-  
-  // Execute tools in parallel
-  const toolResults = await Promise.all(
-    functionCallParts.map(async (part) => {
-      const fc = part.functionCall!
-      const result = await executeUnifiedTool(fc.name, fc.args, supabase, {
-        assetId,
-        ticker,
-        chatType: 'company'
-      })
-      return { 
-        name: fc.name, 
-        args: fc.args, 
-        result,
-        thoughtSignature: part.thoughtSignature  // Preserve signature
-      }
-    })
-  )
-  
-  // Yield tool_complete events
-  for (const { name, result } of toolResults) {
-    toolCalls.push({ name, args: toolResults.find(t => t.name === name)?.args || {}, result })
-    yield { type: 'tool_complete', data: { tool: name, success: !(result as { error?: string }).error }, timestamp: new Date().toISOString() }
-  }
-  
-  // Build model response content with thought signatures preserved
-  // Per Gemini 3 docs: thoughtSignature is a sibling of functionCall in the same part
-  const modelResponseParts: GeminiPart[] = modelParts.map(p => {
-    const part: GeminiPart = {}
-    if (p.text !== undefined) part.text = p.text
-    if (p.functionCall) part.functionCall = p.functionCall
-    if (p.thoughtSignature) part.thoughtSignature = p.thoughtSignature  // CRITICAL: Include signature
-    return part
-  })
-  
-  // Build function response parts
-  // Per Gemini 3 docs: functionResponse goes in role: "user" parts
-  const functionResponseParts: GeminiPart[] = toolResults.map(({ name, result }) => ({
-    functionResponse: { name, response: result }
-  }))
-  
-  // Add model response and function responses to conversation
-  // Per Gemini 3 docs: Model response with functionCall + thoughtSignature, then user with functionResponse
-  messages.push({
-    role: 'model',
-    parts: modelResponseParts
-  })
-  messages.push({
-    role: 'user',  // Per Gemini 3 docs: functionResponse uses role: "user"
-    parts: functionResponseParts
-  })
-  
-  yield { type: 'thinking', data: { message: 'Generating response...' }, timestamp: new Date().toISOString() }
-  
-  // Make follow-up streaming request
-  const followUpResponse = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?key=${GEMINI_API_KEY}&alt=sse`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...baseRequestBody, contents: messages })
-    }
-  )
-  
-  if (!followUpResponse.ok) {
-    const errorText = await followUpResponse.text()
-    console.error('Follow-up Gemini API error:', followUpResponse.status, errorText)
-    yield { type: 'error', data: { message: `Follow-up error: ${followUpResponse.status}`, details: errorText }, timestamp: new Date().toISOString() }
-    return
-  }
-  
-  // Process follow-up streaming response
-  const { parts: followUpParts, accumulatedText: finalText } = await processStreamingResponse(followUpResponse)
-  
-  // Stream the final text
-  if (finalText) {
-    yield { type: 'token', data: { text: finalText }, timestamp: new Date().toISOString() }
-  }
-  
-  // Check if there are more function calls (multi-step)
-  const moreFunctionCalls = followUpParts.filter(p => p.functionCall)
-  
-  if (moreFunctionCalls.length > 0) {
-    // Handle multi-step function calling (recursive would be complex, so we'll do one more round)
-    yield { type: 'thinking', data: { message: `Executing ${moreFunctionCalls.length} additional tool(s)...` }, timestamp: new Date().toISOString() }
+  // Process function calls in a loop (matching working pattern)
+  while (candidate && iteration < maxIterations) {
+    const content = candidate.content
+    if (!content?.parts) break
     
-    for (const part of moreFunctionCalls) {
+    // Check for function calls
+    const functionCalls = content.parts.filter((p: GeminiPart) => p.functionCall)
+    if (functionCalls.length === 0) break
+    
+    yield { type: 'thinking', data: { message: `Executing ${functionCalls.length} tool(s)...` }, timestamp: new Date().toISOString() }
+    
+    // Yield tool_start events
+    for (const part of functionCalls) {
       if (part.functionCall) {
-        yield { type: 'tool_start', data: { tool: part.functionCall.name }, timestamp: new Date().toISOString() }
-        
-        const result = await executeUnifiedTool(part.functionCall.name, part.functionCall.args, supabase, {
+        yield { type: 'tool_start', data: { tool: part.functionCall.name, args: part.functionCall.args }, timestamp: new Date().toISOString() }
+      }
+    }
+    
+    // Execute tools in parallel (OPTIMIZATION)
+    const parallelResults = await Promise.all(
+      functionCalls.map(async (part: GeminiPart) => {
+        const fc = part.functionCall!
+        const result = await executeUnifiedTool(fc.name, fc.args, supabase, {
           assetId,
           ticker,
           chatType: 'company'
         })
-        
-        toolCalls.push({ name: part.functionCall.name, args: part.functionCall.args, result })
-        yield { type: 'tool_complete', data: { tool: part.functionCall.name, success: !(result as { error?: string }).error }, timestamp: new Date().toISOString() }
-        
-        // Add to messages for final response
-        messages.push({
-          role: 'model',
-          parts: followUpParts.map(p => {
-            const newPart: GeminiPart = {}
-            if (p.text !== undefined) newPart.text = p.text
-            if (p.functionCall) newPart.functionCall = p.functionCall
-            if (p.thoughtSignature) newPart.thoughtSignature = p.thoughtSignature
-            return newPart
-          })
-        })
-        messages.push({
-          role: 'user',
-          parts: [{ functionResponse: { name: part.functionCall.name, response: result } }]
-        })
-      }
+        return { fc, result }
+      })
+    )
+    
+    // Build function responses
+    const functionResponses: GeminiPart[] = []
+    for (const { fc, result } of parallelResults) {
+      toolCalls.push({ name: fc.name, args: fc.args, result })
+      functionResponses.push({ functionResponse: { name: fc.name, response: result } })
+      
+      const hasError = (result as { error?: string }).error
+      yield { type: 'tool_complete', data: { tool: fc.name, success: !hasError }, timestamp: new Date().toISOString() }
+      console.log(`✓ ${fc.name} completed: ${hasError ? 'ERROR' : 'OK'}`)
     }
     
-    // Final request after multi-step
-    const finalResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?key=${GEMINI_API_KEY}&alt=sse`,
+    // Add model response and function responses to messages
+    // Use role: 'function' for function responses (matching working pattern)
+    messages.push({ role: 'model', parts: content.parts })
+    messages.push({ role: 'function', parts: functionResponses })
+    
+    yield { type: 'thinking', data: { message: 'Generating response...' }, timestamp: new Date().toISOString() }
+    
+    // Make follow-up request
+    response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...baseRequestBody, contents: messages })
+        body: JSON.stringify({ ...requestBody, contents: messages })
       }
     )
     
-    if (finalResponse.ok) {
-      const { accumulatedText: multiStepText } = await processStreamingResponse(finalResponse)
-      if (multiStepText) {
-        yield { type: 'token', data: { text: multiStepText }, timestamp: new Date().toISOString() }
-        yield { type: 'done', data: { fullText: multiStepText, toolCalls }, timestamp: new Date().toISOString() }
-        return
-      }
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('Gemini API error on function response:', errorText)
+      yield { type: 'error', data: { message: `Gemini API error: ${response.status}`, details: errorText.substring(0, 500) }, timestamp: new Date().toISOString() }
+      return
+    }
+    
+    data = await response.json()
+    candidate = data.candidates?.[0]
+    iteration++
+  }
+  
+  // Extract final text response
+  const textParts = candidate?.content?.parts?.filter((p: GeminiPart) => p.text) || []
+  const responseText = textParts.map((p: { text: string }) => p.text).join('\n')
+  
+  if (responseText) {
+    // Stream the text in chunks for perceived speed
+    const chunkSize = 50  // Characters per chunk
+    for (let i = 0; i < responseText.length; i += chunkSize) {
+      const chunk = responseText.slice(i, i + chunkSize)
+      yield { type: 'token', data: { text: chunk }, timestamp: new Date().toISOString() }
+      // Small delay to simulate streaming (optional, can be removed)
+      // await new Promise(r => setTimeout(r, 10))
     }
   }
   
-  yield { type: 'done', data: { fullText: finalText, toolCalls }, timestamp: new Date().toISOString() }
+  yield { type: 'done', data: { fullText: responseText, toolCalls }, timestamp: new Date().toISOString() }
 }
 
 serve(async (req: Request) => {
@@ -444,9 +260,6 @@ serve(async (req: Request) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
-    
-    // Get chat configuration
-    await fetchChatConfig(supabase)
     
     // Get existing messages for context
     const { data: existingMessages } = await supabase
