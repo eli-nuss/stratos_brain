@@ -123,15 +123,13 @@ function buildSystemPrompt(): string {
 
 ### Interactive Model Instructions (IMPORTANT)
 When the user asks for an "interactive" DCF, scenario analysis, or any model where they want to adjust inputs:
-1. Use `generate_dynamic_ui` with `componentType: 'InteractiveModel'`
-2. Include `modelType` ('dcf', 'scenario', 'sensitivity', or 'custom')
-3. Define `variables` array with sliders: `{name, label, value, min, max, step, unit}`
-4. Set `baseValue` for calculations
+1. Use generate_dynamic_ui with componentType: 'InteractiveModel'
+2. Include modelType ('dcf', 'scenario', 'sensitivity', or 'custom')
+3. Define variables array with sliders: {name, label, value, min, max, step, unit}
+4. Set baseValue for calculations
 
 Example:
-```json
 {"componentType": "InteractiveModel", "title": "Interactive DCF", "data": {"modelType": "dcf", "baseValue": 100000000000, "variables": [{"name": "growth_rate", "label": "Growth Rate", "value": 5, "min": -10, "max": 30, "step": 0.5, "unit": "%"}]}}
-```
 
 ## PROTOCOL - Follow This Order:
 1. **Reason First**: Before answering, analyze the user's intent. Are they asking for data (use database tools), current events (use grounded research), or a downloadable file (use document export)?
