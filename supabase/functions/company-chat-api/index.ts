@@ -462,6 +462,13 @@ async function callGeminiWithTools(
     contents: messages,
     systemInstruction: { parts: [{ text: systemInstruction }] },
     tools: [{ functionDeclarations: UNIFIED_TOOL_DECLARATIONS }],
+    // Disable safety filters to prevent false positives on financial data
+    safetySettings: [
+      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }
+    ],
     generationConfig: {
       temperature: temperature,
       maxOutputTokens: maxOutputTokens,
@@ -485,6 +492,15 @@ async function callGeminiWithTools(
   }
   
   let data = await response.json()
+  
+  // Debug logging for empty candidates
+  if (!data.candidates || data.candidates.length === 0) {
+    console.error('⚠️ Gemini returned NO CANDIDATES. Dump:', JSON.stringify(data, null, 2))
+    if (data.promptFeedback) {
+      console.error('⚠️ Block Reason:', JSON.stringify(data.promptFeedback, null, 2))
+    }
+  }
+  
   let candidate = data.candidates?.[0]
   
   // Capture grounding metadata
@@ -601,6 +617,15 @@ async function callGeminiWithTools(
     }
     
     data = await response.json()
+    
+    // Debug logging for empty candidates after tool execution
+    if (!data.candidates || data.candidates.length === 0) {
+      console.error('⚠️ Gemini returned NO CANDIDATES after tool execution. Dump:', JSON.stringify(data, null, 2))
+      if (data.promptFeedback) {
+        console.error('⚠️ Block Reason:', JSON.stringify(data.promptFeedback, null, 2))
+      }
+    }
+    
     candidate = data.candidates?.[0]
     
     // Capture grounding metadata from subsequent responses
