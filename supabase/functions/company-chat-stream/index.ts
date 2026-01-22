@@ -1,6 +1,6 @@
-// Company Chat Stream API - Real-time SSE streaming for chat responses
+// Company Chat Streaming API - Real-time SSE streaming for chat responses
 // This provides instant feedback to users by streaming tokens as they're generated
-// Deployment trigger: 2025-01-21-streaming-v2
+// Deployment trigger: 2025-01-21-streaming-v6-thought-signatures
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -12,7 +12,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || ''
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
 const GEMINI_MODEL = 'gemini-3-pro-preview'
-const API_VERSION = 'v2025.01.21.streaming'
+const API_VERSION = 'v2025.01.21.streaming-v6'
 
 // CORS headers
 const corsHeaders = {
@@ -91,9 +91,21 @@ function formatSSE(event: SSEEvent): string {
   return `data: ${JSON.stringify(event)}\n\n`
 }
 
-// Streaming Gemini call with tool execution
+// Interface for Gemini response parts with thought signatures
+interface GeminiPart {
+  text?: string
+  functionCall?: { name: string; args: Record<string, unknown> }
+  thoughtSignature?: string  // Base64 encoded thought signature
+}
+
+interface GeminiContent {
+  role: string
+  parts: GeminiPart[]
+}
+
+// Streaming Gemini call with tool execution and thought signature handling
 async function* streamGeminiWithTools(
-  messages: Array<{ role: string; parts: Array<{ text?: string }> }>,
+  messages: GeminiContent[],
   systemInstruction: string,
   supabase: ReturnType<typeof createClient>,
   assetId?: number,
@@ -126,6 +138,7 @@ async function* streamGeminiWithTools(
   
   if (!response.ok) {
     const errorText = await response.text()
+    console.error('Gemini API error:', response.status, errorText)
     yield { type: 'error', data: { message: `Gemini API error: ${response.status}` }, timestamp: new Date().toISOString() }
     return
   }
@@ -140,7 +153,9 @@ async function* streamGeminiWithTools(
   const decoder = new TextDecoder()
   let buffer = ''
   let accumulatedText = ''
-  const functionCallParts: Array<{ functionCall: { name: string; args: Record<string, unknown> } }> = []
+  
+  // Store the complete model response parts including thought signatures
+  const modelResponseParts: GeminiPart[] = []
   
   try {
     while (true) {
@@ -164,15 +179,29 @@ async function* streamGeminiWithTools(
             
             if (candidate?.content?.parts) {
               for (const part of candidate.content.parts) {
+                // Store the complete part including thought signature
+                const partWithSignature: GeminiPart = {}
+                
                 // Handle text chunks
                 if (part.text) {
+                  partWithSignature.text = part.text
                   accumulatedText += part.text
                   yield { type: 'token', data: { text: part.text }, timestamp: new Date().toISOString() }
                 }
                 
                 // Handle function calls
                 if (part.functionCall) {
-                  functionCallParts.push({ functionCall: part.functionCall })
+                  partWithSignature.functionCall = part.functionCall
+                }
+                
+                // Capture thought signature (critical for Gemini 3)
+                if (part.thoughtSignature) {
+                  partWithSignature.thoughtSignature = part.thoughtSignature
+                }
+                
+                // Only add if we have content
+                if (partWithSignature.text || partWithSignature.functionCall) {
+                  modelResponseParts.push(partWithSignature)
                 }
               }
             }
@@ -186,25 +215,29 @@ async function* streamGeminiWithTools(
     reader.releaseLock()
   }
   
-  // If there are function calls, execute them and continue
+  // Check if we have function calls to execute
+  const functionCallParts = modelResponseParts.filter(p => p.functionCall)
+  
   if (functionCallParts.length > 0) {
     yield { type: 'thinking', data: { message: `Executing ${functionCallParts.length} tool(s)...` }, timestamp: new Date().toISOString() }
     
     // Yield tool_start events for all tools
     for (const part of functionCallParts) {
-      yield { type: 'tool_start', data: { tool: part.functionCall.name, args: part.functionCall.args }, timestamp: new Date().toISOString() }
+      if (part.functionCall) {
+        yield { type: 'tool_start', data: { tool: part.functionCall.name, args: part.functionCall.args }, timestamp: new Date().toISOString() }
+      }
     }
     
     // Execute tools in parallel
     const toolResults = await Promise.all(
       functionCallParts.map(async (part) => {
-        const fc = part.functionCall
+        const fc = part.functionCall!
         const result = await executeUnifiedTool(fc.name, fc.args, supabase, {
           assetId,
           ticker,
           chatType: 'company'
         })
-        return { fc, result }
+        return { fc, result, thoughtSignature: part.thoughtSignature }
       })
     )
     
@@ -214,19 +247,41 @@ async function* streamGeminiWithTools(
       yield { type: 'tool_complete', data: { tool: fc.name, success: !(result as { error?: string }).error }, timestamp: new Date().toISOString() }
     }
     
+    // Build the model response with thought signatures preserved
+    // This is CRITICAL for Gemini 3 - we must send back the thought signatures
+    const modelParts = modelResponseParts.map(p => {
+      const part: Record<string, unknown> = {}
+      if (p.functionCall) {
+        part.functionCall = p.functionCall
+      }
+      if (p.text) {
+        part.text = p.text
+      }
+      // Include thought signature if present
+      if (p.thoughtSignature) {
+        part.thoughtSignature = p.thoughtSignature
+      }
+      return part
+    })
+    
     // Build function responses
-    const functionResponses = toolCalls.map((tc) => ({
-      functionResponse: { name: tc.name, response: tc.result }
+    const functionResponses = toolResults.map(({ fc, result }) => ({
+      functionResponse: { name: fc.name, response: result }
     }))
     
-    // Add model response and function results to messages
+    // Add model response (with thought signatures) and function results to messages
     messages.push({ 
       role: 'model', 
-      parts: functionCallParts.map(p => ({ functionCall: p.functionCall })) as Array<{ text?: string }>
+      parts: modelParts as GeminiPart[]
     })
-    messages.push({ role: 'function', parts: functionResponses as Array<{ text?: string }> })
+    messages.push({ 
+      role: 'user',  // Function responses should be role: user per Gemini API
+      parts: functionResponses as unknown as GeminiPart[]
+    })
     
-    // Make follow-up streaming request
+    yield { type: 'thinking', data: { message: 'Generating response...' }, timestamp: new Date().toISOString() }
+    
+    // Make follow-up streaming request with the complete conversation including thought signatures
     const followUpResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?key=${GEMINI_API_KEY}&alt=sse`,
       {
@@ -236,11 +291,38 @@ async function* streamGeminiWithTools(
       }
     )
     
-    if (followUpResponse.ok) {
+    if (!followUpResponse.ok) {
+      const errorText = await followUpResponse.text()
+      console.error('Follow-up Gemini API error:', followUpResponse.status, errorText)
+      
+      // Try non-streaming fallback
+      yield { type: 'thinking', data: { message: 'Retrying with alternate method...' }, timestamp: new Date().toISOString() }
+      
+      const fallbackResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...requestBody, contents: messages })
+        }
+      )
+      
+      if (fallbackResponse.ok) {
+        const fallbackData = await fallbackResponse.json()
+        const fallbackText = fallbackData.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || '').join('') || ''
+        if (fallbackText) {
+          accumulatedText = fallbackText
+          yield { type: 'token', data: { text: fallbackText }, timestamp: new Date().toISOString() }
+        }
+      } else {
+        yield { type: 'error', data: { message: 'Failed to generate response after tool execution' }, timestamp: new Date().toISOString() }
+        return
+      }
+    } else {
       const followUpReader = followUpResponse.body?.getReader()
       if (followUpReader) {
         let followUpBuffer = ''
-        let hasReceivedTokens = false
+        accumulatedText = '' // Reset for the final response
         
         try {
           while (true) {
@@ -264,7 +346,6 @@ async function* streamGeminiWithTools(
                   if (candidate?.content?.parts) {
                     for (const part of candidate.content.parts) {
                       if (part.text) {
-                        hasReceivedTokens = true
                         accumulatedText += part.text
                         yield { type: 'token', data: { text: part.text }, timestamp: new Date().toISOString() }
                       }
@@ -279,50 +360,6 @@ async function* streamGeminiWithTools(
         } finally {
           followUpReader.releaseLock()
         }
-        
-        // If streaming didn't return any tokens, try non-streaming fallback
-        if (!hasReceivedTokens) {
-          yield { type: 'thinking', data: { message: 'Generating response...' }, timestamp: new Date().toISOString() }
-          
-          const fallbackResponse = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ...requestBody, contents: messages })
-            }
-          )
-          
-          if (fallbackResponse.ok) {
-            const fallbackData = await fallbackResponse.json()
-            const fallbackText = fallbackData.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || '').join('') || ''
-            if (fallbackText) {
-              accumulatedText = fallbackText
-              yield { type: 'token', data: { text: fallbackText }, timestamp: new Date().toISOString() }
-            }
-          }
-        }
-      }
-    } else {
-      // Follow-up streaming failed, try non-streaming
-      yield { type: 'thinking', data: { message: 'Generating response...' }, timestamp: new Date().toISOString() }
-      
-      const fallbackResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...requestBody, contents: messages })
-        }
-      )
-      
-      if (fallbackResponse.ok) {
-        const fallbackData = await fallbackResponse.json()
-        const fallbackText = fallbackData.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || '').join('') || ''
-        if (fallbackText) {
-          accumulatedText = fallbackText
-          yield { type: 'token', data: { text: fallbackText }, timestamp: new Date().toISOString() }
-        }
       }
     }
   }
@@ -336,106 +373,86 @@ serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders })
   }
   
-  const url = new URL(req.url)
-  const path = url.pathname.replace('/company-chat-stream', '')
-  
-  // Only handle POST /stream/:chatId
-  if (req.method !== 'POST' || !path.startsWith('/stream/')) {
-    return new Response(JSON.stringify({ error: 'Not found' }), {
-      status: 404,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
-  }
-  
-  const chatId = path.replace('/stream/', '')
-  if (!chatId) {
-    return new Response(JSON.stringify({ error: 'Chat ID required' }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
-  }
-  
   try {
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    const url = new URL(req.url)
+    const pathParts = url.pathname.split('/')
+    const chatId = pathParts[pathParts.length - 1]
+    
+    if (!chatId || chatId === 'stream') {
+      return new Response(JSON.stringify({ error: 'Chat ID required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
     
     // Parse request body
-    const { content } = await req.json()
-    if (!content?.trim()) {
+    const body = await req.json()
+    const { content } = body
+    
+    if (!content) {
       return new Response(JSON.stringify({ error: 'Message content required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
     
+    // Initialize Supabase client
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    
     // Get chat and asset info
-    const { data: chat } = await supabase
+    const { data: chat, error: chatError } = await supabase
       .from('company_chats')
       .select('*')
       .eq('chat_id', chatId)
       .single()
     
-    if (!chat) {
+    if (chatError || !chat) {
       return new Response(JSON.stringify({ error: 'Chat not found' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
     
-    // Get asset info - chat.asset_id is the numeric asset_id, not the symbol
-    const { data: asset } = await supabase
+    // Get asset info
+    const { data: asset, error: assetError } = await supabase
       .from('assets')
-      .select('asset_id, symbol, name, sector, industry, asset_type')
+      .select('*')
       .eq('asset_id', parseInt(chat.asset_id))
       .single()
     
-    if (!asset) {
+    if (assetError || !asset) {
       return new Response(JSON.stringify({ error: 'Asset not found' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
     
-    // Get message history (last 20 for speed)
-    const { data: history } = await supabase
-      .from('chat_messages')
+    // Get chat configuration
+    const chatConfig = await fetchChatConfig(supabase)
+    
+    // Get existing messages for context
+    const { data: existingMessages } = await supabase
+      .from('company_chat_messages')
       .select('role, content')
       .eq('chat_id', chatId)
-      .order('sequence_num', { ascending: true })
+      .order('created_at', { ascending: true })
       .limit(20)
     
-    // Build Gemini messages
-    const geminiMessages: Array<{ role: string; parts: Array<{ text?: string }> }> = []
-    for (const msg of history || []) {
-      if (msg.role === 'user' || msg.role === 'assistant') {
-        geminiMessages.push({
-          role: msg.role === 'user' ? 'user' : 'model',
-          parts: [{ text: msg.content || '' }]
-        })
-      }
-    }
+    // Build messages array for Gemini
+    const messages: GeminiContent[] = (existingMessages || []).map((msg: { role: string; content: string }) => ({
+      role: msg.role === 'user' ? 'user' : 'model',
+      parts: [{ text: msg.content }]
+    }))
     
-    // Add current user message
-    geminiMessages.push({ role: 'user', parts: [{ text: content }] })
+    // Add the new user message
+    messages.push({ role: 'user', parts: [{ text: content }] })
     
-    // Save user message
-    const { data: lastMessage } = await supabase
-      .from('chat_messages')
-      .select('sequence_num')
-      .eq('chat_id', chatId)
-      .order('sequence_num', { ascending: false })
-      .limit(1)
-      .single()
-    
-    const nextSeq = (lastMessage?.sequence_num || 0) + 1
-    
-    await supabase
-      .from('chat_messages')
-      .insert({
-        chat_id: chatId,
-        sequence_num: nextSeq,
-        role: 'user',
-        content: content
-      })
+    // Save user message to database
+    await supabase.from('company_chat_messages').insert({
+      chat_id: chatId,
+      role: 'user',
+      content: content
+    })
     
     // Build system prompt
     const systemPrompt = buildCompactSystemPrompt(asset)
@@ -443,73 +460,57 @@ serve(async (req: Request) => {
     // Create SSE stream
     const stream = new ReadableStream({
       async start(controller) {
-        const encoder = new TextEncoder()
-        
-        // Send connected event
-        controller.enqueue(encoder.encode(formatSSE({
-          type: 'connected',
-          data: { chatId, assetId: asset.asset_id, symbol: asset.symbol },
-          timestamp: new Date().toISOString()
-        })))
-        
-        let fullResponse = ''
-        let allToolCalls: Array<{ name: string; args: Record<string, unknown>; result: unknown }> = []
-        
         try {
-          // Stream Gemini response
-          for await (const event of streamGeminiWithTools(
-            geminiMessages,
-            systemPrompt,
-            supabase,
-            asset.asset_id,
-            asset.symbol
-          )) {
-            controller.enqueue(encoder.encode(formatSSE(event)))
+          // Send connected event
+          controller.enqueue(new TextEncoder().encode(
+            formatSSE({ type: 'connected', data: { chatId, version: API_VERSION }, timestamp: new Date().toISOString() })
+          ))
+          
+          // Stream the response
+          let finalText = ''
+          let finalToolCalls: unknown[] = []
+          
+          for await (const event of streamGeminiWithTools(messages, systemPrompt, supabase, asset.asset_id, asset.symbol)) {
+            controller.enqueue(new TextEncoder().encode(formatSSE(event)))
             
             if (event.type === 'done') {
-              fullResponse = (event.data as { fullText: string }).fullText
-              allToolCalls = (event.data as { toolCalls: Array<{ name: string; args: Record<string, unknown>; result: unknown }> }).toolCalls
+              const doneData = event.data as { fullText: string; toolCalls: unknown[] }
+              finalText = doneData.fullText
+              finalToolCalls = doneData.toolCalls
             }
           }
           
-          // Save assistant message
-          if (fullResponse) {
-            await supabase
-              .from('chat_messages')
-              .insert({
-                chat_id: chatId,
-                sequence_num: nextSeq + 1,
-                role: 'assistant',
-                content: fullResponse,
-                tool_calls: allToolCalls.length > 0 ? allToolCalls : null,
-                model: GEMINI_MODEL
-              })
-            
-            // Update chat last_message_at
-            await supabase
-              .from('company_chats')
-              .update({ last_message_at: new Date().toISOString() })
-              .eq('chat_id', chatId)
+          // Save assistant message to database
+          if (finalText) {
+            await supabase.from('company_chat_messages').insert({
+              chat_id: chatId,
+              role: 'assistant',
+              content: finalText,
+              tool_calls: finalToolCalls.length > 0 ? finalToolCalls : null
+            })
           }
           
+          controller.close()
         } catch (error) {
-          controller.enqueue(encoder.encode(formatSSE({
-            type: 'error',
-            data: { message: error instanceof Error ? error.message : 'Unknown error' },
-            timestamp: new Date().toISOString()
-          })))
+          console.error('Streaming error:', error)
+          controller.enqueue(new TextEncoder().encode(
+            formatSSE({ 
+              type: 'error', 
+              data: { message: error instanceof Error ? error.message : 'Unknown error' }, 
+              timestamp: new Date().toISOString() 
+            })
+          ))
+          controller.close()
         }
-        
-        controller.close()
       }
     })
     
     return new Response(stream, { headers: sseHeaders })
     
   } catch (error) {
-    console.error('Stream error:', error)
+    console.error('Request error:', error)
     return new Response(JSON.stringify({ 
-      error: error instanceof Error ? error.message : 'Internal server error' 
+      error: error instanceof Error ? error.message : 'Unknown error' 
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
