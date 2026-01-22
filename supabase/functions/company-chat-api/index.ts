@@ -604,7 +604,7 @@ async function callGeminiWithTools(
       return newPart
     })
     messages.push({ role: 'model', parts: modelParts })
-    messages.push({ role: 'function', parts: functionResponses })
+    messages.push({ role: 'user', parts: functionResponses })
     
     response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
