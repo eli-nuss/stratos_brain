@@ -189,6 +189,7 @@ export function useBrainMessages(chatId: string | null, limit = 50) {
 export function useBrainJob(jobId: string | null) {
   const [job, setJob] = useState<BrainJob | null>(null);
   const [isComplete, setIsComplete] = useState(false);
+  const [streamingText, setStreamingText] = useState<string>('');
 
   useEffect(() => {
     if (!jobId) {
@@ -215,9 +216,9 @@ export function useBrainJob(jobId: string | null) {
 
     fetchJob();
 
-    // Subscribe to realtime updates
-    const channel = supabase
-      .channel(`brain-job-${jobId}`)
+    // Subscribe to realtime updates (database changes)
+    const dbChannel = supabase
+      .channel(`brain-job-db-${jobId}`)
       .on(
         'postgres_changes',
         {
@@ -236,8 +237,33 @@ export function useBrainJob(jobId: string | null) {
       )
       .subscribe();
 
+    // Subscribe to broadcast channel for real-time streaming
+    const broadcastChannel = supabase
+      .channel(`brain_job:${jobId}`)
+      .on('broadcast', { event: 'tool_start' }, (payload) => {
+        console.log('[Brain] Tool start:', payload.payload);
+      })
+      .on('broadcast', { event: 'tool_complete' }, (payload) => {
+        console.log('[Brain] Tool complete:', payload.payload);
+      })
+      .on('broadcast', { event: 'text_chunk' }, (payload) => {
+        const chunk = (payload.payload as { text?: string })?.text || '';
+        setStreamingText(prev => prev + chunk);
+      })
+      .on('broadcast', { event: 'done' }, (payload) => {
+        console.log('[Brain] Done:', payload.payload);
+        // Clear streaming text when done - the final message will be fetched from DB
+        setStreamingText('');
+      })
+      .on('broadcast', { event: 'error' }, (payload) => {
+        console.error('[Brain] Error:', payload.payload);
+      })
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(dbChannel);
+      supabase.removeChannel(broadcastChannel);
+      setStreamingText('');
     };
   }, [jobId]);
 
@@ -250,6 +276,7 @@ export function useBrainJob(jobId: string | null) {
     toolCalls: job?.tool_calls || [],
     result: job?.result,
     error: job?.error_message,
+    streamingText,
   };
 }
 
@@ -261,7 +288,7 @@ export function useSendBrainMessage(chatId: string | null) {
   const [isRecovering, setIsRecovering] = useState(false);
   const requestStartTimeRef = useRef<number | null>(null);
 
-  const { job, isComplete, isProcessing, toolCalls, result, error: jobError } = useBrainJob(currentJobId);
+  const { job, isComplete, isProcessing, toolCalls, result, error: jobError, streamingText } = useBrainJob(currentJobId);
 
   // Reset when job completes
   useEffect(() => {
@@ -417,6 +444,7 @@ export function useSendBrainMessage(chatId: string | null) {
     error,
     isRecovering,
     job,
+    streamingText,
   };
 }
 

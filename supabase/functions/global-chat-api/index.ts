@@ -16,6 +16,44 @@ const GEMINI_MODEL_FLASH = 'gemini-3-flash-preview'
 const GEMINI_MODEL = GEMINI_MODEL_FLASH  // Default to Flash for speed
 const API_VERSION = 'v2025.01.22.model-toggle' // Version for debugging deployments
 
+// ============================================================================
+// REAL-TIME STREAMING VIA SUPABASE BROADCAST
+// ============================================================================
+
+// Broadcast event to Supabase Realtime channel for real-time updates
+// Uses REST API for reliable broadcasting from edge functions
+async function broadcastEvent(
+  jobId: string,
+  event: string,
+  payload: Record<string, unknown>
+): Promise<void> {
+  try {
+    const response = await fetch(`${SUPABASE_URL}/realtime/v1/api/broadcast`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messages: [{
+          topic: `brain_job:${jobId}`,
+          event: event,
+          payload: payload,
+          private: false  // Public channel so clients can subscribe without auth
+        }]
+      })
+    })
+    
+    if (!response.ok) {
+      console.error(`Broadcast ${event} failed:`, response.status, await response.text())
+    } else {
+      console.log(`Broadcast ${event} sent successfully to brain_job:${jobId}`)
+    }
+  } catch (err) {
+    console.error(`Failed to broadcast ${event}:`, err)
+  }
+}
+
 // CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -120,7 +158,8 @@ async function callGeminiWithTools(
   systemInstruction: string,
   supabase: ReturnType<typeof createClient>,
   logTool?: (toolName: string, status: 'started' | 'completed' | 'failed') => Promise<void>,
-  modelOverride?: string
+  modelOverride?: string,
+  jobId?: string  // For real-time streaming broadcasts
 ): Promise<{
   response: string;
   toolCalls: unknown[];
@@ -181,6 +220,15 @@ async function callGeminiWithTools(
     console.log(`Executing ${functionCallParts.length} function(s) in parallel...`)
     
     // Log all tool starts first (non-blocking)
+    const toolNames = functionCallParts.map((p: { functionCall?: { name: string } }) => 
+      (p.functionCall as { name: string }).name
+    )
+    
+    // Broadcast tool_start event for real-time UI updates
+    if (jobId) {
+      await broadcastEvent(jobId, 'tool_start', { tools: toolNames })
+    }
+    
     if (logTool) {
       await Promise.all(functionCallParts.map(async (part: { functionCall?: { name: string; args: Record<string, unknown> } }) => {
         const fc = part.functionCall as { name: string; args: Record<string, unknown> }
@@ -214,15 +262,37 @@ async function callGeminiWithTools(
         toolCalls.push({ name: fc.name, args: fc.args, result })
       }
       
-      functionResponses.push({ functionResponse: { name: fc.name, response: result } })
+      // Ensure response is always a valid object for Gemini API
+      const safeResponse = (result && typeof result === 'object') ? result : { data: result }
+      functionResponses.push({ functionResponse: { name: fc.name, response: safeResponse } })
       console.log(`✓ ${fc.name} completed: ${(result as { error?: string }).error ? 'ERROR' : 'OK'}`)
     }
     
-    messages.push({ role: 'model', parts: content.parts })
-    messages.push({ role: 'function', parts: functionResponses })
+    // Broadcast tool_complete event with results summary
+    if (jobId) {
+      const results = parallelResults.map(({ fc, result }) => ({
+        name: fc.name,
+        status: (result as { error?: string }).error ? 'failed' : 'completed',
+        fields_returned: result && typeof result === 'object' ? Object.keys(result).length : 0
+      }))
+      await broadcastEvent(jobId, 'tool_complete', { results })
+    }
+    
+    // Preserve thought signatures from model response
+    const modelParts = content.parts.map((part: { functionCall?: unknown; text?: string; thoughtSignature?: string }) => {
+      const newPart: { functionCall?: unknown; text?: string; thoughtSignature?: string } = {}
+      if (part.functionCall) newPart.functionCall = part.functionCall
+      if (part.text) newPart.text = part.text
+      if (part.thoughtSignature) newPart.thoughtSignature = part.thoughtSignature
+      return newPart
+    })
+    
+    messages.push({ role: 'model', parts: modelParts })
+    // CRITICAL: Use 'user' role for function responses per Gemini API docs
+    messages.push({ role: 'user', parts: functionResponses })
     
     response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -237,6 +307,55 @@ async function callGeminiWithTools(
     
     data = await response.json()
     candidate = data.candidates?.[0]
+    
+    // Check for MALFORMED_FUNCTION_CALL and attempt recovery
+    const cand = candidate
+    if (cand?.finishReason === 'MALFORMED_FUNCTION_CALL') {
+      console.error('🔴 MALFORMED_FUNCTION_CALL detected! Attempting recovery...')
+      console.error('Full candidate:', JSON.stringify(cand, null, 2))
+      
+      // Broadcast error event
+      if (jobId) {
+        await broadcastEvent(jobId, 'error', { 
+          type: 'MALFORMED_FUNCTION_CALL',
+          message: 'Model generated invalid function call, attempting recovery...'
+        })
+      }
+      
+      // Attempt recovery: Ask the model to summarize what it found without calling more tools
+      const recoveryMessages = [
+        ...messages,
+        { role: 'user', parts: [{ text: 'Please summarize the information you have gathered so far and provide your analysis based on the tool results you already received. Do not call any more tools.' }] }
+      ]
+      
+      const recoveryResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: recoveryMessages,
+            systemInstruction: { parts: [{ text: systemInstruction }] },
+            // Disable tools during recovery to prevent another malformed call
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 8192,
+              candidateCount: 1
+            }
+          })
+        }
+      )
+      
+      if (recoveryResponse.ok) {
+        const recoveryData = await recoveryResponse.json()
+        candidate = recoveryData.candidates?.[0]
+        console.log('✅ Recovery successful, got response from model')
+      } else {
+        console.error('Recovery request also failed:', await recoveryResponse.text())
+      }
+      break  // Exit the loop after recovery attempt
+    }
+    
     iteration++
   }
   
@@ -246,6 +365,18 @@ async function callGeminiWithTools(
   // Also capture grounding metadata from final response if not already captured
   if (!groundingMetadata && candidate?.groundingMetadata) {
     groundingMetadata = candidate.groundingMetadata
+  }
+  
+  // Broadcast text chunks for real-time streaming (simulate streaming by sending in chunks)
+  if (jobId && responseText) {
+    // Send text in chunks for smoother streaming experience
+    const chunkSize = 100
+    for (let i = 0; i < responseText.length; i += chunkSize) {
+      const chunk = responseText.substring(i, i + chunkSize)
+      await broadcastEvent(jobId, 'text_chunk', { text: chunk })
+    }
+    // Broadcast done event with full text
+    await broadcastEvent(jobId, 'done', { full_text: responseText })
   }
   
   return {
@@ -542,7 +673,7 @@ Deno.serve(async (req: Request) => {
           // Call Gemini
           const systemPrompt = buildSystemPrompt()
           const startTime = Date.now()
-          const geminiResult = await callGeminiWithTools(geminiMessages, systemPrompt, supabase, logTool, selectedModel)
+          const geminiResult = await callGeminiWithTools(geminiMessages, systemPrompt, supabase, logTool, selectedModel, jobId)
           const latencyMs = Date.now() - startTime
           
           // Save assistant message

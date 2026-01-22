@@ -313,12 +313,13 @@ export function BrainChatInterface({ chat, onRefresh }: BrainChatInterfaceProps)
     isComplete,
     error,
     isRecovering,
+    streamingText,
   } = useSendBrainMessage(chat.chat_id);
 
-  // Scroll to bottom when new messages arrive, tool calls update, or optimistic message appears
+  // Scroll to bottom when new messages arrive, tool calls update, streaming text, or optimistic message appears
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, toolCalls, pendingUserMessage]);
+  }, [messages, toolCalls, pendingUserMessage, streamingText]);
 
   // Refresh messages when job completes
   useEffect(() => {
@@ -597,6 +598,14 @@ export function BrainChatInterface({ chat, onRefresh }: BrainChatInterfaceProps)
                       <ExpandableToolCall key={`${tc.tool_name}-${idx}`} toolCall={tc} />
                     ));
                   })()}
+                </div>
+              )}
+              {/* Real-time streaming text */}
+              {streamingText && (
+                <div className="border-t border-border/50 pt-2 mt-2">
+                  <div className="text-sm text-foreground/90 whitespace-pre-wrap">
+                    <MarkdownRenderer content={streamingText} />
+                  </div>
                 </div>
               )}
             </div>
