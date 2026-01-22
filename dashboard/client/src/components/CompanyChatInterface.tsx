@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Sparkles, RefreshCw, ChevronRight, ChevronDown, Bot, User, PanelRightClose, PanelRightOpen, Trash2, MessageSquare, Wrench, CheckCircle, XCircle, Search, Code, Database, Globe, FileText, Download, FileDown, ExternalLink } from 'lucide-react';
+import { Send, Loader2, Sparkles, RefreshCw, ChevronRight, ChevronDown, Bot, User, PanelRightClose, PanelRightOpen, Trash2, MessageSquare, Wrench, CheckCircle, XCircle, Search, Code, Database, Globe, FileText, Download, FileDown, ExternalLink, Zap } from 'lucide-react';
 import {
   useChatMessages,
   useSendMessage,
@@ -8,6 +8,7 @@ import {
   ChatMessage,
   CompanyChat,
 } from '@/hooks/useCompanyChats';
+import { useStreamingChat } from '@/hooks/useStreamingChat';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThinkingSection } from './ThinkingSection';
 import { MarkdownRenderer } from './MarkdownRenderer';
@@ -458,17 +459,55 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Use the new job-based message sending hook
+  // Toggle for streaming mode (faster responses)
+  const [useStreaming, setUseStreaming] = useState(true);
+  
+  // Use the new job-based message sending hook (fallback)
   const {
-    sendMessage,
+    sendMessage: sendMessageJob,
     reset: resetSendState,
-    isSending,
-    isProcessing,
-    toolCalls,
-    isComplete,
-    error,
+    isSending: isSendingJob,
+    isProcessing: isProcessingJob,
+    toolCalls: toolCallsJob,
+    isComplete: isCompleteJob,
+    error: errorJob,
     isRecovering,
   } = useSendMessage(chat.chat_id);
+  
+  // Use the streaming chat hook (faster)
+  const {
+    sendMessage: sendMessageStream,
+    isStreaming,
+    currentText: streamingText,
+    toolsInProgress,
+    completedTools,
+    error: streamError,
+    thinkingMessage,
+    reset: resetStreamState,
+  } = useStreamingChat(chat.chat_id, {
+    onComplete: () => {
+      refreshMessages();
+      onRefresh?.();
+      setPendingUserMessage(null);
+    },
+  });
+  
+  // Unified state based on mode
+  const isSending = useStreaming ? isStreaming : isSendingJob;
+  const isProcessing = useStreaming ? isStreaming : isProcessingJob;
+  const error = useStreaming ? streamError : errorJob;
+  const isComplete = useStreaming ? !isStreaming && !streamError : isCompleteJob;
+  
+  // Convert streaming tool progress to job-style tool calls for UI compatibility
+  const toolCalls = useStreaming 
+    ? [
+        ...toolsInProgress.map(name => ({ tool_name: name, status: 'started' as const, timestamp: new Date().toISOString() })),
+        ...completedTools.map(t => ({ tool_name: t.name, status: t.success ? 'completed' as const : 'failed' as const, timestamp: new Date().toISOString() }))
+      ]
+    : toolCallsJob;
+  
+  // Unified send function
+  const sendMessage = useStreaming ? sendMessageStream : sendMessageJob;
 
   // Show fundamentals panel by default on larger screens
   useEffect(() => {
@@ -659,6 +698,19 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
             <button
+              onClick={() => setUseStreaming(!useStreaming)}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md transition-colors",
+                useStreaming 
+                  ? "text-yellow-500 bg-yellow-500/10" 
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+              title={useStreaming ? 'Streaming mode (faster)' : 'Standard mode'}
+            >
+              <Zap className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{useStreaming ? 'Fast' : 'Standard'}</span>
+            </button>
+            <button
               onClick={handleSummarizeChat}
               disabled={isSummarizing || messages.length === 0}
               className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-muted-foreground hover:text-purple-500 hover:bg-purple-500/10 rounded-md transition-colors disabled:opacity-50 disabled:hover:text-muted-foreground disabled:hover:bg-transparent"
@@ -775,42 +827,55 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
             </div>
           )}
 
-          {/* AI Thinking Indicator with Real-time Tool Progress */}
+          {/* AI Thinking Indicator with Real-time Tool Progress and Streaming Text */}
           {(isSending || isProcessing) && (
             <div className="flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
               <div className="flex-shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
                 <Bot className="w-4 h-4 text-primary" />
               </div>
-              <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-3 min-w-[200px]">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              <div className="flex-1 max-w-[85%]">
+                {/* Streaming text - show real-time response */}
+                {useStreaming && streamingText && (
+                  <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-3 mb-2">
+                    <MarkdownRenderer content={streamingText} />
+                    <span className="inline-block w-2 h-4 bg-primary/60 animate-pulse ml-0.5" />
                   </div>
-                  <span className="text-sm text-muted-foreground">
-                    {isRecovering ? 'Reconnecting to analysis...' : isProcessing ? 'Analyzing...' : 'Starting...'}
-                  </span>
-                </div>
-                {/* Real-time tool execution progress */}
-                {toolCalls && toolCalls.length > 0 && (
-                  <div className="space-y-1.5 border-t border-border/50 pt-2 mt-2">
-                    {/* Consolidate tool calls by name - show only the latest status for each tool */}
-                    {(() => {
-                      const consolidated = new Map<string, JobToolCall>();
-                      toolCalls.forEach((tc) => {
-                        const existing = consolidated.get(tc.tool_name);
-                        // Keep the completed/failed status over started, or the most recent one
-                        if (!existing || tc.status !== 'started' || existing.status === 'started') {
-                          // Merge data from both started and completed calls
-                          const mergedData = { ...(existing?.data as object || {}), ...(tc.data as object || {}) };
-                          consolidated.set(tc.tool_name, { ...tc, data: Object.keys(mergedData).length > 0 ? mergedData : undefined });
-                        }
-                      });
-                      return Array.from(consolidated.values()).map((tc, idx) => (
-                        <ExpandableToolCall key={`${tc.tool_name}-${idx}`} toolCall={tc} />
-                      ));
-                    })()}
+                )}
+                
+                {/* Thinking/Processing indicator */}
+                {(!streamingText || !useStreaming) && (
+                  <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-3 min-w-[200px]">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="flex gap-1">
+                        <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </div>
+                      <span className="text-sm text-muted-foreground">
+                        {thinkingMessage || (isRecovering ? 'Reconnecting to analysis...' : isProcessing ? 'Analyzing...' : 'Starting...')}
+                      </span>
+                    </div>
+                    {/* Real-time tool execution progress */}
+                    {toolCalls && toolCalls.length > 0 && (
+                      <div className="space-y-1.5 border-t border-border/50 pt-2 mt-2">
+                        {/* Consolidate tool calls by name - show only the latest status for each tool */}
+                        {(() => {
+                          const consolidated = new Map<string, JobToolCall>();
+                          toolCalls.forEach((tc) => {
+                            const existing = consolidated.get(tc.tool_name);
+                            // Keep the completed/failed status over started, or the most recent one
+                            if (!existing || tc.status !== 'started' || existing.status === 'started') {
+                              // Merge data from both started and completed calls
+                              const mergedData = { ...(existing?.data as object || {}), ...(tc.data as object || {}) };
+                              consolidated.set(tc.tool_name, { ...tc, data: Object.keys(mergedData).length > 0 ? mergedData : undefined });
+                            }
+                          });
+                          return Array.from(consolidated.values()).map((tc, idx) => (
+                            <ExpandableToolCall key={`${tc.tool_name}-${idx}`} toolCall={tc} />
+                          ));
+                        })()}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

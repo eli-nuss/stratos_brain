@@ -1,6 +1,6 @@
 // Company Chat Stream API - Real-time SSE streaming for chat responses
 // This provides instant feedback to users by streaming tokens as they're generated
-// Deployment trigger: 2025-01-21-streaming-v1
+// Deployment trigger: 2025-01-21-streaming-v2
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -11,7 +11,7 @@ import { executeUnifiedTool } from '../_shared/unified_tool_handlers.ts'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || ''
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
-const GEMINI_MODEL = 'gemini-3-flash-preview'
+const GEMINI_MODEL = 'gemini-2.5-flash-preview-05-20'
 const API_VERSION = 'v2025.01.21.streaming'
 
 // CORS headers
@@ -99,7 +99,7 @@ async function* streamGeminiWithTools(
   assetId?: number,
   ticker?: string
 ): AsyncGenerator<SSEEvent> {
-  const toolCalls: unknown[] = []
+  const toolCalls: Array<{ name: string; args: Record<string, unknown>; result: unknown }> = []
   
   const requestBody = {
     contents: messages,
@@ -140,7 +140,7 @@ async function* streamGeminiWithTools(
   const decoder = new TextDecoder()
   let buffer = ''
   let accumulatedText = ''
-  let functionCallParts: Array<{ functionCall: { name: string; args: Record<string, unknown> } }> = []
+  const functionCallParts: Array<{ functionCall: { name: string; args: Record<string, unknown> } }> = []
   
   try {
     while (true) {
@@ -176,7 +176,7 @@ async function* streamGeminiWithTools(
                 }
               }
             }
-          } catch (e) {
+          } catch (_e) {
             // Ignore parse errors for incomplete chunks
           }
         }
@@ -190,29 +190,32 @@ async function* streamGeminiWithTools(
   if (functionCallParts.length > 0) {
     yield { type: 'thinking', data: { message: `Executing ${functionCallParts.length} tool(s)...` }, timestamp: new Date().toISOString() }
     
-    // Execute tools in parallel
-    const toolPromises = functionCallParts.map(async (part) => {
-      const fc = part.functionCall
-      yield { type: 'tool_start', data: { tool: fc.name, args: fc.args }, timestamp: new Date().toISOString() }
-      
-      const result = await executeUnifiedTool(fc.name, fc.args, supabase, {
-        assetId,
-        ticker,
-        chatType: 'company'
-      })
-      
-      toolCalls.push({ name: fc.name, args: fc.args, result })
-      return { fc, result }
-    })
+    // Yield tool_start events for all tools
+    for (const part of functionCallParts) {
+      yield { type: 'tool_start', data: { tool: part.functionCall.name, args: part.functionCall.args }, timestamp: new Date().toISOString() }
+    }
     
-    // Wait for all tools and yield completions
-    for await (const promise of toolPromises) {
-      const { fc, result } = await promise
+    // Execute tools in parallel
+    const toolResults = await Promise.all(
+      functionCallParts.map(async (part) => {
+        const fc = part.functionCall
+        const result = await executeUnifiedTool(fc.name, fc.args, supabase, {
+          assetId,
+          ticker,
+          chatType: 'company'
+        })
+        return { fc, result }
+      })
+    )
+    
+    // Yield tool_complete events and build tool calls array
+    for (const { fc, result } of toolResults) {
+      toolCalls.push({ name: fc.name, args: fc.args, result })
       yield { type: 'tool_complete', data: { tool: fc.name, success: !(result as { error?: string }).error }, timestamp: new Date().toISOString() }
     }
     
     // Build function responses
-    const functionResponses = toolCalls.map((tc: { name: string; result: unknown }) => ({
+    const functionResponses = toolCalls.map((tc) => ({
       functionResponse: { name: tc.name, response: tc.result }
     }))
     
@@ -265,7 +268,7 @@ async function* streamGeminiWithTools(
                       }
                     }
                   }
-                } catch (e) {
+                } catch (_e) {
                   // Ignore parse errors
                 }
               }
@@ -321,7 +324,7 @@ serve(async (req: Request) => {
     // Get chat and asset info
     const { data: chat } = await supabase
       .from('company_chats')
-      .select('*, assets!inner(asset_id, symbol, name, sector, industry, asset_type)')
+      .select('*')
       .eq('chat_id', chatId)
       .single()
     
@@ -332,7 +335,19 @@ serve(async (req: Request) => {
       })
     }
     
-    const asset = chat.assets
+    // Get asset info
+    const { data: asset } = await supabase
+      .from('assets')
+      .select('asset_id, symbol, name, sector, industry, asset_type')
+      .eq('symbol', chat.asset_id)
+      .single()
+    
+    if (!asset) {
+      return new Response(JSON.stringify({ error: 'Asset not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
     
     // Get message history (last 20 for speed)
     const { data: history } = await supabase
@@ -392,7 +407,7 @@ serve(async (req: Request) => {
         })))
         
         let fullResponse = ''
-        let allToolCalls: unknown[] = []
+        let allToolCalls: Array<{ name: string; args: Record<string, unknown>; result: unknown }> = []
         
         try {
           // Stream Gemini response
@@ -407,7 +422,7 @@ serve(async (req: Request) => {
             
             if (event.type === 'done') {
               fullResponse = (event.data as { fullText: string }).fullText
-              allToolCalls = (event.data as { toolCalls: unknown[] }).toolCalls
+              allToolCalls = (event.data as { toolCalls: Array<{ name: string; args: Record<string, unknown>; result: unknown }> }).toolCalls
             }
           }
           
