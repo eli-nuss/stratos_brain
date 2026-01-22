@@ -15,7 +15,7 @@ const corsHeaders = {
 
 // Gemini API configuration
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
-const GEMINI_MODEL = 'gemini-3-flash-preview'
+const GEMINI_MODEL = 'gemini-3-pro-preview'
 const API_VERSION = 'v2025.01.21.realtime-broadcast'
 
 // Broadcast event to Supabase Realtime channel for real-time updates
@@ -574,7 +574,15 @@ async function callGeminiWithTools(
       await broadcastEvent(jobId, 'tool_complete', { results })
     }
     
-    messages.push({ role: 'model', parts: content.parts })
+    // Preserve thought signatures from model response (required for Gemini 3)
+    const modelParts = content.parts.map((part: { functionCall?: unknown; text?: string; thoughtSignature?: string }) => {
+      const newPart: { functionCall?: unknown; text?: string; thoughtSignature?: string } = {}
+      if (part.functionCall) newPart.functionCall = part.functionCall
+      if (part.text) newPart.text = part.text
+      if (part.thoughtSignature) newPart.thoughtSignature = part.thoughtSignature
+      return newPart
+    })
+    messages.push({ role: 'model', parts: modelParts })
     messages.push({ role: 'function', parts: functionResponses })
     
     response = await fetch(
