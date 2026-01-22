@@ -575,7 +575,9 @@ async function callGeminiWithTools(
         toolCalls.push({ name: fc.name, args: fc.args, result })
       }
       
-      functionResponses.push({ functionResponse: { name: fc.name, response: result } })
+      // Ensure result is always a valid object for Gemini API
+      const safeResult = result && typeof result === 'object' ? result : { result: result }
+      functionResponses.push({ functionResponse: { name: fc.name, response: safeResult } })
       console.log(`✓ ${fc.name} completed: ${(result as { error?: string }).error ? 'ERROR' : 'OK'}`)
     }
     
@@ -598,6 +600,13 @@ async function callGeminiWithTools(
     })
     messages.push({ role: 'model', parts: modelParts })
     messages.push({ role: 'user', parts: functionResponses })
+    
+    // Debug: Log the function response message being sent
+    console.log('📤 Sending function responses to Gemini:', JSON.stringify({
+      modelPartsCount: modelParts.length,
+      functionResponsesCount: functionResponses.length,
+      functionNames: functionResponses.map((fr: { functionResponse: { name: string } }) => fr.functionResponse.name)
+    }))
     
     response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
@@ -626,6 +635,14 @@ async function callGeminiWithTools(
       const cand = data.candidates[0]
       if (cand.finishReason !== 'STOP') {
         console.warn(`⚠️ Finish Reason after tools was ${cand.finishReason} (not STOP). Safety Ratings:`, JSON.stringify(cand.safetyRatings, null, 2))
+        
+        // If MALFORMED_FUNCTION_CALL, log the full request for debugging
+        if (cand.finishReason === 'MALFORMED_FUNCTION_CALL') {
+          console.error('🔴 MALFORMED_FUNCTION_CALL detected! Logging full request details:')
+          console.error('Model parts sent:', JSON.stringify(modelParts, null, 2))
+          console.error('Function responses sent:', JSON.stringify(functionResponses, null, 2))
+          console.error('Full messages array length:', messages.length)
+        }
       }
     }
     
