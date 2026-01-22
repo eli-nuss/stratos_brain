@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated:** January 21, 2026 (v1.3 - EV+MC Display)  
+**Last Updated:** January 21, 2026 (v1.4 - Unified Search)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -571,10 +571,11 @@ PATCH  /api/dashboard/research-notes/:id/favorite # Toggle favorite status
                                                                                             │   ├── ThemeContext.tsx
                                                                                             │   └── NoteContext.tsx
                                                                                             ├── hooks/               # Custom data hooks
-                                                                                            │   ├── useAllAssets.ts
-                                                                                            │   ├── useDashboardData.ts
-                                                                                            │   ├── useCompanyChats.ts
-                                                                                            │   └── useResearchNotes.ts
+│   ├── useAllAssets.ts
+│   ├── useDashboardData.ts
+│   ├── useCompanyChats.ts
+│   ├── useResearchNotes.ts
+│   └── useUnifiedSearch.ts
                                                                                             ├── pages/               # Route pages
                                                                                             │   ├── Home.tsx
                                                                                             │   ├── CompanyChat.tsx
@@ -603,6 +604,7 @@ PATCH  /api/dashboard/research-notes/:id/favorite # Toggle favorite status
 | `AIInvestmentCommittee` | LLM-powered portfolio critique with actionable recommendations |
 | `ResearchNotes` | Notes library page for browsing all user notes across contexts |
 | `FloatingNotepad` | Context-aware floating notepad popup accessible from any page |
+| `UnifiedCommandBar` | Global search (⌘K) with multi-category results: assets, industries, sectors, lists, and recent items |
 
                                                                                             ### 9.3 Data Flow
 
