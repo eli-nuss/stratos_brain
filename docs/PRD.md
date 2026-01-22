@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated:** January 21, 2026 (v1.5 - Chat Performance Optimizations)  
+**Last Updated: January 21, 2026 (v1.6 - Gemini API Fix & Realtime Streaming)s)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -843,26 +843,28 @@ The chat system includes several performance optimizations for faster response t
 | **Chat Config Caching** | In-memory cache with 5-minute TTL | 50-100ms per request |
 | **E2B Sandbox Pooling** | Warm pool of 2 pre-created sandboxes, reused across requests | 2-5s per Python call |
 | **Document Caching** | Hash-based invalidation with 10-minute TTL | 500ms-2s per request |
-| **Response Streaming** | SSE endpoint for real-time token streaming | First token in <1s |
+| **Real-time Broadcast Streaming** | Supabase Realtime for event-based streaming | First update in <1s |
 | **Compact System Prompt** | 70% reduction in token count for simple queries | Faster processing |
 
-#### Streaming Architecture
+#### Streaming Architecture (Supabase Realtime)
+
+The streaming architecture now uses Supabase Realtime to broadcast events from the main `company-chat-api` function. This provides a more robust and scalable solution than the previous SSE implementation, which suffered from edge function timeouts.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                    STREAMING CHAT ARCHITECTURE                          │
+│                    STREAMING CHAT ARCHITECTURE (v2)                     │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
 │  Frontend                       Edge Function                           │
 │  ┌───────────────┐             ┌───────────────────────────────────┐   │
-│  │ useStreaming  │────POST────▶│ company-chat-stream               │   │
-│  │ Chat Hook     │             │                                   │   │
-│  │               │◀───SSE──────│ Events:                           │   │
-│  │ • connected   │             │ • connected                       │   │
-│  │ • thinking    │             │ • thinking                        │   │
-│  │ • tool_start  │             │ • tool_start / tool_complete      │   │
-│  │ • token       │             │ • token (real-time text)          │   │
-│  │ • done        │             │ • done / error                    │   │
+│  │ useChatJob    │----POST-----▶│ company-chat-api                  │   │
+│  │ Hook          │             │ (Job-based)                       │   │
+│  │               │             │                                   │   │
+│  │ Subscribes to │◀--Realtime--│ Broadcasts Events:                │   │
+│  │ Supabase      │   Channel   │ • tool_start                      │   │
+│  │ Realtime      │             │ • tool_complete                   │   │
+│  │               │             │ • text_chunk                      │   │
+│  │               │             │ • done / error                    │   │
 │  └───────────────┘             └───────────────────────────────────┘   │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -873,12 +875,12 @@ The chat system includes several performance optimizations for faster response t
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/company-chat-api/chats/:chatId/messages` | POST | Job-based async processing (original) |
-| `/company-chat-stream/stream/:chatId` | POST | Real-time SSE streaming (new) |
+
 
 #### Frontend Hooks
 
-- `useSendMessage(chatId)` - Original job-based hook with Supabase Realtime
-- `useStreamingChat(chatId)` - New SSE streaming hook for instant feedback
+- `useSendMessage(chatId)` - Job-based hook that now also subscribes to the Supabase Realtime channel for live updates.
+
 
                                                                                             ---
 
