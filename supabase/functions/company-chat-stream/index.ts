@@ -335,11 +335,11 @@ serve(async (req: Request) => {
       })
     }
     
-    // Get asset info
+    // Get asset info - chat.asset_id is the numeric asset_id, not the symbol
     const { data: asset } = await supabase
       .from('assets')
       .select('asset_id, symbol, name, sector, industry, asset_type')
-      .eq('symbol', chat.asset_id)
+      .eq('asset_id', parseInt(chat.asset_id))
       .single()
     
     if (!asset) {
