@@ -53,10 +53,7 @@ export function CompanyChatInterfaceNew({ chat, onRefresh }: CompanyChatInterfac
   const {
     outputs,
     isGenerating,
-    isLoading: studioLoading,
     generate,
-    deleteOutput,
-    renameOutput,
   } = useStudio({ chatId: chat.chat_id });
 
   // Send message hook with all streaming state
@@ -117,10 +114,7 @@ export function CompanyChatInterfaceNew({ chat, onRefresh }: CompanyChatInterfac
         chatId={chat.chat_id}
         outputs={outputs}
         isGenerating={isGenerating}
-        isLoading={studioLoading}
         onGenerate={generate}
-        onDelete={deleteOutput}
-        onRename={renameOutput}
       />
     </div>
   );
