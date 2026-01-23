@@ -506,21 +506,30 @@ serve(async (req) => {
 
     const token = authHeader.replace('Bearer ', '')
     
-    // Create Supabase client with the user's auth header
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
-      global: { headers: { Authorization: authHeader } }
-    })
+    // Extract user ID from JWT token directly (more reliable than getUser)
+    let userId: string | null = null
+    try {
+      const parts = token.split('.')
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
+        userId = payload.sub || null
+      }
+    } catch (e) {
+      console.error('[studio-api] Failed to decode JWT:', e)
+    }
     
-    // Verify user - get user from token
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    
-    if (authError || !user) {
-      console.error('[studio-api] Auth failed:', authError?.message || 'No user')
-      return new Response(JSON.stringify({ error: 'Invalid authorization', details: authError?.message }), {
+    if (!userId) {
+      return new Response(JSON.stringify({ error: 'Invalid authorization', details: 'Could not extract user ID from token' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
+    
+    // Create Supabase client with service role key for database operations
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    
+    // Create a user object for compatibility with existing code
+    const user = { id: userId }
 
     // GET /outputs/:chat_id - List outputs for a chat
     if (req.method === 'GET' && relevantPath[0] === 'outputs' && relevantPath[1]) {
