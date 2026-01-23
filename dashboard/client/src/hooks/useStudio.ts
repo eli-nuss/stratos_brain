@@ -91,6 +91,11 @@ export function useStudio({ chatId }: UseStudioOptions): UseStudioReturn {
       
       // Transform snake_case API response to camelCase frontend format
       const transformedOutputs: StudioOutput[] = data.map((item: Record<string, unknown>) => {
+        // Debug: log the raw item to see all fields
+        console.log('[useStudio] Raw output item:', item);
+        console.log('[useStudio] Item keys:', Object.keys(item));
+        console.log('[useStudio] diagram_data value:', item.diagram_data);
+        
         // Parse diagram_data if it's a string (sometimes Supabase returns JSONB as string)
         let diagramData = item.diagram_data;
         if (typeof diagramData === 'string') {
