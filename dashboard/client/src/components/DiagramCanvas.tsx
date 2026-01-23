@@ -741,6 +741,151 @@ export default function DiagramCanvas({
               );
             })}
 
+            {/* Comparison Bar Chart */}
+            {diagramData?.layoutType === 'comparison' && (() => {
+              const nodes = diagramData.nodes;
+              if (!nodes || nodes.length === 0) return null;
+              
+              const maxValue = Math.max(...nodes.map(n => n.value || n.percentage || 0));
+              const barWidth = Math.min(80, (canvasWidth - 200) / nodes.length - 20);
+              const chartHeight = canvasHeight - 250;
+              const chartTop = 120;
+              const chartLeft = 100;
+              
+              return (
+                <g>
+                  {/* Y-axis */}
+                  <line
+                    x1={chartLeft}
+                    y1={chartTop}
+                    x2={chartLeft}
+                    y2={chartTop + chartHeight}
+                    stroke={currentTheme.border}
+                    strokeWidth={2}
+                  />
+                  
+                  {/* X-axis */}
+                  <line
+                    x1={chartLeft}
+                    y1={chartTop + chartHeight}
+                    x2={canvasWidth - 50}
+                    y2={chartTop + chartHeight}
+                    stroke={currentTheme.border}
+                    strokeWidth={2}
+                  />
+                  
+                  {/* Y-axis labels */}
+                  {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
+                    const y = chartTop + chartHeight * (1 - ratio);
+                    const value = maxValue * ratio;
+                    return (
+                      <g key={i}>
+                        <line
+                          x1={chartLeft - 5}
+                          y1={y}
+                          x2={chartLeft}
+                          y2={y}
+                          stroke={currentTheme.border}
+                          strokeWidth={1}
+                        />
+                        <text
+                          x={chartLeft - 10}
+                          y={y + 4}
+                          textAnchor="end"
+                          fontSize={10}
+                          fill={currentTheme.muted}
+                          fontFamily={excalidrawFontFamilyUI}
+                        >
+                          {formatValue(value)}
+                        </text>
+                        {/* Grid line */}
+                        <line
+                          x1={chartLeft}
+                          y1={y}
+                          x2={canvasWidth - 50}
+                          y2={y}
+                          stroke={currentTheme.border}
+                          strokeWidth={0.5}
+                          strokeDasharray="4,4"
+                          opacity={0.3}
+                        />
+                      </g>
+                    );
+                  })}
+                  
+                  {/* Bars */}
+                  {nodes.map((node, index) => {
+                    const value = node.value || node.percentage || 0;
+                    const barHeight = (value / maxValue) * chartHeight;
+                    const x = chartLeft + 40 + index * (barWidth + 20);
+                    const y = chartTop + chartHeight - barHeight;
+                    const colors = getNodeColor(node, index);
+                    const isHovered = hoveredNode === node.id;
+                    
+                    return (
+                      <g
+                        key={node.id}
+                        onMouseEnter={() => setHoveredNode(node.id)}
+                        onMouseLeave={() => setHoveredNode(null)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {/* Bar */}
+                        <path
+                          d={generateHandDrawnRect(x, y, barWidth, barHeight, index)}
+                          fill={isHovered ? colors.border : colors.bg}
+                          stroke={colors.border}
+                          strokeWidth={2}
+                          style={{
+                            transition: 'all 0.2s ease',
+                            filter: isHovered ? 'brightness(1.05)' : 'none',
+                          }}
+                        />
+                        
+                        {/* Value label on top of bar */}
+                        <text
+                          x={x + barWidth / 2}
+                          y={y - 8}
+                          textAnchor="middle"
+                          fontSize={12}
+                          fontWeight="600"
+                          fill={currentTheme.text}
+                          fontFamily={excalidrawFontFamily}
+                        >
+                          {node.valueLabel || formatValue(node.value)}
+                        </text>
+                        
+                        {/* X-axis label */}
+                        <text
+                          x={x + barWidth / 2}
+                          y={chartTop + chartHeight + 20}
+                          textAnchor="middle"
+                          fontSize={11}
+                          fill={currentTheme.text}
+                          fontFamily={excalidrawFontFamily}
+                        >
+                          {node.label.length > 15 ? node.label.substring(0, 12) + '...' : node.label}
+                        </text>
+                        
+                        {/* Percentage if available */}
+                        {node.percentage !== undefined && (
+                          <text
+                            x={x + barWidth / 2}
+                            y={chartTop + chartHeight + 35}
+                            textAnchor="middle"
+                            fontSize={10}
+                            fill={currentTheme.muted}
+                            fontFamily={excalidrawFontFamilyUI}
+                          >
+                            {node.percentage}%
+                          </text>
+                        )}
+                      </g>
+                    );
+                  })}
+                </g>
+              );
+            })()}
+
             {/* Tooltip */}
             {hoveredNode && diagramData && (
               (() => {
