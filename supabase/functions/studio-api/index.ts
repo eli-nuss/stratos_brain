@@ -149,7 +149,7 @@ async function getChatContext(supabase: ReturnType<typeof createClient>, chatId:
   // Try chat_id first, then fall back to id
   let { data: chat, error: chatError } = await supabase
     .from('company_chats')
-    .select('display_name, asset_type, symbol')
+    .select('display_name, asset_type')
     .eq('chat_id', chatId)
     .single()
 
@@ -158,7 +158,7 @@ async function getChatContext(supabase: ReturnType<typeof createClient>, chatId:
     console.log('[studio-api] chat_id query failed, trying id:', chatError.message);
     const result = await supabase
       .from('company_chats')
-      .select('display_name, asset_type, symbol')
+      .select('display_name, asset_type')
       .eq('id', chatId)
       .single();
     chat = result.data;
@@ -680,7 +680,10 @@ Then output your diagram JSON.`
 
   } catch (e) {
     console.error('[studio-api] Failed to parse diagram JSON:', e)
-    console.error('[studio-api] Raw content:', content)
+    console.error('[studio-api] Raw content length:', content.length)
+    console.error('[studio-api] Sanitized content length:', furtherSanitized.length)
+    console.error('[studio-api] First 500 chars of sanitized:', furtherSanitized.substring(0, 500))
+    console.error('[studio-api] Chars around position 1091:', furtherSanitized.substring(1080, 1110))
   }
 
   return {
