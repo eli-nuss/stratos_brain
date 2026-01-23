@@ -1,8 +1,6 @@
 import { Sparkles } from 'lucide-react';
 import { SourcesPanel } from './SourcesPanel';
-import { StudioPanel } from './StudioPanel';
 import { useSources } from '@/hooks/useSources';
-import { useStudio } from '@/hooks/useStudio';
 import {
   useChatMessages,
   useSendMessage,
@@ -49,13 +47,6 @@ export function CompanyChatInterfaceNew({ chat, onRefresh }: CompanyChatInterfac
     getSourceContext,
   } = useSources({ chatId: chat.chat_id });
 
-  // Studio hook
-  const {
-    outputs,
-    isGenerating,
-    generate,
-  } = useStudio({ chatId: chat.chat_id });
-
   // Send message hook with all streaming state
   const {
     sendMessage,
@@ -96,27 +87,17 @@ export function CompanyChatInterfaceNew({ chat, onRefresh }: CompanyChatInterfac
     return response.json();
   };
 
-  // Sources panel with Studio - always visible on the right
+  // Sources panel - always visible on the right
   const sourcesPanel = (
-    <div className="h-full flex flex-col overflow-hidden">
-      {/* Sources Panel */}
-      <SourcesPanel
-        chatId={chat.chat_id}
-        sources={sources}
-        isLoading={sourcesLoading}
-        onAddSource={addSource}
-        onToggleSource={toggleSource}
-        onDeleteSource={deleteSource}
-        onReprocessSource={reprocessSource}
-      />
-      {/* Studio Panel */}
-      <StudioPanel
-        chatId={chat.chat_id}
-        outputs={outputs}
-        isGenerating={isGenerating}
-        onGenerate={generate}
-      />
-    </div>
+    <SourcesPanel
+      chatId={chat.chat_id}
+      sources={sources}
+      isLoading={sourcesLoading}
+      onAddSource={addSource}
+      onToggleSource={toggleSource}
+      onDeleteSource={deleteSource}
+      onReprocessSource={reprocessSource}
+    />
   );
 
   // Data panel - optional popout with Technicals/Fundamentals

@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 23, 2026 (v4.0 - Flexible Element-Based Diagram System)  
+**Last Updated: January 22, 2026 (v2.5 - NotebookLM Sources)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -216,129 +216,14 @@
                                                                                   - - **Tools**: Market screening, macro context, comparative analysis
                                                                                     - - **Output**: Market-wide insights and sector analysis
                                                                                      
-- ### 4.4 Document & Output Generation
-                                                                                      
-                                                                                       - Automated generation of investment documents and visual outputs:
-                                                                                       - - **Investment Memos**: Comprehensive analysis documents
-                                                                                         - - **One-Pagers**: Executive summaries
-                                                                                           - - **Presentation Slides**: AI-generated slide decks
-                                                                                           - - **Interactive Diagrams**: Visual flowcharts and treemaps via Studio Panel
-                                                                                           - - **Data Tables**: Formatted data tables for comparison
-                                                                                           - - **Async Processing**: Job system for long-running generation
-
-### 4.5 Studio Panel & Diagram Canvas
-
-The Studio Panel provides an interactive workspace for creating and viewing visual outputs.
-
-#### Flexible Element-Based System (v4.0)
-
-The diagram system uses a **fully flexible approach** where Gemini AI has complete control over the visualization structure. Instead of hardcoded layout types, the AI chooses from generic element types and combines them as needed.
-
-##### Element Types
-
-| Element | Use Case | Key Properties |
-|---------|----------|----------------|
-| **bar** | Waterfalls, comparisons, histograms, timelines | `value`, `displayValue`, `color`, `category`, `order` |
-| **box** | Treemaps, org charts, cards, hierarchies | `value`, `percentage`, `parentId`, `metrics`, `color` |
-| **flow** | Sankey diagrams, process flows, money flows | `value`, `column`, `color` |
-| **metric** | KPI cards, dashboard stats, key numbers | `value`, `displayValue`, `change`, `trend` |
-| **text** | Annotations, callouts, section headers | `content`, `size`, `color` |
-
-##### Layout Arrangements
-
-The AI specifies how elements should be arranged:
-
-| Arrangement | Description |
-|-------------|-------------|
-| `horizontal` | Side by side (bar charts, comparisons) |
-| `vertical` | Stacked (lists, timelines) |
-| `grid` | Grid layout (treemaps, dashboards) |
-| `tree` | Hierarchical (org charts) |
-| `flow` | Left-to-right (sankey, process) |
-| `waterfall` | Sequential with running total |
-
-##### DiagramSpec Schema
-
-```typescript
-interface DiagramSpec {
-  thought_process: {
-    user_intent: string;      // What user wants to understand
-    data_analysis: string;    // Available data and key numbers
-    visualization_strategy: string; // Visual approach chosen
-    reasoning: string;        // Why this combination of elements
-  };
-  canvas: {
-    title: string;
-    subtitle?: string;
-  };
-  elements: DiagramElement[];  // bar, box, flow, metric, text
-  connections?: Connection[];  // Lines between elements
-  layout?: {
-    arrangement: string;      // How to arrange elements
-    spacing?: string;         // compact, normal, spacious
-    groupBy?: string;         // Field to group by
-    sortBy?: string;          // Field to sort by
-  };
-  legend?: {
-    show: boolean;
-    items: { label: string; color: string }[];
-  };
-}
-```
-
-#### Modular Renderer Architecture
-
-```
-client/src/components/diagrams/
-├── types.ts              # Flexible TypeScript interfaces
-├── utils.ts              # Color palettes, fonts, helpers
-├── index.ts              # Module exports
-├── FlexibleRenderer.tsx  # Main renderer (handles all element types)
-├── WaterfallRenderer.tsx # Legacy support
-├── HierarchyRenderer.tsx # Legacy support
-├── TimelineRenderer.tsx  # Legacy support
-└── SankeyRenderer.tsx    # Legacy support
-```
-
-- **FlexibleRenderer**: Single renderer that handles any combination of elements
-- **Auto-Detection**: Determines primary element type and renders accordingly
-- **Backward Compatible**: Still supports legacy `DiagramData` format
-
-#### Visual Design (Excalidraw-Inspired)
-
-- **Open Colors Palette**: 13 colors with 10 brightness levels
-- **Semantic Colors**: Automatic color mapping for categories (positive/negative/neutral)
-- **Hand-Drawn Aesthetic**: Wobbly paths, sketch-style fonts
-- **Theme Toggle**: Dark/Light mode support
-- **Color Schemes**: Excalidraw, Vibrant, Pastel, Monochrome
-
-#### AI-Powered Generation (studio-api)
-
-- **Model**: `gemini-2.5-pro-preview-05-06`
-- **JSON Mode**: Native structured output with schema enforcement
-- **Chain-of-Thought**: AI must explain reasoning in `thought_process`
-- **Full Creative Control**: AI decides elements, colors, layout, structure
-- **Few-Shot Examples**: Comprehensive examples for each visualization type
-
-#### Canvas Features
-- Pan & Zoom with mouse/touch controls
-- PNG export (Small/Medium/Large)
-- Fullscreen mode
-- Theme and color scheme settings
-- Layout type badge
-- Interactive hover effects
-- Modular renderer components for each layout type
-- TypeScript interfaces shared between frontend and backend
-
-#### Persistence
-- All generated outputs are automatically saved to the `studio_outputs` database table
-- Outputs persist across page refreshes and sessions
-- Users can view, download, rename, and delete saved outputs
-- Outputs are scoped to chat sessions and user accounts
-- JWT-based authentication for secure API access
-- PATCH endpoint for renaming outputs
-                                                                                            
-                                                                                             - ---
+                                                                                      - ### 4.4 Document Generation
+                                                                                     
+                                                                                      - Automated generation of investment documents:
+                                                                                      - - **Investment Memos**: Comprehensive analysis documents
+                                                                                        - - **One-Pagers**: Executive summaries
+                                                                                          - - **Async Processing**: Job system for long-running generation
+                                                                                           
+                                                                                            - ---
 
                                                                                             ## 5. Database Schema
 
@@ -364,7 +249,6 @@ client/src/components/diagrams/
                                                                                             | `company_documents` | SEC filings, transcripts | `document_id`, `asset_id`, `document_type`, `content` |
                                                                                             | `document_chunks` | RAG embeddings | `chunk_id`, `document_id`, `embedding`, `content` |
 | `chat_sources` | User-provided sources | `source_id`, `chat_id`, `user_id`, `source_type`, `name`, `status`, `is_enabled` |
-| `studio_outputs` | Generated studio outputs | `output_id`, `chat_id`, `user_id`, `output_type`, `title`, `status`, `content`, `diagram_data` |
 
                                                                                             ### 5.3 Institutional Data Tables
 
