@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 23, 2026 (v2.8 - Enhanced Studio Panel with Visual & UX Improvements)  
+**Last Updated: January 23, 2026 (v2.9 - Excalidraw-Style Visual Design)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -245,11 +245,19 @@ The Studio Panel provides an interactive workspace for creating and viewing visu
   - Grouped bar charts for multiple entities
   - Percentage and absolute value display
 
-#### Visual Enhancements
-- **Color Schemes**: 4 built-in color palettes (Default, Vibrant, Pastel, Monochrome)
-- **Hover Effects**: Interactive tooltips showing detailed node information
-- **Distinct Borders**: Visual separation between segments with shadows
-- **Theme Toggle**: Dark/Light mode support for all layouts
+#### Visual Design (Excalidraw-Inspired)
+The diagram canvas uses Excalidraw's distinctive hand-drawn aesthetic:
+
+- **Open Colors Palette**: 13 colors with 10 brightness levels each, matching Excalidraw's color scheme
+  - Canvas background: lightest value (#f8f9fa)
+  - Strokes: darkest value for borders
+  - Element fills: 6th brightness level for backgrounds
+- **Color Schemes**: 4 built-in palettes (Excalidraw, Vibrant, Pastel, Monochrome)
+- **Hand-Drawn Font**: Virgil/Segoe Print/cursive font family for labels
+- **Hand-Drawn Rectangles**: Slightly wobbly paths for authentic sketch feel
+- **Excalidraw Accent**: Primary violet (#6965db) for interactive elements
+- **Hover Effects**: Interactive tooltips with violet accent border
+- **Theme Toggle**: Dark/Light mode with Excalidraw-style backgrounds
 
 #### Canvas Features
 - **Pan & Zoom**: Interactive navigation with mouse/touch controls and slider
