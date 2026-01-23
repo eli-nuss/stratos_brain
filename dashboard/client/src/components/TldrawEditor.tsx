@@ -1,18 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
-import {
-  Tldraw,
-  Editor,
-  TLShapeId,
-  createShapeId,
-  DefaultColorStyle,
-  DefaultSizeStyle,
-} from 'tldraw';
-import 'tldraw/tldraw.css';
+import { useCallback, useEffect, useState, lazy, Suspense } from 'react';
 import {
   X, Download, Maximize2, Minimize2, Loader2,
   TrendingUp, TrendingDown, Minus
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// Lazy load tldraw to avoid SSR issues
+const TldrawComponent = lazy(() => import('tldraw').then(mod => ({ default: mod.Tldraw })));
 
 // ============ TYPES ============
 
@@ -57,7 +51,7 @@ interface TldrawEditorProps {
 
 // ============ CATEGORY COLORS ============
 
-const categoryToColor: Record<string, 'green' | 'red' | 'blue' | 'violet' | 'orange' | 'grey'> = {
+const categoryToColor: Record<string, string> = {
   revenue: 'green',
   cost: 'red',
   asset: 'blue',
@@ -99,34 +93,45 @@ function MetricsPanel({ metrics }: { metrics: DiagramMetric[] }) {
   );
 }
 
-// ============ MAIN COMPONENT ============
+// ============ ERROR BOUNDARY ============
 
-export function TldrawEditor({
-  title,
-  description,
-  diagramData,
-  isOpen,
-  onClose,
-}: TldrawEditorProps) {
-  const [editor, setEditor] = useState<Editor | null>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+function ErrorFallback({ error, onRetry }: { error: Error; onRetry: () => void }) {
+  return (
+    <div className="flex-1 flex items-center justify-center bg-zinc-900">
+      <div className="text-center max-w-md p-6">
+        <div className="text-red-400 text-lg font-semibold mb-2">Failed to load canvas</div>
+        <div className="text-zinc-500 text-sm mb-4">{error.message}</div>
+        <button
+          onClick={onRetry}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors"
+        >
+          Try Again
+        </button>
+      </div>
+    </div>
+  );
+}
 
-  // Handle editor mount
-  const handleMount = useCallback((editorInstance: Editor) => {
-    setEditor(editorInstance);
-    setIsLoading(false);
+// ============ TLDRAW WRAPPER ============
+
+function TldrawWrapper({ diagramData }: { diagramData?: DiagramData }) {
+  const [cssLoaded, setCssLoaded] = useState(false);
+
+  // Load CSS dynamically
+  useEffect(() => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://unpkg.com/tldraw@4.3.0/tldraw.css';
+    link.onload = () => setCssLoaded(true);
+    document.head.appendChild(link);
+    
+    return () => {
+      document.head.removeChild(link);
+    };
   }, []);
 
-  // Create shapes from diagram data
-  useEffect(() => {
-    if (!editor || !diagramData) return;
-
-    // Clear existing shapes
-    const allShapeIds = editor.getCurrentPageShapeIds();
-    if (allShapeIds.size > 0) {
-      editor.deleteShapes([...allShapeIds]);
-    }
+  const handleMount = useCallback((editor: any) => {
+    if (!diagramData || !diagramData.nodes || diagramData.nodes.length === 0) return;
 
     // Calculate layout positions
     const nodePositions: Record<string, { x: number; y: number }> = {};
@@ -146,112 +151,116 @@ export function TldrawEditor({
       };
     });
 
-    // Create node shapes
-    const shapeIds: Record<string, TLShapeId> = {};
+    // Create shapes using the editor API
+    const shapeIds: Record<string, string> = {};
     
-    diagramData.nodes.forEach((node) => {
-      const pos = nodePositions[node.id];
-      const shapeId = createShapeId();
-      shapeIds[node.id] = shapeId;
+    try {
+      diagramData.nodes.forEach((node) => {
+        const pos = nodePositions[node.id];
+        const shapeId = `shape:${node.id}`;
+        shapeIds[node.id] = shapeId;
 
-      const color = categoryToColor[node.category || 'neutral'] || 'grey';
-      const labelText = node.valueLabel 
-        ? `${node.label}\n${node.valueLabel}`
-        : node.label;
+        const color = categoryToColor[node.category || 'neutral'] || 'grey';
+        const labelText = node.valueLabel 
+          ? `${node.label}\n${node.valueLabel}`
+          : node.label;
 
-      // Create a geo shape (rectangle with text)
-      editor.createShape({
-        id: shapeId,
-        type: 'geo',
-        x: pos.x,
-        y: pos.y,
-        props: {
-          w: 180,
-          h: 80,
-          geo: 'rectangle',
-          color: color,
-          fill: 'solid',
-          size: 'm',
-          text: labelText,
-          align: 'middle',
-          verticalAlign: 'middle',
-          font: 'sans',
-        },
-      });
-    });
-
-    // Create connection arrows
-    diagramData.connections.forEach((conn) => {
-      const fromId = shapeIds[conn.from];
-      const toId = shapeIds[conn.to];
-      
-      if (fromId && toId) {
-        const arrowId = createShapeId();
-        
         editor.createShape({
-          id: arrowId,
-          type: 'arrow',
+          id: shapeId,
+          type: 'geo',
+          x: pos.x,
+          y: pos.y,
           props: {
-            color: 'grey',
+            w: 180,
+            h: 80,
+            geo: 'rectangle',
+            color: color,
+            fill: 'solid',
             size: 'm',
-            arrowheadEnd: 'arrow',
-            arrowheadStart: 'none',
-            start: {
-              type: 'binding',
-              boundShapeId: fromId,
-              normalizedAnchor: { x: 0.5, y: 1 },
-              isExact: false,
-              isPrecise: false,
-            },
-            end: {
-              type: 'binding',
-              boundShapeId: toId,
-              normalizedAnchor: { x: 0.5, y: 0 },
-              isExact: false,
-              isPrecise: false,
-            },
-            text: conn.label || '',
+            text: labelText,
+            align: 'middle',
+            verticalAlign: 'middle',
+            font: 'sans',
           },
         });
-      }
-    });
-
-    // Zoom to fit all shapes
-    setTimeout(() => {
-      editor.zoomToFit({ animation: { duration: 200 } });
-    }, 100);
-
-  }, [editor, diagramData]);
-
-  // Export as PNG
-  const handleExport = useCallback(async () => {
-    if (!editor) return;
-
-    try {
-      const shapeIds = [...editor.getCurrentPageShapeIds()];
-      if (shapeIds.length === 0) return;
-
-      const blob = await editor.toImage(shapeIds, {
-        format: 'png',
-        background: true,
-        padding: 32,
-        scale: 2,
       });
 
-      if (blob) {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${title.replace(/\s+/g, '_')}.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }
+      // Create connection arrows
+      diagramData.connections.forEach((conn, index) => {
+        const fromId = shapeIds[conn.from];
+        const toId = shapeIds[conn.to];
+        
+        if (fromId && toId) {
+          editor.createShape({
+            id: `shape:arrow-${index}`,
+            type: 'arrow',
+            props: {
+              color: 'grey',
+              size: 'm',
+              arrowheadEnd: 'arrow',
+              arrowheadStart: 'none',
+              start: {
+                type: 'binding',
+                boundShapeId: fromId,
+                normalizedAnchor: { x: 0.5, y: 1 },
+                isExact: false,
+                isPrecise: false,
+              },
+              end: {
+                type: 'binding',
+                boundShapeId: toId,
+                normalizedAnchor: { x: 0.5, y: 0 },
+                isExact: false,
+                isPrecise: false,
+              },
+              text: conn.label || '',
+            },
+          });
+        }
+      });
+
+      // Zoom to fit all shapes
+      setTimeout(() => {
+        editor.zoomToFit({ animation: { duration: 200 } });
+      }, 100);
     } catch (err) {
-      console.error('Export error:', err);
+      console.error('Error creating shapes:', err);
     }
-  }, [editor, title]);
+  }, [diagramData]);
+
+  if (!cssLoaded) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-zinc-900">
+        <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <TldrawComponent
+      onMount={handleMount}
+      inferDarkMode
+    />
+  );
+}
+
+// ============ MAIN COMPONENT ============
+
+export function TldrawEditor({
+  title,
+  description,
+  diagramData,
+  isOpen,
+  onClose,
+}: TldrawEditorProps) {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  const [key, setKey] = useState(0);
+
+  const handleRetry = () => {
+    setError(null);
+    setKey(k => k + 1);
+  };
 
   if (!isOpen) return null;
 
@@ -270,13 +279,6 @@ export function TldrawEditor({
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleExport}
-              className="p-1.5 hover:bg-zinc-700 rounded-lg transition-colors"
-              title="Export as PNG"
-            >
-              <Download className="w-4 h-4 text-zinc-400" />
-            </button>
             <button
               onClick={() => setIsFullscreen(!isFullscreen)}
               className="p-1.5 hover:bg-zinc-700 rounded-lg transition-colors"
@@ -312,18 +314,20 @@ export function TldrawEditor({
 
         {/* Tldraw Canvas */}
         <div className="flex-1 relative">
-          {isLoading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-zinc-900 z-10">
-              <div className="flex flex-col items-center gap-3">
-                <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
-                <span className="text-sm text-zinc-400">Loading canvas...</span>
+          {error ? (
+            <ErrorFallback error={error} onRetry={handleRetry} />
+          ) : (
+            <Suspense fallback={
+              <div className="flex-1 flex items-center justify-center bg-zinc-900 absolute inset-0">
+                <div className="flex flex-col items-center gap-3">
+                  <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
+                  <span className="text-sm text-zinc-400">Loading canvas...</span>
+                </div>
               </div>
-            </div>
+            }>
+              <TldrawWrapper key={key} diagramData={diagramData} />
+            </Suspense>
           )}
-          <Tldraw
-            onMount={handleMount}
-            inferDarkMode
-          />
         </div>
       </div>
     </div>
