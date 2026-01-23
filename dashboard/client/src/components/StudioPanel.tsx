@@ -1,15 +1,11 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState } from 'react';
 import {
   FileText, Presentation, PenTool, Table2, Sparkles,
   ChevronDown, ChevronRight, Loader2, Download, Eye,
-  X, Check, AlertCircle, Maximize2, Minimize2
+  X, Check, AlertCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-// Lazy load Excalidraw to reduce bundle size
-const Excalidraw = lazy(() => 
-  import('@excalidraw/excalidraw').then(mod => ({ default: mod.Excalidraw }))
-);
+import { MermaidDiagram } from './MermaidDiagram';
 
 // ============ TYPES ============
 
@@ -44,7 +40,7 @@ interface StudioPanelProps {
 const outputTypes: { type: OutputType; label: string; icon: typeof FileText; description: string }[] = [
   { type: 'report', label: 'Report', icon: FileText, description: 'Investment memo or analysis report' },
   { type: 'slides', label: 'Slides', icon: Presentation, description: 'Presentation deck' },
-  { type: 'diagram', label: 'Diagram', icon: PenTool, description: 'Excalidraw-style flowchart' },
+  { type: 'diagram', label: 'Diagram', icon: PenTool, description: 'Interactive flowchart diagram' },
   { type: 'table', label: 'Table', icon: Table2, description: 'Formatted data table' },
 ];
 
@@ -87,150 +83,6 @@ function getStatusBadge(status: StudioOutput['status']) {
         </span>
       );
   }
-}
-
-// Convert diagram data to Excalidraw elements
-function createExcalidrawElements(diagramData: DiagramData) {
-  const elements: any[] = [];
-  const nodePositions: Record<string, { x: number; y: number; width: number; height: number }> = {};
-  
-  // Calculate positions in a grid layout
-  const cols = 3;
-  const nodeWidth = 180;
-  const nodeHeight = 60;
-  const horizontalGap = 80;
-  const verticalGap = 100;
-  
-  // Create rectangle elements for nodes
-  diagramData.nodes.forEach((node, index) => {
-    const col = index % cols;
-    const row = Math.floor(index / cols);
-    const x = col * (nodeWidth + horizontalGap) + 50;
-    const y = row * (nodeHeight + verticalGap) + 50;
-    
-    nodePositions[node.id] = { x, y, width: nodeWidth, height: nodeHeight };
-    
-    // Rectangle
-    elements.push({
-      id: `rect-${node.id}`,
-      type: 'rectangle',
-      x,
-      y,
-      width: nodeWidth,
-      height: nodeHeight,
-      angle: 0,
-      strokeColor: '#1e1e1e',
-      backgroundColor: '#a5d8ff',
-      fillStyle: 'solid',
-      strokeWidth: 2,
-      strokeStyle: 'solid',
-      roughness: 1,
-      opacity: 100,
-      groupIds: [],
-      frameId: null,
-      index: `a${index}`,
-      roundness: { type: 3 },
-      seed: Math.floor(Math.random() * 100000),
-      version: 1,
-      versionNonce: Math.floor(Math.random() * 100000),
-      isDeleted: false,
-      boundElements: null,
-      updated: Date.now(),
-      link: null,
-      locked: false,
-    });
-    
-    // Text label
-    elements.push({
-      id: `text-${node.id}`,
-      type: 'text',
-      x: x + 10,
-      y: y + nodeHeight / 2 - 10,
-      width: nodeWidth - 20,
-      height: 20,
-      angle: 0,
-      strokeColor: '#1e1e1e',
-      backgroundColor: 'transparent',
-      fillStyle: 'solid',
-      strokeWidth: 1,
-      strokeStyle: 'solid',
-      roughness: 1,
-      opacity: 100,
-      groupIds: [],
-      frameId: null,
-      index: `b${index}`,
-      roundness: null,
-      seed: Math.floor(Math.random() * 100000),
-      version: 1,
-      versionNonce: Math.floor(Math.random() * 100000),
-      isDeleted: false,
-      boundElements: null,
-      updated: Date.now(),
-      link: null,
-      locked: false,
-      text: node.label,
-      fontSize: 14,
-      fontFamily: 1,
-      textAlign: 'center',
-      verticalAlign: 'middle',
-      containerId: null,
-      originalText: node.label,
-      autoResize: true,
-      lineHeight: 1.25,
-    });
-  });
-  
-  // Create arrow elements for connections
-  diagramData.connections.forEach((conn, index) => {
-    const fromPos = nodePositions[conn.from];
-    const toPos = nodePositions[conn.to];
-    
-    if (!fromPos || !toPos) return;
-    
-    // Determine arrow direction
-    const startX = fromPos.x + fromPos.width / 2;
-    const startY = fromPos.y + fromPos.height;
-    const endX = toPos.x + toPos.width / 2;
-    const endY = toPos.y;
-    
-    elements.push({
-      id: `arrow-${conn.from}-${conn.to}`,
-      type: 'arrow',
-      x: startX,
-      y: startY,
-      width: endX - startX,
-      height: endY - startY,
-      angle: 0,
-      strokeColor: '#1e1e1e',
-      backgroundColor: 'transparent',
-      fillStyle: 'solid',
-      strokeWidth: 2,
-      strokeStyle: 'solid',
-      roughness: 1,
-      opacity: 100,
-      groupIds: [],
-      frameId: null,
-      index: `c${index}`,
-      roundness: { type: 2 },
-      seed: Math.floor(Math.random() * 100000),
-      version: 1,
-      versionNonce: Math.floor(Math.random() * 100000),
-      isDeleted: false,
-      boundElements: null,
-      updated: Date.now(),
-      link: null,
-      locked: false,
-      points: [[0, 0], [endX - startX, endY - startY]],
-      lastCommittedPoint: null,
-      startBinding: null,
-      endBinding: null,
-      startArrowhead: null,
-      endArrowhead: 'arrow',
-      elbowed: false,
-    });
-  });
-  
-  return elements;
 }
 
 // ============ GENERATE MODAL ============
@@ -350,123 +202,6 @@ function GenerateModal({ isOpen, onClose, onGenerate, isGenerating }: GenerateMo
               </>
             )}
           </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============ EXCALIDRAW VIEWER MODAL ============
-
-interface ExcalidrawViewerProps {
-  output: StudioOutput;
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-function ExcalidrawViewer({ output, isOpen, onClose }: ExcalidrawViewerProps) {
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
-  if (!isOpen || !output.diagramData) return null;
-
-  const elements = createExcalidrawElements(output.diagramData);
-
-  const handleExport = async () => {
-    try {
-      const { exportToBlob } = await import('@excalidraw/excalidraw');
-      const blob = await exportToBlob({
-        elements,
-        mimeType: 'image/png',
-        appState: {
-          exportWithDarkMode: false,
-        },
-      });
-      
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${output.title.replace(/\s+/g, '_')}.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Failed to export diagram:', error);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-      <div className={cn(
-        "bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden flex flex-col transition-all duration-200",
-        isFullscreen ? "w-full h-full rounded-none" : "w-[90vw] h-[85vh] max-w-6xl"
-      )}>
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-700 flex-shrink-0 bg-zinc-800">
-          <div className="flex items-center gap-2">
-            <PenTool className="w-5 h-5 text-purple-400" />
-            <h3 className="text-sm font-semibold text-white">{output.title}</h3>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleExport}
-              className="p-1.5 hover:bg-zinc-700 rounded-lg transition-colors"
-              title="Export as PNG"
-            >
-              <Download className="w-4 h-4 text-zinc-400" />
-            </button>
-            <button
-              onClick={() => setIsFullscreen(!isFullscreen)}
-              className="p-1.5 hover:bg-zinc-700 rounded-lg transition-colors"
-              title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-            >
-              {isFullscreen ? (
-                <Minimize2 className="w-4 h-4 text-zinc-400" />
-              ) : (
-                <Maximize2 className="w-4 h-4 text-zinc-400" />
-              )}
-            </button>
-            <button
-              onClick={onClose}
-              className="p-1.5 hover:bg-zinc-700 rounded-lg transition-colors"
-              title="Close"
-            >
-              <X className="w-4 h-4 text-zinc-400" />
-            </button>
-          </div>
-        </div>
-
-        {/* Description */}
-        {output.content && (
-          <div className="px-4 py-2 bg-zinc-800/50 border-b border-zinc-700">
-            <p className="text-xs text-zinc-400">{output.content}</p>
-          </div>
-        )}
-
-        {/* Excalidraw Canvas */}
-        <div className="flex-1 bg-white">
-          <Suspense fallback={
-            <div className="w-full h-full flex items-center justify-center bg-zinc-100">
-              <Loader2 className="w-8 h-8 text-zinc-400 animate-spin" />
-            </div>
-          }>
-            <Excalidraw
-              initialData={{
-                elements,
-                appState: {
-                  viewBackgroundColor: '#ffffff',
-                  theme: 'light',
-                },
-              }}
-              UIOptions={{
-                canvasActions: {
-                  loadScene: false,
-                  export: false,
-                  saveToActiveFile: false,
-                },
-              }}
-            />
-          </Suspense>
         </div>
       </div>
     </div>
@@ -707,10 +442,12 @@ export function StudioPanel({
         />
       )}
 
-      {/* Excalidraw Viewer Modal */}
-      {viewingDiagram && (
-        <ExcalidrawViewer
-          output={viewingDiagram}
+      {/* Mermaid Diagram Viewer */}
+      {viewingDiagram && viewingDiagram.diagramData && (
+        <MermaidDiagram
+          title={viewingDiagram.title}
+          description={viewingDiagram.content}
+          diagramData={viewingDiagram.diagramData}
           isOpen={!!viewingDiagram}
           onClose={() => setViewingDiagram(null)}
         />
