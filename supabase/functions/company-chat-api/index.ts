@@ -1,6 +1,6 @@
 // Company Chat API - Deep dive into specific companies
 // Unified Tool Architecture v2 - imports from shared library
-// Deployment trigger: 2025-01-13-unified-v1
+// Deployment trigger: 2026-01-23-restore-stable
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
