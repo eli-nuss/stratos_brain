@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 22, 2026 (v2.5 - NotebookLM Sources)  
+**Last Updated: January 23, 2026 (v2.6 - Studio Panel & Treemap Diagrams)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -216,14 +216,43 @@
                                                                                   - - **Tools**: Market screening, macro context, comparative analysis
                                                                                     - - **Output**: Market-wide insights and sector analysis
                                                                                      
-                                                                                      - ### 4.4 Document Generation
-                                                                                     
-                                                                                      - Automated generation of investment documents:
-                                                                                      - - **Investment Memos**: Comprehensive analysis documents
-                                                                                        - - **One-Pagers**: Executive summaries
-                                                                                          - - **Async Processing**: Job system for long-running generation
-                                                                                           
-                                                                                            - ---
+- ### 4.4 Document & Output Generation
+                                                                                      
+                                                                                       - Automated generation of investment documents and visual outputs:
+                                                                                       - - **Investment Memos**: Comprehensive analysis documents
+                                                                                         - - **One-Pagers**: Executive summaries
+                                                                                           - - **Presentation Slides**: AI-generated slide decks
+                                                                                           - - **Interactive Diagrams**: Visual flowcharts and treemaps via Studio Panel
+                                                                                           - - **Data Tables**: Formatted data tables for comparison
+                                                                                           - - **Async Processing**: Job system for long-running generation
+
+### 4.5 Studio Panel & Diagram Canvas
+
+The Studio Panel provides an interactive workspace for creating and viewing visual outputs:
+
+#### Diagram Types
+- **Treemap Layout**: Proportional visualization for revenue breakdowns, market segments, portfolio allocations
+  - Nodes sized by percentage values
+  - Parent-child hierarchy support
+  - Color-coded segments with labels
+- **Flowchart Layout**: Process flows, decision trees, organizational structures
+  - Horizontal and vertical orientations
+  - Connection lines between nodes
+  - Multiple node types (default, decision, process)
+
+#### Canvas Features
+- **Pan & Zoom**: Interactive navigation with mouse/touch controls
+- **Export**: PNG export for sharing and embedding
+- **Fullscreen Mode**: Expanded view for detailed analysis
+- **Reset View**: Return to default zoom and position
+
+#### Technical Implementation
+- React-based DiagramCanvas component with SVG rendering
+- Treemap algorithm for proportional box sizing
+- Responsive layout adapting to container size
+- Integration with studio-api Edge Function for AI-generated diagrams
+                                                                                            
+                                                                                             - ---
 
                                                                                             ## 5. Database Schema
 
