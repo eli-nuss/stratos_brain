@@ -166,37 +166,31 @@ ${sources.slice(0, 3).map(s => `${s.name}: ${s.content.substring(0, 2000)}`).joi
   }
 }
 
-// Generate Excalidraw-style diagram (as Mermaid for now)
-async function generateDiagram(context: Awaited<ReturnType<typeof getChatContext>>, customPrompt?: string): Promise<{ title: string; content: string }> {
+// Generate Excalidraw-style diagram with JSON format
+async function generateDiagram(context: Awaited<ReturnType<typeof getChatContext>>, customPrompt?: string): Promise<{ title: string; content: string; diagramData?: { nodes: Array<{ id: string; label: string }>; connections: Array<{ from: string; to: string; label?: string }> } }> {
   const { messages, sources, chatInfo } = context
   
   const systemPrompt = `You are creating diagrams to visualize financial concepts and relationships.
-Generate diagrams using Mermaid syntax that can be rendered as flowcharts, mind maps, or relationship diagrams.
-Choose the most appropriate diagram type for the content.
+You MUST output a JSON object with nodes and connections that can be rendered as a flowchart.
 
-Examples of Mermaid syntax:
+Output format (ONLY output valid JSON, no markdown, no explanation):
+{
+  "title": "Diagram title",
+  "description": "Brief explanation of what the diagram shows",
+  "nodes": [
+    { "id": "1", "label": "Node Label" },
+    { "id": "2", "label": "Another Node" }
+  ],
+  "connections": [
+    { "from": "1", "to": "2", "label": "optional connection label" }
+  ]
+}
 
-Flowchart:
-\`\`\`mermaid
-flowchart TD
-    A[Start] --> B{Decision}
-    B -->|Yes| C[Action 1]
-    B -->|No| D[Action 2]
-\`\`\`
-
-Mind Map:
-\`\`\`mermaid
-mindmap
-  root((Central Topic))
-    Branch 1
-      Sub-topic 1
-      Sub-topic 2
-    Branch 2
-      Sub-topic 3
-\`\`\`
-
-Always wrap the diagram in a mermaid code block.
-Include a brief explanation of what the diagram shows.`
+Rules:
+- Create 4-8 nodes that represent key concepts
+- Connect nodes logically to show relationships
+- Use clear, concise labels (max 30 characters per label)
+- Output ONLY the JSON object, nothing else`
 
   const contextText = `
 Company/Asset: ${chatInfo?.display_name || 'Unknown'}
@@ -211,9 +205,30 @@ ${messages.filter(m => m.role === 'assistant').slice(-3).map(m => m.content.subs
 
   const content = await generateWithGemini(userPrompt, systemPrompt)
   
+  // Try to parse the JSON response
+  let diagramData: { nodes: Array<{ id: string; label: string }>; connections: Array<{ from: string; to: string; label?: string }>; title?: string; description?: string } | undefined
+  try {
+    // Clean up the response - remove any markdown code blocks if present
+    let cleanContent = content.trim()
+    if (cleanContent.startsWith('```json')) {
+      cleanContent = cleanContent.slice(7)
+    } else if (cleanContent.startsWith('```')) {
+      cleanContent = cleanContent.slice(3)
+    }
+    if (cleanContent.endsWith('```')) {
+      cleanContent = cleanContent.slice(0, -3)
+    }
+    cleanContent = cleanContent.trim()
+    
+    diagramData = JSON.parse(cleanContent)
+  } catch (e) {
+    console.error('Failed to parse diagram JSON:', e)
+  }
+  
   return {
-    title: `Diagram: ${chatInfo?.display_name || 'Analysis'}`,
-    content,
+    title: diagramData?.title || `Diagram: ${chatInfo?.display_name || 'Analysis'}`,
+    content: diagramData?.description || content,
+    diagramData: diagramData ? { nodes: diagramData.nodes, connections: diagramData.connections } : undefined,
   }
 }
 
@@ -315,7 +330,7 @@ serve(async (req) => {
       const context = await getChatContext(supabase, chat_id, userId)
       
       // Generate based on type
-      let result: { title: string; content: string }
+      let result: { title: string; content: string; diagramData?: { nodes: Array<{ id: string; label: string }>; connections: Array<{ from: string; to: string; label?: string }> } }
       
       switch (output_type) {
         case 'report':
@@ -342,6 +357,7 @@ serve(async (req) => {
         type: output_type,
         title: result.title,
         content: result.content,
+        diagramData: result.diagramData,
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })

@@ -74,6 +74,7 @@ export function useStudio({ chatId }: UseStudioOptions): UseStudioReturn {
         title: data.title || getDefaultTitle(type),
         status: 'ready',
         content: data.content,
+        diagramData: data.diagramData,
         createdAt: new Date().toISOString(),
       };
 
