@@ -377,28 +377,36 @@ Match the DATA SHAPE to the correct layout:
 STEP 3: HANDLING VAGUE OR MISSING REQUESTS
 ═══════════════════════════════════════════════════════════════════════════════
 
-If the user's request is vague, use these defaults:
+⚠️ CRITICAL: ALWAYS focus on the TARGET ASSET specified in the request, NOT other companies mentioned in chat history.
 
-• "financials" / "financial overview" / no specific request
-  → Default to WATERFALL showing Revenue → Gross Profit → Operating Income → Net Income
+If the user's request is vague, use these defaults FOR THE TARGET ASSET:
+
+• "financials" / "financial overview" / "income statement" / no specific request
+  → Default to WATERFALL showing the TARGET ASSET's: Revenue → Gross Profit → Operating Income → Net Income
+  → DO NOT show competitor comparisons unless explicitly requested
   
-• "what does this company do" / "business model" / "how they make money"
-  → Default to TREEMAP of Revenue Segments by percentage
+• "what does this company do" / "business model" / "how they make money" / "revenue breakdown"
+  → Default to TREEMAP of the TARGET ASSET's Revenue Segments by percentage
   
-• "compare" / "vs" / "versus" / mentions multiple companies
-  → Default to COMPARISON chart with key metrics (Revenue, Margin, P/E)
+• "compare" / "vs" / "versus" / explicitly mentions multiple companies by name
+  → ONLY use COMPARISON if the user EXPLICITLY asks to compare companies
+  → The word "compare" or "vs" MUST be in the user's request
   
 • "history" / "over time" / "trend" / "quarters" / "years"
-  → Default to TIMELINE with chronological data points
+  → Default to TIMELINE with the TARGET ASSET's chronological data points
   
 • "structure" / "organization" / "breakdown" / "categories"
-  → Default to HIERARCHY showing organizational/categorical relationships
+  → Default to HIERARCHY showing the TARGET ASSET's organizational/categorical relationships
   
 • "flow" / "where does the money go" / "allocation"
-  → Default to SANKEY showing money/resource flows
+  → Default to SANKEY showing the TARGET ASSET's money/resource flows
 
-If the context lacks specific numbers, make educated estimates based on:
-- Industry standards and typical ratios
+⚠️ IMPORTANT: Chat history may contain discussions about OTHER companies (competitors, peers).
+   IGNORE other companies unless the user EXPLICITLY asks to compare them.
+   The diagram should be about the TARGET ASSET unless comparison is explicitly requested.
+
+If the context lacks specific numbers for the TARGET ASSET, make educated estimates based on:
+- Industry standards and typical ratios for that company
 - Public company benchmarks
 - Reasonable assumptions
 Flag estimated data in the subtitle: "Based on industry estimates"
@@ -530,28 +538,33 @@ Before outputting, verify:
 
   const userPrompt = `
 ═══════════════════════════════════════════════════════════════════════════════
-USER REQUEST
+🎯 TARGET ASSET (THIS IS THE COMPANY TO VISUALIZE)
 ═══════════════════════════════════════════════════════════════════════════════
-${userRequest}
-
-═══════════════════════════════════════════════════════════════════════════════
-STEP 1: Analyze the request. If vague, fall back to default financial visualizations.
-STEP 2: Extract hard numbers from the context below.
-STEP 3: Fill out thought_process with your reasoning.
-STEP 4: Generate the diagram JSON.
-═══════════════════════════════════════════════════════════════════════════════
-
-=== ASSET CONTEXT ===
 Name: ${chatInfo?.display_name || 'Unknown Asset'}
 Type: ${chatInfo?.asset_type || 'Unknown'}
 
-=== RECENT CHAT HISTORY (FOR INTENT) ===
-${recentUserMessages || 'No recent user messages'}
+⚠️ IMPORTANT: Create a diagram about ${chatInfo?.display_name || 'this asset'} ONLY.
+   Do NOT create diagrams about other companies mentioned in chat history.
+   The user is researching ${chatInfo?.display_name || 'this asset'}, not competitors.
 
-=== FINANCIAL DATA & ANALYSIS (FOR NUMBERS) ===
+═══════════════════════════════════════════════════════════════════════════════
+USER REQUEST
+═══════════════════════════════════════════════════════════════════════════════
+"${userRequest}"
+
+═══════════════════════════════════════════════════════════════════════════════
+INSTRUCTIONS
+═══════════════════════════════════════════════════════════════════════════════
+STEP 1: The diagram MUST be about ${chatInfo?.display_name || 'the target asset'}.
+STEP 2: Analyze the user request. "financials" = waterfall income statement for ${chatInfo?.display_name || 'target'}.
+STEP 3: Extract numbers for ${chatInfo?.display_name || 'target'} from context (ignore competitor data).
+STEP 4: Fill out thought_process explaining your reasoning.
+STEP 5: Generate the diagram JSON for ${chatInfo?.display_name || 'target'} ONLY.
+
+=== FINANCIAL DATA FOR ${(chatInfo?.display_name || 'TARGET').toUpperCase()} ===
 ${recentAnalysis || 'No recent analysis available'}
 
-=== SOURCE DOCUMENTS (FOR ACCURATE DATA) ===
+=== SOURCE DOCUMENTS ===
 ${sources.slice(0, 2).map(s => `${s.name}:\n${s.content.substring(0, 3000)}`).join('\n\n') || 'No source documents available'}
 `
 
