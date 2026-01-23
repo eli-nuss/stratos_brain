@@ -1,5 +1,6 @@
-// Chat Worker - Background job processor for long-running AI analysis
+// Chat Worker Edge Function v2.2 - Skeptic Agent Loop
 // This function is triggered by company-chat-api and runs without timeout constraints
+// Features: Multi-agent orchestration with Scout, Quant, and Skeptic agents
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
