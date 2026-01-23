@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import type { OutputType, StudioOutput } from '@/components/StudioPanel';
 
@@ -23,8 +23,10 @@ export function useStudio({ chatId }: UseStudioOptions): UseStudioReturn {
   const { session } = useAuth();
   const [outputs, setOutputs] = useState<StudioOutput[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Start with loading true
   const [error, setError] = useState<string | null>(null);
+  const hasLoadedRef = useRef(false);
+  const loadAttemptRef = useRef(0);
 
   const getAuthHeaders = useCallback(() => {
     const headers: Record<string, string> = {
@@ -36,14 +38,24 @@ export function useStudio({ chatId }: UseStudioOptions): UseStudioReturn {
     return headers;
   }, [session]);
 
-  // Load persisted outputs on mount and when chatId changes
+  // Load persisted outputs
   const refreshOutputs = useCallback(async () => {
-    if (!chatId || !session?.access_token) return;
+    if (!chatId) {
+      setIsLoading(false);
+      return;
+    }
+    
+    // Wait for session to be available
+    if (!session?.access_token) {
+      // If no session yet, don't set loading to false - wait for session
+      return;
+    }
     
     setIsLoading(true);
     setError(null);
 
     try {
+      console.log('[useStudio] Loading outputs for chat:', chatId);
       const response = await fetch(
         `${SUPABASE_URL}/functions/v1/studio-api/outputs/${chatId}`,
         {
@@ -52,25 +64,58 @@ export function useStudio({ chatId }: UseStudioOptions): UseStudioReturn {
         }
       );
 
+      console.log('[useStudio] Response status:', response.status);
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to load outputs');
       }
 
       const data = await response.json();
+      console.log('[useStudio] Loaded outputs:', data.outputs?.length || 0);
       setOutputs(data.outputs || []);
+      hasLoadedRef.current = true;
     } catch (err) {
-      console.error('Failed to load outputs:', err);
+      console.error('[useStudio] Failed to load outputs:', err);
       setError(err instanceof Error ? err.message : 'Failed to load outputs');
     } finally {
       setIsLoading(false);
     }
   }, [chatId, session?.access_token, getAuthHeaders]);
 
-  // Load outputs when component mounts or chatId changes
+  // Load outputs when session becomes available or chatId changes
   useEffect(() => {
-    refreshOutputs();
-  }, [refreshOutputs]);
+    // Reset loading state when chatId changes
+    if (chatId) {
+      hasLoadedRef.current = false;
+      loadAttemptRef.current = 0;
+    }
+  }, [chatId]);
+
+  useEffect(() => {
+    // Only attempt to load if we have a session and haven't successfully loaded yet
+    if (session?.access_token && chatId && !hasLoadedRef.current) {
+      loadAttemptRef.current += 1;
+      console.log('[useStudio] Attempting to load outputs, attempt:', loadAttemptRef.current);
+      refreshOutputs();
+    } else if (!session?.access_token && chatId) {
+      // Still waiting for session, keep loading state
+      setIsLoading(true);
+    }
+  }, [session?.access_token, chatId, refreshOutputs]);
+
+  // Also set up a retry mechanism in case session takes time to load
+  useEffect(() => {
+    if (!hasLoadedRef.current && chatId && loadAttemptRef.current < 3) {
+      const timer = setTimeout(() => {
+        if (!hasLoadedRef.current && session?.access_token) {
+          console.log('[useStudio] Retry loading outputs');
+          refreshOutputs();
+        }
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [chatId, session?.access_token, refreshOutputs]);
 
   const generate = useCallback(async (type: OutputType, prompt?: string): Promise<StudioOutput> => {
     setIsGenerating(true);
