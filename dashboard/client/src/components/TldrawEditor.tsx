@@ -126,20 +126,32 @@ function TldrawWrapper({ diagramData }: { diagramData?: DiagramData }) {
     document.head.appendChild(link);
     
     return () => {
-      document.head.removeChild(link);
+      try {
+        document.head.removeChild(link);
+      } catch (e) {
+        // Link may already be removed
+      }
     };
   }, []);
 
-  const handleMount = useCallback((editor: any) => {
-    if (!diagramData || !diagramData.nodes || diagramData.nodes.length === 0) return;
+  const handleMount = useCallback(async (editor: any) => {
+    console.log('Tldraw mounted, diagramData:', diagramData);
+    
+    if (!diagramData || !diagramData.nodes || diagramData.nodes.length === 0) {
+      console.log('No diagram data to render');
+      return;
+    }
+
+    // Import createShapeId dynamically
+    const { createShapeId } = await import('tldraw');
 
     // Calculate layout positions
     const nodePositions: Record<string, { x: number; y: number }> = {};
     const cols = Math.ceil(Math.sqrt(diagramData.nodes.length));
-    const spacingX = 250;
-    const spacingY = 150;
-    const startX = 100;
-    const startY = 100;
+    const spacingX = 280;
+    const spacingY = 180;
+    const startX = 200;
+    const startY = 200;
 
     // Position nodes in a grid
     diagramData.nodes.forEach((node, index) => {
@@ -152,12 +164,13 @@ function TldrawWrapper({ diagramData }: { diagramData?: DiagramData }) {
     });
 
     // Create shapes using the editor API
-    const shapeIds: Record<string, string> = {};
+    const shapeIds: Record<string, any> = {};
     
     try {
-      diagramData.nodes.forEach((node) => {
+      // Create node shapes
+      for (const node of diagramData.nodes) {
         const pos = nodePositions[node.id];
-        const shapeId = `shape:${node.id}`;
+        const shapeId = createShapeId();
         shapeIds[node.id] = shapeId;
 
         const color = categoryToColor[node.category || 'neutral'] || 'grey';
@@ -165,14 +178,16 @@ function TldrawWrapper({ diagramData }: { diagramData?: DiagramData }) {
           ? `${node.label}\n${node.valueLabel}`
           : node.label;
 
+        console.log('Creating shape:', { id: shapeId, label: labelText, pos });
+
         editor.createShape({
           id: shapeId,
           type: 'geo',
           x: pos.x,
           y: pos.y,
           props: {
-            w: 180,
-            h: 80,
+            w: 200,
+            h: 100,
             geo: 'rectangle',
             color: color,
             fill: 'solid',
@@ -183,16 +198,23 @@ function TldrawWrapper({ diagramData }: { diagramData?: DiagramData }) {
             font: 'sans',
           },
         });
-      });
+      }
+
+      console.log('Created shapes:', Object.keys(shapeIds).length);
 
       // Create connection arrows
-      diagramData.connections.forEach((conn, index) => {
+      for (let i = 0; i < diagramData.connections.length; i++) {
+        const conn = diagramData.connections[i];
         const fromId = shapeIds[conn.from];
         const toId = shapeIds[conn.to];
         
         if (fromId && toId) {
+          const arrowId = createShapeId();
+          
+          console.log('Creating arrow:', { from: conn.from, to: conn.to });
+
           editor.createShape({
-            id: `shape:arrow-${index}`,
+            id: arrowId,
             type: 'arrow',
             props: {
               color: 'grey',
@@ -217,12 +239,17 @@ function TldrawWrapper({ diagramData }: { diagramData?: DiagramData }) {
             },
           });
         }
-      });
+      }
 
-      // Zoom to fit all shapes
+      // Zoom to fit all shapes after a short delay
       setTimeout(() => {
-        editor.zoomToFit({ animation: { duration: 200 } });
-      }, 100);
+        try {
+          editor.zoomToFit({ animation: { duration: 300 } });
+        } catch (e) {
+          console.error('Error zooming to fit:', e);
+        }
+      }, 200);
+      
     } catch (err) {
       console.error('Error creating shapes:', err);
     }
@@ -230,7 +257,7 @@ function TldrawWrapper({ diagramData }: { diagramData?: DiagramData }) {
 
   if (!cssLoaded) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-zinc-900">
+      <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
         <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
       </div>
     );
@@ -320,7 +347,7 @@ export function TldrawEditor({
             <ErrorFallback error={error} onRetry={handleRetry} />
           ) : (
             <Suspense fallback={
-              <div className="flex-1 flex items-center justify-center bg-zinc-900 absolute inset-0">
+              <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
                 <div className="flex flex-col items-center gap-3">
                   <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
                   <span className="text-sm text-zinc-400">Loading canvas...</span>
