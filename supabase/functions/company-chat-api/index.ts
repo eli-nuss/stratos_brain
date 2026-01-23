@@ -23,7 +23,8 @@ const GEMINI_MODEL = GEMINI_MODEL_PRO  // Default to Pro for backward compatibil
 const API_VERSION = 'v2025.01.22.skeptic-agent'
 
 // Feature flags
-const ENABLE_SKEPTIC_AGENT = Deno.env.get('ENABLE_SKEPTIC_AGENT') !== 'false' // Default: enabled
+// TEMPORARILY DISABLED for debugging - set to 'true' to re-enable
+const ENABLE_SKEPTIC_AGENT = Deno.env.get('ENABLE_SKEPTIC_AGENT') === 'true' // Default: disabled for debugging
 
 // Broadcast event to Supabase Realtime channel for real-time updates
 // Uses REST API for reliable broadcasting from edge functions
