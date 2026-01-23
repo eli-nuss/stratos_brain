@@ -224,9 +224,17 @@ const diagramJsonSchema = {
           content: { type: "string", description: "Text content for text elements" },
           tooltip: { type: "string", description: "Hover tooltip text" },
           metrics: { 
-            type: "object", 
-            description: "Key-value pairs for displaying multiple metrics on a box element",
-            additionalProperties: { type: ["string", "number"] }
+            type: "array", 
+            description: "Array of metric objects for displaying multiple metrics on a box element",
+            items: {
+              type: "object",
+              properties: {
+                key: { type: "string", description: "Metric name (e.g., 'peRatio', 'yield', 'growth')" },
+                value: { type: "number", description: "Numeric value" },
+                displayValue: { type: "string", description: "Formatted display value" }
+              },
+              required: ["key", "value"]
+            }
           }
         },
         required: ["type", "id", "label"]
