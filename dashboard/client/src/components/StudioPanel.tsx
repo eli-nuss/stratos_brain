@@ -590,7 +590,8 @@ export function StudioPanel({
   };
 
   const handleView = (output: StudioOutput) => {
-    if (output.type === 'diagram' && output.diagramData) {
+    if (output.type === 'diagram') {
+      // Always open DiagramCanvas for diagrams, even if diagramData is loading
       setViewingDiagram(output);
     } else {
       setViewingOutput(output);

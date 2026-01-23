@@ -264,6 +264,34 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
       );
     }
 
+    // No data available - show appropriate message
+    if (!diagramData) {
+      return (
+        <g>
+          <text
+            x={canvasWidth / 2}
+            y={canvasHeight / 2 - 20}
+            textAnchor="middle"
+            fill={currentTheme.muted}
+            fontSize={18}
+            fontFamily={excalidrawFontFamily}
+          >
+            Loading diagram...
+          </text>
+          <text
+            x={canvasWidth / 2}
+            y={canvasHeight / 2 + 10}
+            textAnchor="middle"
+            fill={currentTheme.muted}
+            fontSize={12}
+            fontFamily={excalidrawFontFamilyUI}
+          >
+            Please wait while the visualization is being generated
+          </text>
+        </g>
+      );
+    }
+
     // Legacy rendering for old format
     if (!legacyData || !legacyData.nodes || legacyData.nodes.length === 0) {
       return (
