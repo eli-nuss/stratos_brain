@@ -814,9 +814,14 @@ export interface BaseChatInterfaceProps<TMessage extends BaseMessage> {
   onSummarize?: () => Promise<SummaryResult | null>;
   onRefreshContext?: () => Promise<void>;
   
-  // Side panel (optional)
+  // Side panel (optional) - legacy, use sourcesPanel and dataPanel instead
   sidePanel?: ReactNode;
   sidePanelTitle?: string;
+  
+  // New: Sources panel (always visible on right) and Data panel (optional popout)
+  sourcesPanel?: ReactNode;
+  dataPanel?: ReactNode;
+  dataPanelTitle?: string;
   
   // Customization
   suggestedQuestions?: SuggestedQuestion[];
@@ -850,6 +855,9 @@ export function BaseChatInterface<TMessage extends BaseMessage>({
   onRefreshContext,
   sidePanel,
   sidePanelTitle = 'Data',
+  sourcesPanel,
+  dataPanel,
+  dataPanelTitle = 'Data',
   suggestedQuestions = [],
   welcomeTitle,
   welcomeSubtitle,
@@ -860,6 +868,7 @@ export function BaseChatInterface<TMessage extends BaseMessage>({
   const [selectedModel, setSelectedModel] = useState<'flash' | 'pro'>('flash');
   const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
   const [showSidePanel, setShowSidePanel] = useState(false);
+  const [showDataPanel, setShowDataPanel] = useState(false);
   const [isClearingChat, setIsClearingChat] = useState(false);
   const [isRefreshingContext, setIsRefreshingContext] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
@@ -1086,6 +1095,25 @@ export function BaseChatInterface<TMessage extends BaseMessage>({
                   <PanelRightOpen className="w-3.5 h-3.5" />
                 )}
                 <span className="hidden sm:inline">{showSidePanel ? 'Hide' : sidePanelTitle}</span>
+              </button>
+            )}
+            {dataPanel && (
+              <button
+                onClick={() => setShowDataPanel(!showDataPanel)}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md transition-colors",
+                  showDataPanel 
+                    ? `${config.accentColor} bg-${config.primaryColor}/10` 
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                )}
+                title={showDataPanel ? `Hide ${dataPanelTitle}` : `Show ${dataPanelTitle}`}
+              >
+                {showDataPanel ? (
+                  <PanelRightClose className="w-3.5 h-3.5" />
+                ) : (
+                  <PanelRightOpen className="w-3.5 h-3.5" />
+                )}
+                <span className="hidden sm:inline">{showDataPanel ? 'Hide' : dataPanelTitle}</span>
               </button>
             )}
           </div>
@@ -1350,7 +1378,7 @@ export function BaseChatInterface<TMessage extends BaseMessage>({
         </div>
       </div>
 
-      {/* Side Panel - Desktop */}
+      {/* Side Panel - Desktop (legacy) */}
       {sidePanel && showSidePanel && (
         <>
           {/* Desktop: inline panel */}
@@ -1365,6 +1393,32 @@ export function BaseChatInterface<TMessage extends BaseMessage>({
             title={sidePanelTitle}
           >
             {sidePanel}
+          </MobileDrawer>
+        </>
+      )}
+
+      {/* Sources Panel - Always visible on desktop when provided */}
+      {sourcesPanel && (
+        <aside className="hidden xl:block flex-none w-80 h-full overflow-y-auto border-l border-border bg-card scrollbar-minimal">
+          {sourcesPanel}
+        </aside>
+      )}
+
+      {/* Data Panel - Optional popout */}
+      {dataPanel && showDataPanel && (
+        <>
+          {/* Desktop: inline panel */}
+          <aside className="hidden xl:block flex-none w-96 h-full overflow-y-auto border-l border-border bg-card scrollbar-minimal">
+            {dataPanel}
+          </aside>
+          
+          {/* Mobile: drawer */}
+          <MobileDrawer
+            isOpen={showDataPanel}
+            onClose={() => setShowDataPanel(false)}
+            title={dataPanelTitle}
+          >
+            {dataPanel}
           </MobileDrawer>
         </>
       )}

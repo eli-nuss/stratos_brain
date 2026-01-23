@@ -87,28 +87,26 @@ export function CompanyChatInterfaceNew({ chat, onRefresh }: CompanyChatInterfac
     return response.json();
   };
 
-  // Side panel with Sources and Fundamentals
-  const sidePanel = (
-    <div className="h-full flex flex-col overflow-hidden">
-      {/* Sources Panel */}
-      <SourcesPanel
-        chatId={chat.chat_id}
-        sources={sources}
-        isLoading={sourcesLoading}
-        onAddSource={addSource}
-        onToggleSource={toggleSource}
-        onDeleteSource={deleteSource}
-        onReprocessSource={reprocessSource}
-      />
-      {/* Fundamentals Panel */}
-      <div className="flex-1 overflow-y-auto">
-        <CompanySidePanel
-          assetId={chat.asset_id}
-          assetType={chat.asset_type}
-          className="h-full"
-        />
-      </div>
-    </div>
+  // Sources panel - always visible on the right
+  const sourcesPanel = (
+    <SourcesPanel
+      chatId={chat.chat_id}
+      sources={sources}
+      isLoading={sourcesLoading}
+      onAddSource={addSource}
+      onToggleSource={toggleSource}
+      onDeleteSource={deleteSource}
+      onReprocessSource={reprocessSource}
+    />
+  );
+
+  // Data panel - optional popout with Technicals/Fundamentals
+  const dataPanel = (
+    <CompanySidePanel
+      assetId={chat.asset_id}
+      assetType={chat.asset_type}
+      className="h-full"
+    />
   );
 
   return (
@@ -142,8 +140,9 @@ export function CompanyChatInterfaceNew({ chat, onRefresh }: CompanyChatInterfac
       onClearChat={handleClearChat}
       onSummarize={handleSummarize}
       onRefreshContext={handleRefreshContext}
-      sidePanel={sidePanel}
-      sidePanelTitle="Data"
+      sourcesPanel={sourcesPanel}
+      dataPanel={dataPanel}
+      dataPanelTitle="Data"
       suggestedQuestions={suggestedQuestions}
       placeholder="Ask about the company..."
       AvatarIcon={Sparkles}
