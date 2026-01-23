@@ -245,9 +245,16 @@ serve(async (req) => {
           })
         }
         
-        // Read file as base64
+        // Read file as base64 - use chunked approach to avoid stack overflow
         const arrayBuffer = await file.arrayBuffer()
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
+        const uint8Array = new Uint8Array(arrayBuffer)
+        let base64 = ''
+        const chunkSize = 8192
+        for (let i = 0; i < uint8Array.length; i += chunkSize) {
+          const chunk = uint8Array.slice(i, i + chunkSize)
+          base64 += String.fromCharCode.apply(null, Array.from(chunk))
+        }
+        base64 = btoa(base64)
         
         body = {
           chat_id: chatId,
