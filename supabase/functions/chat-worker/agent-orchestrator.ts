@@ -545,32 +545,41 @@ export async function runAgentOrchestrator(
     const scoutFindings = state.scoutOutput?.content || '';
     const quantAnalysis = state.quantOutput?.content || '';
     
-    if (state.skepticVerdict && state.skepticVerdict.corrections.length > 0) {
-      // Include corrections in final synthesis
-      const synthesisPrompt = buildFinalResponsePrompt(
-        { symbol: asset.symbol, name: asset.name },
-        scoutFindings,
-        quantAnalysis,
-        state.skepticVerdict,
-        userMessage
-      );
-      
-      const synthesisResult = await callGeminiAgent(
-        AGENT_MODELS.final,
-        synthesisPrompt,
-        [{ role: 'user', parts: [{ text: 'Please synthesize the final response.' }] }],
-        [],
-        supabase,
-        jobId,
-        executeFunction,
-        broadcast,
-        'synthesis'
-      );
-      
-      finalResponse = synthesisResult.response;
-    } else {
-      // No corrections needed, combine outputs directly
-      finalResponse = `${quantAnalysis}\n\n---\n\n### Research Context\n${scoutFindings}`;
+    // Always run synthesis to generate a proper response
+    // This ensures we get a coherent response even if agents only made tool calls
+    const synthesisPrompt = buildFinalResponsePrompt(
+      { symbol: asset.symbol, name: asset.name },
+      scoutFindings || 'Research data gathered via tool calls.',
+      quantAnalysis || 'Analysis performed via tool calls.',
+      state.skepticVerdict,
+      userMessage
+    );
+    
+    const synthesisResult = await callGeminiAgent(
+      AGENT_MODELS.final,
+      synthesisPrompt,
+      [{ role: 'user', parts: [{ text: `Please synthesize a comprehensive response to: "${userMessage}"` }] }],
+      [],
+      supabase,
+      jobId,
+      executeFunction,
+      broadcast,
+      'synthesis'
+    );
+    
+    finalResponse = synthesisResult.response;
+    
+    // Fallback if synthesis also returns empty
+    if (!finalResponse || finalResponse.trim() === '') {
+      if (quantAnalysis && scoutFindings) {
+        finalResponse = `## Analysis\n${quantAnalysis}\n\n---\n\n## Research Context\n${scoutFindings}`;
+      } else if (quantAnalysis) {
+        finalResponse = quantAnalysis;
+      } else if (scoutFindings) {
+        finalResponse = scoutFindings;
+      } else {
+        finalResponse = 'I completed the analysis but was unable to generate a summary. Please try rephrasing your question.';
+      }
     }
   }
   
@@ -579,6 +588,13 @@ export async function runAgentOrchestrator(
     summary: getAgentSummary(state),
     verdict: state.skepticVerdict?.verdict || 'N/A',
     retryCount: state.retryCount
+  });
+  
+  // Broadcast done event with full text (required for frontend to display response)
+  await broadcast(jobId, 'done', { 
+    full_text: finalResponse,
+    agent_summary: getAgentSummary(state),
+    skeptic_verdict: state.skepticVerdict
   });
   
   return {

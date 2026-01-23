@@ -228,10 +228,10 @@ export function buildFinalResponsePrompt(
   asset: { symbol: string; name: string },
   scoutFindings: string,
   quantAnalysis: string,
-  skepticVerdict: { verdict: string; issues: string[]; corrections: string[] },
+  skepticVerdict: { verdict: string; issues: string[]; corrections: string[] } | null,
   originalQuery: string
 ): string {
-  const corrections = skepticVerdict.corrections.length > 0
+  const corrections = skepticVerdict?.corrections?.length > 0
     ? `\n\n## Skeptic's Corrections\n${skepticVerdict.corrections.map(c => `- ${c}`).join('\n')}`
     : '';
   
