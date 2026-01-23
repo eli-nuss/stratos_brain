@@ -5,7 +5,7 @@ import {
   X, Check, AlertCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { MermaidDiagram } from './MermaidDiagram';
+import { TldrawEditor } from './TldrawEditor';
 
 // ============ TYPES ============
 
@@ -468,9 +468,9 @@ export function StudioPanel({
         />
       )}
 
-      {/* Mermaid Diagram Viewer */}
-      {viewingDiagram && viewingDiagram.diagramData && (
-        <MermaidDiagram
+      {/* Tldraw Canvas Editor */}
+      {viewingDiagram && (
+        <TldrawEditor
           title={viewingDiagram.title}
           description={viewingDiagram.content}
           diagramData={viewingDiagram.diagramData}
