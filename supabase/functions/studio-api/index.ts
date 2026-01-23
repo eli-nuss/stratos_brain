@@ -632,11 +632,20 @@ Then output your diagram JSON.`
   // Use JSON mode for reliable parsing
   const content = await generateWithGemini(userPrompt, systemPrompt, true, diagramJsonSchema)
   
+  // Sanitize JSON to handle Gemini's repeating decimal bug
+  // Matches numbers with more than 10 decimal places and truncates them
+  const sanitizedContent = content.replace(
+    /(\d+\.\d{10})\d+/g, 
+    '$1'
+  );
+  
+  console.log('[studio-api] Content length:', content.length, 'Sanitized length:', sanitizedContent.length);
+  
   // Parse the JSON response
   let parsedData: DiagramSpec | undefined
   
   try {
-    parsedData = JSON.parse(content) as DiagramSpec
+    parsedData = JSON.parse(sanitizedContent) as DiagramSpec
     
     // Log the thought process for debugging
     if (parsedData.thought_process) {
