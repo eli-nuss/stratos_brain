@@ -6,6 +6,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { UNIFIED_TOOL_DECLARATIONS } from '../_shared/unified_tools.ts'
 import { executeUnifiedTool } from '../_shared/unified_tool_handlers.ts'
+import { validateResponse, type SkepticVerdict } from './skeptic-validator.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,7 +19,10 @@ const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
 const GEMINI_MODEL_PRO = 'gemini-3-pro-preview'
 const GEMINI_MODEL_FLASH = 'gemini-3-flash-preview'  // Faster model for quick queries
 const GEMINI_MODEL = GEMINI_MODEL_PRO  // Default to Pro for backward compatibility
-const API_VERSION = 'v2025.01.21.realtime-broadcast'
+const API_VERSION = 'v2025.01.22.skeptic-validator'
+
+// Feature flags
+const ENABLE_SKEPTIC_VALIDATION = Deno.env.get('ENABLE_SKEPTIC_VALIDATION') !== 'false' // Default: enabled
 
 // Broadcast event to Supabase Realtime channel for real-time updates
 // Uses REST API for reliable broadcasting from edge functions
@@ -1196,12 +1200,55 @@ serve(async (req: Request) => {
               .update({ last_message_at: new Date().toISOString() })
               .eq('chat_id', chatId)
             
+            // Run skeptic validation in background (non-blocking)
+            let skepticVerdict: SkepticVerdict | null = null
+            if (ENABLE_SKEPTIC_VALIDATION && geminiResult.response.length > 200) {
+              try {
+                const validationResult = await validateResponse(
+                  content,
+                  geminiResult.response,
+                  geminiResult.toolCalls,
+                  { symbol: asset.symbol, name: asset.name }
+                )
+                
+                if (validationResult.validated && validationResult.verdict) {
+                  skepticVerdict = validationResult.verdict
+                  
+                  // Broadcast skeptic result
+                  await broadcastEvent(jobId, 'skeptic_validation', {
+                    verdict: validationResult.verdict.verdict,
+                    confidence: validationResult.verdict.confidence,
+                    issues: validationResult.verdict.issues
+                  })
+                  
+                  // Update message metadata with skeptic verdict
+                  await supabase
+                    .from('chat_messages')
+                    .update({ 
+                      metadata: { 
+                        skeptic_verdict: validationResult.verdict,
+                        validated_at: new Date().toISOString()
+                      } 
+                    })
+                    .eq('message_id', assistantMessage?.message_id)
+                    .catch(e => console.error('Failed to update message with skeptic verdict:', e))
+                }
+              } catch (skepticError) {
+                // Skeptic errors should never block the main flow
+                console.error('Skeptic validation error (non-blocking):', skepticError)
+              }
+            }
+            
             await updateJob('completed', { 
               completed_at: new Date().toISOString(),
-              result: { message_id: assistantMessage?.message_id, api_version: API_VERSION }
+              result: { 
+                message_id: assistantMessage?.message_id, 
+                api_version: API_VERSION,
+                skeptic_verdict: skepticVerdict
+              }
             })
             
-            console.log(`Job ${jobId} completed successfully in ${latencyMs}ms`)
+            console.log(`Job ${jobId} completed successfully in ${latencyMs}ms${skepticVerdict ? ` (Skeptic: ${skepticVerdict.verdict})` : ''}`)
             
           } catch (err) {
             console.error('Background task failed:', err)
