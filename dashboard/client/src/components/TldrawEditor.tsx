@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, lazy, Suspense } from 'react';
 import { createShapeId } from 'tldraw';
 import {
-  X, Download, Maximize2, Minimize2, Loader2,
+  X, Maximize2, Minimize2, Loader2,
   TrendingUp, TrendingDown, Minus
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -143,113 +143,122 @@ function TldrawWrapper({ diagramData }: { diagramData?: DiagramData }) {
       return;
     }
 
-    // Calculate layout positions
-    const nodePositions: Record<string, { x: number; y: number }> = {};
-    const cols = Math.ceil(Math.sqrt(diagramData.nodes.length));
-    const spacingX = 280;
-    const spacingY = 180;
-    const startX = 200;
-    const startY = 200;
+    // Import toRichText dynamically since it's needed for geo shape text
+    import('tldraw').then(({ toRichText }) => {
+      // Calculate layout positions
+      const nodePositions: Record<string, { x: number; y: number }> = {};
+      const cols = Math.ceil(Math.sqrt(diagramData.nodes.length));
+      const spacingX = 280;
+      const spacingY = 180;
+      const startX = 200;
+      const startY = 200;
 
-    // Position nodes in a grid
-    diagramData.nodes.forEach((node, index) => {
-      const col = index % cols;
-      const row = Math.floor(index / cols);
-      nodePositions[node.id] = {
-        x: startX + col * spacingX,
-        y: startY + row * spacingY,
-      };
-    });
-
-    // Create shapes using the editor API
-    const shapeIds: Record<string, ReturnType<typeof createShapeId>> = {};
-    
-    try {
-      // Create node shapes
-      diagramData.nodes.forEach((node) => {
-        const pos = nodePositions[node.id];
-        const shapeId = createShapeId();
-        shapeIds[node.id] = shapeId;
-
-        const color = categoryToColor[node.category || 'neutral'] || 'grey';
-        const labelText = node.valueLabel 
-          ? `${node.label}\n${node.valueLabel}`
-          : node.label;
-
-        console.log('Creating shape:', { id: shapeId, label: labelText, pos, color });
-
-        editor.createShape({
-          id: shapeId,
-          type: 'geo',
-          x: pos.x,
-          y: pos.y,
-          props: {
-            w: 200,
-            h: 100,
-            geo: 'rectangle',
-            color: color,
-            fill: 'solid',
-            size: 'm',
-            text: labelText,
-            align: 'middle',
-            verticalAlign: 'middle',
-            font: 'sans',
-          },
-        });
+      // Position nodes in a grid
+      diagramData.nodes.forEach((node, index) => {
+        const col = index % cols;
+        const row = Math.floor(index / cols);
+        nodePositions[node.id] = {
+          x: startX + col * spacingX,
+          y: startY + row * spacingY,
+        };
       });
 
-      console.log('Created shapes:', Object.keys(shapeIds).length);
+      // Create shapes using the editor API
+      const shapeIds: Record<string, ReturnType<typeof createShapeId>> = {};
+      
+      try {
+        // Create node shapes
+        diagramData.nodes.forEach((node) => {
+          const pos = nodePositions[node.id];
+          const shapeId = createShapeId();
+          shapeIds[node.id] = shapeId;
 
-      // Create connection arrows
-      diagramData.connections.forEach((conn, index) => {
-        const fromId = shapeIds[conn.from];
-        const toId = shapeIds[conn.to];
-        
-        if (fromId && toId) {
-          const arrowId = createShapeId();
-          
-          console.log('Creating arrow:', { from: conn.from, to: conn.to, arrowId });
+          const color = categoryToColor[node.category || 'neutral'] || 'grey';
+          const labelText = node.valueLabel 
+            ? `${node.label}\n${node.valueLabel}`
+            : node.label;
 
+          console.log('Creating shape:', { id: shapeId, label: labelText, pos, color });
+
+          // Use richText instead of text for geo shapes in tldraw 4.x
           editor.createShape({
-            id: arrowId,
-            type: 'arrow',
+            id: shapeId,
+            type: 'geo',
+            x: pos.x,
+            y: pos.y,
             props: {
-              color: 'grey',
+              w: 200,
+              h: 100,
+              geo: 'rectangle',
+              color: color,
+              fill: 'solid',
+              dash: 'solid',
               size: 'm',
-              arrowheadEnd: 'arrow',
-              arrowheadStart: 'none',
-              start: {
-                type: 'binding',
-                boundShapeId: fromId,
-                normalizedAnchor: { x: 0.5, y: 1 },
-                isExact: false,
-                isPrecise: false,
-              },
-              end: {
-                type: 'binding',
-                boundShapeId: toId,
-                normalizedAnchor: { x: 0.5, y: 0 },
-                isExact: false,
-                isPrecise: false,
-              },
-              text: conn.label || '',
+              font: 'sans',
+              align: 'middle',
+              verticalAlign: 'middle',
+              richText: toRichText(labelText),
+              labelColor: 'white',
+              growY: 0,
+              scale: 1,
             },
           });
-        }
-      });
+        });
 
-      // Zoom to fit all shapes after a short delay
-      setTimeout(() => {
-        try {
-          editor.zoomToFit({ animation: { duration: 300 } });
-        } catch (e) {
-          console.error('Error zooming to fit:', e);
-        }
-      }, 200);
-      
-    } catch (err) {
-      console.error('Error creating shapes:', err);
-    }
+        console.log('Created shapes:', Object.keys(shapeIds).length);
+
+        // Create connection arrows
+        diagramData.connections.forEach((conn, index) => {
+          const fromId = shapeIds[conn.from];
+          const toId = shapeIds[conn.to];
+          
+          if (fromId && toId) {
+            const arrowId = createShapeId();
+            
+            console.log('Creating arrow:', { from: conn.from, to: conn.to, arrowId });
+
+            editor.createShape({
+              id: arrowId,
+              type: 'arrow',
+              props: {
+                color: 'grey',
+                size: 'm',
+                arrowheadEnd: 'arrow',
+                arrowheadStart: 'none',
+                start: {
+                  type: 'binding',
+                  boundShapeId: fromId,
+                  normalizedAnchor: { x: 0.5, y: 1 },
+                  isExact: false,
+                  isPrecise: false,
+                },
+                end: {
+                  type: 'binding',
+                  boundShapeId: toId,
+                  normalizedAnchor: { x: 0.5, y: 0 },
+                  isExact: false,
+                  isPrecise: false,
+                },
+              },
+            });
+          }
+        });
+
+        // Zoom to fit all shapes after a short delay
+        setTimeout(() => {
+          try {
+            editor.zoomToFit({ animation: { duration: 300 } });
+          } catch (e) {
+            console.error('Error zooming to fit:', e);
+          }
+        }, 200);
+        
+      } catch (err) {
+        console.error('Error creating shapes:', err);
+      }
+    }).catch(err => {
+      console.error('Error importing toRichText:', err);
+    });
   }, [diagramData]);
 
   if (!cssLoaded) {
