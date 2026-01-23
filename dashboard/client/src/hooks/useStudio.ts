@@ -72,11 +72,25 @@ export function useStudio({ chatId }: UseStudioOptions): UseStudioReturn {
         throw new Error(errorData.error || 'Failed to load outputs');
       }
 
-      const data = await response.json();
-      console.log('[useStudio] Loaded outputs:', data?.length || 0);
+      const rawData = await response.json();
+      
+      // Handle various response formats - could be array directly or wrapped in { outputs: [...] }
+      let data: Record<string, unknown>[];
+      if (Array.isArray(rawData)) {
+        data = rawData;
+      } else if (rawData && typeof rawData === 'object' && 'outputs' in rawData && Array.isArray(rawData.outputs)) {
+        data = rawData.outputs;
+      } else if (rawData === null || rawData === undefined) {
+        data = [];
+      } else {
+        console.error('[useStudio] Unexpected response format:', rawData);
+        data = [];
+      }
+      
+      console.log('[useStudio] Loaded outputs:', data.length);
       
       // Transform snake_case API response to camelCase frontend format
-      const transformedOutputs: StudioOutput[] = (data || []).map((item: Record<string, unknown>) => {
+      const transformedOutputs: StudioOutput[] = data.map((item: Record<string, unknown>) => {
         // Parse diagram_data if it's a string (sometimes Supabase returns JSONB as string)
         let diagramData = item.diagram_data;
         if (typeof diagramData === 'string') {
