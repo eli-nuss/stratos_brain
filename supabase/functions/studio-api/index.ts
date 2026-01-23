@@ -632,6 +632,19 @@ Then output your diagram JSON.`
   // Use JSON mode for reliable parsing
   const content = await generateWithGemini(userPrompt, systemPrompt, true, diagramJsonSchema)
   
+  // DEBUG: Log raw content details
+  console.log('[studio-api] === RAW CONTENT DEBUG ===' );
+  console.log('[studio-api] Raw content length:', content.length);
+  console.log('[studio-api] Raw content type:', typeof content);
+  console.log('[studio-api] Raw first 500:', content.substring(0, 500));
+  console.log('[studio-api] Raw last 500:', content.substring(content.length - 500));
+  
+  // Check for null bytes or special characters that might cause issues
+  const nullByteIndex = content.indexOf('\0');
+  if (nullByteIndex !== -1) {
+    console.error('[studio-api] WARNING: Null byte found at index:', nullByteIndex);
+  }
+  
   // Sanitize JSON to handle Gemini's repeating decimal bug
   // Truncate any number with more than 4 decimal places to prevent JSON overflow
   const sanitizedContent = content.replace(
@@ -639,15 +652,18 @@ Then output your diagram JSON.`
     '$1'
   );
   
+  console.log('[studio-api] After decimal sanitize length:', sanitizedContent.length);
+  
   // Also handle scientific notation edge cases and very long integers
   const furtherSanitized = sanitizedContent.replace(
     /(\d{15})\d+/g,
     '$1'
   );
   
-  console.log('[studio-api] Content length:', content.length, 'Sanitized length:', furtherSanitized.length);
-  console.log('[studio-api] First 1000 chars of sanitized:', furtherSanitized.substring(0, 1000));
-  console.log('[studio-api] Last 300 chars of sanitized:', furtherSanitized.substring(furtherSanitized.length - 300));
+  console.log('[studio-api] === SANITIZED CONTENT DEBUG ===');
+  console.log('[studio-api] Final sanitized length:', furtherSanitized.length);
+  console.log('[studio-api] Sanitized first 500:', furtherSanitized.substring(0, 500));
+  console.log('[studio-api] Sanitized last 500:', furtherSanitized.substring(furtherSanitized.length - 500));
   
   // Parse the JSON response
   let parsedData: DiagramSpec | undefined
