@@ -645,18 +645,26 @@ Then output your diagram JSON.`
     console.error('[studio-api] WARNING: Null byte found at index:', nullByteIndex);
   }
   
-  // Sanitize JSON to handle Gemini's repeating decimal bug
-  // Truncate any number with more than 4 decimal places to prevent JSON overflow
-  const sanitizedContent = content.replace(
+  // COMPREHENSIVE SANITIZATION for Gemini's number bugs
+  // Step 1: Handle repeating sequences of the same digit (e.g., 000000000000000000000)
+  // This catches Gemini's bug where it outputs very long sequences of repeated digits
+  let sanitizedContent = content.replace(
+    /(\d)\1{20,}/g,  // Match any digit repeated 20+ times
+    '$1$1$1$1'  // Replace with just 4 of that digit
+  );
+  console.log('[studio-api] After repeat-digit sanitize length:', sanitizedContent.length);
+  
+  // Step 2: Truncate decimals to 4 places
+  sanitizedContent = sanitizedContent.replace(
     /(\d+\.\d{4})\d+/g, 
     '$1'
   );
-  
   console.log('[studio-api] After decimal sanitize length:', sanitizedContent.length);
   
-  // Also handle scientific notation edge cases and very long integers
+  // Step 3: Handle very long integers (but be careful not to break IDs)
+  // Only match numbers that are purely digits (not inside strings that might be IDs)
   const furtherSanitized = sanitizedContent.replace(
-    /(\d{15})\d+/g,
+    /(?<!["'])\b(\d{15})\d+\b(?!["'])/g,
     '$1'
   );
   
