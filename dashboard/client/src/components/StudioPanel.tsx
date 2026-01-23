@@ -16,7 +16,10 @@ export interface DiagramNode {
   label: string;
   value?: number;
   valueLabel?: string;
+  percentage?: number;
   category?: 'revenue' | 'cost' | 'asset' | 'metric' | 'risk' | 'neutral';
+  parentId?: string;
+  children?: string[];
   color?: string;
   icon?: string;
 }
@@ -36,7 +39,12 @@ export interface DiagramMetric {
 }
 
 export interface DiagramData {
-  chartType?: 'flowchart' | 'sankey' | 'pie' | 'bar' | 'treemap';
+  layoutType?: 'treemap' | 'hierarchy' | 'waterfall' | 'sankey' | 'comparison' | 'timeline';
+  chartType?: 'flowchart' | 'sankey' | 'pie' | 'bar' | 'treemap'; // Legacy support
+  title?: string;
+  subtitle?: string;
+  totalValue?: number;
+  totalLabel?: string;
   nodes: DiagramNode[];
   connections: DiagramConnection[];
   metrics?: DiagramMetric[];

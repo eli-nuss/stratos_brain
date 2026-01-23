@@ -1,4 +1,3 @@
-// Studio API - Generates reports, slides, diagrams, and tables from chat context and sources
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
@@ -14,15 +13,17 @@ const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
 
 type OutputType = 'report' | 'slides' | 'diagram' | 'table'
+type LayoutType = 'treemap' | 'hierarchy' | 'waterfall' | 'sankey' | 'comparison' | 'timeline'
 
 interface DiagramNode {
   id: string
   label: string
   value?: number
   valueLabel?: string
+  percentage?: number
   category?: 'revenue' | 'cost' | 'asset' | 'metric' | 'risk' | 'neutral'
-  color?: string
-  icon?: string
+  parentId?: string // For hierarchy layouts
+  children?: string[] // For hierarchy layouts
 }
 
 interface DiagramConnection {
@@ -40,7 +41,11 @@ interface DiagramMetric {
 }
 
 interface DiagramData {
-  chartType?: 'flowchart' | 'sankey' | 'pie' | 'bar' | 'treemap'
+  layoutType: LayoutType
+  title: string
+  subtitle?: string
+  totalValue?: number
+  totalLabel?: string
   nodes: DiagramNode[]
   connections: DiagramConnection[]
   metrics?: DiagramMetric[]
@@ -105,7 +110,7 @@ async function generateWithGemini(prompt: string, systemPrompt: string): Promise
         },
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 8192,
+          maxOutputTokens: 8000,
         }
       })
     }
@@ -119,31 +124,30 @@ async function generateWithGemini(prompt: string, systemPrompt: string): Promise
   return data.candidates?.[0]?.content?.parts?.[0]?.text || ''
 }
 
-// Generate a report
+// Generate investment report
 async function generateReport(context: Awaited<ReturnType<typeof getChatContext>>, customPrompt?: string): Promise<{ title: string; content: string }> {
   const { messages, sources, chatInfo } = context
   
-  const systemPrompt = `You are a professional financial analyst creating investment reports. 
-Generate a comprehensive, well-structured investment report in Markdown format.
-Include sections like: Executive Summary, Key Findings, Analysis, Risks, and Recommendations.
-Use proper Markdown formatting with headers, bullet points, and tables where appropriate.
-Be specific and data-driven in your analysis.`
+  const systemPrompt = `You are a senior investment analyst creating a comprehensive investment report.
+Write in a professional, analytical style with clear sections and supporting data.
+Include: Executive Summary, Investment Thesis, Key Metrics, Risk Analysis, and Recommendation.
+Use markdown formatting with headers, bullet points, and tables where appropriate.
+Be specific with numbers and cite sources when available.`
 
   const contextText = `
-## Chat Context
 Company/Asset: ${chatInfo?.display_name || 'Unknown'}
 Asset Type: ${chatInfo?.asset_type || 'Unknown'}
 
-## Conversation History
-${messages.map(m => `**${m.role}**: ${m.content}`).join('\n\n')}
+## Chat Discussion Summary
+${messages.filter(m => m.role === 'assistant').slice(-5).map(m => m.content.substring(0, 1500)).join('\n\n')}
 
 ## Source Documents
-${sources.map(s => `### ${s.name}\n${s.content.substring(0, 5000)}`).join('\n\n')}
+${sources.slice(0, 3).map(s => `### ${s.name}\n${s.content.substring(0, 3000)}`).join('\n\n')}
 `
 
   const userPrompt = customPrompt 
-    ? `Based on the following context, create an investment report with these specific instructions: ${customPrompt}\n\n${contextText}`
-    : `Based on the following context, create a comprehensive investment report:\n\n${contextText}`
+    ? `Create an investment report with these specific instructions: ${customPrompt}\n\n${contextText}`
+    : `Create a comprehensive investment report:\n\n${contextText}`
 
   const content = await generateWithGemini(userPrompt, systemPrompt)
   
@@ -197,85 +201,132 @@ ${sources.slice(0, 3).map(s => `${s.name}: ${s.content.substring(0, 2000)}`).joi
   }
 }
 
-// Generate enhanced diagram with metrics and multiple chart types
+// Generate SMART diagram with intelligent layout selection
 async function generateDiagram(context: Awaited<ReturnType<typeof getChatContext>>, customPrompt?: string): Promise<{ title: string; content: string; diagramData?: DiagramData }> {
   const { messages, sources, chatInfo } = context
   
-  const systemPrompt = `You are creating rich, data-driven diagrams to visualize financial concepts.
-You MUST output a JSON object that can be rendered as an interactive chart.
+  const systemPrompt = `You are an expert data visualization designer creating intelligent, insightful diagrams.
+Your job is to think carefully about what visualization best tells the story of the data.
 
-Output format (ONLY output valid JSON, no markdown, no explanation):
+CRITICAL: You must output ONLY a valid JSON object. No markdown, no explanation, no code blocks.
+
+LAYOUT TYPES - Choose the one that best fits the data story:
+
+1. "treemap" - For showing composition/breakdown where parts make up a whole
+   - Use when: Revenue breakdown by segment, expense allocation, market share
+   - Nodes are sized PROPORTIONALLY to their values
+   - Example: Apple revenue by product (iPhone 52%, Services 22%, Mac 10%, etc.)
+
+2. "hierarchy" - For showing parent-child relationships and organizational structure
+   - Use when: Corporate structure, category breakdowns, decision trees
+   - Has a root node at top with children flowing down
+   - Example: Total Revenue → Product Revenue + Service Revenue → Individual products
+
+3. "waterfall" - For showing how a starting value builds up or breaks down to an ending value
+   - Use when: Bridge charts, profit walkdown, value creation analysis
+   - Shows sequential additions/subtractions
+   - Example: Revenue → Gross Profit → Operating Profit → Net Income
+
+4. "sankey" - For showing flows between categories with proportional widths
+   - Use when: Money flows, resource allocation, conversion funnels
+   - Connections have values that determine their visual width
+   - Example: Revenue sources flowing to expense categories
+
+5. "comparison" - For comparing metrics across different entities
+   - Use when: Competitor analysis, year-over-year comparison, scenario analysis
+   - Side-by-side bars or grouped elements
+   - Example: Apple vs Samsung vs Google revenue comparison
+
+6. "timeline" - For showing events or metrics over time
+   - Use when: Historical performance, milestones, projections
+   - Nodes arranged chronologically
+   - Example: Quarterly revenue over past 8 quarters
+
+OUTPUT FORMAT:
 {
-  "title": "Diagram title",
-  "description": "Brief explanation of what the diagram shows",
-  "chartType": "flowchart" | "sankey" | "pie" | "bar" | "treemap",
+  "layoutType": "treemap" | "hierarchy" | "waterfall" | "sankey" | "comparison" | "timeline",
+  "title": "Clear, descriptive title",
+  "subtitle": "Brief explanation of what this diagram shows",
+  "totalValue": 394000000000,
+  "totalLabel": "$394B",
   "nodes": [
-    { 
-      "id": "1", 
-      "label": "Revenue", 
-      "value": 1500000000,
-      "valueLabel": "$1.5B",
+    {
+      "id": "1",
+      "label": "iPhone",
+      "value": 205000000000,
+      "valueLabel": "$205B",
+      "percentage": 52,
       "category": "revenue",
-      "color": "#22c55e",
-      "icon": "dollar"
+      "parentId": null
+    },
+    {
+      "id": "2", 
+      "label": "Services",
+      "value": 85000000000,
+      "valueLabel": "$85B",
+      "percentage": 22,
+      "category": "revenue",
+      "parentId": null
     }
   ],
   "connections": [
-    { "from": "1", "to": "2", "label": "45%", "value": 675000000 }
+    { "from": "root", "to": "1", "value": 205000000000 }
   ],
   "metrics": [
-    { "label": "Total Revenue", "value": "$1.5B", "change": "+12%", "trend": "up" },
-    { "label": "Gross Margin", "value": "32%", "change": "-2%", "trend": "down" }
+    { "label": "Total Revenue", "value": "$394B", "change": "+8%", "trend": "up" },
+    { "label": "YoY Growth", "value": "8%", "change": "+2pp", "trend": "up" }
   ]
 }
 
-Chart Types:
-- "flowchart": For showing processes, hierarchies, or relationships
-- "sankey": For showing money/resource flows with proportional widths
-- "pie": For showing composition/breakdown of a whole
-- "bar": For comparing values across categories
-- "treemap": For showing hierarchical data with proportional areas
+IMPORTANT RULES:
+1. ALWAYS include actual numeric values - use real data from context or make educated estimates
+2. ALWAYS include percentage for composition diagrams (treemap, hierarchy)
+3. Values should be realistic and internally consistent (parts should sum to total)
+4. Use valueLabel for human-readable format ($205B, 52%, 2.3x)
+5. Include 2-4 relevant metrics that provide context
+6. For hierarchy, use parentId to establish relationships
+7. For waterfall, order nodes sequentially from start to end
+8. Category determines color: revenue=green, cost=red, asset=blue, metric=purple, risk=orange, neutral=gray
 
-Node Categories (use for color coding):
-- "revenue": Green (#22c55e) - Income sources
-- "cost": Red (#ef4444) - Expenses, costs
-- "asset": Blue (#3b82f6) - Assets, resources
-- "metric": Purple (#a855f7) - KPIs, metrics
-- "risk": Orange (#f97316) - Risks, warnings
-- "neutral": Gray (#6b7280) - General information
-
-Rules:
-- Include actual numbers and percentages when available from context
-- Use valueLabel for formatted display (e.g., "$1.5B", "45%", "2.3x")
-- Choose the most appropriate chartType for the data
-- For financial flows, prefer sankey charts
-- For breakdowns, prefer pie or treemap
-- For comparisons, prefer bar charts
-- Include 2-4 key metrics when relevant
-- Output ONLY the JSON object, nothing else`
+THINK STEP BY STEP:
+1. What story does the user want to tell?
+2. What is the best layout to tell that story?
+3. What are the key data points to include?
+4. How should they be sized/positioned relative to each other?
+5. What metrics provide important context?`
 
   const contextText = `
 Company/Asset: ${chatInfo?.display_name || 'Unknown'}
 
-## Key Topics from Discussion
-${messages.filter(m => m.role === 'assistant').slice(-3).map(m => m.content.substring(0, 500)).join('\n\n')}
+## Recent Analysis (use this data for the diagram)
+${messages.filter(m => m.role === 'assistant').slice(-5).map(m => m.content.substring(0, 2000)).join('\n\n')}
+
+## Source Documents (reference for accurate data)
+${sources.slice(0, 2).map(s => `${s.name}: ${s.content.substring(0, 3000)}`).join('\n\n')}
 `
 
   const userPrompt = customPrompt 
-    ? `Create a diagram with these specific instructions: ${customPrompt}\n\n${contextText}`
-    : `Create a diagram that visualizes the key concepts and relationships discussed:\n\n${contextText}`
+    ? `Create a smart, visually compelling diagram: ${customPrompt}
+
+Think about:
+- What layout type best tells this story?
+- What are the actual numbers involved?
+- How should elements be sized relative to each other?
+- What context/metrics would help the viewer understand?
+
+Context:
+${contextText}`
+    : `Create a diagram that best visualizes the key financial data and relationships for ${chatInfo?.display_name || 'this company'}.
+
+Choose the most appropriate layout type and include real numbers from the context.
+
+Context:
+${contextText}`
 
   const content = await generateWithGemini(userPrompt, systemPrompt)
   
   // Try to parse the JSON response
-  let parsedData: {
-    title?: string
-    description?: string
-    chartType?: DiagramData['chartType']
-    nodes: DiagramNode[]
-    connections: DiagramConnection[]
-    metrics?: DiagramMetric[]
-  } | undefined
+  let parsedData: DiagramData | undefined
   
   try {
     // Clean up the response - remove any markdown code blocks if present
@@ -290,22 +341,22 @@ ${messages.filter(m => m.role === 'assistant').slice(-3).map(m => m.content.subs
     }
     cleanContent = cleanContent.trim()
     
-    parsedData = JSON.parse(cleanContent)
+    parsedData = JSON.parse(cleanContent) as DiagramData
+    
+    // Ensure layoutType is valid
+    const validLayouts: LayoutType[] = ['treemap', 'hierarchy', 'waterfall', 'sankey', 'comparison', 'timeline']
+    if (!parsedData.layoutType || !validLayouts.includes(parsedData.layoutType)) {
+      parsedData.layoutType = 'treemap' // Default to treemap
+    }
   } catch (e) {
     console.error('Failed to parse diagram JSON:', e)
+    console.error('Raw content:', content)
   }
-  
-  const diagramData: DiagramData | undefined = parsedData ? {
-    chartType: parsedData.chartType || 'flowchart',
-    nodes: parsedData.nodes,
-    connections: parsedData.connections,
-    metrics: parsedData.metrics,
-  } : undefined
   
   return {
     title: parsedData?.title || `Diagram: ${chatInfo?.display_name || 'Analysis'}`,
-    content: parsedData?.description || content,
-    diagramData,
+    content: parsedData?.subtitle || 'Visualization of key data',
+    diagramData: parsedData,
   }
 }
 
@@ -317,30 +368,21 @@ async function generateTable(context: Awaited<ReturnType<typeof getChatContext>>
 Generate well-formatted Markdown tables with clear headers and organized data.
 Include multiple tables if needed to cover different aspects of the analysis.
 Add brief explanations before each table.
-
-Example format:
-## Financial Metrics
-
-| Metric | Value | YoY Change |
-|--------|-------|------------|
-| Revenue | $10.5B | +15% |
-| Net Income | $2.1B | +8% |
-
-Focus on extracting and organizing numerical data and key facts from the context.`
+Use proper number formatting (e.g., $1.5B, 12.3%, 2.5x).`
 
   const contextText = `
 Company/Asset: ${chatInfo?.display_name || 'Unknown'}
 
-## Discussion Content
-${messages.filter(m => m.role === 'assistant').slice(-5).map(m => m.content).join('\n\n')}
+## Key Data Points
+${messages.filter(m => m.role === 'assistant').slice(-3).map(m => m.content.substring(0, 1000)).join('\n\n')}
 
 ## Source Data
-${sources.slice(0, 3).map(s => `${s.name}: ${s.content.substring(0, 3000)}`).join('\n\n')}
+${sources.slice(0, 2).map(s => `${s.name}: ${s.content.substring(0, 2000)}`).join('\n\n')}
 `
 
   const userPrompt = customPrompt 
     ? `Create data tables with these specific instructions: ${customPrompt}\n\n${contextText}`
-    : `Extract and organize the key data into well-formatted tables:\n\n${contextText}`
+    : `Create organized data tables summarizing the key financial information:\n\n${contextText}`
 
   const content = await generateWithGemini(userPrompt, systemPrompt)
   
@@ -350,64 +392,59 @@ ${sources.slice(0, 3).map(s => `${s.name}: ${s.content.substring(0, 3000)}`).joi
   }
 }
 
+// Main handler
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
-  
+
   try {
     const url = new URL(req.url)
-    const fullPathParts = url.pathname.split('/').filter(Boolean)
-    // Remove 'functions', 'v1', 'studio-api' prefix
-    const studioApiIndex = fullPathParts.indexOf('studio-api')
-    const pathParts = studioApiIndex >= 0 ? fullPathParts.slice(studioApiIndex + 1) : fullPathParts
+    const pathParts = url.pathname.split('/').filter(Boolean)
+    
+    // Strip the function name prefix from path
+    const functionIndex = pathParts.findIndex(p => p === 'studio-api')
+    const relevantPath = functionIndex >= 0 ? pathParts.slice(functionIndex + 1) : pathParts
     
     // Get auth token
-    const authHeader = req.headers.get('Authorization')
+    const authHeader = req.headers.get('authorization')
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Missing authorization' }), {
+      return new Response(JSON.stringify({ error: 'No authorization header' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
+
+    const token = authHeader.replace('Bearer ', '')
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
     
-    // Create Supabase client with user's token
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
-      global: { headers: { Authorization: authHeader } }
-    })
-    
-    // Get user ID from token
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    )
-    
+    // Verify user
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
     if (authError || !user) {
       return new Response(JSON.stringify({ error: 'Invalid authorization' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
-    
-    const userId = user.id
-    
-    // Route: POST /generate - Generate an output
-    if (req.method === 'POST' && pathParts.length === 1 && pathParts[0] === 'generate') {
+
+    // POST /generate - Generate new output
+    if (req.method === 'POST' && (relevantPath.length === 0 || relevantPath[0] === 'generate')) {
       const body: GenerateRequest = await req.json()
       const { chat_id, output_type, prompt } = body
-      
+
       if (!chat_id || !output_type) {
-        return new Response(JSON.stringify({ error: 'chat_id and output_type are required' }), {
+        return new Response(JSON.stringify({ error: 'Missing chat_id or output_type' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
-      
+
       // Get chat context
-      const context = await getChatContext(supabase, chat_id, userId)
-      
-      // Generate based on type
-      let result: { title: string; content: string; diagramData?: { nodes: Array<{ id: string; label: string }>; connections: Array<{ from: string; to: string; label?: string }> } }
+      const context = await getChatContext(supabase, chat_id, user.id)
+
+      // Generate content based on type
+      let result: { title: string; content: string; diagramData?: DiagramData }
       
       switch (output_type) {
         case 'report':
@@ -428,29 +465,29 @@ serve(async (req) => {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
       }
-      
+
       return new Response(JSON.stringify({
-        output_id: `output-${Date.now()}`,
+        id: crypto.randomUUID(),
         type: output_type,
         title: result.title,
         content: result.content,
         diagramData: result.diagramData,
+        status: 'ready',
+        created_at: new Date().toISOString(),
       }), {
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
-    
-    // 404 for unknown routes
+
     return new Response(JSON.stringify({ error: 'Not found' }), {
       status: 404,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
-    
+
   } catch (error) {
     console.error('Studio API error:', error)
-    return new Response(JSON.stringify({ 
-      error: error instanceof Error ? error.message : 'Internal server error' 
-    }), {
+    return new Response(JSON.stringify({ error: error.message || 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
