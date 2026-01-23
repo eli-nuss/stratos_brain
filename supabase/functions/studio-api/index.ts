@@ -13,7 +13,7 @@ const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
 
 // Use the latest Gemini model for diagram generation
-const GEMINI_MODEL = 'gemini-2.5-pro-preview-05-06'
+const GEMINI_MODEL = 'gemini-3-pro-preview'
 
 type OutputType = 'report' | 'slides' | 'diagram' | 'table'
 
