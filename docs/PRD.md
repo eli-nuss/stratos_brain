@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 23, 2026 (v2.7 - Studio Output Persistence)  
+**Last Updated: January 23, 2026 (v2.8 - Enhanced Studio Panel with Visual & UX Improvements)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -235,29 +235,50 @@ The Studio Panel provides an interactive workspace for creating and viewing visu
   - Nodes sized by percentage values
   - Parent-child hierarchy support
   - Color-coded segments with labels
-- **Flowchart Layout**: Process flows, decision trees, organizational structures
-  - Horizontal and vertical orientations
-  - Connection lines between nodes
-  - Multiple node types (default, decision, process)
+- **Hierarchy Layout**: Organizational structures, category breakdowns, decision trees
+  - Root node at top with children flowing down
+  - Connection lines between parent and child nodes
+- **Waterfall Layout**: Bridge charts, profit walkdown, value creation analysis
+  - Sequential additions/subtractions from starting value
+  - Running total visualization
+- **Comparison Layout**: Side-by-side comparisons, competitor analysis
+  - Grouped bar charts for multiple entities
+  - Percentage and absolute value display
+
+#### Visual Enhancements
+- **Color Schemes**: 4 built-in color palettes (Default, Vibrant, Pastel, Monochrome)
+- **Hover Effects**: Interactive tooltips showing detailed node information
+- **Distinct Borders**: Visual separation between segments with shadows
+- **Theme Toggle**: Dark/Light mode support for all layouts
 
 #### Canvas Features
-- **Pan & Zoom**: Interactive navigation with mouse/touch controls
-- **Export**: PNG export for sharing and embedding
+- **Pan & Zoom**: Interactive navigation with mouse/touch controls and slider
+- **Export Options**: PNG export with size options (Small 800px, Medium 1200px, Large 1920px)
 - **Fullscreen Mode**: Expanded view for detailed analysis
 - **Reset View**: Return to default zoom and position
+- **Settings Panel**: Color scheme and theme configuration
+- **Share Button**: Quick sharing functionality
+
+#### UX Improvements
+- **Thumbnails**: Visual preview thumbnails in the output list
+- **Inline Rename**: Click to edit output titles directly
+- **Duplicate**: Regenerate outputs with the same prompt
+- **Context Menu**: Right-click menu with all actions (View, Download, Rename, Duplicate, Delete)
+- **More Options Button**: Three-dot menu for quick access to all actions
 
 #### Technical Implementation
 - React-based DiagramCanvas component with SVG rendering
-- Treemap algorithm for proportional box sizing
+- Squarified treemap algorithm for proportional box sizing
 - Responsive layout adapting to container size
 - Integration with studio-api Edge Function for AI-generated diagrams
 
 #### Persistence
 - All generated outputs are automatically saved to the `studio_outputs` database table
 - Outputs persist across page refreshes and sessions
-- Users can view, download, and delete saved outputs
+- Users can view, download, rename, and delete saved outputs
 - Outputs are scoped to chat sessions and user accounts
 - JWT-based authentication for secure API access
+- PATCH endpoint for renaming outputs
                                                                                             
                                                                                              - ---
 
