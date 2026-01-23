@@ -15,6 +15,37 @@ const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
 
 type OutputType = 'report' | 'slides' | 'diagram' | 'table'
 
+interface DiagramNode {
+  id: string
+  label: string
+  value?: number
+  valueLabel?: string
+  category?: 'revenue' | 'cost' | 'asset' | 'metric' | 'risk' | 'neutral'
+  color?: string
+  icon?: string
+}
+
+interface DiagramConnection {
+  from: string
+  to: string
+  label?: string
+  value?: number
+}
+
+interface DiagramMetric {
+  label: string
+  value: string
+  change?: string
+  trend?: 'up' | 'down' | 'neutral'
+}
+
+interface DiagramData {
+  chartType?: 'flowchart' | 'sankey' | 'pie' | 'bar' | 'treemap'
+  nodes: DiagramNode[]
+  connections: DiagramConnection[]
+  metrics?: DiagramMetric[]
+}
+
 interface GenerateRequest {
   chat_id: string
   output_type: OutputType
@@ -166,30 +197,61 @@ ${sources.slice(0, 3).map(s => `${s.name}: ${s.content.substring(0, 2000)}`).joi
   }
 }
 
-// Generate Excalidraw-style diagram with JSON format
-async function generateDiagram(context: Awaited<ReturnType<typeof getChatContext>>, customPrompt?: string): Promise<{ title: string; content: string; diagramData?: { nodes: Array<{ id: string; label: string }>; connections: Array<{ from: string; to: string; label?: string }> } }> {
+// Generate enhanced diagram with metrics and multiple chart types
+async function generateDiagram(context: Awaited<ReturnType<typeof getChatContext>>, customPrompt?: string): Promise<{ title: string; content: string; diagramData?: DiagramData }> {
   const { messages, sources, chatInfo } = context
   
-  const systemPrompt = `You are creating diagrams to visualize financial concepts and relationships.
-You MUST output a JSON object with nodes and connections that can be rendered as a flowchart.
+  const systemPrompt = `You are creating rich, data-driven diagrams to visualize financial concepts.
+You MUST output a JSON object that can be rendered as an interactive chart.
 
 Output format (ONLY output valid JSON, no markdown, no explanation):
 {
   "title": "Diagram title",
   "description": "Brief explanation of what the diagram shows",
+  "chartType": "flowchart" | "sankey" | "pie" | "bar" | "treemap",
   "nodes": [
-    { "id": "1", "label": "Node Label" },
-    { "id": "2", "label": "Another Node" }
+    { 
+      "id": "1", 
+      "label": "Revenue", 
+      "value": 1500000000,
+      "valueLabel": "$1.5B",
+      "category": "revenue",
+      "color": "#22c55e",
+      "icon": "dollar"
+    }
   ],
   "connections": [
-    { "from": "1", "to": "2", "label": "optional connection label" }
+    { "from": "1", "to": "2", "label": "45%", "value": 675000000 }
+  ],
+  "metrics": [
+    { "label": "Total Revenue", "value": "$1.5B", "change": "+12%", "trend": "up" },
+    { "label": "Gross Margin", "value": "32%", "change": "-2%", "trend": "down" }
   ]
 }
 
+Chart Types:
+- "flowchart": For showing processes, hierarchies, or relationships
+- "sankey": For showing money/resource flows with proportional widths
+- "pie": For showing composition/breakdown of a whole
+- "bar": For comparing values across categories
+- "treemap": For showing hierarchical data with proportional areas
+
+Node Categories (use for color coding):
+- "revenue": Green (#22c55e) - Income sources
+- "cost": Red (#ef4444) - Expenses, costs
+- "asset": Blue (#3b82f6) - Assets, resources
+- "metric": Purple (#a855f7) - KPIs, metrics
+- "risk": Orange (#f97316) - Risks, warnings
+- "neutral": Gray (#6b7280) - General information
+
 Rules:
-- Create 4-8 nodes that represent key concepts
-- Connect nodes logically to show relationships
-- Use clear, concise labels (max 30 characters per label)
+- Include actual numbers and percentages when available from context
+- Use valueLabel for formatted display (e.g., "$1.5B", "45%", "2.3x")
+- Choose the most appropriate chartType for the data
+- For financial flows, prefer sankey charts
+- For breakdowns, prefer pie or treemap
+- For comparisons, prefer bar charts
+- Include 2-4 key metrics when relevant
 - Output ONLY the JSON object, nothing else`
 
   const contextText = `
@@ -206,7 +268,15 @@ ${messages.filter(m => m.role === 'assistant').slice(-3).map(m => m.content.subs
   const content = await generateWithGemini(userPrompt, systemPrompt)
   
   // Try to parse the JSON response
-  let diagramData: { nodes: Array<{ id: string; label: string }>; connections: Array<{ from: string; to: string; label?: string }>; title?: string; description?: string } | undefined
+  let parsedData: {
+    title?: string
+    description?: string
+    chartType?: DiagramData['chartType']
+    nodes: DiagramNode[]
+    connections: DiagramConnection[]
+    metrics?: DiagramMetric[]
+  } | undefined
+  
   try {
     // Clean up the response - remove any markdown code blocks if present
     let cleanContent = content.trim()
@@ -220,15 +290,22 @@ ${messages.filter(m => m.role === 'assistant').slice(-3).map(m => m.content.subs
     }
     cleanContent = cleanContent.trim()
     
-    diagramData = JSON.parse(cleanContent)
+    parsedData = JSON.parse(cleanContent)
   } catch (e) {
     console.error('Failed to parse diagram JSON:', e)
   }
   
+  const diagramData: DiagramData | undefined = parsedData ? {
+    chartType: parsedData.chartType || 'flowchart',
+    nodes: parsedData.nodes,
+    connections: parsedData.connections,
+    metrics: parsedData.metrics,
+  } : undefined
+  
   return {
-    title: diagramData?.title || `Diagram: ${chatInfo?.display_name || 'Analysis'}`,
-    content: diagramData?.description || content,
-    diagramData: diagramData ? { nodes: diagramData.nodes, connections: diagramData.connections } : undefined,
+    title: parsedData?.title || `Diagram: ${chatInfo?.display_name || 'Analysis'}`,
+    content: parsedData?.description || content,
+    diagramData,
   }
 }
 

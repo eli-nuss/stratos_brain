@@ -11,9 +11,35 @@ import { MermaidDiagram } from './MermaidDiagram';
 
 export type OutputType = 'report' | 'slides' | 'diagram' | 'table';
 
+export interface DiagramNode {
+  id: string;
+  label: string;
+  value?: number;
+  valueLabel?: string;
+  category?: 'revenue' | 'cost' | 'asset' | 'metric' | 'risk' | 'neutral';
+  color?: string;
+  icon?: string;
+}
+
+export interface DiagramConnection {
+  from: string;
+  to: string;
+  label?: string;
+  value?: number;
+}
+
+export interface DiagramMetric {
+  label: string;
+  value: string;
+  change?: string;
+  trend?: 'up' | 'down' | 'neutral';
+}
+
 export interface DiagramData {
-  nodes: Array<{ id: string; label: string }>;
-  connections: Array<{ from: string; to: string; label?: string }>;
+  chartType?: 'flowchart' | 'sankey' | 'pie' | 'bar' | 'treemap';
+  nodes: DiagramNode[];
+  connections: DiagramConnection[];
+  metrics?: DiagramMetric[];
 }
 
 export interface StudioOutput {
