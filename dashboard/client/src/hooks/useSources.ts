@@ -46,7 +46,7 @@ interface UseSourcesReturn {
   getSourceContext: () => Promise<{ context: string; sourceCount: number; totalWords: number }>;
 }
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_URL = 'https://wfogbaipiqootjrsprde.supabase.co';
 
 export function useSources({ chatId, autoRefresh = true, refreshInterval = 5000 }: UseSourcesOptions): UseSourcesReturn {
   const { session } = useAuth();

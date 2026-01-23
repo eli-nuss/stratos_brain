@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 22, 2026 (v2.4 - Enhanced Generative UI)  
+**Last Updated: January 22, 2026 (v2.5 - NotebookLM Sources)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -240,7 +240,7 @@
                                                                                             | `daily_asset_scores` | Composite scores | `asset_id`, `weighted_score`, `inflection_score` |
                                                                                             | `asset_ai_reviews` | AI analysis output | `asset_id`, `thesis`, `confidence`, `direction`, `scope` |
 
-                                                                                            ### 5.2 Chat & Document Tables
+                                                                                            ### 5.2 Chat, Source & Document Tables
 
                                                                                             | Table | Purpose | Key Columns |
                                                                                             |-------|---------|-------------|
@@ -248,6 +248,7 @@
                                                                                             | `chat_messages` | Conversation history | `message_id`, `chat_id`, `role`, `content`, `tool_calls` |
                                                                                             | `company_documents` | SEC filings, transcripts | `document_id`, `asset_id`, `document_type`, `content` |
                                                                                             | `document_chunks` | RAG embeddings | `chunk_id`, `document_id`, `embedding`, `content` |
+| `chat_sources` | User-provided sources | `source_id`, `chat_id`, `user_id`, `source_type`, `name`, `status`, `is_enabled` |
 
                                                                                             ### 5.3 Institutional Data Tables
 
@@ -497,7 +498,8 @@
                                                                                             | Function | Purpose | Key Endpoints |
                                                                                             |----------|---------|---------------|
                                                                                             | `control-api` | Main dashboard API | `/dashboard/*`, `/assets/*`, `/watchlist/*` |
-                                                                                            | `company-chat-api` | Asset chat | `/chats`, `/chats/:id/messages` |
+                                                                                            | `sources-api` | NotebookLM-style sources | `/sources`, `/sources/:id` |
+| `company-chat-api` | Asset chat | `/chats`, `/chats/:id/messages` |
                                                                                             | `global-chat-api` | Market chat | `/chat`, `/screen` |
                                                                                             | `generate-document` | Document generation | `/generate` |
                                                                                             | `feedback-api` | User feedback | `/feedback` |
@@ -577,7 +579,8 @@ PATCH  /api/dashboard/research-notes/:id/favorite # Toggle favorite status
 │   ├── useDashboardData.ts
 │   ├── useCompanyChats.ts
 │   ├── useResearchNotes.ts
-│   └── useUnifiedSearch.ts
+│   | `useUnifiedSearch.ts` |
+| `useSources.ts` | Manages user-provided sources (files, URLs, text) for a chat
                                                                                             ├── pages/               # Route pages
                                                                                             │   ├── Home.tsx
                                                                                             │   ├── CompanyChat.tsx
@@ -596,7 +599,8 @@ PATCH  /api/dashboard/research-notes/:id/favorite # Toggle favorite status
 | `CustomizableAssetTable` | Flexible data table with sorting/filtering, including tag-based sorting (Interesting first) |
 | `AssetDetail` | Modal with charts, AI analysis, trade plan, and EV+MC display for equities |
 | `chat/BaseChatInterface` | **Shared base component for all chat interfaces** (v2.1) - Provides unified message rendering, tool call visualization, streaming support, and error recovery |
-| `CompanyChatInterfaceNew` | Company-specific chat using BaseChatInterface with side panel for fundamentals/technicals |
+| `SourcesPanel` | UI for managing user-provided sources (files, URLs, text) |
+| `CompanyChatInterfaceNew` | Company-specific chat using BaseChatInterface with side panel for fundamentals/technicals and NotebookLM-style sources |
 | `BrainChatInterfaceNew` | Global Brain chat using BaseChatInterface with purple theme and market-wide tools |
 | `CompanySidePanel` | Mobile-optimized side panel with sticky tabs, touch-friendly controls, and drawer support |
 | `SmartMoneyTracker` | Institutional holdings visualization |
@@ -1001,6 +1005,12 @@ Both hooks subscribe to Supabase Realtime channels for live updates:
                                                                                             ---
 
                                                                                             ## 11. Roadmap & Planned Features
+
+### 11.1 Completed Features
+
+- **NotebookLM-style Sources (v2.5):** Users can now upload files, add URLs, and create text notes as custom sources for each chat. The AI will reference these sources when answering questions.
+
+### 11.2 Planned Features
 
                                                                                             ### 11.1 Agent Enhancement Tools
 
