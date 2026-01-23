@@ -255,13 +255,40 @@ ${contextSnapshot ? `## Latest Data\n${JSON.stringify(contextSnapshot, null, 1).
 Be concise, data-driven, and actionable.`
 }
 
+// Build user sources context from enabled sources
+function buildUserSourcesContext(sources: Array<{ source_id: string; name: string; source_type: string; extracted_text: string | null; word_count: number | null }>): string {
+  if (!sources || sources.length === 0) return ''
+  
+  const contextParts = sources.map((s, idx) => {
+    const typeLabel = s.source_type === 'file' ? '📄 File' : 
+                      s.source_type === 'url' ? '🔗 URL' : 
+                      s.source_type === 'text' ? '📝 Note' : '📁 Document'
+    const wordInfo = s.word_count ? ` (${s.word_count.toLocaleString()} words)` : ''
+    const text = s.extracted_text || '[No content extracted]'
+    // Truncate very long sources to avoid context overflow
+    const truncatedText = text.length > 15000 ? text.substring(0, 15000) + '\n\n[... content truncated for context limits ...]' : text
+    return `### Source ${idx + 1}: ${s.name} ${typeLabel}${wordInfo}\n\n${truncatedText}`
+  })
+  
+  const totalWords = sources.reduce((sum, s) => sum + (s.word_count || 0), 0)
+  
+  return `## 📚 USER-PROVIDED SOURCES (${sources.length} sources, ~${totalWords.toLocaleString()} words total)
+**The user has uploaded custom research materials. Reference these sources when answering questions.**
+
+${contextParts.join('\n\n---\n\n')}
+
+---
+`
+}
+
 // Build system prompt for company chat - Universal Analyst Protocol
 function buildSystemPrompt(
   asset: Record<string, unknown>, 
   contextSnapshot: Record<string, unknown> | null, 
   chatConfig: ChatConfig = {},
   preloadedDocs: { deepResearch: string | null; memo: string | null; onePager: string | null } = { deepResearch: null, memo: null, onePager: null },
-  useCompactMode: boolean = false
+  useCompactMode: boolean = false,
+  userSourcesContext: string | null = null
 ): string {
   // Use compact mode for faster responses when documents aren't needed
   if (useCompactMode) {
@@ -437,6 +464,8 @@ ${preloadedDocs.onePager}
 
 ---
 ` : ''}
+
+${userSourcesContext || ''}
 
 ${contextSnapshot ? `## Latest Context Snapshot (REAL-TIME DATA)
 ${JSON.stringify(contextSnapshot, null, 2)}` : ''}
@@ -1106,9 +1135,9 @@ serve(async (req: Request) => {
           try {
             await updateJob('processing', { status_message: 'Starting analysis...' })
             
-            // OPTIMIZATION: Parallelize setup phase - fetch config, last message, and One Pager simultaneously
+            // OPTIMIZATION: Parallelize setup phase - fetch config, last message, One Pager, and user sources simultaneously
             const setupStartTime = Date.now()
-            const [chatConfig, lastMessageResult, preloadedDocs] = await Promise.all([
+            const [chatConfig, lastMessageResult, preloadedDocs, userSourcesResult] = await Promise.all([
               fetchChatConfig(supabase),
               supabase
                 .from('chat_messages')
@@ -1117,9 +1146,22 @@ serve(async (req: Request) => {
                 .order('sequence_num', { ascending: false })
                 .limit(1)
                 .single(),
-              fetchLatestDocuments(supabase, parseInt(chat.asset_id))
+              fetchLatestDocuments(supabase, parseInt(chat.asset_id)),
+              // Fetch enabled user sources for this chat
+              supabase
+                .from('chat_sources')
+                .select('source_id, name, source_type, extracted_text, word_count')
+                .eq('chat_id', chatId)
+                .eq('is_enabled', true)
+                .eq('status', 'ready')
+                .order('created_at', { ascending: true })
             ])
             console.log(`[Perf] Setup phase completed in ${Date.now() - setupStartTime}ms (parallel)`)
+            
+            // Build user sources context
+            const userSources = userSourcesResult.data || []
+            const userSourcesContext = userSources.length > 0 ? buildUserSourcesContext(userSources) : null
+            console.log(`[Sources] Found ${userSources.length} enabled user sources (${userSources.reduce((sum, s) => sum + (s.word_count || 0), 0)} words)`)
             
             const nextSeq = (lastMessageResult.data?.sequence_num || 0) + 1
             
@@ -1161,7 +1203,7 @@ serve(async (req: Request) => {
             // Override chatConfig model with user-selected model
             const configWithModel = { ...chatConfig, model: selectedModel }
             
-            const systemPrompt = buildSystemPrompt(asset, chat.context_snapshot, configWithModel, preloadedDocs)
+            const systemPrompt = buildSystemPrompt(asset, chat.context_snapshot, configWithModel, preloadedDocs, false, userSourcesContext)
             
             const startTime = Date.now()
             const geminiResult = await callGeminiWithTools(
@@ -1350,9 +1392,9 @@ serve(async (req: Request) => {
           })
         }
         
-        // OPTIMIZATION: Parallelize setup phase - fetch config, last message, and One Pager simultaneously
+        // OPTIMIZATION: Parallelize setup phase - fetch config, last message, One Pager, and user sources simultaneously
         const setupStartTime = Date.now()
-        const [chatConfig, lastMessageResult, preloadedDocs] = await Promise.all([
+        const [chatConfig, lastMessageResult, preloadedDocs, userSourcesResult] = await Promise.all([
           fetchChatConfig(supabase),
           supabase
             .from('chat_messages')
@@ -1361,9 +1403,22 @@ serve(async (req: Request) => {
             .order('sequence_num', { ascending: false })
             .limit(1)
             .single(),
-          fetchLatestDocuments(supabase, parseInt(chat.asset_id))
+          fetchLatestDocuments(supabase, parseInt(chat.asset_id)),
+          // Fetch enabled user sources for this chat
+          supabase
+            .from('chat_sources')
+            .select('source_id, name, source_type, extracted_text, word_count')
+            .eq('chat_id', chatId)
+            .eq('is_enabled', true)
+            .eq('status', 'ready')
+            .order('created_at', { ascending: true })
         ])
         console.log(`[Perf] Setup phase completed in ${Date.now() - setupStartTime}ms (parallel)`)
+        
+        // Build user sources context
+        const userSources = userSourcesResult.data || []
+        const userSourcesContext = userSources.length > 0 ? buildUserSourcesContext(userSources) : null
+        console.log(`[Sources] Found ${userSources.length} enabled user sources (${userSources.reduce((sum, s) => sum + (s.word_count || 0), 0)} words)`)
         
         const nextSeq = (lastMessageResult.data?.sequence_num || 0) + 1
         
@@ -1399,7 +1454,7 @@ serve(async (req: Request) => {
         }
         // Override chatConfig model with user-selected model
         const configWithModel = { ...chatConfig, model: selectedModel }
-        const systemPrompt = buildSystemPrompt(asset, chat.context_snapshot, configWithModel, preloadedDocs)
+        const systemPrompt = buildSystemPrompt(asset, chat.context_snapshot, configWithModel, preloadedDocs, false, userSourcesContext)
         
         const startTime = Date.now()
         const geminiResult = await callGeminiWithToolsSafe(

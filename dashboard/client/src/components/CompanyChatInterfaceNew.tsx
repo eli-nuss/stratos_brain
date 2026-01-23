@@ -1,4 +1,6 @@
 import { Sparkles } from 'lucide-react';
+import { SourcesPanel } from './SourcesPanel';
+import { useSources } from '@/hooks/useSources';
 import {
   useChatMessages,
   useSendMessage,
@@ -33,6 +35,17 @@ export function CompanyChatInterfaceNew({ chat, onRefresh }: CompanyChatInterfac
     isLoading: messagesLoading, 
     refresh: refreshMessages 
   } = useChatMessages(chat.chat_id);
+
+  // Sources hook
+  const {
+    sources,
+    isLoading: sourcesLoading,
+    addSource,
+    toggleSource,
+    deleteSource,
+    reprocessSource,
+    getSourceContext,
+  } = useSources({ chatId: chat.chat_id });
 
   // Send message hook with all streaming state
   const {
@@ -74,13 +87,28 @@ export function CompanyChatInterfaceNew({ chat, onRefresh }: CompanyChatInterfac
     return response.json();
   };
 
-  // Side panel for fundamentals
+  // Side panel with Sources and Fundamentals
   const sidePanel = (
-    <CompanySidePanel
-      assetId={chat.asset_id}
-      assetType={chat.asset_type}
-      className="h-full"
-    />
+    <div className="h-full flex flex-col overflow-hidden">
+      {/* Sources Panel */}
+      <SourcesPanel
+        chatId={chat.chat_id}
+        sources={sources}
+        isLoading={sourcesLoading}
+        onAddSource={addSource}
+        onToggleSource={toggleSource}
+        onDeleteSource={deleteSource}
+        onReprocessSource={reprocessSource}
+      />
+      {/* Fundamentals Panel */}
+      <div className="flex-1 overflow-y-auto">
+        <CompanySidePanel
+          assetId={chat.asset_id}
+          assetType={chat.asset_type}
+          className="h-full"
+        />
+      </div>
+    </div>
   );
 
   return (
@@ -91,7 +119,15 @@ export function CompanyChatInterfaceNew({ chat, onRefresh }: CompanyChatInterfac
       messages={messages}
       messagesLoading={messagesLoading}
       refreshMessages={refreshMessages}
-      sendMessage={sendMessage}
+      sendMessage={async (message, model) => {
+        // Get source context before sending
+        const sourceContext = await getSourceContext();
+        // Include source context in the message if there are sources
+        const messageWithContext = sourceContext.sourceCount > 0
+          ? `[User has provided ${sourceContext.sourceCount} sources with ${sourceContext.totalWords} words of context]\n\n${message}`
+          : message;
+        return sendMessage(messageWithContext, model);
+      }}
       resetSendState={resetSendState}
       isSending={isSending}
       isProcessing={isProcessing}
