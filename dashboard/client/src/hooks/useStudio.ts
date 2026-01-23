@@ -76,17 +76,29 @@ export function useStudio({ chatId }: UseStudioOptions): UseStudioReturn {
       console.log('[useStudio] Loaded outputs:', data?.length || 0);
       
       // Transform snake_case API response to camelCase frontend format
-      const transformedOutputs: StudioOutput[] = (data || []).map((item: Record<string, unknown>) => ({
-        id: item.output_id as string,
-        type: item.output_type as OutputType,
-        title: item.title as string,
-        status: item.status as 'generating' | 'ready' | 'error',
-        content: item.content as string | undefined,
-        diagramData: item.diagram_data as StudioOutput['diagramData'],
-        error: item.error_message as string | undefined,
-        createdAt: item.created_at as string,
-        prompt: item.prompt as string | undefined,
-      }));
+      const transformedOutputs: StudioOutput[] = (data || []).map((item: Record<string, unknown>) => {
+        // Parse diagram_data if it's a string (sometimes Supabase returns JSONB as string)
+        let diagramData = item.diagram_data;
+        if (typeof diagramData === 'string') {
+          try {
+            diagramData = JSON.parse(diagramData);
+          } catch (e) {
+            console.error('[useStudio] Failed to parse diagram_data:', e);
+          }
+        }
+        
+        return {
+          id: item.output_id as string,
+          type: item.output_type as OutputType,
+          title: item.title as string,
+          status: item.status as 'generating' | 'ready' | 'error',
+          content: item.content as string | undefined,
+          diagramData: diagramData as StudioOutput['diagramData'],
+          error: item.error_message as string | undefined,
+          createdAt: item.created_at as string,
+          prompt: item.prompt as string | undefined,
+        };
+      });
       
       setOutputs(transformedOutputs);
       hasLoadedRef.current = true;
@@ -191,13 +203,23 @@ export function useStudio({ chatId }: UseStudioOptions): UseStudioReturn {
         attempts++;
       }
 
+      // Parse diagram_data if it's a string
+      let diagramData = completedData.diagram_data;
+      if (typeof diagramData === 'string') {
+        try {
+          diagramData = JSON.parse(diagramData);
+        } catch (e) {
+          console.error('[useStudio] Failed to parse diagram_data:', e);
+        }
+      }
+
       const completedOutput: StudioOutput = {
         id: completedData.output_id || completedData.id || `output-${Date.now()}`,
         type,
         title: completedData.title || getDefaultTitle(type),
         status: completedData.status || 'ready',
         content: completedData.content,
-        diagramData: completedData.diagram_data, // Transform snake_case to camelCase
+        diagramData: diagramData as StudioOutput['diagramData'],
         error: completedData.error_message,
         createdAt: completedData.created_at || new Date().toISOString(),
       };

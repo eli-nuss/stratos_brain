@@ -130,6 +130,13 @@ const DiagramCanvas: React.FC<DiagramCanvasProps> = ({
   const isFlexible = isFlexibleSpec(diagramData);
   const flexibleSpec = isFlexible ? diagramData as DiagramSpec : null;
   const legacyData = !isFlexible ? diagramData as DiagramData : null;
+  
+  // Debug logging
+  console.log('[DiagramCanvas] diagramData:', diagramData);
+  console.log('[DiagramCanvas] isFlexible:', isFlexible);
+  console.log('[DiagramCanvas] flexibleSpec:', flexibleSpec);
+  console.log('[DiagramCanvas] has canvas:', diagramData && 'canvas' in diagramData);
+  console.log('[DiagramCanvas] has elements:', diagramData && 'elements' in diagramData);
 
   // Get title and subtitle from either format
   const displayTitle = flexibleSpec?.canvas?.title || legacyData?.title || title;
