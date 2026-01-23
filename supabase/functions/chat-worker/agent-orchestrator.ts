@@ -1,7 +1,7 @@
 // Agent Orchestrator for the "Skeptic" Agent Loop
 // Coordinates Scout, Quant, and Skeptic agents in a sequential workflow
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0"
 import {
   AgentState,
   AgentOutput,

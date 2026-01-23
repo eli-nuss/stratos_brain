@@ -2,7 +2,7 @@
 // Unified Tool Execution Handlers - "Shared Brain" Architecture
 // Both Global Chat and Company Chat import from this single source of truth
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 // Type definitions
 type SupabaseClient = ReturnType<typeof createClient>

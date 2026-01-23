@@ -3,7 +3,7 @@
 // Unified Tool Architecture v2 - imports from shared library
 // Deployment trigger: 2025-01-13-unified-v1
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import { UNIFIED_TOOL_DECLARATIONS } from '../_shared/unified_tools.ts'
 import { executeUnifiedTool } from '../_shared/unified_tool_handlers.ts'
 

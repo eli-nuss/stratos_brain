@@ -3,7 +3,7 @@
 // Deployment trigger: 2025-01-21-streaming-v8-match-working
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import { UNIFIED_TOOL_DECLARATIONS } from '../_shared/unified_tools.ts'
 import { executeUnifiedTool } from '../_shared/unified_tool_handlers.ts'
 

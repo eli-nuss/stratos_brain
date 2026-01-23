@@ -8,7 +8,7 @@
 // 3. Supabase Anon Key: apikey: <SUPABASE_ANON_KEY> (for browser clients)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0"
 import { MEMO_TEMPLATE, ONE_PAGER_TEMPLATE, SYSTEM_PROMPT, formatDatabaseContext, AssetData } from "./gemini-templates.ts"
 
 const corsHeaders = {
