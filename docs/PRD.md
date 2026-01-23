@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 23, 2026 (v2.6 - Studio Panel & Treemap Diagrams)  
+**Last Updated: January 23, 2026 (v2.7 - Studio Output Persistence)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -251,6 +251,13 @@ The Studio Panel provides an interactive workspace for creating and viewing visu
 - Treemap algorithm for proportional box sizing
 - Responsive layout adapting to container size
 - Integration with studio-api Edge Function for AI-generated diagrams
+
+#### Persistence
+- All generated outputs are automatically saved to the `studio_outputs` database table
+- Outputs persist across page refreshes and sessions
+- Users can view, download, and delete saved outputs
+- Outputs are scoped to chat sessions and user accounts
+- JWT-based authentication for secure API access
                                                                                             
                                                                                              - ---
 
@@ -278,6 +285,7 @@ The Studio Panel provides an interactive workspace for creating and viewing visu
                                                                                             | `company_documents` | SEC filings, transcripts | `document_id`, `asset_id`, `document_type`, `content` |
                                                                                             | `document_chunks` | RAG embeddings | `chunk_id`, `document_id`, `embedding`, `content` |
 | `chat_sources` | User-provided sources | `source_id`, `chat_id`, `user_id`, `source_type`, `name`, `status`, `is_enabled` |
+| `studio_outputs` | Generated studio outputs | `output_id`, `chat_id`, `user_id`, `output_type`, `title`, `status`, `content`, `diagram_data` |
 
                                                                                             ### 5.3 Institutional Data Tables
 
