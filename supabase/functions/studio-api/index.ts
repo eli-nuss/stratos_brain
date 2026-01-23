@@ -1,4 +1,4 @@
-
+// @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
@@ -13,55 +13,110 @@ const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
 
 // Use the latest Gemini model
-const GEMINI_MODEL = 'gemini-3-pro-preview'
+const GEMINI_MODEL = 'gemini-2.5-pro-preview-05-06'
 
 type OutputType = 'report' | 'slides' | 'diagram' | 'table'
-type LayoutType = 'treemap' | 'hierarchy' | 'waterfall' | 'sankey' | 'comparison' | 'timeline'
 
+// ============ FLEXIBLE DIAGRAM TYPES ============
 interface ThoughtProcess {
   user_intent: string
-  data_shape: string
-  selected_layout: LayoutType
+  data_analysis: string
+  visualization_strategy: string
   reasoning: string
 }
 
-interface DiagramNode {
-  id: string
-  label: string
-  value?: number
-  valueLabel?: string
-  percentage?: number
-  category?: 'revenue' | 'cost' | 'asset' | 'metric' | 'risk' | 'neutral' | 'positive' | 'negative'
-  parentId?: string // For hierarchy layouts
-  children?: string[] // For hierarchy layouts
-  date?: string // For timeline layouts
-  details?: string
-}
-
-interface DiagramConnection {
-  from: string
-  to: string
-  label?: string
-  value?: number
-}
-
-interface DiagramMetric {
-  label: string
-  value: string
-  change?: string
-  trend?: 'up' | 'down' | 'neutral'
-}
-
-interface DiagramData {
-  thought_process?: ThoughtProcess
-  layoutType: LayoutType
+interface CanvasConfig {
   title: string
   subtitle?: string
-  totalValue?: number
-  totalLabel?: string
-  nodes: DiagramNode[]
-  connections: DiagramConnection[]
-  metrics?: DiagramMetric[]
+}
+
+interface BaseElement {
+  id: string
+  label: string
+  tooltip?: string
+}
+
+interface BarElement extends BaseElement {
+  type: 'bar'
+  value: number
+  displayValue?: string
+  color?: string
+  category?: string
+  group?: string
+  order?: number
+}
+
+interface BoxElement extends BaseElement {
+  type: 'box'
+  value?: number
+  displayValue?: string
+  percentage?: number
+  color?: string
+  category?: string
+  parentId?: string
+  metrics?: Record<string, string | number>
+}
+
+interface FlowElement extends BaseElement {
+  type: 'flow'
+  value?: number
+  displayValue?: string
+  color?: string
+  column?: number
+}
+
+interface MetricElement extends BaseElement {
+  type: 'metric'
+  value: string | number
+  displayValue?: string
+  change?: string
+  trend?: 'up' | 'down' | 'neutral'
+  color?: string
+}
+
+interface TextElement extends BaseElement {
+  type: 'text'
+  content: string
+  size?: 'small' | 'medium' | 'large'
+  color?: string
+}
+
+type DiagramElement = BarElement | BoxElement | FlowElement | MetricElement | TextElement
+
+interface Connection {
+  from: string
+  to: string
+  value?: number
+  displayValue?: string
+  label?: string
+  color?: string
+}
+
+interface LayoutHints {
+  arrangement?: 'horizontal' | 'vertical' | 'grid' | 'radial' | 'tree' | 'flow' | 'waterfall'
+  spacing?: 'compact' | 'normal' | 'spacious'
+  groupBy?: string
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
+}
+
+interface LegendItem {
+  label: string
+  color: string
+}
+
+interface Legend {
+  show?: boolean
+  items?: LegendItem[]
+}
+
+interface DiagramSpec {
+  thought_process: ThoughtProcess
+  canvas: CanvasConfig
+  elements: DiagramElement[]
+  connections?: Connection[]
+  layout?: LayoutHints
+  legend?: Legend
 }
 
 interface GenerateRequest {
@@ -78,7 +133,7 @@ interface StudioOutput {
   title: string
   status: 'generating' | 'ready' | 'error'
   content?: string
-  diagram_data?: DiagramData
+  diagram_data?: DiagramSpec
   error_message?: string
   prompt?: string
   created_at: string
@@ -91,14 +146,12 @@ async function getChatContext(supabase: ReturnType<typeof createClient>, chatId:
   sources: Array<{ name: string; content: string }>;
   chatInfo: { display_name: string; asset_type: string } | null;
 }> {
-  // Get chat info
   const { data: chat } = await supabase
     .from('company_chats')
     .select('display_name, asset_type, symbol')
     .eq('chat_id', chatId)
     .single()
 
-  // Get messages
   const { data: messages } = await supabase
     .from('chat_messages')
     .select('role, content')
@@ -106,7 +159,6 @@ async function getChatContext(supabase: ReturnType<typeof createClient>, chatId:
     .order('sequence_num', { ascending: true })
     .limit(50)
 
-  // Get enabled sources
   const { data: sources } = await supabase
     .from('chat_sources')
     .select('name, extracted_text')
@@ -122,108 +174,137 @@ async function getChatContext(supabase: ReturnType<typeof createClient>, chatId:
   }
 }
 
-// JSON Schema for diagram data with thought_process - used with Gemini's JSON mode
+// Flexible JSON Schema - Gemini decides the structure
 const diagramJsonSchema = {
   type: "object",
   properties: {
     thought_process: {
       type: "object",
-      description: "Chain-of-thought reasoning before generating the diagram",
+      description: "Your reasoning process before creating the visualization",
       properties: {
-        user_intent: { type: "string", description: "What is the core question the user is trying to answer?" },
-        data_shape: { type: "string", description: "What does the available data look like? (Time-series, Composition, Relational flow, etc.)" },
-        selected_layout: { 
-          type: "string", 
-          enum: ["treemap", "hierarchy", "waterfall", "sankey", "comparison", "timeline"],
-          description: "Which layout best matches this data shape?"
-        },
-        reasoning: { type: "string", description: "Brief explanation of why this layout was chosen" }
+        user_intent: { type: "string", description: "What is the user trying to understand or analyze?" },
+        data_analysis: { type: "string", description: "What data is available and what are the key numbers/relationships?" },
+        visualization_strategy: { type: "string", description: "What visual approach will best communicate this information?" },
+        reasoning: { type: "string", description: "Why did you choose this specific combination of elements?" }
       },
-      required: ["user_intent", "data_shape", "selected_layout", "reasoning"]
+      required: ["user_intent", "data_analysis", "visualization_strategy", "reasoning"]
     },
-    layoutType: { 
-      type: "string", 
-      enum: ["treemap", "hierarchy", "waterfall", "sankey", "comparison", "timeline"],
-      description: "The visualization layout type (must match thought_process.selected_layout)"
+    canvas: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "Clear, descriptive title" },
+        subtitle: { type: "string", description: "Additional context or explanation" }
+      },
+      required: ["title"]
     },
-    title: { type: "string", description: "Clear, descriptive title for the diagram" },
-    subtitle: { type: "string", description: "Brief explanation of what this diagram shows" },
-    totalValue: { type: "number", description: "Total value for the entire diagram (optional)" },
-    totalLabel: { type: "string", description: "Formatted total value label (e.g., '$394B')" },
-    nodes: {
+    elements: {
       type: "array",
+      description: "The visual elements that make up the diagram",
       items: {
         type: "object",
         properties: {
-          id: { type: "string", description: "Unique identifier for the node" },
-          label: { type: "string", description: "Display label for the node" },
-          value: { type: "number", description: "Numeric value for the node" },
-          valueLabel: { type: "string", description: "Formatted value label (e.g., '$205B')" },
-          percentage: { type: "number", description: "Percentage of total (0-100)" },
-          category: { 
+          type: { 
             type: "string", 
-            enum: ["revenue", "cost", "asset", "metric", "risk", "neutral", "positive", "negative"],
-            description: "Category for color coding"
+            enum: ["bar", "box", "flow", "metric", "text"],
+            description: "Element type: bar (for charts), box (for treemaps/cards), flow (for sankeys), metric (for KPIs), text (for annotations)"
           },
-          parentId: { type: "string", description: "Parent node ID for hierarchy layouts" },
-          date: { type: "string", description: "Date string for timeline layouts (e.g., 'Q1 2024', '2023')" },
-          details: { type: "string", description: "Additional details for tooltip" },
-          metrics: {
-            type: "object",
-            description: "For comparison charts: key-value pairs of metric names to numeric values (e.g., {peRatio: 25.5, yield: 0.5, growth: 12.3})",
-            additionalProperties: { type: "number" }
+          id: { type: "string", description: "Unique identifier" },
+          label: { type: "string", description: "Display label" },
+          value: { type: "number", description: "Numeric value" },
+          displayValue: { type: "string", description: "Formatted value like '$394B' or '25.5%'" },
+          color: { type: "string", description: "Color hex code or name (e.g., '#4dabf7', 'blue', 'green')" },
+          category: { type: "string", description: "Category for grouping/coloring (e.g., 'positive', 'negative', 'revenue', 'cost')" },
+          group: { type: "string", description: "Group name for grouped charts" },
+          order: { type: "number", description: "Explicit ordering (lower = first)" },
+          parentId: { type: "string", description: "Parent element ID for hierarchies" },
+          percentage: { type: "number", description: "Percentage value (0-100)" },
+          column: { type: "number", description: "Column index for flow diagrams (0, 1, 2...)" },
+          change: { type: "string", description: "Change indicator for metrics (e.g., '+12.5%')" },
+          trend: { type: "string", enum: ["up", "down", "neutral"], description: "Trend direction" },
+          content: { type: "string", description: "Text content for text elements" },
+          tooltip: { type: "string", description: "Hover tooltip text" },
+          metrics: { 
+            type: "object", 
+            description: "Key-value pairs for displaying multiple metrics on a box element",
+            additionalProperties: { type: ["string", "number"] }
           }
         },
-        required: ["id", "label"]
+        required: ["type", "id", "label"]
       }
     },
     connections: {
       type: "array",
+      description: "Lines/arrows connecting elements (for flows, hierarchies)",
       items: {
         type: "object",
         properties: {
-          from: { type: "string", description: "Source node ID" },
-          to: { type: "string", description: "Target node ID" },
+          from: { type: "string", description: "Source element ID" },
+          to: { type: "string", description: "Target element ID" },
+          value: { type: "number", description: "Flow value (determines line thickness)" },
+          displayValue: { type: "string", description: "Formatted value" },
           label: { type: "string", description: "Connection label" },
-          value: { type: "number", description: "Flow value for Sankey diagrams" }
+          color: { type: "string", description: "Line color" }
         },
         required: ["from", "to"]
       }
     },
-    metrics: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          label: { type: "string", description: "Metric label" },
-          value: { type: "string", description: "Formatted metric value" },
-          change: { type: "string", description: "Change indicator (e.g., '+8%')" },
-          trend: { type: "string", enum: ["up", "down", "neutral"] }
+    layout: {
+      type: "object",
+      description: "Hints for how to arrange the elements",
+      properties: {
+        arrangement: { 
+          type: "string", 
+          enum: ["horizontal", "vertical", "grid", "radial", "tree", "flow", "waterfall"],
+          description: "How to arrange elements spatially"
         },
-        required: ["label", "value"]
+        spacing: { type: "string", enum: ["compact", "normal", "spacious"] },
+        groupBy: { type: "string", description: "Field to group elements by" },
+        sortBy: { type: "string", description: "Field to sort elements by" },
+        sortOrder: { type: "string", enum: ["asc", "desc"] }
+      }
+    },
+    legend: {
+      type: "object",
+      properties: {
+        show: { type: "boolean" },
+        items: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              label: { type: "string" },
+              color: { type: "string" }
+            }
+          }
+        }
       }
     }
   },
-  required: ["thought_process", "layoutType", "title", "nodes", "connections"]
+  required: ["thought_process", "canvas", "elements"]
 }
 
-// Generate content using Gemini with optional JSON mode
-async function generateWithGemini(
-  prompt: string, 
-  systemPrompt: string, 
-  useJsonMode: boolean = false,
-  jsonSchema?: object
-): Promise<string> {
-  const generationConfig: Record<string, unknown> = {
-    temperature: useJsonMode ? 0.3 : 0.7, // Slightly higher temp for better reasoning
-    maxOutputTokens: 8000,
+// Generate content with Gemini
+async function generateWithGemini(prompt: string, systemPrompt: string, useJsonMode = false, jsonSchema?: object): Promise<string> {
+  const requestBody: Record<string, unknown> = {
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: `${systemPrompt}\n\n${prompt}` }]
+      }
+    ],
+    generationConfig: {
+      temperature: 0.7,
+      topK: 40,
+      topP: 0.95,
+      maxOutputTokens: 8192,
+    }
   }
 
-  // Enable JSON mode with schema if specified
-  if (useJsonMode) {
-    generationConfig.responseMimeType = "application/json"
-    if (jsonSchema) {
-      generationConfig.responseSchema = jsonSchema
+  if (useJsonMode && jsonSchema) {
+    requestBody.generationConfig = {
+      ...requestBody.generationConfig as object,
+      responseMimeType: "application/json",
+      responseSchema: jsonSchema
     }
   }
 
@@ -232,21 +313,13 @@ async function generateWithGemini(
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{ text: prompt }]
-        }],
-        systemInstruction: {
-          parts: [{ text: systemPrompt }]
-        },
-        generationConfig
-      })
+      body: JSON.stringify(requestBody)
     }
   )
 
   if (!response.ok) {
-    const errorText = await response.text()
-    console.error('[studio-api] Gemini API error:', response.status, errorText)
+    const error = await response.text()
+    console.error('[studio-api] Gemini API error:', error)
     throw new Error(`Gemini API error: ${response.status}`)
   }
 
@@ -254,59 +327,46 @@ async function generateWithGemini(
   return data.candidates?.[0]?.content?.parts?.[0]?.text || ''
 }
 
-// Generate investment report
+// Generate report
 async function generateReport(context: Awaited<ReturnType<typeof getChatContext>>, customPrompt?: string): Promise<{ title: string; content: string }> {
   const { messages, sources, chatInfo } = context
   
-  const systemPrompt = `You are a senior investment analyst creating a comprehensive investment report.
-Write in a professional, analytical style with clear sections and supporting data.
-Include: Executive Summary, Investment Thesis, Key Metrics, Risk Analysis, and Recommendation.
-Use markdown formatting with headers, bullet points, and tables where appropriate.
-Be specific with numbers and cite sources when available.`
+  const systemPrompt = `You are a professional financial analyst creating investment research reports.
+Write in a clear, professional style with proper markdown formatting.
+Include relevant data points, analysis, and conclusions.
+Structure the report with clear sections and headers.`
 
   const contextText = `
 Company/Asset: ${chatInfo?.display_name || 'Unknown'}
 Asset Type: ${chatInfo?.asset_type || 'Unknown'}
 
-## Chat Discussion Summary
-${messages.filter(m => m.role === 'assistant').slice(-5).map(m => m.content.substring(0, 1500)).join('\n\n')}
+## Key Discussion Points
+${messages.filter(m => m.role === 'assistant').slice(-5).map(m => m.content.substring(0, 1000)).join('\n\n')}
 
-## Source Documents
-${sources.slice(0, 3).map(s => `### ${s.name}\n${s.content.substring(0, 3000)}`).join('\n\n')}
+## Source Highlights
+${sources.slice(0, 3).map(s => `${s.name}: ${s.content.substring(0, 2000)}`).join('\n\n')}
 `
 
   const userPrompt = customPrompt 
-    ? `Create an investment report with these specific instructions: ${customPrompt}\n\n${contextText}`
-    : `Create a comprehensive investment report:\n\n${contextText}`
+    ? `Create a research report with these specific instructions: ${customPrompt}\n\n${contextText}`
+    : `Create a comprehensive investment research report:\n\n${contextText}`
 
   const content = await generateWithGemini(userPrompt, systemPrompt)
   
   return {
-    title: `Investment Report: ${chatInfo?.display_name || 'Analysis'}`,
+    title: `Research Report: ${chatInfo?.display_name || 'Analysis'}`,
     content,
   }
 }
 
-// Generate slides content
+// Generate slides
 async function generateSlides(context: Awaited<ReturnType<typeof getChatContext>>, customPrompt?: string): Promise<{ title: string; content: string }> {
   const { messages, sources, chatInfo } = context
   
-  const systemPrompt = `You are creating a presentation deck for investors.
-Generate slide content in a structured format that can be converted to a presentation.
-Each slide should have a clear title and 3-5 bullet points.
-Use this format:
-
-# Slide 1: Title Slide
-- Main title
-- Subtitle/Date
-
-# Slide 2: Executive Summary
-- Key point 1
-- Key point 2
-- Key point 3
-
-Continue with relevant slides covering: Investment Thesis, Key Metrics, Risks, and Recommendation.
-Keep each slide focused and concise.`
+  const systemPrompt = `You are creating presentation slides for an investment pitch.
+Format each slide as a markdown section with ## for the slide title.
+Keep content concise and impactful - bullet points preferred.
+Include a title slide, key points, data highlights, and conclusion.`
 
   const contextText = `
 Company/Asset: ${chatInfo?.display_name || 'Unknown'}
@@ -331,214 +391,166 @@ ${sources.slice(0, 3).map(s => `${s.name}: ${s.content.substring(0, 2000)}`).joi
   }
 }
 
-// Generate SMART diagram with Chain-of-Thought reasoning and semantic routing
-async function generateDiagram(context: Awaited<ReturnType<typeof getChatContext>>, customPrompt?: string): Promise<{ title: string; content: string; diagramData?: DiagramData }> {
+// Generate FLEXIBLE diagram - Gemini decides everything
+async function generateDiagram(context: Awaited<ReturnType<typeof getChatContext>>, customPrompt?: string): Promise<{ title: string; content: string; diagramData?: DiagramSpec }> {
   const { messages, sources, chatInfo } = context
+  const assetName = chatInfo?.display_name || 'Unknown Asset'
   
-  // Information Architect Agent system prompt with semantic routing
-  const systemPrompt = `You are an expert Data Information Architect. Your goal is to translate user queries and chat context into the most insightful visual diagram.
-
-CRITICAL: You MUST output valid JSON with a "thought_process" key that shows your reasoning.
+  const systemPrompt = `You are an expert Data Visualization Designer. Your job is to create the most insightful visual representation of financial data.
 
 ═══════════════════════════════════════════════════════════════════════════════
-STEP 1: THINK BEFORE YOU ACT (Chain-of-Thought Reasoning)
+🎯 YOUR MISSION
 ═══════════════════════════════════════════════════════════════════════════════
 
-Before generating any diagram, you MUST fill out the thought_process object:
-1. user_intent: What is the core question the user is trying to answer?
-2. data_shape: What does the available data look like? (Time-series? Composition? Relational flow? Arithmetic bridge? Comparative?)
-3. selected_layout: Which layout best matches this data shape?
-4. reasoning: Brief explanation of why this layout was chosen
+Create a diagram about: **${assetName}**
+
+You have COMPLETE FREEDOM to design the visualization. Choose the elements, colors, layout, and structure that best tells the story.
 
 ═══════════════════════════════════════════════════════════════════════════════
-STEP 2: LAYOUT DECISION MATRIX (Semantic Router)
+📊 AVAILABLE ELEMENT TYPES
 ═══════════════════════════════════════════════════════════════════════════════
 
-Match the DATA SHAPE to the correct layout:
+You can use ANY combination of these elements:
 
-┌─────────────────────────────────────┬────────────────┬─────────────────────────────────────┐
-│ DATA SHAPE                          │ LAYOUT         │ WHEN TO USE                         │
-├─────────────────────────────────────┼────────────────┼─────────────────────────────────────┤
-│ Parts of a Whole / Composition      │ treemap        │ Market share, revenue segments,     │
-│                                     │                │ portfolio allocation, expense split │
-├─────────────────────────────────────┼────────────────┼─────────────────────────────────────┤
-│ Arithmetic Bridge / Change          │ waterfall      │ Profit walkdown, YoY earnings       │
-│                                     │                │ bridge, value creation/destruction  │
-├─────────────────────────────────────┼────────────────┼─────────────────────────────────────┤
-│ Resource Flow / Conversion          │ sankey         │ Cash flow, ad spend to conversions, │
-│                                     │                │ revenue to expenses allocation      │
-├─────────────────────────────────────┼────────────────┼─────────────────────────────────────┤
-│ Categorization / Taxonomy           │ hierarchy      │ Org chart, product lines, business  │
-│                                     │                │ segments breakdown, decision tree   │
-├─────────────────────────────────────┼────────────────┼─────────────────────────────────────┤
-│ Comparative / Benchmarking          │ comparison     │ AAPL vs MSFT, peer analysis,        │
-│                                     │                │ scenario comparison, metric compare │
-├─────────────────────────────────────┼────────────────┼─────────────────────────────────────┤
-│ Chronological / Time-based          │ timeline       │ Company history, quarterly results, │
-│                                     │                │ roadmap, milestones, projections    │
-└─────────────────────────────────────┴────────────────┴─────────────────────────────────────┘
+1. **bar** - Rectangular bars for comparing values
+   - Great for: Revenue comparisons, time series, rankings, waterfalls
+   - Key fields: value, displayValue, color, category, group, order
+
+2. **box** - Rectangular boxes/cards for hierarchies or compositions
+   - Great for: Treemaps, org charts, category breakdowns, card layouts
+   - Key fields: value, percentage, parentId, metrics, color
+
+3. **flow** - Nodes in a flow diagram
+   - Great for: Sankey diagrams, process flows, money flows
+   - Key fields: value, column (0=left, 1=middle, 2=right, etc.)
+
+4. **metric** - KPI cards showing key numbers
+   - Great for: Dashboard metrics, key stats, summary numbers
+   - Key fields: value, displayValue, change, trend
+
+5. **text** - Annotations and labels
+   - Great for: Callouts, explanations, section headers
+   - Key fields: content, size
 
 ═══════════════════════════════════════════════════════════════════════════════
-STEP 3: HANDLING VAGUE OR MISSING REQUESTS
+🎨 LAYOUT ARRANGEMENTS
 ═══════════════════════════════════════════════════════════════════════════════
 
-⚠️ CRITICAL: ALWAYS focus on the TARGET ASSET specified in the request, NOT other companies mentioned in chat history.
+Tell the frontend how to arrange your elements:
 
-If the user's request is vague, use these defaults FOR THE TARGET ASSET:
-
-• "financials" / "financial overview" / "income statement" / no specific request
-  → Default to WATERFALL showing the TARGET ASSET's: Revenue → Gross Profit → Operating Income → Net Income
-  → DO NOT show competitor comparisons unless explicitly requested
-  
-• "what does this company do" / "business model" / "how they make money" / "revenue breakdown"
-  → Default to TREEMAP of the TARGET ASSET's Revenue Segments by percentage
-  
-• "compare" / "vs" / "versus" / explicitly mentions multiple companies by name
-  → ONLY use COMPARISON if the user EXPLICITLY asks to compare companies
-  → The word "compare" or "vs" MUST be in the user's request
-  
-• "history" / "over time" / "trend" / "quarters" / "years"
-  → Default to TIMELINE with the TARGET ASSET's chronological data points
-  
-• "structure" / "organization" / "breakdown" / "categories"
-  → Default to HIERARCHY showing the TARGET ASSET's organizational/categorical relationships
-  
-• "flow" / "where does the money go" / "allocation"
-  → Default to SANKEY showing the TARGET ASSET's money/resource flows
-
-⚠️ IMPORTANT: Chat history may contain discussions about OTHER companies (competitors, peers).
-   IGNORE other companies unless the user EXPLICITLY asks to compare them.
-   The diagram should be about the TARGET ASSET unless comparison is explicitly requested.
-
-If the context lacks specific numbers for the TARGET ASSET, make educated estimates based on:
-- Industry standards and typical ratios for that company
-- Public company benchmarks
-- Reasonable assumptions
-Flag estimated data in the subtitle: "Based on industry estimates"
+- **horizontal**: Elements side by side (bar charts, comparisons)
+- **vertical**: Elements stacked (lists, timelines)
+- **grid**: Elements in a grid (treemaps, dashboards)
+- **tree**: Hierarchical tree structure (org charts)
+- **flow**: Left-to-right flow (sankey, process)
+- **waterfall**: Sequential bars with running total (income statements)
 
 ═══════════════════════════════════════════════════════════════════════════════
-FEW-SHOT EXAMPLES
+🎨 COLOR GUIDELINES
 ═══════════════════════════════════════════════════════════════════════════════
 
-EXAMPLE 1:
-User: "How are they making money?"
-thought_process: {
-  user_intent: "Understand revenue generation and business model",
-  data_shape: "Parts of a Whole / Composition",
-  selected_layout: "treemap",
-  reasoning: "User wants to see revenue breakdown by segment. Treemap shows proportional composition best."
+Use semantic colors:
+- **Positive/Revenue/Growth**: #51cf66 (green), #4dabf7 (blue)
+- **Negative/Cost/Decline**: #ff6b6b (red), #ffa94d (orange)
+- **Neutral**: #868e96 (gray), #748ffc (indigo)
+
+Or use category names and let the frontend pick:
+- category: "positive" / "negative" / "neutral"
+- category: "revenue" / "cost" / "profit"
+
+═══════════════════════════════════════════════════════════════════════════════
+📝 EXAMPLES
+═══════════════════════════════════════════════════════════════════════════════
+
+EXAMPLE 1: Income Statement Waterfall
+{
+  "thought_process": {
+    "user_intent": "Understand how revenue becomes profit",
+    "data_analysis": "Have revenue, costs, and profit figures",
+    "visualization_strategy": "Waterfall chart showing sequential deductions",
+    "reasoning": "Waterfall clearly shows the path from revenue to net income"
+  },
+  "canvas": { "title": "Apple Income Statement", "subtitle": "FY2024 ($B)" },
+  "elements": [
+    { "type": "bar", "id": "rev", "label": "Revenue", "value": 394, "displayValue": "$394B", "category": "neutral", "order": 1 },
+    { "type": "bar", "id": "cogs", "label": "Cost of Sales", "value": -224, "displayValue": "-$224B", "category": "negative", "order": 2 },
+    { "type": "bar", "id": "gross", "label": "Gross Profit", "value": 170, "displayValue": "$170B", "category": "positive", "order": 3 },
+    { "type": "bar", "id": "opex", "label": "Operating Exp", "value": -55, "displayValue": "-$55B", "category": "negative", "order": 4 },
+    { "type": "bar", "id": "net", "label": "Net Income", "value": 97, "displayValue": "$97B", "category": "positive", "order": 5 }
+  ],
+  "layout": { "arrangement": "waterfall" },
+  "legend": { "show": true, "items": [{ "label": "Positive", "color": "#51cf66" }, { "label": "Negative", "color": "#ff6b6b" }] }
 }
-Result: Treemap showing Revenue split by Product/Service segments with percentages.
 
-EXAMPLE 2:
-User: "Why did the stock crash?"
-thought_process: {
-  user_intent: "Understand what caused value destruction",
-  data_shape: "Arithmetic Bridge / Change",
-  selected_layout: "waterfall",
-  reasoning: "User wants to see sequential factors that led to decline. Waterfall shows additive/subtractive changes."
+EXAMPLE 2: Revenue Breakdown Treemap
+{
+  "thought_process": {
+    "user_intent": "See how the company makes money",
+    "data_analysis": "Revenue split across product segments",
+    "visualization_strategy": "Treemap showing proportional sizes",
+    "reasoning": "Treemap instantly shows relative importance of each segment"
+  },
+  "canvas": { "title": "Apple Revenue Breakdown", "subtitle": "FY2024 by Segment" },
+  "elements": [
+    { "type": "box", "id": "iphone", "label": "iPhone", "value": 205, "displayValue": "$205B", "percentage": 52, "color": "#4dabf7" },
+    { "type": "box", "id": "services", "label": "Services", "value": 85, "displayValue": "$85B", "percentage": 22, "color": "#51cf66" },
+    { "type": "box", "id": "mac", "label": "Mac", "value": 40, "displayValue": "$40B", "percentage": 10, "color": "#748ffc" },
+    { "type": "box", "id": "ipad", "label": "iPad", "value": 30, "displayValue": "$30B", "percentage": 8, "color": "#ffa94d" },
+    { "type": "box", "id": "wearables", "label": "Wearables", "value": 34, "displayValue": "$34B", "percentage": 8, "color": "#f06595" }
+  ],
+  "layout": { "arrangement": "grid" }
 }
-Result: Waterfall showing Start Price → Missed Earnings (-15%) → Sector Downturn (-8%) → End Price.
 
-EXAMPLE 3:
-User: "Compare to competitors"
-thought_process: {
-  user_intent: "Benchmark against peers",
-  data_shape: "Comparative / Benchmarking",
-  selected_layout: "comparison",
-  reasoning: "User wants side-by-side comparison. Comparison chart allows multi-entity metric comparison."
+EXAMPLE 3: Peer Comparison
+{
+  "thought_process": {
+    "user_intent": "Compare company to competitors",
+    "data_analysis": "Have P/E, growth, and margin data for multiple companies",
+    "visualization_strategy": "Grouped bar chart for side-by-side comparison",
+    "reasoning": "Grouped bars allow easy comparison across multiple metrics"
+  },
+  "canvas": { "title": "Tech Giants Comparison", "subtitle": "Key Valuation Metrics" },
+  "elements": [
+    { "type": "box", "id": "aapl", "label": "Apple", "metrics": { "P/E": 28.5, "Growth": 8.2, "Margin": 25.3 }, "color": "#4dabf7" },
+    { "type": "box", "id": "msft", "label": "Microsoft", "metrics": { "P/E": 32.1, "Growth": 12.5, "Margin": 35.2 }, "color": "#51cf66" },
+    { "type": "box", "id": "googl", "label": "Google", "metrics": { "P/E": 22.3, "Growth": 15.1, "Margin": 28.7 }, "color": "#ffa94d" }
+  ],
+  "layout": { "arrangement": "horizontal", "groupBy": "metrics" }
 }
-Result: Grouped bar chart comparing P/E, Yield, and Revenue Growth for target and 3 peers.
 
-EXAMPLE 4:
-User: "Show me the financials"
-thought_process: {
-  user_intent: "Get a financial overview of the company",
-  data_shape: "Arithmetic Bridge / Change",
-  selected_layout: "waterfall",
-  reasoning: "Generic financial request. Waterfall income statement walk is the most informative default."
+EXAMPLE 4: Key Metrics Dashboard
+{
+  "thought_process": {
+    "user_intent": "Quick overview of key numbers",
+    "data_analysis": "Have several important KPIs",
+    "visualization_strategy": "Metric cards for at-a-glance view",
+    "reasoning": "Metric cards highlight the most important numbers clearly"
+  },
+  "canvas": { "title": "Apple Key Metrics", "subtitle": "Q4 2024" },
+  "elements": [
+    { "type": "metric", "id": "rev", "label": "Revenue", "value": 94.9, "displayValue": "$94.9B", "change": "+6.1%", "trend": "up" },
+    { "type": "metric", "id": "eps", "label": "EPS", "value": 1.64, "displayValue": "$1.64", "change": "+12.3%", "trend": "up" },
+    { "type": "metric", "id": "margin", "label": "Gross Margin", "value": 46.2, "displayValue": "46.2%", "change": "+1.2%", "trend": "up" },
+    { "type": "metric", "id": "pe", "label": "P/E Ratio", "value": 28.5, "displayValue": "28.5x", "change": "-2.1x", "trend": "down" }
+  ],
+  "layout": { "arrangement": "grid" }
 }
-Result: Waterfall from Revenue → COGS → Gross Profit → OpEx → Operating Income → Net Income.
-
-EXAMPLE 5:
-User: (clicks generate with no prompt)
-thought_process: {
-  user_intent: "Get a visual summary of the asset",
-  data_shape: "Parts of a Whole / Composition",
-  selected_layout: "treemap",
-  reasoning: "No specific request. Treemap of revenue segments provides best high-level overview."
-}
-Result: Treemap showing business segment breakdown with percentages and values.
 
 ═══════════════════════════════════════════════════════════════════════════════
-LAYOUT-SPECIFIC REQUIREMENTS
+⚠️ IMPORTANT RULES
 ═══════════════════════════════════════════════════════════════════════════════
 
-TREEMAP:
-- Nodes sized PROPORTIONALLY to their percentage values
-- Percentages MUST add up to 100%
-- Include valueLabel (e.g., "$205B") and percentage for each node
-- Use category for color coding (revenue, asset, metric, etc.)
+1. ALWAYS include thought_process - explain your reasoning
+2. ALWAYS use realistic financial data (research or estimate)
+3. ALWAYS include displayValue with proper formatting ($, %, x)
+4. ALWAYS give each element a unique id
+5. Focus on ${assetName} - this is the target company
+6. Be creative! Combine element types if it tells a better story
+7. If data is missing, make educated estimates and note in subtitle`
 
-WATERFALL:
-- First node = starting value (category: "neutral")
-- Middle nodes = changes (category: "positive" for gains, "negative" for losses)
-- Last node = ending value (category: "neutral")
-- Values should be the CHANGE amount, not cumulative
-- Order nodes sequentially from start to end
-
-HIERARCHY:
-- Use parentId to establish parent-child relationships
-- Root node has no parentId
-- Children reference their parent's id
-- Connections are auto-generated from parentId
-
-SANKEY:
-- MUST include connections array with values
-- Connections show flow from source to destination
-- Connection values determine flow width
-- Nodes on left are sources, nodes on right are destinations
-
-COMPARISON:
-- Each node represents one entity being compared (e.g., each company is a node)
-- For multi-metric comparison (RECOMMENDED): Include a metrics object in each node:
-  node.metrics = { peRatio: 25.5, yield: 0.5, growth: 12.3, evEbitda: 15.2 }
-- Supported metric keys: peRatio, yield, growth, evEbitda, revenue, margin, marketCap
-- Values should be the actual numeric values (not strings)
-- For single metric comparison: use node.value with the numeric value
-- IMPORTANT: The bars are sized relative to the max value, so include realistic numbers
-
-TIMELINE:
-- MUST include date field for each node (e.g., "Q1 2024", "2023", "Jan 2024")
-- Nodes arranged chronologically
-- Include value for bar height
-- Use category for positive/negative coloring
-
-═══════════════════════════════════════════════════════════════════════════════
-FINAL CHECKLIST
-═══════════════════════════════════════════════════════════════════════════════
-
-Before outputting, verify:
-✓ thought_process is filled out completely
-✓ layoutType matches thought_process.selected_layout
-✓ All nodes have unique id and label
-✓ Numeric values are realistic (use real data or educated estimates)
-✓ Layout-specific requirements are met
-✓ 2-4 metrics are included for context
-✓ Title is clear and descriptive
-✓ Subtitle explains what the diagram shows`
-
-  // Build the user prompt with categorized context
-  const userRequest = customPrompt || "Provide a high-level visual summary of this asset."
+  const userRequest = customPrompt || "Create a visual summary of this company's financials"
   
-  // Extract recent user messages for intent analysis
-  const recentUserMessages = messages
-    .filter(m => m.role === 'user')
-    .slice(-3)
-    .map(m => `User: ${m.content}`)
-    .join('\n')
-  
-  // Extract recent assistant analysis for data
+  // Extract recent analysis for data
   const recentAnalysis = messages
     .filter(m => m.role === 'assistant')
     .slice(-5)
@@ -547,65 +559,52 @@ Before outputting, verify:
 
   const userPrompt = `
 ═══════════════════════════════════════════════════════════════════════════════
-🎯 TARGET ASSET (THIS IS THE COMPANY TO VISUALIZE)
+🎯 TARGET: ${assetName}
 ═══════════════════════════════════════════════════════════════════════════════
-Name: ${chatInfo?.display_name || 'Unknown Asset'}
-Type: ${chatInfo?.asset_type || 'Unknown'}
 
-⚠️ IMPORTANT: Create a diagram about ${chatInfo?.display_name || 'this asset'} ONLY.
-   Do NOT create diagrams about other companies mentioned in chat history.
-   The user is researching ${chatInfo?.display_name || 'this asset'}, not competitors.
+USER REQUEST: "${userRequest}"
 
 ═══════════════════════════════════════════════════════════════════════════════
-USER REQUEST
+📊 AVAILABLE DATA
 ═══════════════════════════════════════════════════════════════════════════════
-"${userRequest}"
+
+${recentAnalysis || 'No recent analysis available - use your knowledge of this company'}
 
 ═══════════════════════════════════════════════════════════════════════════════
-INSTRUCTIONS
+📄 SOURCE DOCUMENTS
 ═══════════════════════════════════════════════════════════════════════════════
-STEP 1: The diagram MUST be about ${chatInfo?.display_name || 'the target asset'}.
-STEP 2: Analyze the user request. "financials" = waterfall income statement for ${chatInfo?.display_name || 'target'}.
-STEP 3: Extract numbers for ${chatInfo?.display_name || 'target'} from context (ignore competitor data).
-STEP 4: Fill out thought_process explaining your reasoning.
-STEP 5: Generate the diagram JSON for ${chatInfo?.display_name || 'target'} ONLY.
 
-=== FINANCIAL DATA FOR ${(chatInfo?.display_name || 'TARGET').toUpperCase()} ===
-${recentAnalysis || 'No recent analysis available'}
-
-=== SOURCE DOCUMENTS ===
 ${sources.slice(0, 2).map(s => `${s.name}:\n${s.content.substring(0, 3000)}`).join('\n\n') || 'No source documents available'}
-`
+
+═══════════════════════════════════════════════════════════════════════════════
+🎨 NOW CREATE YOUR VISUALIZATION
+═══════════════════════════════════════════════════════════════════════════════
+
+Think step by step:
+1. What is the user trying to understand?
+2. What data do I have or can I estimate?
+3. What visual approach will communicate this best?
+4. What elements should I use?
+
+Then output your diagram JSON.`
 
   // Use JSON mode for reliable parsing
   const content = await generateWithGemini(userPrompt, systemPrompt, true, diagramJsonSchema)
   
   // Parse the JSON response
-  let parsedData: DiagramData | undefined
+  let parsedData: DiagramSpec | undefined
   
   try {
-    parsedData = JSON.parse(content) as DiagramData
+    parsedData = JSON.parse(content) as DiagramSpec
     
     // Log the thought process for debugging
     if (parsedData.thought_process) {
       console.log('[studio-api] AI Thought Process:', JSON.stringify(parsedData.thought_process, null, 2))
     }
     
-    // Validate and fix the data
-    const validLayouts: LayoutType[] = ['treemap', 'hierarchy', 'waterfall', 'sankey', 'comparison', 'timeline']
-    
-    // Use thought_process.selected_layout if layoutType is missing or invalid
-    if (!parsedData.layoutType || !validLayouts.includes(parsedData.layoutType)) {
-      if (parsedData.thought_process?.selected_layout && validLayouts.includes(parsedData.thought_process.selected_layout)) {
-        parsedData.layoutType = parsedData.thought_process.selected_layout
-      } else {
-        parsedData.layoutType = 'treemap' // Ultimate fallback
-      }
-    }
-
-    // Ensure nodes array exists
-    if (!parsedData.nodes) {
-      parsedData.nodes = []
+    // Ensure elements array exists
+    if (!parsedData.elements) {
+      parsedData.elements = []
     }
 
     // Ensure connections array exists
@@ -613,381 +612,230 @@ ${sources.slice(0, 2).map(s => `${s.name}:\n${s.content.substring(0, 3000)}`).jo
       parsedData.connections = []
     }
 
-    // Validate node IDs are unique
-    const nodeIds = new Set<string>()
-    parsedData.nodes = parsedData.nodes.map((node, i) => {
-      if (!node.id || nodeIds.has(node.id)) {
-        node.id = `node_${i}`
+    // Validate element IDs are unique
+    const elementIds = new Set<string>()
+    parsedData.elements = parsedData.elements.map((el, i) => {
+      if (!el.id || elementIds.has(el.id)) {
+        el.id = `element_${i}`
       }
-      nodeIds.add(node.id)
-      return node
+      elementIds.add(el.id)
+      return el
     })
-
-    // For waterfall charts, ensure proper ordering and categories
-    if (parsedData.layoutType === 'waterfall' && parsedData.nodes.length > 0) {
-      // Mark first and last as neutral if not already set
-      if (!parsedData.nodes[0].category) {
-        parsedData.nodes[0].category = 'neutral'
-      }
-      if (parsedData.nodes.length > 1 && !parsedData.nodes[parsedData.nodes.length - 1].category) {
-        parsedData.nodes[parsedData.nodes.length - 1].category = 'neutral'
-      }
-    }
-
-    // For hierarchy charts, build connections from parentId if not provided
-    if (parsedData.layoutType === 'hierarchy' && parsedData.connections.length === 0) {
-      parsedData.nodes.forEach(node => {
-        if (node.parentId) {
-          parsedData!.connections.push({
-            from: node.parentId,
-            to: node.id
-          })
-        }
-      })
-    }
 
   } catch (e) {
     console.error('[studio-api] Failed to parse diagram JSON:', e)
     console.error('[studio-api] Raw content:', content)
-    
-    // Fallback: try to extract JSON from the response
-    try {
-      let cleanContent = content.trim()
-      if (cleanContent.startsWith('```json')) {
-        cleanContent = cleanContent.slice(7)
-      } else if (cleanContent.startsWith('```')) {
-        cleanContent = cleanContent.slice(3)
-      }
-      if (cleanContent.endsWith('```')) {
-        cleanContent = cleanContent.slice(0, -3)
-      }
-      cleanContent = cleanContent.trim()
-      
-      parsedData = JSON.parse(cleanContent) as DiagramData
-    } catch (e2) {
-      console.error('[studio-api] Fallback parsing also failed:', e2)
-    }
   }
-  
+
   return {
-    title: parsedData?.title || `Diagram: ${chatInfo?.display_name || 'Analysis'}`,
-    content: parsedData?.subtitle || 'Visualization of key data',
+    title: parsedData?.canvas?.title || `Diagram: ${assetName}`,
+    content: parsedData ? JSON.stringify(parsedData, null, 2) : content,
     diagramData: parsedData,
   }
 }
 
-// Generate data table
+// Generate table
 async function generateTable(context: Awaited<ReturnType<typeof getChatContext>>, customPrompt?: string): Promise<{ title: string; content: string }> {
   const { messages, sources, chatInfo } = context
   
-  const systemPrompt = `You are creating data tables to organize and present financial information.
-Generate well-formatted Markdown tables with clear headers and organized data.
-Include multiple tables if needed to cover different aspects of the analysis.
-Add brief explanations before each table.
-Use proper number formatting (e.g., $1.5B, 12.3%, 2.5x).`
+  const systemPrompt = `You are creating a data table for financial analysis.
+Format the output as a markdown table with clear headers.
+Include relevant metrics, comparisons, or data points.
+Add a brief summary below the table.`
 
   const contextText = `
 Company/Asset: ${chatInfo?.display_name || 'Unknown'}
+Asset Type: ${chatInfo?.asset_type || 'Unknown'}
 
-## Key Data Points
-${messages.filter(m => m.role === 'assistant').slice(-3).map(m => m.content.substring(0, 1000)).join('\n\n')}
+## Key Discussion Points
+${messages.filter(m => m.role === 'assistant').slice(-5).map(m => m.content.substring(0, 1000)).join('\n\n')}
 
-## Source Data
-${sources.slice(0, 2).map(s => `${s.name}: ${s.content.substring(0, 2000)}`).join('\n\n')}
+## Source Highlights
+${sources.slice(0, 3).map(s => `${s.name}: ${s.content.substring(0, 2000)}`).join('\n\n')}
 `
 
   const userPrompt = customPrompt 
-    ? `Create data tables with these specific instructions: ${customPrompt}\n\n${contextText}`
-    : `Create organized data tables summarizing the key financial information:\n\n${contextText}`
+    ? `Create a data table with these specific instructions: ${customPrompt}\n\n${contextText}`
+    : `Create a comprehensive financial data table:\n\n${contextText}`
 
   const content = await generateWithGemini(userPrompt, systemPrompt)
   
   return {
-    title: `Data Tables: ${chatInfo?.display_name || 'Analysis'}`,
+    title: `Data Table: ${chatInfo?.display_name || 'Analysis'}`,
     content,
   }
 }
 
-// Save output to database
-async function saveOutput(
-  supabase: ReturnType<typeof createClient>,
-  chatId: string,
-  userId: string,
-  outputType: OutputType,
-  title: string,
-  content: string | undefined,
-  diagramData: DiagramData | undefined,
-  prompt: string | undefined
-): Promise<StudioOutput> {
-  const { data, error } = await supabase
-    .from('studio_outputs')
-    .insert({
-      chat_id: chatId,
-      user_id: userId,
-      output_type: outputType,
-      title,
-      status: 'ready',
-      content,
-      diagram_data: diagramData,
-      prompt,
-    })
-    .select()
-    .single()
-
-  if (error) {
-    console.error('Failed to save output:', error)
-    throw new Error(`Failed to save output: ${error.message}`)
-  }
-
-  return data as StudioOutput
-}
-
-// Get outputs for a chat
-async function getOutputs(
-  supabase: ReturnType<typeof createClient>,
-  chatId: string,
-  userId: string
-): Promise<StudioOutput[]> {
-  const { data, error } = await supabase
-    .from('studio_outputs')
-    .select('*')
-    .eq('chat_id', chatId)
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    console.error('Failed to get outputs:', error)
-    throw new Error(`Failed to get outputs: ${error.message}`)
-  }
-
-  return data as StudioOutput[]
-}
-
-// Delete an output
-async function deleteOutput(
-  supabase: ReturnType<typeof createClient>,
-  outputId: string,
-  userId: string
-): Promise<void> {
-  const { error } = await supabase
-    .from('studio_outputs')
-    .delete()
-    .eq('output_id', outputId)
-    .eq('user_id', userId)
-
-  if (error) {
-    console.error('Failed to delete output:', error)
-    throw new Error(`Failed to delete output: ${error.message}`)
-  }
-}
-
-// Main handler
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
   try {
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    const userId = req.headers.get('x-user-id')
+    
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ error: 'User ID required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     const url = new URL(req.url)
     const pathParts = url.pathname.split('/').filter(Boolean)
     
-    // Strip the function name prefix from path
-    const functionIndex = pathParts.findIndex(p => p === 'studio-api')
-    const relevantPath = functionIndex >= 0 ? pathParts.slice(functionIndex + 1) : pathParts
-    
-    // Get auth token
-    const authHeader = req.headers.get('authorization')
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'No authorization header' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-
-    const token = authHeader.replace('Bearer ', '')
-    
-    // Extract user ID from JWT token directly (more reliable than getUser)
-    let userId: string | null = null
-    try {
-      const parts = token.split('.')
-      if (parts.length === 3) {
-        const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
-        userId = payload.sub || null
-      }
-    } catch (e) {
-      console.error('[studio-api] Failed to decode JWT:', e)
-    }
-    
-    if (!userId) {
-      return new Response(JSON.stringify({ error: 'Invalid authorization', details: 'Could not extract user ID from token' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-    
-    // Create Supabase client with service role key for database operations
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-    
-    // Create a user object for compatibility with existing code
-    const user = { id: userId }
-
-    // GET /outputs/:chat_id - List outputs for a chat
-    if (req.method === 'GET' && relevantPath[0] === 'outputs' && relevantPath[1]) {
-      const chatId = relevantPath[1]
-      const outputs = await getOutputs(supabase, chatId, user.id)
-      
-      // Transform to frontend format
-      const formattedOutputs = outputs.map(o => ({
-        id: o.output_id,
-        type: o.output_type,
-        title: o.title,
-        status: o.status,
-        content: o.content,
-        diagramData: o.diagram_data,
-        error: o.error_message,
-        createdAt: o.created_at,
-      }))
-      
-      return new Response(JSON.stringify({ outputs: formattedOutputs }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-
-    // DELETE /outputs/:output_id - Delete an output
-    if (req.method === 'DELETE' && relevantPath[0] === 'outputs' && relevantPath[1]) {
-      const outputId = relevantPath[1]
-      await deleteOutput(supabase, outputId, user.id)
-      
-      return new Response(JSON.stringify({ success: true }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-
-    // PATCH /outputs/:output_id - Update an output (rename)
-    if (req.method === 'PATCH' && relevantPath[0] === 'outputs' && relevantPath[1]) {
-      const outputId = relevantPath[1]
-      const body = await req.json()
-      const { title } = body
-      
-      if (!title) {
-        return new Response(JSON.stringify({ error: 'Missing title' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-      }
-      
-      // Update the output title
-      const { data, error } = await supabase
-        .from('studio_outputs')
-        .update({ title, updated_at: new Date().toISOString() })
-        .eq('output_id', outputId)
-        .eq('user_id', user.id)
-        .select()
-        .single()
-      
-      if (error) {
-        console.error('[studio-api] Error updating output:', error)
-        return new Response(JSON.stringify({ error: 'Failed to update output' }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-      }
-      
-      return new Response(JSON.stringify({ 
-        success: true,
-        output: {
-          id: data.output_id,
-          title: data.title,
-          type: data.output_type,
-          status: data.status,
-          content: data.content,
-          diagramData: data.diagram_data,
-          createdAt: data.created_at,
-        }
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-
-    // POST /generate - Generate new output
-    if (req.method === 'POST' && (relevantPath.length === 0 || relevantPath[0] === 'generate')) {
+    // POST /studio-api/generate - Generate new output
+    if (req.method === 'POST' && pathParts[pathParts.length - 1] === 'generate') {
       const body: GenerateRequest = await req.json()
       const { chat_id, output_type, prompt } = body
 
       if (!chat_id || !output_type) {
-        return new Response(JSON.stringify({ error: 'Missing chat_id or output_type' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        return new Response(
+          JSON.stringify({ error: 'chat_id and output_type required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // Create initial output record
+      const { data: output, error: insertError } = await supabase
+        .from('studio_outputs')
+        .insert({
+          chat_id,
+          user_id: userId,
+          output_type,
+          title: `Generating ${output_type}...`,
+          status: 'generating',
+          prompt,
         })
+        .select()
+        .single()
+
+      if (insertError) {
+        console.error('[studio-api] Insert error:', insertError)
+        throw insertError
       }
 
-      // Get chat context
-      const context = await getChatContext(supabase, chat_id, user.id)
+      // Generate content asynchronously
+      (async () => {
+        try {
+          const context = await getChatContext(supabase, chat_id, userId)
+          
+          let result: { title: string; content: string; diagramData?: DiagramSpec }
+          
+          switch (output_type) {
+            case 'report':
+              result = await generateReport(context, prompt)
+              break
+            case 'slides':
+              result = await generateSlides(context, prompt)
+              break
+            case 'diagram':
+              result = await generateDiagram(context, prompt)
+              break
+            case 'table':
+              result = await generateTable(context, prompt)
+              break
+            default:
+              throw new Error(`Unknown output type: ${output_type}`)
+          }
 
-      // Generate content based on type
-      let result: { title: string; content: string; diagramData?: DiagramData }
-      
-      switch (output_type) {
-        case 'report':
-          result = await generateReport(context, prompt)
-          break
-        case 'slides':
-          result = await generateSlides(context, prompt)
-          break
-        case 'diagram':
-          result = await generateDiagram(context, prompt)
-          break
-        case 'table':
-          result = await generateTable(context, prompt)
-          break
-        default:
-          return new Response(JSON.stringify({ error: 'Invalid output_type' }), {
-            status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-      }
+          // Update with generated content
+          await supabase
+            .from('studio_outputs')
+            .update({
+              title: result.title,
+              content: result.content,
+              diagram_data: result.diagramData || null,
+              status: 'ready',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('output_id', output.output_id)
 
-      // Save to database
-      const savedOutput = await saveOutput(
-        supabase,
-        chat_id,
-        user.id,
-        output_type,
-        result.title,
-        result.content,
-        result.diagramData,
-        prompt
+        } catch (error) {
+          console.error('[studio-api] Generation error:', error)
+          await supabase
+            .from('studio_outputs')
+            .update({
+              status: 'error',
+              error_message: error instanceof Error ? error.message : 'Unknown error',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('output_id', output.output_id)
+        }
+      })()
+
+      return new Response(
+        JSON.stringify(output),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
-
-      return new Response(JSON.stringify({
-        output_id: savedOutput.output_id,
-        id: savedOutput.output_id,
-        type: output_type,
-        title: result.title,
-        content: result.content,
-        diagramData: result.diagramData,
-        status: 'ready',
-        created_at: savedOutput.created_at,
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
     }
 
-    return new Response(JSON.stringify({ error: 'Not found' }), {
-      status: 404,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
+    // GET /studio-api/outputs/:chat_id - List outputs for a chat
+    if (req.method === 'GET' && pathParts.length >= 2) {
+      const chatId = pathParts[pathParts.length - 1]
+      
+      if (pathParts[pathParts.length - 2] === 'outputs') {
+        const { data: outputs, error } = await supabase
+          .from('studio_outputs')
+          .select('*')
+          .eq('chat_id', chatId)
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+
+        if (error) throw error
+
+        return new Response(
+          JSON.stringify(outputs || []),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // GET /studio-api/:output_id - Get single output
+      const outputId = chatId
+      const { data: output, error } = await supabase
+        .from('studio_outputs')
+        .select('*')
+        .eq('output_id', outputId)
+        .eq('user_id', userId)
+        .single()
+
+      if (error) throw error
+
+      return new Response(
+        JSON.stringify(output),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // DELETE /studio-api/:output_id - Delete output
+    if (req.method === 'DELETE' && pathParts.length >= 1) {
+      const outputId = pathParts[pathParts.length - 1]
+      
+      const { error } = await supabase
+        .from('studio_outputs')
+        .delete()
+        .eq('output_id', outputId)
+        .eq('user_id', userId)
+
+      if (error) throw error
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    return new Response(
+      JSON.stringify({ error: 'Not found' }),
+      { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
 
   } catch (error) {
-    console.error('Studio API error:', error)
-    return new Response(JSON.stringify({ error: error.message || 'Internal server error' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
+    console.error('[studio-api] Error:', error)
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Internal server error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
   }
 })

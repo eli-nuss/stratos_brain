@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 23, 2026 (v3.0 - Enhanced Diagram System with 6 Layout Types)  
+**Last Updated: January 23, 2026 (v4.0 - Flexible Element-Based Diagram System)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -228,86 +228,105 @@
 
 ### 4.5 Studio Panel & Diagram Canvas
 
-The Studio Panel provides an interactive workspace for creating and viewing visual outputs:
+The Studio Panel provides an interactive workspace for creating and viewing visual outputs.
 
-#### Diagram Types (6 Layout Types)
+#### Flexible Element-Based System (v4.0)
 
-| Layout | Use Case | Key Features |
-|--------|----------|-------------|
-| **Treemap** | Revenue breakdown, market segments, portfolio allocation | Proportional sizing by value, squarified algorithm, color-coded segments |
-| **Hierarchy** | Org charts, category trees, decision flows | Parent-child relationships via `parentId`, auto-generated connections, level labels |
-| **Waterfall** | Bridge charts, profit walkdown, value creation | Sequential additions/subtractions, running totals, positive/negative color coding |
-| **Sankey** | Money flows, resource allocation, conversion funnels | Proportional flow widths, curved Bezier paths, multi-level source-to-destination |
-| **Comparison** | Competitor analysis, YoY comparison, scenario analysis | Grouped bar charts, metric legends, multiple entities side-by-side |
-| **Timeline** | Historical performance, milestones, projections | Chronological node arrangement, date labels, value bars above/below axis |
+The diagram system uses a **fully flexible approach** where Gemini AI has complete control over the visualization structure. Instead of hardcoded layout types, the AI chooses from generic element types and combines them as needed.
+
+##### Element Types
+
+| Element | Use Case | Key Properties |
+|---------|----------|----------------|
+| **bar** | Waterfalls, comparisons, histograms, timelines | `value`, `displayValue`, `color`, `category`, `order` |
+| **box** | Treemaps, org charts, cards, hierarchies | `value`, `percentage`, `parentId`, `metrics`, `color` |
+| **flow** | Sankey diagrams, process flows, money flows | `value`, `column`, `color` |
+| **metric** | KPI cards, dashboard stats, key numbers | `value`, `displayValue`, `change`, `trend` |
+| **text** | Annotations, callouts, section headers | `content`, `size`, `color` |
+
+##### Layout Arrangements
+
+The AI specifies how elements should be arranged:
+
+| Arrangement | Description |
+|-------------|-------------|
+| `horizontal` | Side by side (bar charts, comparisons) |
+| `vertical` | Stacked (lists, timelines) |
+| `grid` | Grid layout (treemaps, dashboards) |
+| `tree` | Hierarchical (org charts) |
+| `flow` | Left-to-right (sankey, process) |
+| `waterfall` | Sequential with running total |
+
+##### DiagramSpec Schema
+
+```typescript
+interface DiagramSpec {
+  thought_process: {
+    user_intent: string;      // What user wants to understand
+    data_analysis: string;    // Available data and key numbers
+    visualization_strategy: string; // Visual approach chosen
+    reasoning: string;        // Why this combination of elements
+  };
+  canvas: {
+    title: string;
+    subtitle?: string;
+  };
+  elements: DiagramElement[];  // bar, box, flow, metric, text
+  connections?: Connection[];  // Lines between elements
+  layout?: {
+    arrangement: string;      // How to arrange elements
+    spacing?: string;         // compact, normal, spacious
+    groupBy?: string;         // Field to group by
+    sortBy?: string;          // Field to sort by
+  };
+  legend?: {
+    show: boolean;
+    items: { label: string; color: string }[];
+  };
+}
+```
 
 #### Modular Renderer Architecture
 
-The diagram system uses a modular architecture with separate renderer components:
-
 ```
 client/src/components/diagrams/
-├── types.ts           # Shared TypeScript interfaces
-├── utils.ts           # Color palettes, fonts, helper functions
-├── index.ts           # Module exports
-├── WaterfallRenderer.tsx
-├── HierarchyRenderer.tsx
-├── TimelineRenderer.tsx
-└── SankeyRenderer.tsx
+├── types.ts              # Flexible TypeScript interfaces
+├── utils.ts              # Color palettes, fonts, helpers
+├── index.ts              # Module exports
+├── FlexibleRenderer.tsx  # Main renderer (handles all element types)
+├── WaterfallRenderer.tsx # Legacy support
+├── HierarchyRenderer.tsx # Legacy support
+├── TimelineRenderer.tsx  # Legacy support
+└── SankeyRenderer.tsx    # Legacy support
 ```
 
-- **Type-Safe**: Shared `DiagramData`, `DiagramNode`, `DiagramConnection` interfaces
-- **Reusable Utilities**: Open Colors palette, Excalidraw fonts, hand-drawn path generators
-- **Consistent Props**: All renderers share `RendererProps` interface for uniformity
+- **FlexibleRenderer**: Single renderer that handles any combination of elements
+- **Auto-Detection**: Determines primary element type and renders accordingly
+- **Backward Compatible**: Still supports legacy `DiagramData` format
 
 #### Visual Design (Excalidraw-Inspired)
 
-The diagram canvas uses Excalidraw's distinctive hand-drawn aesthetic:
+- **Open Colors Palette**: 13 colors with 10 brightness levels
+- **Semantic Colors**: Automatic color mapping for categories (positive/negative/neutral)
+- **Hand-Drawn Aesthetic**: Wobbly paths, sketch-style fonts
+- **Theme Toggle**: Dark/Light mode support
+- **Color Schemes**: Excalidraw, Vibrant, Pastel, Monochrome
 
-- **Open Colors Palette**: 13 colors with 10 brightness levels each, matching Excalidraw's color scheme
-  - Canvas background: lightest value (#f8f9fa)
-  - Strokes: darkest value for borders
-  - Element fills: 6th brightness level for backgrounds
-- **Color Schemes**: 4 built-in palettes (Excalidraw, Vibrant, Pastel, Monochrome)
-- **Hand-Drawn Font**: Virgil/Segoe Print/cursive font family for labels
-- **Hand-Drawn Rectangles**: Slightly wobbly paths for authentic sketch feel
-- **Excalidraw Accent**: Primary violet (#6965db) for interactive elements
-- **Hover Effects**: Interactive tooltips with violet accent border
-- **Theme Toggle**: Dark/Light mode with Excalidraw-style backgrounds
-- **Rough.js Integration**: Library for authentic hand-drawn rendering (installed)
+#### AI-Powered Generation (studio-api)
+
+- **Model**: `gemini-2.5-pro-preview-05-06`
+- **JSON Mode**: Native structured output with schema enforcement
+- **Chain-of-Thought**: AI must explain reasoning in `thought_process`
+- **Full Creative Control**: AI decides elements, colors, layout, structure
+- **Few-Shot Examples**: Comprehensive examples for each visualization type
 
 #### Canvas Features
-- **Pan & Zoom**: Interactive navigation with mouse/touch controls and slider
-- **Export Options**: PNG export with size options (Small 800px, Medium 1200px, Large 1920px)
-- **Fullscreen Mode**: Expanded view for detailed analysis
-- **Reset View**: Return to default zoom and position
-- **Settings Panel**: Color scheme and theme configuration
-- **Share Button**: Quick sharing functionality
-- **Layout Badge**: Visual indicator showing current layout type
-- **Dynamic Canvas Sizing**: ViewBox adapts based on layout type and node count
-
-#### UX Improvements
-- **Thumbnails**: Visual preview thumbnails in the output list
-- **Inline Rename**: Click to edit output titles directly
-- **Duplicate**: Regenerate outputs with the same prompt
-- **Context Menu**: Right-click menu with all actions (View, Download, Rename, Duplicate, Delete)
-- **More Options Button**: Three-dot menu for quick access to all actions
-
-#### AI-Powered Diagram Generation (studio-api)
-
-The backend uses Gemini's JSON mode for reliable diagram generation:
-
-- **JSON Schema Enforcement**: `responseMimeType: "application/json"` with `responseSchema` for structured output
-- **Intelligent Layout Selection**: AI chooses optimal layout based on data story
-- **Step-by-Step Reasoning**: Prompts guide AI through layout selection, data extraction, and sizing
-- **Validation & Fallbacks**: Auto-correction for missing fields, unique ID enforcement, connection generation
-- **Category Color Mapping**: Automatic color assignment based on node category (revenue, cost, asset, metric, risk, neutral, positive, negative)
-
-#### Technical Implementation
-- React-based DiagramCanvas component with SVG rendering
-- Squarified treemap algorithm for proportional box sizing
-- Responsive layout adapting to container size
-- Integration with studio-api Edge Function for AI-generated diagrams
+- Pan & Zoom with mouse/touch controls
+- PNG export (Small/Medium/Large)
+- Fullscreen mode
+- Theme and color scheme settings
+- Layout type badge
+- Interactive hover effects
 - Modular renderer components for each layout type
 - TypeScript interfaces shared between frontend and backend
 
