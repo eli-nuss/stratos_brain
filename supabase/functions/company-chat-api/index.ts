@@ -1212,7 +1212,9 @@ serve(async (req: Request) => {
                 return result
               }
               
-              const orchestratorResult = await runAgentOrchestrator(
+              let orchestratorResult: Awaited<ReturnType<typeof runAgentOrchestrator>>
+              try {
+                orchestratorResult = await runAgentOrchestrator(
                 supabase,
                 {
                   asset_id: asset.asset_id,
@@ -1231,6 +1233,40 @@ serve(async (req: Request) => {
                 broadcastEvent,
                 ENABLE_SKEPTIC_AGENT
               )
+              } catch (orchestratorError) {
+                // Log the actual error and fallback to single-agent flow
+                const errorMsg = orchestratorError instanceof Error ? orchestratorError.message : String(orchestratorError)
+                const errorStack = orchestratorError instanceof Error ? orchestratorError.stack : ''
+                console.error('Orchestrator failed, falling back to single-agent:', errorMsg)
+                console.error('Stack trace:', errorStack)
+                
+                // Broadcast the error for debugging
+                await broadcastEvent(jobId, 'orchestrator_error', { 
+                  error: errorMsg,
+                  fallback: 'single-agent'
+                })
+                
+                // Fallback to single-agent flow
+                const fallbackResult = await callGeminiWithTools(
+                  geminiMessages, 
+                  systemPrompt, 
+                  supabase, 
+                  configWithModel,
+                  logTool,
+                  asset.asset_id,
+                  asset.symbol,
+                  jobId
+                )
+                
+                orchestratorResult = {
+                  response: fallbackResult.response,
+                  toolCalls: fallbackResult.toolCalls,
+                  codeExecutions: fallbackResult.codeExecutions,
+                  agentSummary: `[Fallback] Orchestrator error: ${errorMsg.slice(0, 100)}`,
+                  skepticVerdict: null,
+                  retryCount: 0
+                }
+              }
               
               geminiResult = {
                 response: orchestratorResult.response,
