@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, ReactNode } from 'react';
+import { useState, useRef, useEffect, useCallback, ReactNode } from 'react';
 import { 
   Send, Loader2, RefreshCw, ChevronRight, ChevronDown, Bot, User, 
   Trash2, CheckCircle, XCircle, Search, Code, Database, Globe, 
@@ -869,14 +869,28 @@ export function BaseChatInterface<TMessage extends BaseMessage>({
   
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
   
   const config = themeConfig[theme];
   const Icon = AvatarIcon || config.avatarIcon;
 
-  // Auto-scroll to bottom when new messages arrive
+  // Track if user has scrolled up from the bottom
+  const handleScroll = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    
+    // Check if user is within 100px of the bottom
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+    setIsUserScrolledUp(!isNearBottom);
+  }, []);
+
+  // Auto-scroll to bottom when new messages arrive, but only if user hasn't scrolled up
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingText, toolCalls]);
+    if (!isUserScrolledUp) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, streamingText, toolCalls, isUserScrolledUp]);
 
   // Handle job completion
   useEffect(() => {
@@ -1078,7 +1092,11 @@ export function BaseChatInterface<TMessage extends BaseMessage>({
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 py-6 space-y-6 scrollbar-minimal">
+        <div 
+          ref={messagesContainerRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 py-6 space-y-6 scrollbar-minimal"
+        >
           {messagesLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
