@@ -6,8 +6,6 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { UNIFIED_TOOL_DECLARATIONS } from '../_shared/unified_tools.ts'
 import { executeUnifiedTool } from '../_shared/unified_tool_handlers.ts'
-import { runAgentOrchestrator } from './agent-orchestrator.ts'
-import { classifyQuery } from './agent-state.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,11 +18,7 @@ const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
 const GEMINI_MODEL_PRO = 'gemini-3-pro-preview'
 const GEMINI_MODEL_FLASH = 'gemini-3-flash-preview'  // Faster model for quick queries
 const GEMINI_MODEL = GEMINI_MODEL_PRO  // Default to Pro for backward compatibility
-const API_VERSION = 'v2025.01.22.skeptic-agent'
-
-// Feature flags
-// TEMPORARILY DISABLED for debugging - set to 'true' to re-enable
-const ENABLE_SKEPTIC_AGENT = Deno.env.get('ENABLE_SKEPTIC_AGENT') === 'true' // Default: disabled for debugging
+const API_VERSION = 'v2025.01.21.realtime-broadcast'
 
 // Broadcast event to Supabase Realtime channel for real-time updates
 // Uses REST API for reliable broadcasting from edge functions
@@ -1165,140 +1159,17 @@ serve(async (req: Request) => {
             
             const systemPrompt = buildSystemPrompt(asset, chat.context_snapshot, configWithModel, preloadedDocs)
             
-            // Determine if we should use the multi-agent orchestrator
-            const queryType = classifyQuery(content)
-            const useOrchestrator = ENABLE_SKEPTIC_AGENT && (queryType === 'calculation' || queryType === 'hybrid' || queryType === 'research')
-            
-            // Broadcast query classification
-            await broadcastEvent(jobId, 'query_classified', { queryType, useOrchestrator })
-            console.log(`Query classified as: ${queryType}, useOrchestrator: ${useOrchestrator}`)
-            
             const startTime = Date.now()
-            let geminiResult: { response: string; toolCalls: unknown[]; codeExecutions: unknown[]; groundingMetadata?: unknown | null; agentSummary?: string; skepticVerdict?: unknown }
-            
-            if (useOrchestrator) {
-              // Use the multi-agent orchestrator with Scout, Quant, and Skeptic
-              console.log('Using multi-agent orchestrator for complex query')
-              
-              // Create execute function wrapper for orchestrator
-              const executeFunctionForOrchestrator = async (
-                _supabase: ReturnType<typeof createClient>,
-                functionName: string,
-                args: Record<string, unknown>,
-                _jobId: string
-              ): Promise<unknown> => {
-                // Log tool start
-                if (logTool) {
-                  await logTool(functionName, 'started', { args }).catch(e => console.error('Failed to log tool start:', e))
-                }
-                
-                const result = await executeUnifiedTool(functionName, args, supabase, {
-                  assetId: asset.asset_id,
-                  ticker: asset.symbol,
-                  chatType: 'company',
-                  chatId: configWithModel.chatId
-                })
-                
-                // Log tool completion
-                if (logTool) {
-                  const completionData: Record<string, unknown> = {}
-                  if (functionName === 'execute_python') {
-                    completionData.code = String(args.code || '').slice(0, 300)
-                    completionData.output = (result as { output?: string }).output ? String((result as { output?: string }).output).slice(0, 200) : null
-                    completionData.error = (result as { error?: string }).error || null
-                  }
-                  await logTool(functionName, (result as { error?: string }).error ? 'failed' : 'completed', completionData).catch(e => console.error('Failed to log tool completion:', e))
-                }
-                
-                return result
-              }
-              
-              let orchestratorResult: Awaited<ReturnType<typeof runAgentOrchestrator>>
-              try {
-                orchestratorResult = await runAgentOrchestrator(
-                supabase,
-                {
-                  asset_id: asset.asset_id,
-                  symbol: asset.symbol,
-                  name: asset.name,
-                  asset_type: asset.asset_type,
-                  sector: asset.sector,
-                  industry: asset.industry
-                },
-                content,
-                geminiMessages,
-                chat.context_snapshot,
-                jobId,
-                UNIFIED_TOOL_DECLARATIONS,
-                executeFunctionForOrchestrator,
-                broadcastEvent,
-                ENABLE_SKEPTIC_AGENT
-              )
-              } catch (orchestratorError) {
-                // Log the actual error and fallback to single-agent flow
-                const errorMsg = orchestratorError instanceof Error ? orchestratorError.message : String(orchestratorError)
-                const errorStack = orchestratorError instanceof Error ? orchestratorError.stack : ''
-                console.error('Orchestrator failed, falling back to single-agent:', errorMsg)
-                console.error('Stack trace:', errorStack)
-                
-                // Broadcast the error for debugging
-                await broadcastEvent(jobId, 'orchestrator_error', { 
-                  error: errorMsg,
-                  fallback: 'single-agent'
-                })
-                
-                // Fallback to single-agent flow
-                const fallbackResult = await callGeminiWithTools(
-                  geminiMessages, 
-                  systemPrompt, 
-                  supabase, 
-                  configWithModel,
-                  logTool,
-                  asset.asset_id,
-                  asset.symbol,
-                  jobId
-                )
-                
-                orchestratorResult = {
-                  response: fallbackResult.response,
-                  toolCalls: fallbackResult.toolCalls,
-                  codeExecutions: fallbackResult.codeExecutions,
-                  agentSummary: `[Fallback] Orchestrator error: ${errorMsg.slice(0, 100)}`,
-                  skepticVerdict: null,
-                  retryCount: 0
-                }
-              }
-              
-              geminiResult = {
-                response: orchestratorResult.response,
-                toolCalls: orchestratorResult.toolCalls,
-                codeExecutions: orchestratorResult.codeExecutions,
-                groundingMetadata: null,
-                agentSummary: orchestratorResult.agentSummary,
-                skepticVerdict: orchestratorResult.skepticVerdict
-              }
-            } else {
-              // Use the original single-agent flow for simple queries
-              console.log('Using single-agent flow for simple query')
-              const singleAgentResult = await callGeminiWithTools(
-                geminiMessages, 
-                systemPrompt, 
-                supabase, 
-                configWithModel,
-                logTool,
-                asset.asset_id,
-                asset.symbol,
-                jobId
-              )
-              
-              geminiResult = {
-                response: singleAgentResult.response,
-                toolCalls: singleAgentResult.toolCalls,
-                codeExecutions: singleAgentResult.codeExecutions,
-                groundingMetadata: singleAgentResult.groundingMetadata
-              }
-            }
-            
+            const geminiResult = await callGeminiWithTools(
+              geminiMessages, 
+              systemPrompt, 
+              supabase, 
+              configWithModel,  // Use config with user-selected model
+              logTool,
+              asset.asset_id,
+              asset.symbol,
+              jobId  // Pass jobId for real-time broadcasting
+            )
             const latencyMs = Date.now() - startTime
             
             const { data: assistantMessage, error: assistantMsgError } = await supabase
@@ -1311,13 +1182,9 @@ serve(async (req: Request) => {
                 tool_calls: geminiResult.toolCalls.length > 0 ? geminiResult.toolCalls : null,
                 executable_code: geminiResult.codeExecutions.length > 0 ? (geminiResult.codeExecutions[0] as { code?: string })?.code : null,
                 code_execution_result: geminiResult.codeExecutions.length > 0 ? JSON.stringify((geminiResult.codeExecutions[0] as { result?: unknown })?.result) : null,
-                grounding_metadata: geminiResult.groundingMetadata || null,
-                model: useOrchestrator ? 'multi-agent-orchestrator' : selectedModel,
-                latency_ms: latencyMs,
-                metadata: useOrchestrator ? {
-                  agent_summary: geminiResult.agentSummary,
-                  skeptic_verdict: geminiResult.skepticVerdict
-                } : null
+                grounding_metadata: geminiResult.groundingMetadata,
+                model: selectedModel,  // Log the actual model used
+                latency_ms: latencyMs
               })
               .select()
               .single()
