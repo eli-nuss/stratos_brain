@@ -89,15 +89,15 @@ export function useStudio({ chatId }: UseStudioOptions): UseStudioReturn {
       
       console.log('[useStudio] Loaded outputs:', data.length);
       
-      // Transform snake_case API response to camelCase frontend format
+      // Transform API response to frontend format (handles both camelCase and snake_case)
       const transformedOutputs: StudioOutput[] = data.map((item: Record<string, unknown>) => {
         // Debug: log the raw item to see all fields
         console.log('[useStudio] Raw output item:', item);
         console.log('[useStudio] Item keys:', Object.keys(item));
-        console.log('[useStudio] diagram_data value:', item.diagram_data);
         
-        // Parse diagram_data if it's a string (sometimes Supabase returns JSONB as string)
-        let diagramData = item.diagram_data;
+        // Handle both camelCase (from API transformation) and snake_case (from raw Supabase)
+        let diagramData = item.diagramData ?? item.diagram_data;
+        console.log('[useStudio] diagramData value:', diagramData);
         if (typeof diagramData === 'string') {
           try {
             diagramData = JSON.parse(diagramData);
@@ -107,14 +107,14 @@ export function useStudio({ chatId }: UseStudioOptions): UseStudioReturn {
         }
         
         return {
-          id: item.output_id as string,
-          type: item.output_type as OutputType,
+          id: (item.id ?? item.output_id) as string,
+          type: (item.type ?? item.output_type) as OutputType,
           title: item.title as string,
           status: item.status as 'generating' | 'ready' | 'error',
           content: item.content as string | undefined,
           diagramData: diagramData as StudioOutput['diagramData'],
-          error: item.error_message as string | undefined,
-          createdAt: item.created_at as string,
+          error: (item.error ?? item.error_message) as string | undefined,
+          createdAt: (item.createdAt ?? item.created_at) as string,
           prompt: item.prompt as string | undefined,
         };
       });
