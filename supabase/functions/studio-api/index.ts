@@ -146,11 +146,29 @@ async function getChatContext(supabase: ReturnType<typeof createClient>, chatId:
   sources: Array<{ name: string; content: string }>;
   chatInfo: { display_name: string; asset_type: string } | null;
 }> {
-  const { data: chat } = await supabase
+  // Try chat_id first, then fall back to id
+  let { data: chat, error: chatError } = await supabase
     .from('company_chats')
     .select('display_name, asset_type, symbol')
     .eq('chat_id', chatId)
     .single()
+
+  // If chat_id didn't work, try id
+  if (!chat && chatError) {
+    console.log('[studio-api] chat_id query failed, trying id:', chatError.message);
+    const result = await supabase
+      .from('company_chats')
+      .select('display_name, asset_type, symbol')
+      .eq('id', chatId)
+      .single();
+    chat = result.data;
+    chatError = result.error;
+  }
+
+  if (chatError) {
+    console.error('[studio-api] Failed to get chat info:', chatError.message);
+  }
+  console.log('[studio-api] Chat info retrieved:', chat ? chat.display_name : 'null')
 
   const { data: messages } = await supabase
     .from('chat_messages')
@@ -331,8 +349,23 @@ async function generateWithGemini(prompt: string, systemPrompt: string, useJsonM
     throw new Error(`Gemini API error: ${response.status}`)
   }
 
-  const data = await response.json()
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+  const data = await response.json();
+  const parts = data.candidates?.[0]?.content?.parts || [];
+
+  // Gemini 3 might return thinking parts first. Find the last text part which contains the final output.
+  const textPart = parts.reverse().find((p: any) => p.text);
+  let rawText = textPart?.text || '';
+
+  // Log for debugging
+  console.log('[studio-api] Gemini response parts count:', parts.length);
+  console.log('[studio-api] Raw text length:', rawText.length);
+
+  // Clean up potential Markdown wrappers that Gemini sometimes adds even in JSON mode
+  if (useJsonMode) {
+    rawText = rawText.replace(/```json\s*/g, '').replace(/```\s*$/g, '').trim();
+  }
+
+  return rawText;
 }
 
 // Generate report
