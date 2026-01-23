@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 22, 2026 (v2.2 - Skeptic Agent Loop)  
+**Last Updated: January 22, 2026 (v2.3 - MCP Integration)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -438,6 +438,7 @@
                                                                                             | **Google Gemini API** | LLM analysis, chat | Edge Functions |
                                                                                             | **Google Custom Search** | Real-time news | Chat grounding |
                                                                                             | **E2B** | Code execution sandbox | Chat agents |
+| **MCP Protocol** | Standardized tool connectivity | mcp-server Edge Function |
 
                                                                                             ### 6.3 Infrastructure
 
@@ -502,6 +503,7 @@
                                                                                             | `feedback-api` | User feedback | `/feedback` |
                                                                                             | `investor-api` | Institutional data | `/investors`, `/holdings` |
                                                                                             | `fundamental-score-api` | On-demand scoring | `/score/:symbol` |
+| `mcp-server` | Model Context Protocol server | `/` (JSON-RPC) |
 
                                                                                             ### 8.2 Key API Endpoints
 
@@ -1183,6 +1185,7 @@ Both hooks subscribe to Supabase Realtime channels for live updates:
                                                                                            
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.3 | Jan 22, 2026 | **MCP Integration**: Implemented Model Context Protocol server exposing 24 unified tools via JSON-RPC. Added mcp-client utility for connecting to internal/external MCP servers. Enables plug-and-play integration with Claude Desktop, Cursor IDE, and external data providers (Bloomberg, SEC Edgar). See `docs/MCP_INTEGRATION.md` for full API reference. |
 | 2.2 | Jan 22, 2026 | **Skeptic Agent Loop**: Implemented multi-agent orchestration system with Scout (research), Quant (calculations), and Skeptic (validation) agents. Added query classification for automatic routing. Includes retry logic with max 2 attempts for failed validations. |
 | 2.1 | Jan 22, 2026 | **Code Reuse Refactor**: Created shared `BaseChatInterface` component reducing code duplication by ~70%. Added error recovery with retry functionality. Improved mobile UX for CompanySidePanel with sticky tabs and touch optimization. |
                                                                                             - [ ] | 1.4 | Jan 15, 2026 | Added ETFs, Indices, and Commodities dashboard views with API endpoints; global equities now appear in All Equities view |
