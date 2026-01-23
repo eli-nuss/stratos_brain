@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   FileText, Presentation, PenTool, Table2, Sparkles,
   ChevronDown, ChevronRight, Loader2, Download, Eye,
-  X, Check, AlertCircle
+  X, Check, AlertCircle, Trash2, RefreshCw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DiagramCanvas } from './DiagramCanvas';
@@ -64,8 +64,10 @@ export interface StudioOutput {
 interface StudioPanelProps {
   chatId: string;
   onGenerate: (type: OutputType, prompt?: string) => Promise<StudioOutput>;
+  onDelete?: (outputId: string) => Promise<void>;
   outputs: StudioOutput[];
   isGenerating: boolean;
+  isLoading?: boolean;
   className?: string;
 }
 
@@ -300,10 +302,22 @@ interface OutputItemProps {
   output: StudioOutput;
   onView: () => void;
   onDownload: () => void;
+  onDelete?: () => void;
 }
 
-function OutputItem({ output, onView, onDownload }: OutputItemProps) {
+function OutputItem({ output, onView, onDownload, onDelete }: OutputItemProps) {
   const Icon = getOutputIcon(output.type);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    setIsDeleting(true);
+    try {
+      await onDelete();
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <div className="flex items-center gap-2 px-3 py-2 bg-zinc-800/30 border border-zinc-700/50 rounded-lg">
@@ -335,6 +349,20 @@ function OutputItem({ output, onView, onDownload }: OutputItemProps) {
           >
             <Download className="w-3.5 h-3.5 text-zinc-400" />
           </button>
+          {onDelete && (
+            <button
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="p-1.5 hover:bg-red-900/50 rounded transition-colors"
+              title="Delete"
+            >
+              {isDeleting ? (
+                <Loader2 className="w-3.5 h-3.5 text-red-400 animate-spin" />
+              ) : (
+                <Trash2 className="w-3.5 h-3.5 text-zinc-400 hover:text-red-400" />
+              )}
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -346,8 +374,10 @@ function OutputItem({ output, onView, onDownload }: OutputItemProps) {
 export function StudioPanel({
   chatId,
   onGenerate,
+  onDelete,
   outputs,
   isGenerating,
+  isLoading,
   className
 }: StudioPanelProps) {
   const [isExpanded, setIsExpanded] = useState(true);
@@ -431,8 +461,16 @@ export function StudioPanel({
             )}
           </button>
 
+          {/* Loading State */}
+          {isLoading && (
+            <div className="text-center py-4">
+              <Loader2 className="w-8 h-8 text-purple-400 mx-auto mb-2 animate-spin" />
+              <p className="text-xs text-zinc-500">Loading saved outputs...</p>
+            </div>
+          )}
+
           {/* Empty State */}
-          {outputs.length === 0 && (
+          {!isLoading && outputs.length === 0 && (
             <div className="text-center py-4">
               <Sparkles className="w-8 h-8 text-zinc-600 mx-auto mb-2" />
               <p className="text-xs text-zinc-500">No outputs generated yet</p>
@@ -451,6 +489,7 @@ export function StudioPanel({
                   output={output}
                   onView={() => handleView(output)}
                   onDownload={() => handleDownload(output)}
+                  onDelete={onDelete ? () => onDelete(output.id) : undefined}
                 />
               ))}
             </div>

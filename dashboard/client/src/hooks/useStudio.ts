@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import type { OutputType, StudioOutput } from '@/components/StudioPanel';
 
@@ -11,8 +11,11 @@ interface UseStudioOptions {
 interface UseStudioReturn {
   outputs: StudioOutput[];
   isGenerating: boolean;
+  isLoading: boolean;
   error: string | null;
   generate: (type: OutputType, prompt?: string) => Promise<StudioOutput>;
+  deleteOutput: (outputId: string) => Promise<void>;
+  refreshOutputs: () => Promise<void>;
   clearOutputs: () => void;
 }
 
@@ -20,6 +23,7 @@ export function useStudio({ chatId }: UseStudioOptions): UseStudioReturn {
   const { session } = useAuth();
   const [outputs, setOutputs] = useState<StudioOutput[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const getAuthHeaders = useCallback(() => {
@@ -31,6 +35,42 @@ export function useStudio({ chatId }: UseStudioOptions): UseStudioReturn {
     }
     return headers;
   }, [session]);
+
+  // Load persisted outputs on mount and when chatId changes
+  const refreshOutputs = useCallback(async () => {
+    if (!chatId || !session?.access_token) return;
+    
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(
+        `${SUPABASE_URL}/functions/v1/studio-api/outputs/${chatId}`,
+        {
+          method: 'GET',
+          headers: getAuthHeaders(),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to load outputs');
+      }
+
+      const data = await response.json();
+      setOutputs(data.outputs || []);
+    } catch (err) {
+      console.error('Failed to load outputs:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load outputs');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [chatId, session?.access_token, getAuthHeaders]);
+
+  // Load outputs when component mounts or chatId changes
+  useEffect(() => {
+    refreshOutputs();
+  }, [refreshOutputs]);
 
   const generate = useCallback(async (type: OutputType, prompt?: string): Promise<StudioOutput> => {
     setIsGenerating(true);
@@ -69,13 +109,13 @@ export function useStudio({ chatId }: UseStudioOptions): UseStudioReturn {
       const data = await response.json();
 
       const completedOutput: StudioOutput = {
-        id: data.output_id || `output-${Date.now()}`,
+        id: data.output_id || data.id || `output-${Date.now()}`,
         type,
         title: data.title || getDefaultTitle(type),
         status: 'ready',
         content: data.content,
         diagramData: data.diagramData,
-        createdAt: new Date().toISOString(),
+        createdAt: data.created_at || new Date().toISOString(),
       };
 
       // Replace placeholder with completed output
@@ -105,6 +145,30 @@ export function useStudio({ chatId }: UseStudioOptions): UseStudioReturn {
     }
   }, [chatId, getAuthHeaders]);
 
+  const deleteOutput = useCallback(async (outputId: string): Promise<void> => {
+    try {
+      const response = await fetch(
+        `${SUPABASE_URL}/functions/v1/studio-api/outputs/${outputId}`,
+        {
+          method: 'DELETE',
+          headers: getAuthHeaders(),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to delete output');
+      }
+
+      // Remove from local state
+      setOutputs(prev => prev.filter(o => o.id !== outputId));
+    } catch (err) {
+      console.error('Failed to delete output:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete output');
+      throw err;
+    }
+  }, [getAuthHeaders]);
+
   const clearOutputs = useCallback(() => {
     setOutputs([]);
   }, []);
@@ -112,8 +176,11 @@ export function useStudio({ chatId }: UseStudioOptions): UseStudioReturn {
   return {
     outputs,
     isGenerating,
+    isLoading,
     error,
     generate,
+    deleteOutput,
+    refreshOutputs,
     clearOutputs,
   };
 }

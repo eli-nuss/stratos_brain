@@ -5,7 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-user-id',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
 }
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || ''
@@ -55,6 +55,21 @@ interface GenerateRequest {
   chat_id: string
   output_type: OutputType
   prompt?: string
+}
+
+interface StudioOutput {
+  output_id: string
+  chat_id: string
+  user_id: string
+  output_type: OutputType
+  title: string
+  status: 'generating' | 'ready' | 'error'
+  content?: string
+  diagram_data?: DiagramData
+  error_message?: string
+  prompt?: string
+  created_at: string
+  updated_at: string
 }
 
 // Get chat context (messages and sources)
@@ -286,7 +301,7 @@ IMPORTANT RULES:
 5. Include 2-4 relevant metrics that provide context
 6. For hierarchy, use parentId to establish relationships
 7. For waterfall, order nodes sequentially from start to end
-8. Category determines color: revenue=green, cost=red, asset=blue, metric=purple, risk=orange, neutral=gray
+8. Category should reflect the nature: revenue (green), cost (red), asset (blue), metric (purple), risk (orange), neutral (gray)
 
 THINK STEP BY STEP:
 1. What story does the user want to tell?
@@ -392,6 +407,79 @@ ${sources.slice(0, 2).map(s => `${s.name}: ${s.content.substring(0, 2000)}`).joi
   }
 }
 
+// Save output to database
+async function saveOutput(
+  supabase: ReturnType<typeof createClient>,
+  chatId: string,
+  userId: string,
+  outputType: OutputType,
+  title: string,
+  content: string | undefined,
+  diagramData: DiagramData | undefined,
+  prompt: string | undefined
+): Promise<StudioOutput> {
+  const { data, error } = await supabase
+    .from('studio_outputs')
+    .insert({
+      chat_id: chatId,
+      user_id: userId,
+      output_type: outputType,
+      title,
+      status: 'ready',
+      content,
+      diagram_data: diagramData,
+      prompt,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Failed to save output:', error)
+    throw new Error(`Failed to save output: ${error.message}`)
+  }
+
+  return data as StudioOutput
+}
+
+// Get outputs for a chat
+async function getOutputs(
+  supabase: ReturnType<typeof createClient>,
+  chatId: string,
+  userId: string
+): Promise<StudioOutput[]> {
+  const { data, error } = await supabase
+    .from('studio_outputs')
+    .select('*')
+    .eq('chat_id', chatId)
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('Failed to get outputs:', error)
+    throw new Error(`Failed to get outputs: ${error.message}`)
+  }
+
+  return data as StudioOutput[]
+}
+
+// Delete an output
+async function deleteOutput(
+  supabase: ReturnType<typeof createClient>,
+  outputId: string,
+  userId: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('studio_outputs')
+    .delete()
+    .eq('output_id', outputId)
+    .eq('user_id', userId)
+
+  if (error) {
+    console.error('Failed to delete output:', error)
+    throw new Error(`Failed to delete output: ${error.message}`)
+  }
+}
+
 // Main handler
 serve(async (req) => {
   // Handle CORS preflight
@@ -424,6 +512,40 @@ serve(async (req) => {
     if (authError || !user) {
       return new Response(JSON.stringify({ error: 'Invalid authorization' }), {
         status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    // GET /outputs/:chat_id - List outputs for a chat
+    if (req.method === 'GET' && relevantPath[0] === 'outputs' && relevantPath[1]) {
+      const chatId = relevantPath[1]
+      const outputs = await getOutputs(supabase, chatId, user.id)
+      
+      // Transform to frontend format
+      const formattedOutputs = outputs.map(o => ({
+        id: o.output_id,
+        type: o.output_type,
+        title: o.title,
+        status: o.status,
+        content: o.content,
+        diagramData: o.diagram_data,
+        error: o.error_message,
+        createdAt: o.created_at,
+      }))
+      
+      return new Response(JSON.stringify({ outputs: formattedOutputs }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    // DELETE /outputs/:output_id - Delete an output
+    if (req.method === 'DELETE' && relevantPath[0] === 'outputs' && relevantPath[1]) {
+      const outputId = relevantPath[1]
+      await deleteOutput(supabase, outputId, user.id)
+      
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
@@ -466,14 +588,27 @@ serve(async (req) => {
           })
       }
 
+      // Save to database
+      const savedOutput = await saveOutput(
+        supabase,
+        chat_id,
+        user.id,
+        output_type,
+        result.title,
+        result.content,
+        result.diagramData,
+        prompt
+      )
+
       return new Response(JSON.stringify({
-        id: crypto.randomUUID(),
+        output_id: savedOutput.output_id,
+        id: savedOutput.output_id,
         type: output_type,
         title: result.title,
         content: result.content,
         diagramData: result.diagramData,
         status: 'ready',
-        created_at: new Date().toISOString(),
+        created_at: savedOutput.created_at,
       }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
