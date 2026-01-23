@@ -5,7 +5,7 @@ import {
   X, Check, AlertCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { TldrawEditor } from './TldrawEditor';
+import { DiagramCanvas } from './DiagramCanvas';
 
 // ============ TYPES ============
 
@@ -468,9 +468,9 @@ export function StudioPanel({
         />
       )}
 
-      {/* Tldraw Canvas Editor */}
+      {/* Diagram Canvas Editor */}
       {viewingDiagram && (
-        <TldrawEditor
+        <DiagramCanvas
           title={viewingDiagram.title}
           description={viewingDiagram.content}
           diagramData={viewingDiagram.diagramData}
