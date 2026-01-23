@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState, lazy, Suspense } from 'react';
+import { createShapeId } from 'tldraw';
 import {
   X, Download, Maximize2, Minimize2, Loader2,
   TrendingUp, TrendingDown, Minus
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// Lazy load tldraw to avoid SSR issues
+// Lazy load tldraw component only
 const TldrawComponent = lazy(() => import('tldraw').then(mod => ({ default: mod.Tldraw })));
 
 // ============ TYPES ============
@@ -51,7 +52,7 @@ interface TldrawEditorProps {
 
 // ============ CATEGORY COLORS ============
 
-const categoryToColor: Record<string, string> = {
+const categoryToColor: Record<string, 'green' | 'red' | 'blue' | 'violet' | 'orange' | 'grey'> = {
   revenue: 'green',
   cost: 'red',
   asset: 'blue',
@@ -134,16 +135,13 @@ function TldrawWrapper({ diagramData }: { diagramData?: DiagramData }) {
     };
   }, []);
 
-  const handleMount = useCallback(async (editor: any) => {
+  const handleMount = useCallback((editor: any) => {
     console.log('Tldraw mounted, diagramData:', diagramData);
     
     if (!diagramData || !diagramData.nodes || diagramData.nodes.length === 0) {
       console.log('No diagram data to render');
       return;
     }
-
-    // Import createShapeId dynamically
-    const { createShapeId } = await import('tldraw');
 
     // Calculate layout positions
     const nodePositions: Record<string, { x: number; y: number }> = {};
@@ -164,11 +162,11 @@ function TldrawWrapper({ diagramData }: { diagramData?: DiagramData }) {
     });
 
     // Create shapes using the editor API
-    const shapeIds: Record<string, any> = {};
+    const shapeIds: Record<string, ReturnType<typeof createShapeId>> = {};
     
     try {
       // Create node shapes
-      for (const node of diagramData.nodes) {
+      diagramData.nodes.forEach((node) => {
         const pos = nodePositions[node.id];
         const shapeId = createShapeId();
         shapeIds[node.id] = shapeId;
@@ -178,7 +176,7 @@ function TldrawWrapper({ diagramData }: { diagramData?: DiagramData }) {
           ? `${node.label}\n${node.valueLabel}`
           : node.label;
 
-        console.log('Creating shape:', { id: shapeId, label: labelText, pos });
+        console.log('Creating shape:', { id: shapeId, label: labelText, pos, color });
 
         editor.createShape({
           id: shapeId,
@@ -198,20 +196,19 @@ function TldrawWrapper({ diagramData }: { diagramData?: DiagramData }) {
             font: 'sans',
           },
         });
-      }
+      });
 
       console.log('Created shapes:', Object.keys(shapeIds).length);
 
       // Create connection arrows
-      for (let i = 0; i < diagramData.connections.length; i++) {
-        const conn = diagramData.connections[i];
+      diagramData.connections.forEach((conn, index) => {
         const fromId = shapeIds[conn.from];
         const toId = shapeIds[conn.to];
         
         if (fromId && toId) {
           const arrowId = createShapeId();
           
-          console.log('Creating arrow:', { from: conn.from, to: conn.to });
+          console.log('Creating arrow:', { from: conn.from, to: conn.to, arrowId });
 
           editor.createShape({
             id: arrowId,
@@ -239,7 +236,7 @@ function TldrawWrapper({ diagramData }: { diagramData?: DiagramData }) {
             },
           });
         }
-      }
+      });
 
       // Zoom to fit all shapes after a short delay
       setTimeout(() => {
