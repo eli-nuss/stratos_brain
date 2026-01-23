@@ -385,13 +385,39 @@ export function DiagramCanvas({
     const nodes = diagramData.nodes;
     if (!nodes || nodes.length === 0) return null;
     
-    // Determine which metrics to display
-    const hasNestedMetrics = nodes.some(n => n.metrics);
-    const metricKeys = hasNestedMetrics 
-      ? ['yield', 'growth', 'peRatio'].filter(key => 
-          nodes.some(n => n.metrics && n.metrics[key] !== undefined && n.metrics[key] !== null)
-        )
-      : [];
+    // Determine which metrics to display - dynamically detect all metric keys
+    const hasNestedMetrics = nodes.some(n => n.metrics && Object.keys(n.metrics).length > 0);
+    
+    // Collect all unique metric keys from all nodes
+    const allMetricKeys = new Set<string>();
+    if (hasNestedMetrics) {
+      nodes.forEach(n => {
+        if (n.metrics) {
+          Object.keys(n.metrics).forEach(key => {
+            const val = n.metrics?.[key];
+            if (typeof val === 'number' && !isNaN(val)) {
+              allMetricKeys.add(key);
+            }
+          });
+        }
+      });
+    }
+    const metricKeys = Array.from(allMetricKeys).slice(0, 5); // Limit to 5 metrics max
+    
+    // Format metric key for display
+    const formatMetricKey = (key: string): string => {
+      const keyMap: Record<string, string> = {
+        peRatio: 'P/E Ratio',
+        evEbitda: 'EV/EBITDA',
+        yield: 'Yield',
+        growth: 'Growth',
+        revenue: 'Revenue',
+        margin: 'Margin',
+        marketCap: 'Market Cap',
+        roe: 'ROE',
+      };
+      return keyMap[key] || key.charAt(0).toUpperCase() + key.slice(1);
+    };
     
     const chartHeight = canvasHeight - 280;
     const chartTop = 140;
@@ -473,9 +499,8 @@ export function DiagramCanvas({
                   fontSize={11}
                   fill={currentTheme.text}
                   fontFamily={excalidrawFontFamilyUI}
-                  style={{ textTransform: 'capitalize' }}
                 >
-                  {key === 'peRatio' ? 'P/E Ratio' : key}
+                  {formatMetricKey(key)}
                 </text>
               </g>
             ))}
@@ -527,7 +552,12 @@ export function DiagramCanvas({
                         fill={currentTheme.text}
                         fontFamily={excalidrawFontFamily}
                       >
-                        {value.toFixed(1)}{key === 'yield' || key === 'growth' ? '%' : ''}
+                        {key.toLowerCase().includes('yield') || key.toLowerCase().includes('growth') || key.toLowerCase().includes('margin') || key.toLowerCase().includes('roe')
+                          ? `${value.toFixed(1)}%`
+                          : key.toLowerCase().includes('ratio') || key.toLowerCase().includes('ebitda') || key.toLowerCase().includes('pe')
+                            ? `${value.toFixed(1)}x`
+                            : value >= 1000 ? `${(value/1000).toFixed(1)}K` : value.toFixed(1)
+                        }
                       </text>
                     </g>
                   );

@@ -167,7 +167,12 @@ const diagramJsonSchema = {
           },
           parentId: { type: "string", description: "Parent node ID for hierarchy layouts" },
           date: { type: "string", description: "Date string for timeline layouts (e.g., 'Q1 2024', '2023')" },
-          details: { type: "string", description: "Additional details for tooltip" }
+          details: { type: "string", description: "Additional details for tooltip" },
+          metrics: {
+            type: "object",
+            description: "For comparison charts: key-value pairs of metric names to numeric values (e.g., {peRatio: 25.5, yield: 0.5, growth: 12.3})",
+            additionalProperties: { type: "number" }
+          }
         },
         required: ["id", "label"]
       }
@@ -495,9 +500,13 @@ SANKEY:
 - Nodes on left are sources, nodes on right are destinations
 
 COMPARISON:
-- Each node represents one entity being compared
-- Include metrics in node.metrics object for grouped bars
-- Or use node.value for single metric comparison
+- Each node represents one entity being compared (e.g., each company is a node)
+- For multi-metric comparison (RECOMMENDED): Include a metrics object in each node:
+  node.metrics = { peRatio: 25.5, yield: 0.5, growth: 12.3, evEbitda: 15.2 }
+- Supported metric keys: peRatio, yield, growth, evEbitda, revenue, margin, marketCap
+- Values should be the actual numeric values (not strings)
+- For single metric comparison: use node.value with the numeric value
+- IMPORTANT: The bars are sized relative to the max value, so include realistic numbers
 
 TIMELINE:
 - MUST include date field for each node (e.g., "Q1 2024", "2023", "Jan 2024")
