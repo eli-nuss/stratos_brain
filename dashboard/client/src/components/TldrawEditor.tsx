@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, lazy, Suspense } from 'react';
+import { useCallback, useEffect, useState, useRef, lazy, Suspense } from 'react';
 import { createShapeId } from 'tldraw';
 import {
   X, Maximize2, Minimize2, Loader2,
@@ -117,6 +117,8 @@ function ErrorFallback({ error, onRetry }: { error: Error; onRetry: () => void }
 
 function TldrawWrapper({ diagramData }: { diagramData?: DiagramData }) {
   const [cssLoaded, setCssLoaded] = useState(false);
+  const shapesCreatedRef = useRef(false);
+  const editorRef = useRef<any>(null);
 
   // Load CSS dynamically
   useEffect(() => {
@@ -135,13 +137,30 @@ function TldrawWrapper({ diagramData }: { diagramData?: DiagramData }) {
     };
   }, []);
 
+  // Reset shapesCreated when diagramData changes
+  useEffect(() => {
+    shapesCreatedRef.current = false;
+  }, [diagramData]);
+
   const handleMount = useCallback((editor: any) => {
-    console.log('Tldraw mounted, diagramData:', diagramData);
+    console.log('Tldraw mounted, diagramData:', diagramData, 'shapesCreated:', shapesCreatedRef.current);
+    
+    // Store editor reference
+    editorRef.current = editor;
+    
+    // Skip if shapes already created or no data
+    if (shapesCreatedRef.current) {
+      console.log('Shapes already created, skipping');
+      return;
+    }
     
     if (!diagramData || !diagramData.nodes || diagramData.nodes.length === 0) {
       console.log('No diagram data to render');
       return;
     }
+
+    // Mark shapes as created immediately to prevent double creation
+    shapesCreatedRef.current = true;
 
     // Import toRichText dynamically since it's needed for geo shape text
     import('tldraw').then(({ toRichText }) => {
@@ -208,7 +227,7 @@ function TldrawWrapper({ diagramData }: { diagramData?: DiagramData }) {
         console.log('Created shapes:', Object.keys(shapeIds).length);
 
         // Create connection arrows
-        diagramData.connections.forEach((conn, index) => {
+        diagramData.connections.forEach((conn) => {
           const fromId = shapeIds[conn.from];
           const toId = shapeIds[conn.to];
           
@@ -255,9 +274,12 @@ function TldrawWrapper({ diagramData }: { diagramData?: DiagramData }) {
         
       } catch (err) {
         console.error('Error creating shapes:', err);
+        // Reset flag so it can try again
+        shapesCreatedRef.current = false;
       }
     }).catch(err => {
       console.error('Error importing toRichText:', err);
+      shapesCreatedRef.current = false;
     });
   }, [diagramData]);
 
@@ -290,11 +312,9 @@ export function TldrawEditor({
 }: TldrawEditorProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const [key, setKey] = useState(0);
 
   const handleRetry = () => {
     setError(null);
-    setKey(k => k + 1);
   };
 
   if (!isOpen) return null;
@@ -360,7 +380,7 @@ export function TldrawEditor({
                 </div>
               </div>
             }>
-              <TldrawWrapper key={key} diagramData={diagramData} />
+              <TldrawWrapper diagramData={diagramData} />
             </Suspense>
           )}
         </div>
