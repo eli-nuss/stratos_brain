@@ -646,6 +646,8 @@ Then output your diagram JSON.`
   );
   
   console.log('[studio-api] Content length:', content.length, 'Sanitized length:', furtherSanitized.length);
+  console.log('[studio-api] First 1000 chars of sanitized:', furtherSanitized.substring(0, 1000));
+  console.log('[studio-api] Last 300 chars of sanitized:', furtherSanitized.substring(furtherSanitized.length - 300));
   
   // Parse the JSON response
   let parsedData: DiagramSpec | undefined
