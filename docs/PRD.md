@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 22, 2026 (v2.3 - MCP Integration)  
+**Last Updated: January 22, 2026 (v2.4 - Enhanced Generative UI)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -1185,6 +1185,7 @@ Both hooks subscribe to Supabase Realtime channels for live updates:
                                                                                            
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.4 | Jan 22, 2026 | **Enhanced Generative UI**: Added 4 new chart types to GenerativeUIRenderer - CorrelationHeatmap (asset correlation matrices), CandlestickChart (OHLC price data), TreeMap (hierarchical data visualization), ScatterPlot (two-variable analysis). Updated generate_dynamic_ui tool definition with 10 total component types. |
 | 2.3 | Jan 22, 2026 | **MCP Integration**: Implemented Model Context Protocol server exposing 24 unified tools via JSON-RPC. Added mcp-client utility for connecting to internal/external MCP servers. Enables plug-and-play integration with Claude Desktop, Cursor IDE, and external data providers (Bloomberg, SEC Edgar). See `docs/MCP_INTEGRATION.md` for full API reference. |
 | 2.2 | Jan 22, 2026 | **Skeptic Agent Loop**: Implemented multi-agent orchestration system with Scout (research), Quant (calculations), and Skeptic (validation) agents. Added query classification for automatic routing. Includes retry logic with max 2 attempts for failed validations. |
 | 2.1 | Jan 22, 2026 | **Code Reuse Refactor**: Created shared `BaseChatInterface` component reducing code duplication by ~70%. Added error recovery with retry functionality. Improved mobile UX for CompanySidePanel with sticky tabs and touch optimization. |

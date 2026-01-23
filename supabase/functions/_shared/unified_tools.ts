@@ -605,29 +605,29 @@ export const UNIFIED_TOOL_DECLARATIONS = [
     }
   },
   
-  // Generate dynamic UI
+  // Generate dynamic UI - Enhanced with 10 component types
   {
     name: "generate_dynamic_ui",
-    description: "Renders a visual UI component in the chat. Use this when the user asks for comparisons, trends, financial charts, data tables, or any visual representation of data. DO NOT use markdown tables - use this tool instead for better visualization.",
+    description: "Renders a visual UI component in the chat. Use this when the user asks for comparisons, trends, financial charts, data tables, correlations, price charts, sector breakdowns, or any visual representation of data. DO NOT use markdown tables - use this tool instead for better visualization.",
     parameters: {
       type: "object",
       properties: {
         componentType: { 
           type: "string", 
-          enum: ["FinancialChart", "MetricCard", "RiskGauge", "DataTable", "ComparisonChart", "InteractiveModel"],
-          description: "The type of React component to render. Use InteractiveModel for DCF, scenario analysis, or any model where the user should be able to adjust inputs." 
+          enum: ["FinancialChart", "MetricCard", "RiskGauge", "DataTable", "ComparisonChart", "InteractiveModel", "CorrelationHeatmap", "CandlestickChart", "TreeMap", "ScatterPlot"],
+          description: "The type of React component to render. FinancialChart: line/bar charts for time series. MetricCard: key stats grid. RiskGauge: risk level display. DataTable: tabular data. ComparisonChart: pie/donut charts. InteractiveModel: DCF/scenario analysis with sliders. CorrelationHeatmap: asset correlation matrix. CandlestickChart: OHLC price data. TreeMap: hierarchical data (sector allocation). ScatterPlot: two-variable analysis (risk vs return)." 
         },
         title: { 
           type: "string", 
-          description: "The title of the chart/card/table. Include the unit in the title (e.g., '($ Billions)' or '(%)')." 
+          description: "The title of the chart/card/table. Include the unit in the title (e.g., '($ Billions)' or '(%)')" 
         },
         data: { 
           type: "object", 
-          description: "STRICT JSON data. Schemas: FinancialChart: {type: 'line'|'bar', metric: string, points: [{label: string, value: number}]}. MetricCard: {metrics: [{label: string, value: string, trend: number}]}. DataTable: {headers: string[], rows: string[][]}. ComparisonChart: {items: [{name: string, value: number}]}. InteractiveModel: {modelType: 'dcf'|'scenario'|'sensitivity'|'custom', baseValue: number, variables: [{name: string, label: string, value: number, min: number, max: number, step: number, unit?: '%'|'$'|'x'}], formula?: string}." 
+          description: "STRICT JSON data. Schemas by componentType: FinancialChart: {type: 'line'|'bar', metric: string, points: [{label: string, value: number}]}. MetricCard: {metrics: [{label: string, value: string, trend: number}]}. DataTable: {headers: string[], rows: string[][]}. ComparisonChart: {items: [{name: string, value: number}]}. InteractiveModel: {modelType: 'dcf'|'scenario'|'sensitivity'|'custom', baseValue: number, variables: [{name: string, label: string, value: number, min: number, max: number, step: number, unit?: '%'|'$'|'x'}], formula?: string}. CorrelationHeatmap: {assets: string[], matrix: number[][], period?: string}. CandlestickChart: {ticker?: string, candles: [{date: string, open: number, high: number, low: number, close: number, volume?: number}]}. TreeMap: {valueLabel?: string, items: [{name: string, value: number, change?: number, category?: string}]}. ScatterPlot: {xLabel: string, yLabel: string, xUnit?: string, yUnit?: string, points: [{name: string, x: number, y: number, size?: number, category?: string}]}." 
         },
         insight: { 
           type: "string", 
-          description: "A one-sentence analyst takeaway to display below the visualization." 
+          description: "A one-sentence analyst takeaway to display below the visualization" 
         }
       },
       required: ["componentType", "title", "data"]
