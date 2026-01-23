@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 22, 2026 (v2.1 - Persistent Python & Interactive UI)  
+**Last Updated: January 22, 2026 (v2.2 - Skeptic Agent Loop)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -871,6 +871,80 @@ The following tools are cached to provide instant responses on repeated queries:
 - `get_ai_reviews` - Previous AI analysis
 - `get_financial_calendar` - Earnings dates
 
+### 10.5 Multi-Agent Orchestrator ("Skeptic" Agent Loop)
+
+The chat-worker now supports a multi-agent orchestration system that improves analysis quality through a "Virtual Investment Committee" pattern. This feature is enabled by default and can be disabled via the `ENABLE_SKEPTIC_AGENT` environment variable.
+
+#### Agent Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        THE SKEPTIC AGENT LOOP                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  User Request                                                               │
+│       │                                                                     │
+│       ▼                                                                     │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐                     │
+│  │   SCOUT     │───▶│    QUANT    │───▶│   SKEPTIC   │                     │
+│  │  (Flash)    │    │   (Pro)     │    │   (Flash)   │                     │
+│  │             │    │             │    │             │                     │
+│  │ • Research  │    │ • Calculate │    │ • Validate  │                     │
+│  │ • Gather    │    │ • Analyze   │    │ • Audit     │                     │
+│  │ • Search    │    │ • Model     │    │ • Challenge │                     │
+│  └─────────────┘    └─────────────┘    └──────┬──────┘                     │
+│                                               │                             │
+│                                        ┌──────┴──────┐                      │
+│                                        │   PASS?     │                      │
+│                                        └──────┬──────┘                      │
+│                                    YES │      │ NO                          │
+│                                        ▼      ▼                             │
+│                               ┌────────────┐  │                             │
+│                               │   FINAL    │  │ Loop back with              │
+│                               │  RESPONSE  │  │ correction instructions     │
+│                               └────────────┘  └─────────────────────────────│
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Agent Specifications
+
+| Agent | Model | Role | Tools Available |
+|-------|-------|------|----------------|
+| **Scout** | Gemini 3 Flash | Fast data gathering, news search | `web_search`, `get_company_docs`, `search_company_docs`, `get_market_pulse`, `get_macro_context`, `get_asset_fundamentals`, `get_price_history` |
+| **Quant** | Gemini 3 Pro | Complex calculations, financial modeling | `execute_python`, `run_valuation_model`, `generate_scenario_matrix`, `get_asset_fundamentals`, `get_price_history`, `get_technical_indicators`, `analyze_earnings_tone`, `get_sector_comparison` |
+| **Skeptic** | Gemini 3 Flash | Validation, error detection | Read-only access to Scout/Quant outputs |
+
+#### Query Classification
+
+The system automatically classifies queries to determine whether to use the multi-agent orchestrator:
+
+| Query Type | Description | Uses Orchestrator |
+|------------|-------------|-------------------|
+| `calculation` | DCF, valuation, fair value, forecasts | ✅ Yes |
+| `research` | News, comparisons, explanations | ✅ Yes |
+| `hybrid` | Both calculation and research | ✅ Yes |
+| `simple` | Greetings, basic questions | ❌ No (single agent) |
+
+#### Skeptic Validation Criteria
+
+The Skeptic agent validates analysis against five criteria:
+
+1. **Mathematical Accuracy** - Are calculations correct?
+2. **Logical Consistency** - Do conclusions follow from data?
+3. **Hallucination Detection** - Are all claims supported?
+4. **Completeness** - Does the analysis answer the question?
+5. **Quality Standards** - Is it institutional-grade?
+
+#### Key Files
+
+| File | Purpose |
+|------|--------|
+| `chat-worker/agent-state.ts` | State management and query classification |
+| `chat-worker/agent-prompts.ts` | Specialized prompts for each agent |
+| `chat-worker/agent-orchestrator.ts` | Multi-agent coordination logic |
+| `chat-worker/index.ts` | Integration with main worker loop |
+
 #### Streaming Architecture (Supabase Realtime)
 
 Both **Company Chat** and **Global Brain Chat** now use the same streaming architecture via Supabase Realtime. This provides a robust and scalable solution for real-time updates.
@@ -1109,6 +1183,7 @@ Both hooks subscribe to Supabase Realtime channels for live updates:
                                                                                            
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.2 | Jan 22, 2026 | **Skeptic Agent Loop**: Implemented multi-agent orchestration system with Scout (research), Quant (calculations), and Skeptic (validation) agents. Added query classification for automatic routing. Includes retry logic with max 2 attempts for failed validations. |
 | 2.1 | Jan 22, 2026 | **Code Reuse Refactor**: Created shared `BaseChatInterface` component reducing code duplication by ~70%. Added error recovery with retry functionality. Improved mobile UX for CompanySidePanel with sticky tabs and touch optimization. |
                                                                                             - [ ] | 1.4 | Jan 15, 2026 | Added ETFs, Indices, and Commodities dashboard views with API endpoints; global equities now appear in All Equities view |
 | 1.3 | Jan 15, 2026 | Added ETF tables (105 ETFs, 104K bars), market indices (15 global indices, 15K bars), commodities (40 commodities, 38K bars) |

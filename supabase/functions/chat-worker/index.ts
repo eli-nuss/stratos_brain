@@ -3,6 +3,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { runAgentOrchestrator } from './agent-orchestrator.ts'
+import { classifyQuery } from './agent-state.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,6 +22,44 @@ const GOOGLE_SEARCH_CX = Deno.env.get('GOOGLE_SEARCH_CX') || ''
 
 // E2B configuration for Python execution
 const E2B_API_KEY = Deno.env.get('E2B_API_KEY') || ''
+
+// Supabase configuration for broadcast
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || ''
+const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+
+// Feature flags
+const ENABLE_SKEPTIC_AGENT = Deno.env.get('ENABLE_SKEPTIC_AGENT') !== 'false' // Default: enabled
+
+// Broadcast event to Supabase Realtime channel for real-time updates
+async function broadcastEvent(
+  jobId: string,
+  event: string,
+  payload: Record<string, unknown>
+): Promise<void> {
+  try {
+    const response = await fetch(`${SUPABASE_URL}/realtime/v1/api/broadcast`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messages: [{
+          topic: `chat_job:${jobId}`,
+          event: event,
+          payload: payload,
+          private: false
+        }]
+      })
+    })
+    
+    if (!response.ok) {
+      console.error(`Broadcast ${event} failed:`, response.status)
+    }
+  } catch (err) {
+    console.error(`Failed to broadcast ${event}:`, err)
+  }
+}
 
 // Chat configuration interface
 interface ChatConfig {
@@ -940,12 +980,57 @@ serve(async (req) => {
       }
     }
     
-    // Build system prompt
-    const systemPrompt = buildSystemPrompt(asset, chat.context_snapshot, chatConfig || {})
+    // Determine if we should use the multi-agent orchestrator
+    const queryType = classifyQuery(message)
+    const useOrchestrator = ENABLE_SKEPTIC_AGENT && (queryType === 'calculation' || queryType === 'hybrid' || queryType === 'research')
     
-    // Call Gemini with tools
+    // Broadcast query classification
+    await broadcastEvent(jobId, 'query_classified', { queryType, useOrchestrator })
+    
     const startTime = Date.now()
-    const geminiResult = await callGeminiWithTools(geminiMessages, systemPrompt, supabase, jobId, chatConfig || {})
+    let geminiResult: { response: string; toolCalls: unknown[]; codeExecutions: unknown[]; agentSummary?: string; skepticVerdict?: unknown }
+    
+    if (useOrchestrator) {
+      // Use the multi-agent orchestrator with Scout, Quant, and Skeptic
+      const orchestratorResult = await runAgentOrchestrator(
+        supabase,
+        {
+          asset_id: asset.asset_id,
+          symbol: asset.symbol,
+          name: asset.name,
+          asset_type: asset.asset_type,
+          sector: asset.sector,
+          industry: asset.industry
+        },
+        message,
+        geminiMessages,
+        chat.context_snapshot,
+        jobId,
+        unifiedFunctionDeclarations,
+        executeFunctionCall,
+        broadcastEvent,
+        ENABLE_SKEPTIC_AGENT
+      )
+      
+      geminiResult = {
+        response: orchestratorResult.response,
+        toolCalls: orchestratorResult.toolCalls,
+        codeExecutions: orchestratorResult.codeExecutions,
+        agentSummary: orchestratorResult.agentSummary,
+        skepticVerdict: orchestratorResult.skepticVerdict
+      }
+    } else {
+      // Use the original single-agent flow for simple queries
+      const systemPrompt = buildSystemPrompt(asset, chat.context_snapshot, chatConfig || {})
+      const singleAgentResult = await callGeminiWithTools(geminiMessages, systemPrompt, supabase, jobId, chatConfig || {})
+      
+      geminiResult = {
+        response: singleAgentResult.response,
+        toolCalls: singleAgentResult.toolCalls,
+        codeExecutions: singleAgentResult.codeExecutions
+      }
+    }
+    
     const latencyMs = Date.now() - startTime
     
     // Save assistant message
@@ -957,8 +1042,12 @@ serve(async (req) => {
         role: 'assistant',
         content: geminiResult.response,
         tool_calls: geminiResult.toolCalls.length > 0 ? geminiResult.toolCalls : null,
-        model: chatConfig?.model || GEMINI_MODEL,
-        latency_ms: latencyMs
+        model: useOrchestrator ? 'multi-agent-orchestrator' : (chatConfig?.model || GEMINI_MODEL),
+        latency_ms: latencyMs,
+        metadata: useOrchestrator ? {
+          agent_summary: geminiResult.agentSummary,
+          skeptic_verdict: geminiResult.skepticVerdict
+        } : null
       })
       .select()
       .single()
@@ -976,7 +1065,9 @@ serve(async (req) => {
         assistant_message: assistantMessage,
         tool_calls: geminiResult.toolCalls,
         code_executions: geminiResult.codeExecutions,
-        latency_ms: latencyMs
+        latency_ms: latencyMs,
+        agent_summary: geminiResult.agentSummary,
+        skeptic_verdict: geminiResult.skepticVerdict
       }
     })
     
