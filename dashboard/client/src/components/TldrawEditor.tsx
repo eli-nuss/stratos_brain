@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useRef, lazy, Suspense } from 'react';
+import { useCallback, useEffect, useState, useRef, lazy, Suspense, memo, useMemo } from 'react';
 import { createShapeId } from 'tldraw';
 import {
   X, Maximize2, Minimize2, Loader2,
@@ -63,7 +63,7 @@ const categoryToColor: Record<string, 'green' | 'red' | 'blue' | 'violet' | 'ora
 
 // ============ METRICS PANEL ============
 
-function MetricsPanel({ metrics }: { metrics: DiagramMetric[] }) {
+const MetricsPanel = memo(function MetricsPanel({ metrics }: { metrics: DiagramMetric[] }) {
   return (
     <div className="flex flex-wrap gap-3 p-4 bg-zinc-800/50 border-b border-zinc-700">
       {metrics.map((metric, index) => (
@@ -92,7 +92,7 @@ function MetricsPanel({ metrics }: { metrics: DiagramMetric[] }) {
       ))}
     </div>
   );
-}
+});
 
 // ============ ERROR BOUNDARY ============
 
@@ -113,44 +113,45 @@ function ErrorFallback({ error, onRetry }: { error: Error; onRetry: () => void }
   );
 }
 
-// ============ TLDRAW WRAPPER ============
+// ============ TLDRAW WRAPPER (MEMOIZED) ============
 
-function TldrawWrapper({ diagramData }: { diagramData?: DiagramData }) {
+interface TldrawWrapperProps {
+  diagramData?: DiagramData;
+  diagramId: string; // Unique ID to track which diagram we're showing
+}
+
+const TldrawWrapper = memo(function TldrawWrapper({ diagramData, diagramId }: TldrawWrapperProps) {
   const [cssLoaded, setCssLoaded] = useState(false);
-  const shapesCreatedRef = useRef(false);
+  const shapesCreatedForRef = useRef<string | null>(null);
   const editorRef = useRef<any>(null);
 
   // Load CSS dynamically
   useEffect(() => {
+    // Check if CSS is already loaded
+    const existingLink = document.querySelector('link[href*="tldraw"]');
+    if (existingLink) {
+      setCssLoaded(true);
+      return;
+    }
+
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = 'https://unpkg.com/tldraw@4.3.0/tldraw.css';
     link.onload = () => setCssLoaded(true);
     document.head.appendChild(link);
     
-    return () => {
-      try {
-        document.head.removeChild(link);
-      } catch (e) {
-        // Link may already be removed
-      }
-    };
+    // Don't remove CSS on unmount - keep it cached
   }, []);
 
-  // Reset shapesCreated when diagramData changes
-  useEffect(() => {
-    shapesCreatedRef.current = false;
-  }, [diagramData]);
-
   const handleMount = useCallback((editor: any) => {
-    console.log('Tldraw mounted, diagramData:', diagramData, 'shapesCreated:', shapesCreatedRef.current);
+    console.log('Tldraw mounted, diagramId:', diagramId, 'shapesCreatedFor:', shapesCreatedForRef.current);
     
     // Store editor reference
     editorRef.current = editor;
     
-    // Skip if shapes already created or no data
-    if (shapesCreatedRef.current) {
-      console.log('Shapes already created, skipping');
+    // Skip if shapes already created for this diagram
+    if (shapesCreatedForRef.current === diagramId) {
+      console.log('Shapes already created for this diagram, skipping');
       return;
     }
     
@@ -159,129 +160,127 @@ function TldrawWrapper({ diagramData }: { diagramData?: DiagramData }) {
       return;
     }
 
-    // Mark shapes as created immediately to prevent double creation
-    shapesCreatedRef.current = true;
+    // Mark shapes as created for this diagram
+    shapesCreatedForRef.current = diagramId;
 
-    // Import toRichText dynamically since it's needed for geo shape text
-    import('tldraw').then(({ toRichText }) => {
-      // Calculate layout positions
-      const nodePositions: Record<string, { x: number; y: number }> = {};
-      const cols = Math.ceil(Math.sqrt(diagramData.nodes.length));
-      const spacingX = 280;
-      const spacingY = 180;
-      const startX = 200;
-      const startY = 200;
+    // Create shapes with a slight delay to ensure editor is ready
+    setTimeout(() => {
+      import('tldraw').then(({ toRichText }) => {
+        // Calculate layout positions
+        const nodePositions: Record<string, { x: number; y: number }> = {};
+        const cols = Math.ceil(Math.sqrt(diagramData.nodes.length));
+        const spacingX = 280;
+        const spacingY = 180;
+        const startX = 200;
+        const startY = 200;
 
-      // Position nodes in a grid
-      diagramData.nodes.forEach((node, index) => {
-        const col = index % cols;
-        const row = Math.floor(index / cols);
-        nodePositions[node.id] = {
-          x: startX + col * spacingX,
-          y: startY + row * spacingY,
-        };
-      });
-
-      // Create shapes using the editor API
-      const shapeIds: Record<string, ReturnType<typeof createShapeId>> = {};
-      
-      try {
-        // Create node shapes
-        diagramData.nodes.forEach((node) => {
-          const pos = nodePositions[node.id];
-          const shapeId = createShapeId();
-          shapeIds[node.id] = shapeId;
-
-          const color = categoryToColor[node.category || 'neutral'] || 'grey';
-          const labelText = node.valueLabel 
-            ? `${node.label}\n${node.valueLabel}`
-            : node.label;
-
-          console.log('Creating shape:', { id: shapeId, label: labelText, pos, color });
-
-          // Use richText instead of text for geo shapes in tldraw 4.x
-          editor.createShape({
-            id: shapeId,
-            type: 'geo',
-            x: pos.x,
-            y: pos.y,
-            props: {
-              w: 200,
-              h: 100,
-              geo: 'rectangle',
-              color: color,
-              fill: 'solid',
-              dash: 'solid',
-              size: 'm',
-              font: 'sans',
-              align: 'middle',
-              verticalAlign: 'middle',
-              richText: toRichText(labelText),
-              labelColor: 'white',
-              growY: 0,
-              scale: 1,
-            },
-          });
+        // Position nodes in a grid
+        diagramData.nodes.forEach((node, index) => {
+          const col = index % cols;
+          const row = Math.floor(index / cols);
+          nodePositions[node.id] = {
+            x: startX + col * spacingX,
+            y: startY + row * spacingY,
+          };
         });
 
-        console.log('Created shapes:', Object.keys(shapeIds).length);
+        // Create shapes using the editor API
+        const shapeIds: Record<string, ReturnType<typeof createShapeId>> = {};
+        
+        try {
+          // Create node shapes
+          diagramData.nodes.forEach((node) => {
+            const pos = nodePositions[node.id];
+            const shapeId = createShapeId();
+            shapeIds[node.id] = shapeId;
 
-        // Create connection arrows
-        diagramData.connections.forEach((conn) => {
-          const fromId = shapeIds[conn.from];
-          const toId = shapeIds[conn.to];
-          
-          if (fromId && toId) {
-            const arrowId = createShapeId();
-            
-            console.log('Creating arrow:', { from: conn.from, to: conn.to, arrowId });
+            const color = categoryToColor[node.category || 'neutral'] || 'grey';
+            const labelText = node.valueLabel 
+              ? `${node.label}\n${node.valueLabel}`
+              : node.label;
+
+            console.log('Creating shape:', { id: shapeId, label: labelText, pos, color });
 
             editor.createShape({
-              id: arrowId,
-              type: 'arrow',
+              id: shapeId,
+              type: 'geo',
+              x: pos.x,
+              y: pos.y,
               props: {
-                color: 'grey',
+                w: 200,
+                h: 100,
+                geo: 'rectangle',
+                color: color,
+                fill: 'solid',
+                dash: 'solid',
                 size: 'm',
-                arrowheadEnd: 'arrow',
-                arrowheadStart: 'none',
-                start: {
-                  type: 'binding',
-                  boundShapeId: fromId,
-                  normalizedAnchor: { x: 0.5, y: 1 },
-                  isExact: false,
-                  isPrecise: false,
-                },
-                end: {
-                  type: 'binding',
-                  boundShapeId: toId,
-                  normalizedAnchor: { x: 0.5, y: 0 },
-                  isExact: false,
-                  isPrecise: false,
-                },
+                font: 'sans',
+                align: 'middle',
+                verticalAlign: 'middle',
+                richText: toRichText(labelText),
+                labelColor: 'white',
+                growY: 0,
+                scale: 1,
               },
             });
-          }
-        });
+          });
 
-        // Zoom to fit all shapes after a short delay
-        setTimeout(() => {
-          try {
-            editor.zoomToFit({ animation: { duration: 300 } });
-          } catch (e) {
-            console.error('Error zooming to fit:', e);
-          }
-        }, 200);
-        
-      } catch (err) {
-        console.error('Error creating shapes:', err);
-        // Reset flag so it can try again
-        shapesCreatedRef.current = false;
-      }
-    }).catch(err => {
-      console.error('Error importing toRichText:', err);
-      shapesCreatedRef.current = false;
-    });
-  }, [diagramData]);
+          console.log('Created shapes:', Object.keys(shapeIds).length);
+
+          // Create connection arrows
+          diagramData.connections.forEach((conn) => {
+            const fromId = shapeIds[conn.from];
+            const toId = shapeIds[conn.to];
+            
+            if (fromId && toId) {
+              const arrowId = createShapeId();
+              
+              editor.createShape({
+                id: arrowId,
+                type: 'arrow',
+                props: {
+                  color: 'grey',
+                  size: 'm',
+                  arrowheadEnd: 'arrow',
+                  arrowheadStart: 'none',
+                  start: {
+                    type: 'binding',
+                    boundShapeId: fromId,
+                    normalizedAnchor: { x: 0.5, y: 1 },
+                    isExact: false,
+                    isPrecise: false,
+                  },
+                  end: {
+                    type: 'binding',
+                    boundShapeId: toId,
+                    normalizedAnchor: { x: 0.5, y: 0 },
+                    isExact: false,
+                    isPrecise: false,
+                  },
+                },
+              });
+            }
+          });
+
+          // Zoom to fit all shapes
+          setTimeout(() => {
+            try {
+              editor.zoomToFit({ animation: { duration: 300 } });
+            } catch (e) {
+              console.error('Error zooming to fit:', e);
+            }
+          }, 100);
+          
+        } catch (err) {
+          console.error('Error creating shapes:', err);
+          shapesCreatedForRef.current = null;
+        }
+      }).catch(err => {
+        console.error('Error importing toRichText:', err);
+        shapesCreatedForRef.current = null;
+      });
+    }, 100);
+  }, [diagramData, diagramId]);
 
   if (!cssLoaded) {
     return (
@@ -296,10 +295,15 @@ function TldrawWrapper({ diagramData }: { diagramData?: DiagramData }) {
       <TldrawComponent
         onMount={handleMount}
         inferDarkMode
+        // Use persistenceKey to maintain state across re-renders
+        persistenceKey={`diagram-${diagramId}`}
       />
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Only re-render if diagramId changes
+  return prevProps.diagramId === nextProps.diagramId;
+});
 
 // ============ MAIN COMPONENT ============
 
@@ -312,19 +316,37 @@ export function TldrawEditor({
 }: TldrawEditorProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  
+  // Generate a stable ID for this diagram based on its content
+  const diagramId = useMemo(() => {
+    if (!diagramData) return 'empty';
+    return `${diagramData.chartType || 'chart'}-${diagramData.nodes.length}-${diagramData.nodes.map(n => n.id).join('-')}`;
+  }, [diagramData]);
 
   const handleRetry = () => {
     setError(null);
   };
 
+  // Don't render anything if not open
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-      <div className={cn(
-        "bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden flex flex-col transition-all duration-200",
-        isFullscreen ? "w-full h-full rounded-none" : "w-[95vw] h-[90vh] max-w-7xl"
-      )}>
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+      onClick={(e) => {
+        // Only close if clicking the backdrop, not the modal content
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div 
+        className={cn(
+          "bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden flex flex-col transition-all duration-200",
+          isFullscreen ? "w-full h-full rounded-none" : "w-[95vw] h-[90vh] max-w-7xl"
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-700 flex-shrink-0 bg-zinc-800">
           <div className="flex items-center gap-3">
@@ -380,7 +402,7 @@ export function TldrawEditor({
                 </div>
               </div>
             }>
-              <TldrawWrapper diagramData={diagramData} />
+              <TldrawWrapper diagramData={diagramData} diagramId={diagramId} />
             </Suspense>
           )}
         </div>
