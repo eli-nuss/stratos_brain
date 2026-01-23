@@ -71,6 +71,16 @@ export interface ChatMessage {
   model: string | null;
   latency_ms: number | null;
   created_at: string;
+  metadata?: {
+    agent_summary?: string;
+    skeptic_verdict?: {
+      verdict: 'PASS' | 'FAIL';
+      confidence: number;
+      issues: string[];
+      corrections: string[];
+      reasoning: string;
+    };
+  } | null;
 }
 
 export interface ToolCall {

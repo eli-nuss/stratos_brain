@@ -26,6 +26,16 @@ export interface BaseMessage {
   model: string | null;
   latency_ms: number | null;
   created_at: string;
+  metadata?: {
+    agent_summary?: string;
+    skeptic_verdict?: {
+      verdict: 'PASS' | 'FAIL';
+      confidence: number;
+      issues: string[];
+      corrections: string[];
+      reasoning: string;
+    };
+  } | null;
 }
 
 export interface ToolCall {
@@ -505,14 +515,34 @@ export function MessageBubble({ message, theme = 'company', AvatarIcon }: Messag
           </div>
         )}
 
-        {/* Timestamp */}
+        {/* Timestamp and Agent Info */}
         <div className={cn(
-          'flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground',
+          'flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground flex-wrap',
           isUser ? 'justify-end' : 'justify-start'
         )}>
           <span>{new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           {message.model && !isUser && (
             <span className="opacity-50">• {message.model}</span>
+          )}
+          {/* Skeptic Agent Badge */}
+          {message.metadata?.agent_summary && !isUser && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">
+              <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {message.metadata.agent_summary}
+            </span>
+          )}
+          {message.metadata?.skeptic_verdict && !isUser && (
+            <span className={cn(
+              'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border',
+              message.metadata.skeptic_verdict.verdict === 'PASS' 
+                ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                : 'bg-red-500/10 text-red-400 border-red-500/20'
+            )}>
+              {message.metadata.skeptic_verdict.verdict === 'PASS' ? '✓' : '✗'} Skeptic: {message.metadata.skeptic_verdict.verdict}
+              <span className="opacity-60">({message.metadata.skeptic_verdict.confidence}%)</span>
+            </span>
           )}
         </div>
       </div>
