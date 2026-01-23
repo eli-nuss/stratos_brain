@@ -73,8 +73,22 @@ export function useStudio({ chatId }: UseStudioOptions): UseStudioReturn {
       }
 
       const data = await response.json();
-      console.log('[useStudio] Loaded outputs:', data.outputs?.length || 0);
-      setOutputs(data.outputs || []);
+      console.log('[useStudio] Loaded outputs:', data?.length || 0);
+      
+      // Transform snake_case API response to camelCase frontend format
+      const transformedOutputs: StudioOutput[] = (data || []).map((item: Record<string, unknown>) => ({
+        id: item.output_id as string,
+        type: item.output_type as OutputType,
+        title: item.title as string,
+        status: item.status as 'generating' | 'ready' | 'error',
+        content: item.content as string | undefined,
+        diagramData: item.diagram_data as StudioOutput['diagramData'],
+        error: item.error_message as string | undefined,
+        createdAt: item.created_at as string,
+        prompt: item.prompt as string | undefined,
+      }));
+      
+      setOutputs(transformedOutputs);
       hasLoadedRef.current = true;
     } catch (err) {
       console.error('[useStudio] Failed to load outputs:', err);
@@ -154,14 +168,38 @@ export function useStudio({ chatId }: UseStudioOptions): UseStudioReturn {
 
       const data = await response.json();
 
+      // The initial response is just the placeholder - we need to poll for completion
+      const outputId = data.output_id;
+      
+      // Poll for completion
+      let completedData = data;
+      let attempts = 0;
+      const maxAttempts = 60; // 60 seconds max
+      
+      while (completedData.status === 'generating' && attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const pollResponse = await fetch(
+          `${SUPABASE_URL}/functions/v1/studio-api/${outputId}`,
+          {
+            method: 'GET',
+            headers: getAuthHeaders(),
+          }
+        );
+        if (pollResponse.ok) {
+          completedData = await pollResponse.json();
+        }
+        attempts++;
+      }
+
       const completedOutput: StudioOutput = {
-        id: data.output_id || data.id || `output-${Date.now()}`,
+        id: completedData.output_id || completedData.id || `output-${Date.now()}`,
         type,
-        title: data.title || getDefaultTitle(type),
-        status: 'ready',
-        content: data.content,
-        diagramData: data.diagramData,
-        createdAt: data.created_at || new Date().toISOString(),
+        title: completedData.title || getDefaultTitle(type),
+        status: completedData.status || 'ready',
+        content: completedData.content,
+        diagramData: completedData.diagram_data, // Transform snake_case to camelCase
+        error: completedData.error_message,
+        createdAt: completedData.created_at || new Date().toISOString(),
       };
 
       // Replace placeholder with completed output
