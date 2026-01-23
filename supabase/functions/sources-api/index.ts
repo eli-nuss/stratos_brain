@@ -150,7 +150,11 @@ serve(async (req) => {
   
   try {
     const url = new URL(req.url)
-    const pathParts = url.pathname.split('/').filter(Boolean)
+    const fullPathParts = url.pathname.split('/').filter(Boolean)
+    // Remove 'functions', 'v1', 'sources-api' prefix to get the actual route
+    // Path looks like: /functions/v1/sources-api/sources or /functions/v1/sources-api/sources/:id
+    const sourcesApiIndex = fullPathParts.indexOf('sources-api')
+    const pathParts = sourcesApiIndex >= 0 ? fullPathParts.slice(sourcesApiIndex + 1) : fullPathParts
     
     // Get auth token
     const authHeader = req.headers.get('Authorization')
