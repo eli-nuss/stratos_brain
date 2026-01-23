@@ -237,10 +237,12 @@ function TldrawWrapper({ diagramData }: { diagramData?: DiagramData }) {
   }
 
   return (
-    <TldrawComponent
-      onMount={handleMount}
-      inferDarkMode
-    />
+    <div style={{ position: 'absolute', inset: 0 }}>
+      <TldrawComponent
+        onMount={handleMount}
+        inferDarkMode
+      />
+    </div>
   );
 }
 
@@ -313,7 +315,7 @@ export function TldrawEditor({
         )}
 
         {/* Tldraw Canvas */}
-        <div className="flex-1 relative">
+        <div className="flex-1 relative" style={{ minHeight: '500px' }}>
           {error ? (
             <ErrorFallback error={error} onRetry={handleRetry} />
           ) : (
