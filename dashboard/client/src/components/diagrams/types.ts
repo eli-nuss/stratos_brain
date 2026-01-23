@@ -42,7 +42,15 @@ export interface DiagramMetric {
   trend?: 'up' | 'down' | 'neutral';
 }
 
+export interface ThoughtProcess {
+  user_intent: string;
+  data_shape: string;
+  selected_layout: LayoutType;
+  reasoning: string;
+}
+
 export interface DiagramData {
+  thought_process?: ThoughtProcess;
   layoutType: LayoutType;
   title: string;
   subtitle?: string;

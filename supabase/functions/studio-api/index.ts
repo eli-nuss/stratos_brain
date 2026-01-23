@@ -12,8 +12,18 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || ''
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
 
+// Use the latest Gemini model
+const GEMINI_MODEL = 'gemini-3-pro-preview'
+
 type OutputType = 'report' | 'slides' | 'diagram' | 'table'
 type LayoutType = 'treemap' | 'hierarchy' | 'waterfall' | 'sankey' | 'comparison' | 'timeline'
+
+interface ThoughtProcess {
+  user_intent: string
+  data_shape: string
+  selected_layout: LayoutType
+  reasoning: string
+}
 
 interface DiagramNode {
   id: string
@@ -43,6 +53,7 @@ interface DiagramMetric {
 }
 
 interface DiagramData {
+  thought_process?: ThoughtProcess
   layoutType: LayoutType
   title: string
   subtitle?: string
@@ -111,14 +122,29 @@ async function getChatContext(supabase: ReturnType<typeof createClient>, chatId:
   }
 }
 
-// JSON Schema for diagram data - used with Gemini's JSON mode
+// JSON Schema for diagram data with thought_process - used with Gemini's JSON mode
 const diagramJsonSchema = {
   type: "object",
   properties: {
+    thought_process: {
+      type: "object",
+      description: "Chain-of-thought reasoning before generating the diagram",
+      properties: {
+        user_intent: { type: "string", description: "What is the core question the user is trying to answer?" },
+        data_shape: { type: "string", description: "What does the available data look like? (Time-series, Composition, Relational flow, etc.)" },
+        selected_layout: { 
+          type: "string", 
+          enum: ["treemap", "hierarchy", "waterfall", "sankey", "comparison", "timeline"],
+          description: "Which layout best matches this data shape?"
+        },
+        reasoning: { type: "string", description: "Brief explanation of why this layout was chosen" }
+      },
+      required: ["user_intent", "data_shape", "selected_layout", "reasoning"]
+    },
     layoutType: { 
       type: "string", 
       enum: ["treemap", "hierarchy", "waterfall", "sankey", "comparison", "timeline"],
-      description: "The visualization layout type"
+      description: "The visualization layout type (must match thought_process.selected_layout)"
     },
     title: { type: "string", description: "Clear, descriptive title for the diagram" },
     subtitle: { type: "string", description: "Brief explanation of what this diagram shows" },
@@ -140,7 +166,7 @@ const diagramJsonSchema = {
             description: "Category for color coding"
           },
           parentId: { type: "string", description: "Parent node ID for hierarchy layouts" },
-          date: { type: "string", description: "Date string for timeline layouts" },
+          date: { type: "string", description: "Date string for timeline layouts (e.g., 'Q1 2024', '2023')" },
           details: { type: "string", description: "Additional details for tooltip" }
         },
         required: ["id", "label"]
@@ -173,7 +199,7 @@ const diagramJsonSchema = {
       }
     }
   },
-  required: ["layoutType", "title", "nodes", "connections"]
+  required: ["thought_process", "layoutType", "title", "nodes", "connections"]
 }
 
 // Generate content using Gemini with optional JSON mode
@@ -184,7 +210,7 @@ async function generateWithGemini(
   jsonSchema?: object
 ): Promise<string> {
   const generationConfig: Record<string, unknown> = {
-    temperature: useJsonMode ? 0.2 : 0.7, // Lower temperature for JSON
+    temperature: useJsonMode ? 0.3 : 0.7, // Slightly higher temp for better reasoning
     maxOutputTokens: 8000,
   }
 
@@ -197,7 +223,7 @@ async function generateWithGemini(
   }
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -300,94 +326,234 @@ ${sources.slice(0, 3).map(s => `${s.name}: ${s.content.substring(0, 2000)}`).joi
   }
 }
 
-// Generate SMART diagram with intelligent layout selection
+// Generate SMART diagram with Chain-of-Thought reasoning and semantic routing
 async function generateDiagram(context: Awaited<ReturnType<typeof getChatContext>>, customPrompt?: string): Promise<{ title: string; content: string; diagramData?: DiagramData }> {
   const { messages, sources, chatInfo } = context
   
-  const systemPrompt = `You are an expert data visualization designer creating intelligent, insightful diagrams for financial analysis.
-Your job is to think carefully about what visualization best tells the story of the data.
+  // Information Architect Agent system prompt with semantic routing
+  const systemPrompt = `You are an expert Data Information Architect. Your goal is to translate user queries and chat context into the most insightful visual diagram.
 
-LAYOUT TYPES - Choose the one that best fits the data story:
+CRITICAL: You MUST output valid JSON with a "thought_process" key that shows your reasoning.
 
-1. "treemap" - For showing composition/breakdown where parts make up a whole
-   - Use when: Revenue breakdown by segment, expense allocation, market share
-   - Nodes are sized PROPORTIONALLY to their values
-   - Example: Apple revenue by product (iPhone 52%, Services 22%, Mac 10%, etc.)
+═══════════════════════════════════════════════════════════════════════════════
+STEP 1: THINK BEFORE YOU ACT (Chain-of-Thought Reasoning)
+═══════════════════════════════════════════════════════════════════════════════
 
-2. "hierarchy" - For showing parent-child relationships and organizational structure
-   - Use when: Corporate structure, category breakdowns, decision trees
-   - Has a root node at top with children flowing down
-   - MUST use parentId to establish relationships
-   - Example: Total Revenue → Product Revenue + Service Revenue → Individual products
+Before generating any diagram, you MUST fill out the thought_process object:
+1. user_intent: What is the core question the user is trying to answer?
+2. data_shape: What does the available data look like? (Time-series? Composition? Relational flow? Arithmetic bridge? Comparative?)
+3. selected_layout: Which layout best matches this data shape?
+4. reasoning: Brief explanation of why this layout was chosen
 
-3. "waterfall" - For showing how a starting value builds up or breaks down to an ending value
-   - Use when: Bridge charts, profit walkdown, value creation analysis
-   - Shows sequential additions/subtractions
-   - First and last nodes should have category "neutral" (totals)
-   - Positive changes: category "positive" or "revenue"
-   - Negative changes: category "negative" or "cost"
-   - Example: Revenue → Gross Profit → Operating Profit → Net Income
+═══════════════════════════════════════════════════════════════════════════════
+STEP 2: LAYOUT DECISION MATRIX (Semantic Router)
+═══════════════════════════════════════════════════════════════════════════════
 
-4. "sankey" - For showing flows between categories with proportional widths
-   - Use when: Money flows, resource allocation, conversion funnels
-   - MUST include connections with values to show flow
-   - Example: Revenue sources flowing to expense categories
+Match the DATA SHAPE to the correct layout:
 
-5. "comparison" - For comparing metrics across different entities
-   - Use when: Competitor analysis, year-over-year comparison, scenario analysis
-   - Side-by-side bars or grouped elements
-   - Example: Apple vs Samsung vs Google revenue comparison
+┌─────────────────────────────────────┬────────────────┬─────────────────────────────────────┐
+│ DATA SHAPE                          │ LAYOUT         │ WHEN TO USE                         │
+├─────────────────────────────────────┼────────────────┼─────────────────────────────────────┤
+│ Parts of a Whole / Composition      │ treemap        │ Market share, revenue segments,     │
+│                                     │                │ portfolio allocation, expense split │
+├─────────────────────────────────────┼────────────────┼─────────────────────────────────────┤
+│ Arithmetic Bridge / Change          │ waterfall      │ Profit walkdown, YoY earnings       │
+│                                     │                │ bridge, value creation/destruction  │
+├─────────────────────────────────────┼────────────────┼─────────────────────────────────────┤
+│ Resource Flow / Conversion          │ sankey         │ Cash flow, ad spend to conversions, │
+│                                     │                │ revenue to expenses allocation      │
+├─────────────────────────────────────┼────────────────┼─────────────────────────────────────┤
+│ Categorization / Taxonomy           │ hierarchy      │ Org chart, product lines, business  │
+│                                     │                │ segments breakdown, decision tree   │
+├─────────────────────────────────────┼────────────────┼─────────────────────────────────────┤
+│ Comparative / Benchmarking          │ comparison     │ AAPL vs MSFT, peer analysis,        │
+│                                     │                │ scenario comparison, metric compare │
+├─────────────────────────────────────┼────────────────┼─────────────────────────────────────┤
+│ Chronological / Time-based          │ timeline       │ Company history, quarterly results, │
+│                                     │                │ roadmap, milestones, projections    │
+└─────────────────────────────────────┴────────────────┴─────────────────────────────────────┘
 
-6. "timeline" - For showing events or metrics over time
-   - Use when: Historical performance, milestones, projections
-   - Nodes arranged chronologically
-   - MUST include date field for each node
-   - Example: Quarterly revenue over past 8 quarters
+═══════════════════════════════════════════════════════════════════════════════
+STEP 3: HANDLING VAGUE OR MISSING REQUESTS
+═══════════════════════════════════════════════════════════════════════════════
 
-IMPORTANT RULES:
-1. ALWAYS include actual numeric values - use real data from context or make educated estimates
-2. Percentages should add up to 100% for composition charts
-3. Use appropriate categories for color coding: revenue (green), cost (red), asset (blue), metric (purple), risk (orange), neutral (gray), positive (green), negative (red)
-4. Include 2-4 relevant metrics that provide context
-5. For hierarchy, use parentId to establish relationships
-6. For waterfall, order nodes sequentially from start to end
-7. For sankey, include connections with values
-8. For timeline, include date field for each node
+If the user's request is vague, use these defaults:
 
-THINK STEP BY STEP:
-1. What story does the user want to tell?
-2. What is the best layout to tell that story?
-3. What are the key data points to include?
-4. How should they be sized/positioned relative to each other?
-5. What metrics provide important context?`
+• "financials" / "financial overview" / no specific request
+  → Default to WATERFALL showing Revenue → Gross Profit → Operating Income → Net Income
+  
+• "what does this company do" / "business model" / "how they make money"
+  → Default to TREEMAP of Revenue Segments by percentage
+  
+• "compare" / "vs" / "versus" / mentions multiple companies
+  → Default to COMPARISON chart with key metrics (Revenue, Margin, P/E)
+  
+• "history" / "over time" / "trend" / "quarters" / "years"
+  → Default to TIMELINE with chronological data points
+  
+• "structure" / "organization" / "breakdown" / "categories"
+  → Default to HIERARCHY showing organizational/categorical relationships
+  
+• "flow" / "where does the money go" / "allocation"
+  → Default to SANKEY showing money/resource flows
 
-  const contextText = `
-Company/Asset: ${chatInfo?.display_name || 'Unknown'}
+If the context lacks specific numbers, make educated estimates based on:
+- Industry standards and typical ratios
+- Public company benchmarks
+- Reasonable assumptions
+Flag estimated data in the subtitle: "Based on industry estimates"
 
-## Recent Analysis (use this data for the diagram)
-${messages.filter(m => m.role === 'assistant').slice(-5).map(m => m.content.substring(0, 2000)).join('\n\n')}
+═══════════════════════════════════════════════════════════════════════════════
+FEW-SHOT EXAMPLES
+═══════════════════════════════════════════════════════════════════════════════
 
-## Source Documents (reference for accurate data)
-${sources.slice(0, 2).map(s => `${s.name}: ${s.content.substring(0, 3000)}`).join('\n\n')}
+EXAMPLE 1:
+User: "How are they making money?"
+thought_process: {
+  user_intent: "Understand revenue generation and business model",
+  data_shape: "Parts of a Whole / Composition",
+  selected_layout: "treemap",
+  reasoning: "User wants to see revenue breakdown by segment. Treemap shows proportional composition best."
+}
+Result: Treemap showing Revenue split by Product/Service segments with percentages.
+
+EXAMPLE 2:
+User: "Why did the stock crash?"
+thought_process: {
+  user_intent: "Understand what caused value destruction",
+  data_shape: "Arithmetic Bridge / Change",
+  selected_layout: "waterfall",
+  reasoning: "User wants to see sequential factors that led to decline. Waterfall shows additive/subtractive changes."
+}
+Result: Waterfall showing Start Price → Missed Earnings (-15%) → Sector Downturn (-8%) → End Price.
+
+EXAMPLE 3:
+User: "Compare to competitors"
+thought_process: {
+  user_intent: "Benchmark against peers",
+  data_shape: "Comparative / Benchmarking",
+  selected_layout: "comparison",
+  reasoning: "User wants side-by-side comparison. Comparison chart allows multi-entity metric comparison."
+}
+Result: Grouped bar chart comparing P/E, Yield, and Revenue Growth for target and 3 peers.
+
+EXAMPLE 4:
+User: "Show me the financials"
+thought_process: {
+  user_intent: "Get a financial overview of the company",
+  data_shape: "Arithmetic Bridge / Change",
+  selected_layout: "waterfall",
+  reasoning: "Generic financial request. Waterfall income statement walk is the most informative default."
+}
+Result: Waterfall from Revenue → COGS → Gross Profit → OpEx → Operating Income → Net Income.
+
+EXAMPLE 5:
+User: (clicks generate with no prompt)
+thought_process: {
+  user_intent: "Get a visual summary of the asset",
+  data_shape: "Parts of a Whole / Composition",
+  selected_layout: "treemap",
+  reasoning: "No specific request. Treemap of revenue segments provides best high-level overview."
+}
+Result: Treemap showing business segment breakdown with percentages and values.
+
+═══════════════════════════════════════════════════════════════════════════════
+LAYOUT-SPECIFIC REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════════════
+
+TREEMAP:
+- Nodes sized PROPORTIONALLY to their percentage values
+- Percentages MUST add up to 100%
+- Include valueLabel (e.g., "$205B") and percentage for each node
+- Use category for color coding (revenue, asset, metric, etc.)
+
+WATERFALL:
+- First node = starting value (category: "neutral")
+- Middle nodes = changes (category: "positive" for gains, "negative" for losses)
+- Last node = ending value (category: "neutral")
+- Values should be the CHANGE amount, not cumulative
+- Order nodes sequentially from start to end
+
+HIERARCHY:
+- Use parentId to establish parent-child relationships
+- Root node has no parentId
+- Children reference their parent's id
+- Connections are auto-generated from parentId
+
+SANKEY:
+- MUST include connections array with values
+- Connections show flow from source to destination
+- Connection values determine flow width
+- Nodes on left are sources, nodes on right are destinations
+
+COMPARISON:
+- Each node represents one entity being compared
+- Include metrics in node.metrics object for grouped bars
+- Or use node.value for single metric comparison
+
+TIMELINE:
+- MUST include date field for each node (e.g., "Q1 2024", "2023", "Jan 2024")
+- Nodes arranged chronologically
+- Include value for bar height
+- Use category for positive/negative coloring
+
+═══════════════════════════════════════════════════════════════════════════════
+FINAL CHECKLIST
+═══════════════════════════════════════════════════════════════════════════════
+
+Before outputting, verify:
+✓ thought_process is filled out completely
+✓ layoutType matches thought_process.selected_layout
+✓ All nodes have unique id and label
+✓ Numeric values are realistic (use real data or educated estimates)
+✓ Layout-specific requirements are met
+✓ 2-4 metrics are included for context
+✓ Title is clear and descriptive
+✓ Subtitle explains what the diagram shows`
+
+  // Build the user prompt with categorized context
+  const userRequest = customPrompt || "Provide a high-level visual summary of this asset."
+  
+  // Extract recent user messages for intent analysis
+  const recentUserMessages = messages
+    .filter(m => m.role === 'user')
+    .slice(-3)
+    .map(m => `User: ${m.content}`)
+    .join('\n')
+  
+  // Extract recent assistant analysis for data
+  const recentAnalysis = messages
+    .filter(m => m.role === 'assistant')
+    .slice(-5)
+    .map(m => m.content.substring(0, 2000))
+    .join('\n\n')
+
+  const userPrompt = `
+═══════════════════════════════════════════════════════════════════════════════
+USER REQUEST
+═══════════════════════════════════════════════════════════════════════════════
+${userRequest}
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 1: Analyze the request. If vague, fall back to default financial visualizations.
+STEP 2: Extract hard numbers from the context below.
+STEP 3: Fill out thought_process with your reasoning.
+STEP 4: Generate the diagram JSON.
+═══════════════════════════════════════════════════════════════════════════════
+
+=== ASSET CONTEXT ===
+Name: ${chatInfo?.display_name || 'Unknown Asset'}
+Type: ${chatInfo?.asset_type || 'Unknown'}
+
+=== RECENT CHAT HISTORY (FOR INTENT) ===
+${recentUserMessages || 'No recent user messages'}
+
+=== FINANCIAL DATA & ANALYSIS (FOR NUMBERS) ===
+${recentAnalysis || 'No recent analysis available'}
+
+=== SOURCE DOCUMENTS (FOR ACCURATE DATA) ===
+${sources.slice(0, 2).map(s => `${s.name}:\n${s.content.substring(0, 3000)}`).join('\n\n') || 'No source documents available'}
 `
-
-  const userPrompt = customPrompt 
-    ? `Create a smart, visually compelling diagram: ${customPrompt}
-
-Think about:
-- What layout type best tells this story?
-- What are the actual numbers involved?
-- How should elements be sized relative to each other?
-- What context/metrics would help the viewer understand?
-
-Context:
-${contextText}`
-    : `Create a diagram that best visualizes the key financial data and relationships for ${chatInfo?.display_name || 'this company'}.
-
-Choose the most appropriate layout type and include real numbers from the context.
-
-Context:
-${contextText}`
 
   // Use JSON mode for reliable parsing
   const content = await generateWithGemini(userPrompt, systemPrompt, true, diagramJsonSchema)
@@ -398,10 +564,21 @@ ${contextText}`
   try {
     parsedData = JSON.parse(content) as DiagramData
     
+    // Log the thought process for debugging
+    if (parsedData.thought_process) {
+      console.log('[studio-api] AI Thought Process:', JSON.stringify(parsedData.thought_process, null, 2))
+    }
+    
     // Validate and fix the data
     const validLayouts: LayoutType[] = ['treemap', 'hierarchy', 'waterfall', 'sankey', 'comparison', 'timeline']
+    
+    // Use thought_process.selected_layout if layoutType is missing or invalid
     if (!parsedData.layoutType || !validLayouts.includes(parsedData.layoutType)) {
-      parsedData.layoutType = 'treemap' // Default to treemap
+      if (parsedData.thought_process?.selected_layout && validLayouts.includes(parsedData.thought_process.selected_layout)) {
+        parsedData.layoutType = parsedData.thought_process.selected_layout
+      } else {
+        parsedData.layoutType = 'treemap' // Ultimate fallback
+      }
     }
 
     // Ensure nodes array exists
