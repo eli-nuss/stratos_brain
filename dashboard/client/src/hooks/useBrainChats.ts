@@ -190,13 +190,23 @@ export function useBrainJob(jobId: string | null) {
   const [job, setJob] = useState<BrainJob | null>(null);
   const [isComplete, setIsComplete] = useState(false);
   const [streamingText, setStreamingText] = useState<string>('');
+  const [activeTools, setActiveTools] = useState<string[]>([]);
+  const [isStreaming, setIsStreaming] = useState(false);
 
   useEffect(() => {
     if (!jobId) {
       setJob(null);
       setIsComplete(false);
+      setStreamingText('');
+      setActiveTools([]);
+      setIsStreaming(false);
       return;
     }
+    
+    // Reset streaming state for new job
+    setStreamingText('');
+    setActiveTools([]);
+    setIsStreaming(true);
 
     // Initial fetch
     const fetchJob = async () => {
@@ -242,9 +252,12 @@ export function useBrainJob(jobId: string | null) {
       .channel(`brain_job:${jobId}`)
       .on('broadcast', { event: 'tool_start' }, (payload) => {
         console.log('[Brain] Tool start:', payload.payload);
+        const tools = payload.payload?.tools as string[] || [];
+        setActiveTools(tools);
       })
       .on('broadcast', { event: 'tool_complete' }, (payload) => {
         console.log('[Brain] Tool complete:', payload.payload);
+        setActiveTools([]);
       })
       .on('broadcast', { event: 'text_chunk' }, (payload) => {
         const chunk = (payload.payload as { text?: string })?.text || '';
@@ -254,9 +267,11 @@ export function useBrainJob(jobId: string | null) {
         console.log('[Brain] Done:', payload.payload);
         // Clear streaming text when done - the final message will be fetched from DB
         setStreamingText('');
+        setIsStreaming(false);
       })
       .on('broadcast', { event: 'error' }, (payload) => {
         console.error('[Brain] Error:', payload.payload);
+        setIsStreaming(false);
       })
       .subscribe();
 
@@ -264,6 +279,8 @@ export function useBrainJob(jobId: string | null) {
       supabase.removeChannel(dbChannel);
       supabase.removeChannel(broadcastChannel);
       setStreamingText('');
+      setActiveTools([]);
+      setIsStreaming(false);
     };
   }, [jobId]);
 
@@ -277,6 +294,8 @@ export function useBrainJob(jobId: string | null) {
     result: job?.result,
     error: job?.error_message,
     streamingText,
+    activeTools,
+    isStreaming,
   };
 }
 
@@ -288,7 +307,7 @@ export function useSendBrainMessage(chatId: string | null) {
   const [isRecovering, setIsRecovering] = useState(false);
   const requestStartTimeRef = useRef<number | null>(null);
 
-  const { job, isComplete, isProcessing, toolCalls, result, error: jobError, streamingText } = useBrainJob(currentJobId);
+  const { job, isComplete, isProcessing, toolCalls, result, error: jobError, streamingText, activeTools, isStreaming } = useBrainJob(currentJobId);
 
   // Reset when job completes
   useEffect(() => {
@@ -445,6 +464,8 @@ export function useSendBrainMessage(chatId: string | null) {
     isRecovering,
     job,
     streamingText,
+    activeTools,
+    isStreaming,
   };
 }
 

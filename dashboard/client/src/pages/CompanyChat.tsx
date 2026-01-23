@@ -3,7 +3,7 @@ import { useRoute, useLocation } from 'wouter';
 import { MessageSquare, X } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { CompanyChatList } from '@/components/CompanyChatList';
-import { CompanyChatInterface } from '@/components/CompanyChatInterface';
+import { CompanyChatInterfaceNew as CompanyChatInterface } from '@/components/CompanyChatInterfaceNew';
 import { useCompanyChats, createOrGetChat, CompanyChat } from '@/hooks/useCompanyChats';
 import { AssetSearchForChat } from '@/components/AssetSearchForChat';
 import { useAuth } from '@/contexts/AuthContext';

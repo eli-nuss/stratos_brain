@@ -647,21 +647,54 @@ export async function archiveChat(chatId: string, userId: string | null): Promis
 
 /**
  * Refresh chat context - triggers a revalidation of the chat data
- * This is a no-op function that can be used to trigger SWR revalidation
  */
-export async function refreshChatContext(chatId: string): Promise<void> {
-  // This function is called to signal that chat context should be refreshed
-  // The actual refresh is handled by SWR's mutate function in the hooks
-  console.log('[useCompanyChats] refreshChatContext called for chat:', chatId);
+export async function refreshChatContext(chatId: string, userId?: string | null): Promise<void> {
+  const headers: HeadersInit = {};
+  
+  const effectiveUserId = userId || getStoredUserId();
+  if (effectiveUserId) {
+    headers['x-user-id'] = effectiveUserId;
+  }
+  
+  const accessToken = getStoredAccessToken();
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+
+  const response = await fetch(`/api/company-chat-api/chats/${chatId}/refresh-context`, {
+    method: 'POST',
+    headers,
+  });
+
+  if (!response.ok) {
+    console.warn('[useCompanyChats] refreshChatContext failed:', response.status);
+  }
 }
 
 /**
  * Clear chat messages - used when starting a new conversation
- * This is a no-op function as message clearing is handled by the backend
  */
-export async function clearChatMessages(chatId: string): Promise<void> {
-  console.log('[useCompanyChats] clearChatMessages called for chat:', chatId);
-  // Messages are managed by the backend, this is just a signal function
+export async function clearChatMessages(chatId: string, userId?: string | null): Promise<void> {
+  const headers: HeadersInit = {};
+  
+  const effectiveUserId = userId || getStoredUserId();
+  if (effectiveUserId) {
+    headers['x-user-id'] = effectiveUserId;
+  }
+  
+  const accessToken = getStoredAccessToken();
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+
+  const response = await fetch(`/api/company-chat-api/chats/${chatId}/messages`, {
+    method: 'DELETE',
+    headers,
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to clear chat messages');
+  }
 }
 
 

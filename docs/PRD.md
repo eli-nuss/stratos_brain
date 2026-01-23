@@ -588,13 +588,16 @@ PATCH  /api/dashboard/research-notes/:id/favorite # Toggle favorite status
 
                                                                                             ### 9.2 Key Components
 
-                                                                                            | Component | Purpose |
-                                                                                            |-----------|---------|
-                                                                                            | `DashboardLayout` | Main app shell with navigation |
-                                                                                            | `CustomizableAssetTable` | Flexible data table with sorting/filtering, including tag-based sorting (Interesting first) |
-                                                                                            | `AssetDetail` | Modal with charts, AI analysis, trade plan, and EV+MC display for equities |
-                                                                                            | `CompanyChatInterface` | Chat UI with code blocks and citations |
-                                                                                            | `SmartMoneyTracker` | Institutional holdings visualization |
+| Component | Purpose |
+|-----------|---------|
+| `DashboardLayout` | Main app shell with navigation |
+| `CustomizableAssetTable` | Flexible data table with sorting/filtering, including tag-based sorting (Interesting first) |
+| `AssetDetail` | Modal with charts, AI analysis, trade plan, and EV+MC display for equities |
+| `chat/BaseChatInterface` | **Shared base component for all chat interfaces** (v2.1) - Provides unified message rendering, tool call visualization, streaming support, and error recovery |
+| `CompanyChatInterfaceNew` | Company-specific chat using BaseChatInterface with side panel for fundamentals/technicals |
+| `BrainChatInterfaceNew` | Global Brain chat using BaseChatInterface with purple theme and market-wide tools |
+| `CompanySidePanel` | Mobile-optimized side panel with sticky tabs, touch-friendly controls, and drawer support |
+| `SmartMoneyTracker` | Institutional holdings visualization |
 | `PortfolioSandbox` | Interactive portfolio construction with weight sliders |
 | `RebalanceCalculator` | Trade sheet generation and CSV export |
 | `CorrelationMatrix` | Asset correlation heatmap visualization |
@@ -1104,8 +1107,9 @@ Both hooks subscribe to Supabase Realtime channels for live updates:
                                                                                            
                                                                                             - [ ] ## Changelog
                                                                                            
-- [ ] | Version | Date | Changes |
-- [ ] |---------|------|---------|
+| Version | Date | Changes |
+|---------|------|---------|
+| 2.1 | Jan 22, 2026 | **Code Reuse Refactor**: Created shared `BaseChatInterface` component reducing code duplication by ~70%. Added error recovery with retry functionality. Improved mobile UX for CompanySidePanel with sticky tabs and touch optimization. |
                                                                                             - [ ] | 1.4 | Jan 15, 2026 | Added ETFs, Indices, and Commodities dashboard views with API endpoints; global equities now appear in All Equities view |
 | 1.3 | Jan 15, 2026 | Added ETF tables (105 ETFs, 104K bars), market indices (15 global indices, 15K bars), commodities (40 commodities, 38K bars) |
 | 1.2 | Jan 15, 2026 | Added global equities support (62 international tech stocks), FMP data ingestion, fx_rates table, USD conversion in daily_bars |

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Brain, Plus, MessageSquare, Trash2, Loader2, ChevronLeft, ChevronRight, Menu, LogIn } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { BrainChatInterface } from '@/components/BrainChatInterface';
+import { BrainChatInterfaceNew as BrainChatInterface } from '@/components/BrainChatInterfaceNew';
 import {
   useBrainChats,
   createBrainChat,
