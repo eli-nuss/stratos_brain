@@ -7,49 +7,19 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DiagramCanvas } from './DiagramCanvas';
+import type { 
+  DiagramNode, 
+  DiagramConnection, 
+  DiagramMetric, 
+  DiagramData 
+} from './diagrams/types';
 
 // ============ TYPES ============
 
 export type OutputType = 'report' | 'slides' | 'diagram' | 'table';
 
-export interface DiagramNode {
-  id: string;
-  label: string;
-  value?: number;
-  valueLabel?: string;
-  percentage?: number;
-  category?: 'revenue' | 'cost' | 'asset' | 'metric' | 'risk' | 'neutral';
-  parentId?: string;
-  children?: string[];
-  color?: string;
-  icon?: string;
-}
-
-export interface DiagramConnection {
-  from: string;
-  to: string;
-  label?: string;
-  value?: number;
-}
-
-export interface DiagramMetric {
-  label: string;
-  value: string;
-  change?: string;
-  trend?: 'up' | 'down' | 'neutral';
-}
-
-export interface DiagramData {
-  layoutType?: 'treemap' | 'hierarchy' | 'waterfall' | 'sankey' | 'comparison' | 'timeline';
-  chartType?: 'flowchart' | 'sankey' | 'pie' | 'bar' | 'treemap'; // Legacy support
-  title?: string;
-  subtitle?: string;
-  totalValue?: number;
-  totalLabel?: string;
-  nodes: DiagramNode[];
-  connections: DiagramConnection[];
-  metrics?: DiagramMetric[];
-}
+// Re-export diagram types for external use
+export type { DiagramNode, DiagramConnection, DiagramMetric, DiagramData };
 
 export interface StudioOutput {
   id: string;

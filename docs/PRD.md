@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 23, 2026 (v2.9 - Excalidraw-Style Visual Design)  
+**Last Updated: January 23, 2026 (v3.0 - Enhanced Diagram System with 6 Layout Types)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -230,22 +230,38 @@
 
 The Studio Panel provides an interactive workspace for creating and viewing visual outputs:
 
-#### Diagram Types
-- **Treemap Layout**: Proportional visualization for revenue breakdowns, market segments, portfolio allocations
-  - Nodes sized by percentage values
-  - Parent-child hierarchy support
-  - Color-coded segments with labels
-- **Hierarchy Layout**: Organizational structures, category breakdowns, decision trees
-  - Root node at top with children flowing down
-  - Connection lines between parent and child nodes
-- **Waterfall Layout**: Bridge charts, profit walkdown, value creation analysis
-  - Sequential additions/subtractions from starting value
-  - Running total visualization
-- **Comparison Layout**: Side-by-side comparisons, competitor analysis
-  - Grouped bar charts for multiple entities
-  - Percentage and absolute value display
+#### Diagram Types (6 Layout Types)
+
+| Layout | Use Case | Key Features |
+|--------|----------|-------------|
+| **Treemap** | Revenue breakdown, market segments, portfolio allocation | Proportional sizing by value, squarified algorithm, color-coded segments |
+| **Hierarchy** | Org charts, category trees, decision flows | Parent-child relationships via `parentId`, auto-generated connections, level labels |
+| **Waterfall** | Bridge charts, profit walkdown, value creation | Sequential additions/subtractions, running totals, positive/negative color coding |
+| **Sankey** | Money flows, resource allocation, conversion funnels | Proportional flow widths, curved Bezier paths, multi-level source-to-destination |
+| **Comparison** | Competitor analysis, YoY comparison, scenario analysis | Grouped bar charts, metric legends, multiple entities side-by-side |
+| **Timeline** | Historical performance, milestones, projections | Chronological node arrangement, date labels, value bars above/below axis |
+
+#### Modular Renderer Architecture
+
+The diagram system uses a modular architecture with separate renderer components:
+
+```
+client/src/components/diagrams/
+├── types.ts           # Shared TypeScript interfaces
+├── utils.ts           # Color palettes, fonts, helper functions
+├── index.ts           # Module exports
+├── WaterfallRenderer.tsx
+├── HierarchyRenderer.tsx
+├── TimelineRenderer.tsx
+└── SankeyRenderer.tsx
+```
+
+- **Type-Safe**: Shared `DiagramData`, `DiagramNode`, `DiagramConnection` interfaces
+- **Reusable Utilities**: Open Colors palette, Excalidraw fonts, hand-drawn path generators
+- **Consistent Props**: All renderers share `RendererProps` interface for uniformity
 
 #### Visual Design (Excalidraw-Inspired)
+
 The diagram canvas uses Excalidraw's distinctive hand-drawn aesthetic:
 
 - **Open Colors Palette**: 13 colors with 10 brightness levels each, matching Excalidraw's color scheme
@@ -258,6 +274,7 @@ The diagram canvas uses Excalidraw's distinctive hand-drawn aesthetic:
 - **Excalidraw Accent**: Primary violet (#6965db) for interactive elements
 - **Hover Effects**: Interactive tooltips with violet accent border
 - **Theme Toggle**: Dark/Light mode with Excalidraw-style backgrounds
+- **Rough.js Integration**: Library for authentic hand-drawn rendering (installed)
 
 #### Canvas Features
 - **Pan & Zoom**: Interactive navigation with mouse/touch controls and slider
@@ -266,6 +283,8 @@ The diagram canvas uses Excalidraw's distinctive hand-drawn aesthetic:
 - **Reset View**: Return to default zoom and position
 - **Settings Panel**: Color scheme and theme configuration
 - **Share Button**: Quick sharing functionality
+- **Layout Badge**: Visual indicator showing current layout type
+- **Dynamic Canvas Sizing**: ViewBox adapts based on layout type and node count
 
 #### UX Improvements
 - **Thumbnails**: Visual preview thumbnails in the output list
@@ -274,11 +293,23 @@ The diagram canvas uses Excalidraw's distinctive hand-drawn aesthetic:
 - **Context Menu**: Right-click menu with all actions (View, Download, Rename, Duplicate, Delete)
 - **More Options Button**: Three-dot menu for quick access to all actions
 
+#### AI-Powered Diagram Generation (studio-api)
+
+The backend uses Gemini's JSON mode for reliable diagram generation:
+
+- **JSON Schema Enforcement**: `responseMimeType: "application/json"` with `responseSchema` for structured output
+- **Intelligent Layout Selection**: AI chooses optimal layout based on data story
+- **Step-by-Step Reasoning**: Prompts guide AI through layout selection, data extraction, and sizing
+- **Validation & Fallbacks**: Auto-correction for missing fields, unique ID enforcement, connection generation
+- **Category Color Mapping**: Automatic color assignment based on node category (revenue, cost, asset, metric, risk, neutral, positive, negative)
+
 #### Technical Implementation
 - React-based DiagramCanvas component with SVG rendering
 - Squarified treemap algorithm for proportional box sizing
 - Responsive layout adapting to container size
 - Integration with studio-api Edge Function for AI-generated diagrams
+- Modular renderer components for each layout type
+- TypeScript interfaces shared between frontend and backend
 
 #### Persistence
 - All generated outputs are automatically saved to the `studio_outputs` database table

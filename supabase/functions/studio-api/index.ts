@@ -21,9 +21,11 @@ interface DiagramNode {
   value?: number
   valueLabel?: string
   percentage?: number
-  category?: 'revenue' | 'cost' | 'asset' | 'metric' | 'risk' | 'neutral'
+  category?: 'revenue' | 'cost' | 'asset' | 'metric' | 'risk' | 'neutral' | 'positive' | 'negative'
   parentId?: string // For hierarchy layouts
   children?: string[] // For hierarchy layouts
+  date?: string // For timeline layouts
+  details?: string
 }
 
 interface DiagramConnection {
@@ -109,8 +111,91 @@ async function getChatContext(supabase: ReturnType<typeof createClient>, chatId:
   }
 }
 
-// Generate content using Gemini
-async function generateWithGemini(prompt: string, systemPrompt: string): Promise<string> {
+// JSON Schema for diagram data - used with Gemini's JSON mode
+const diagramJsonSchema = {
+  type: "object",
+  properties: {
+    layoutType: { 
+      type: "string", 
+      enum: ["treemap", "hierarchy", "waterfall", "sankey", "comparison", "timeline"],
+      description: "The visualization layout type"
+    },
+    title: { type: "string", description: "Clear, descriptive title for the diagram" },
+    subtitle: { type: "string", description: "Brief explanation of what this diagram shows" },
+    totalValue: { type: "number", description: "Total value for the entire diagram (optional)" },
+    totalLabel: { type: "string", description: "Formatted total value label (e.g., '$394B')" },
+    nodes: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "Unique identifier for the node" },
+          label: { type: "string", description: "Display label for the node" },
+          value: { type: "number", description: "Numeric value for the node" },
+          valueLabel: { type: "string", description: "Formatted value label (e.g., '$205B')" },
+          percentage: { type: "number", description: "Percentage of total (0-100)" },
+          category: { 
+            type: "string", 
+            enum: ["revenue", "cost", "asset", "metric", "risk", "neutral", "positive", "negative"],
+            description: "Category for color coding"
+          },
+          parentId: { type: "string", description: "Parent node ID for hierarchy layouts" },
+          date: { type: "string", description: "Date string for timeline layouts" },
+          details: { type: "string", description: "Additional details for tooltip" }
+        },
+        required: ["id", "label"]
+      }
+    },
+    connections: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          from: { type: "string", description: "Source node ID" },
+          to: { type: "string", description: "Target node ID" },
+          label: { type: "string", description: "Connection label" },
+          value: { type: "number", description: "Flow value for Sankey diagrams" }
+        },
+        required: ["from", "to"]
+      }
+    },
+    metrics: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          label: { type: "string", description: "Metric label" },
+          value: { type: "string", description: "Formatted metric value" },
+          change: { type: "string", description: "Change indicator (e.g., '+8%')" },
+          trend: { type: "string", enum: ["up", "down", "neutral"] }
+        },
+        required: ["label", "value"]
+      }
+    }
+  },
+  required: ["layoutType", "title", "nodes", "connections"]
+}
+
+// Generate content using Gemini with optional JSON mode
+async function generateWithGemini(
+  prompt: string, 
+  systemPrompt: string, 
+  useJsonMode: boolean = false,
+  jsonSchema?: object
+): Promise<string> {
+  const generationConfig: Record<string, unknown> = {
+    temperature: useJsonMode ? 0.2 : 0.7, // Lower temperature for JSON
+    maxOutputTokens: 8000,
+  }
+
+  // Enable JSON mode with schema if specified
+  if (useJsonMode) {
+    generationConfig.responseMimeType = "application/json"
+    if (jsonSchema) {
+      generationConfig.responseSchema = jsonSchema
+    }
+  }
+
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
     {
@@ -123,15 +208,14 @@ async function generateWithGemini(prompt: string, systemPrompt: string): Promise
         systemInstruction: {
           parts: [{ text: systemPrompt }]
         },
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 8000,
-        }
+        generationConfig
       })
     }
   )
 
   if (!response.ok) {
+    const errorText = await response.text()
+    console.error('[studio-api] Gemini API error:', response.status, errorText)
     throw new Error(`Gemini API error: ${response.status}`)
   }
 
@@ -220,10 +304,8 @@ ${sources.slice(0, 3).map(s => `${s.name}: ${s.content.substring(0, 2000)}`).joi
 async function generateDiagram(context: Awaited<ReturnType<typeof getChatContext>>, customPrompt?: string): Promise<{ title: string; content: string; diagramData?: DiagramData }> {
   const { messages, sources, chatInfo } = context
   
-  const systemPrompt = `You are an expert data visualization designer creating intelligent, insightful diagrams.
+  const systemPrompt = `You are an expert data visualization designer creating intelligent, insightful diagrams for financial analysis.
 Your job is to think carefully about what visualization best tells the story of the data.
-
-CRITICAL: You must output ONLY a valid JSON object. No markdown, no explanation, no code blocks.
 
 LAYOUT TYPES - Choose the one that best fits the data story:
 
@@ -235,16 +317,20 @@ LAYOUT TYPES - Choose the one that best fits the data story:
 2. "hierarchy" - For showing parent-child relationships and organizational structure
    - Use when: Corporate structure, category breakdowns, decision trees
    - Has a root node at top with children flowing down
+   - MUST use parentId to establish relationships
    - Example: Total Revenue → Product Revenue + Service Revenue → Individual products
 
 3. "waterfall" - For showing how a starting value builds up or breaks down to an ending value
    - Use when: Bridge charts, profit walkdown, value creation analysis
    - Shows sequential additions/subtractions
+   - First and last nodes should have category "neutral" (totals)
+   - Positive changes: category "positive" or "revenue"
+   - Negative changes: category "negative" or "cost"
    - Example: Revenue → Gross Profit → Operating Profit → Net Income
 
 4. "sankey" - For showing flows between categories with proportional widths
    - Use when: Money flows, resource allocation, conversion funnels
-   - Connections have values that determine their visual width
+   - MUST include connections with values to show flow
    - Example: Revenue sources flowing to expense categories
 
 5. "comparison" - For comparing metrics across different entities
@@ -255,53 +341,18 @@ LAYOUT TYPES - Choose the one that best fits the data story:
 6. "timeline" - For showing events or metrics over time
    - Use when: Historical performance, milestones, projections
    - Nodes arranged chronologically
+   - MUST include date field for each node
    - Example: Quarterly revenue over past 8 quarters
-
-OUTPUT FORMAT:
-{
-  "layoutType": "treemap" | "hierarchy" | "waterfall" | "sankey" | "comparison" | "timeline",
-  "title": "Clear, descriptive title",
-  "subtitle": "Brief explanation of what this diagram shows",
-  "totalValue": 394000000000,
-  "totalLabel": "$394B",
-  "nodes": [
-    {
-      "id": "1",
-      "label": "iPhone",
-      "value": 205000000000,
-      "valueLabel": "$205B",
-      "percentage": 52,
-      "category": "revenue",
-      "parentId": null
-    },
-    {
-      "id": "2", 
-      "label": "Services",
-      "value": 85000000000,
-      "valueLabel": "$85B",
-      "percentage": 22,
-      "category": "revenue",
-      "parentId": null
-    }
-  ],
-  "connections": [
-    { "from": "root", "to": "1", "value": 205000000000 }
-  ],
-  "metrics": [
-    { "label": "Total Revenue", "value": "$394B", "change": "+8%", "trend": "up" },
-    { "label": "YoY Growth", "value": "8%", "change": "+2pp", "trend": "up" }
-  ]
-}
 
 IMPORTANT RULES:
 1. ALWAYS include actual numeric values - use real data from context or make educated estimates
-2. ALWAYS include percentage for composition diagrams (treemap, hierarchy)
-3. Values should be realistic and internally consistent (parts should sum to total)
-4. Use valueLabel for human-readable format ($205B, 52%, 2.3x)
-5. Include 2-4 relevant metrics that provide context
-6. For hierarchy, use parentId to establish relationships
-7. For waterfall, order nodes sequentially from start to end
-8. Category should reflect the nature: revenue (green), cost (red), asset (blue), metric (purple), risk (orange), neutral (gray)
+2. Percentages should add up to 100% for composition charts
+3. Use appropriate categories for color coding: revenue (green), cost (red), asset (blue), metric (purple), risk (orange), neutral (gray), positive (green), negative (red)
+4. Include 2-4 relevant metrics that provide context
+5. For hierarchy, use parentId to establish relationships
+6. For waterfall, order nodes sequentially from start to end
+7. For sankey, include connections with values
+8. For timeline, include date field for each node
 
 THINK STEP BY STEP:
 1. What story does the user want to tell?
@@ -338,34 +389,85 @@ Choose the most appropriate layout type and include real numbers from the contex
 Context:
 ${contextText}`
 
-  const content = await generateWithGemini(userPrompt, systemPrompt)
+  // Use JSON mode for reliable parsing
+  const content = await generateWithGemini(userPrompt, systemPrompt, true, diagramJsonSchema)
   
-  // Try to parse the JSON response
+  // Parse the JSON response
   let parsedData: DiagramData | undefined
   
   try {
-    // Clean up the response - remove any markdown code blocks if present
-    let cleanContent = content.trim()
-    if (cleanContent.startsWith('```json')) {
-      cleanContent = cleanContent.slice(7)
-    } else if (cleanContent.startsWith('```')) {
-      cleanContent = cleanContent.slice(3)
-    }
-    if (cleanContent.endsWith('```')) {
-      cleanContent = cleanContent.slice(0, -3)
-    }
-    cleanContent = cleanContent.trim()
+    parsedData = JSON.parse(content) as DiagramData
     
-    parsedData = JSON.parse(cleanContent) as DiagramData
-    
-    // Ensure layoutType is valid
+    // Validate and fix the data
     const validLayouts: LayoutType[] = ['treemap', 'hierarchy', 'waterfall', 'sankey', 'comparison', 'timeline']
     if (!parsedData.layoutType || !validLayouts.includes(parsedData.layoutType)) {
       parsedData.layoutType = 'treemap' // Default to treemap
     }
+
+    // Ensure nodes array exists
+    if (!parsedData.nodes) {
+      parsedData.nodes = []
+    }
+
+    // Ensure connections array exists
+    if (!parsedData.connections) {
+      parsedData.connections = []
+    }
+
+    // Validate node IDs are unique
+    const nodeIds = new Set<string>()
+    parsedData.nodes = parsedData.nodes.map((node, i) => {
+      if (!node.id || nodeIds.has(node.id)) {
+        node.id = `node_${i}`
+      }
+      nodeIds.add(node.id)
+      return node
+    })
+
+    // For waterfall charts, ensure proper ordering and categories
+    if (parsedData.layoutType === 'waterfall' && parsedData.nodes.length > 0) {
+      // Mark first and last as neutral if not already set
+      if (!parsedData.nodes[0].category) {
+        parsedData.nodes[0].category = 'neutral'
+      }
+      if (parsedData.nodes.length > 1 && !parsedData.nodes[parsedData.nodes.length - 1].category) {
+        parsedData.nodes[parsedData.nodes.length - 1].category = 'neutral'
+      }
+    }
+
+    // For hierarchy charts, build connections from parentId if not provided
+    if (parsedData.layoutType === 'hierarchy' && parsedData.connections.length === 0) {
+      parsedData.nodes.forEach(node => {
+        if (node.parentId) {
+          parsedData!.connections.push({
+            from: node.parentId,
+            to: node.id
+          })
+        }
+      })
+    }
+
   } catch (e) {
-    console.error('Failed to parse diagram JSON:', e)
-    console.error('Raw content:', content)
+    console.error('[studio-api] Failed to parse diagram JSON:', e)
+    console.error('[studio-api] Raw content:', content)
+    
+    // Fallback: try to extract JSON from the response
+    try {
+      let cleanContent = content.trim()
+      if (cleanContent.startsWith('```json')) {
+        cleanContent = cleanContent.slice(7)
+      } else if (cleanContent.startsWith('```')) {
+        cleanContent = cleanContent.slice(3)
+      }
+      if (cleanContent.endsWith('```')) {
+        cleanContent = cleanContent.slice(0, -3)
+      }
+      cleanContent = cleanContent.trim()
+      
+      parsedData = JSON.parse(cleanContent) as DiagramData
+    } catch (e2) {
+      console.error('[studio-api] Fallback parsing also failed:', e2)
+    }
   }
   
   return {

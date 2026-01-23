@@ -6,60 +6,39 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// ============ TYPES ============
+// Import diagram utilities and renderers
+import {
+  type LayoutType,
+  type ThemeMode,
+  type ColorScheme,
+  type DiagramNode,
+  type DiagramConnection,
+  type DiagramMetric,
+  type DiagramData,
+  type NodePosition,
+  type NodeColors,
+  themeStyles,
+  colorSchemes,
+  excalidrawCategoryColors,
+  excalidrawPrimary,
+  excalidrawFontFamily,
+  excalidrawFontFamilyUI,
+  openColors,
+  formatValue,
+  generateHandDrawnRect,
+  getNodeColorHelper,
+} from './diagrams';
 
-type LayoutType = 'treemap' | 'hierarchy' | 'waterfall' | 'sankey' | 'comparison' | 'timeline';
-type ThemeMode = 'dark' | 'light';
-type ColorScheme = 'excalidraw' | 'vibrant' | 'pastel' | 'monochrome';
 type ExportSize = 'small' | 'medium' | 'large';
 
-interface DiagramNodeMetrics {
-  yield?: number;
-  growth?: number;
-  peRatio?: number;
-  marketCap?: number;
-  roe?: string | number;
-  [key: string]: string | number | undefined;
-}
+// Import layout renderers
+import { WaterfallRenderer } from './diagrams/WaterfallRenderer';
+import { HierarchyRenderer } from './diagrams/HierarchyRenderer';
+import { TimelineRenderer } from './diagrams/TimelineRenderer';
+import { SankeyRenderer } from './diagrams/SankeyRenderer';
 
-interface DiagramNode {
-  id: string;
-  label: string;
-  value?: number;
-  valueLabel?: string;
-  percentage?: number;
-  category?: 'revenue' | 'cost' | 'asset' | 'metric' | 'risk' | 'neutral' | string;
-  parentId?: string;
-  children?: string[];
-  color?: string;
-  details?: string;
-  metrics?: DiagramNodeMetrics;
-}
-
-interface DiagramConnection {
-  from: string;
-  to: string;
-  label?: string;
-  value?: number;
-}
-
-interface DiagramMetric {
-  label: string;
-  value: string;
-  change?: string;
-  trend?: 'up' | 'down' | 'neutral';
-}
-
-export interface DiagramData {
-  layoutType: LayoutType;
-  title: string;
-  subtitle?: string;
-  totalValue?: number;
-  totalLabel?: string;
-  nodes: DiagramNode[];
-  connections: DiagramConnection[];
-  metrics?: DiagramMetric[];
-}
+// Re-export types for external use
+export type { DiagramData, DiagramNode, DiagramConnection, DiagramMetric };
 
 interface DiagramCanvasProps {
   title: string;
@@ -69,131 +48,6 @@ interface DiagramCanvasProps {
   onClose: () => void;
   onTitleChange?: (title: string) => void;
 }
-
-interface NodePosition {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-// ============ EXCALIDRAW OPEN COLORS PALETTE ============
-// Based on https://yeun.github.io/open-color/
-
-const openColors = {
-  // Grays
-  gray: ['#f8f9fa', '#f1f3f5', '#e9ecef', '#dee2e6', '#ced4da', '#adb5bd', '#868e96', '#495057', '#343a40', '#212529'],
-  // Colors (index 6 is the primary, 9 is darkest for strokes)
-  red: ['#fff5f5', '#ffe3e3', '#ffc9c9', '#ffa8a8', '#ff8787', '#ff6b6b', '#fa5252', '#f03e3e', '#e03131', '#c92a2a'],
-  pink: ['#fff0f6', '#ffdeeb', '#fcc2d7', '#faa2c1', '#f783ac', '#f06595', '#e64980', '#d6336c', '#c2255c', '#a61e4d'],
-  grape: ['#f8f0fc', '#f3d9fa', '#eebefa', '#e599f7', '#da77f2', '#cc5de8', '#be4bdb', '#ae3ec9', '#9c36b5', '#862e9c'],
-  violet: ['#f3f0ff', '#e5dbff', '#d0bfff', '#b197fc', '#9775fa', '#845ef7', '#7950f2', '#7048e8', '#6741d9', '#5f3dc4'],
-  indigo: ['#edf2ff', '#dbe4ff', '#bac8ff', '#91a7ff', '#748ffc', '#5c7cfa', '#4c6ef5', '#4263eb', '#3b5bdb', '#364fc7'],
-  blue: ['#e7f5ff', '#d0ebff', '#a5d8ff', '#74c0fc', '#4dabf7', '#339af0', '#228be6', '#1c7ed6', '#1971c2', '#1864ab'],
-  cyan: ['#e3fafc', '#c5f6fa', '#99e9f2', '#66d9e8', '#3bc9db', '#22b8cf', '#15aabf', '#1098ad', '#0c8599', '#0b7285'],
-  teal: ['#e6fcf5', '#c3fae8', '#96f2d7', '#63e6be', '#38d9a9', '#20c997', '#12b886', '#0ca678', '#099268', '#087f5b'],
-  green: ['#ebfbee', '#d3f9d8', '#b2f2bb', '#8ce99a', '#69db7c', '#51cf66', '#40c057', '#37b24d', '#2f9e44', '#2b8a3e'],
-  lime: ['#f4fce3', '#e9fac8', '#d8f5a2', '#c0eb75', '#a9e34b', '#94d82d', '#82c91e', '#74b816', '#66a80f', '#5c940d'],
-  yellow: ['#fff9db', '#fff3bf', '#ffec99', '#ffe066', '#ffd43b', '#fcc419', '#fab005', '#f59f00', '#f08c00', '#e67700'],
-  orange: ['#fff4e6', '#ffe8cc', '#ffd8a8', '#ffc078', '#ffa94d', '#ff922b', '#fd7e14', '#f76707', '#e8590c', '#d9480f'],
-};
-
-// Excalidraw primary colors
-const excalidrawPrimary = {
-  violet: '#6965db',
-  violetDarker: '#5b57d1',
-  violetDarkest: '#4a47a3',
-  violetLight: '#8b87e0',
-};
-
-// ============ COLOR SCHEMES ============
-
-const colorSchemes: Record<ColorScheme, Record<string, { bg: string; border: string; text: string; hover: string }>> = {
-  excalidraw: {
-    revenue: { bg: openColors.teal[1], border: openColors.teal[6], text: openColors.teal[9], hover: openColors.teal[2] },
-    cost: { bg: openColors.red[1], border: openColors.red[6], text: openColors.red[9], hover: openColors.red[2] },
-    asset: { bg: openColors.blue[1], border: openColors.blue[6], text: openColors.blue[9], hover: openColors.blue[2] },
-    metric: { bg: openColors.violet[1], border: openColors.violet[6], text: openColors.violet[9], hover: openColors.violet[2] },
-    risk: { bg: openColors.orange[1], border: openColors.orange[6], text: openColors.orange[9], hover: openColors.orange[2] },
-    neutral: { bg: openColors.gray[1], border: openColors.gray[5], text: openColors.gray[8], hover: openColors.gray[2] },
-  },
-  vibrant: {
-    revenue: { bg: openColors.teal[6], border: openColors.teal[8], text: '#ffffff', hover: openColors.teal[7] },
-    cost: { bg: openColors.red[6], border: openColors.red[8], text: '#ffffff', hover: openColors.red[7] },
-    asset: { bg: openColors.blue[6], border: openColors.blue[8], text: '#ffffff', hover: openColors.blue[7] },
-    metric: { bg: openColors.violet[6], border: openColors.violet[8], text: '#ffffff', hover: openColors.violet[7] },
-    risk: { bg: openColors.orange[6], border: openColors.orange[8], text: '#ffffff', hover: openColors.orange[7] },
-    neutral: { bg: openColors.gray[6], border: openColors.gray[8], text: '#ffffff', hover: openColors.gray[7] },
-  },
-  pastel: {
-    revenue: { bg: openColors.teal[2], border: openColors.teal[4], text: openColors.teal[9], hover: openColors.teal[3] },
-    cost: { bg: openColors.red[2], border: openColors.red[4], text: openColors.red[9], hover: openColors.red[3] },
-    asset: { bg: openColors.blue[2], border: openColors.blue[4], text: openColors.blue[9], hover: openColors.blue[3] },
-    metric: { bg: openColors.violet[2], border: openColors.violet[4], text: openColors.violet[9], hover: openColors.violet[3] },
-    risk: { bg: openColors.orange[2], border: openColors.orange[4], text: openColors.orange[9], hover: openColors.orange[3] },
-    neutral: { bg: openColors.gray[2], border: openColors.gray[4], text: openColors.gray[8], hover: openColors.gray[3] },
-  },
-  monochrome: {
-    revenue: { bg: openColors.gray[2], border: openColors.gray[5], text: openColors.gray[9], hover: openColors.gray[3] },
-    cost: { bg: openColors.gray[3], border: openColors.gray[6], text: openColors.gray[9], hover: openColors.gray[4] },
-    asset: { bg: openColors.gray[4], border: openColors.gray[7], text: openColors.gray[9], hover: openColors.gray[5] },
-    metric: { bg: openColors.gray[5], border: openColors.gray[8], text: '#ffffff', hover: openColors.gray[6] },
-    risk: { bg: openColors.gray[6], border: openColors.gray[8], text: '#ffffff', hover: openColors.gray[7] },
-    neutral: { bg: openColors.gray[1], border: openColors.gray[4], text: openColors.gray[8], hover: openColors.gray[2] },
-  },
-};
-
-// Excalidraw-style category colors for treemap segments
-const excalidrawCategoryColors = [
-  { bg: openColors.blue[1], border: openColors.blue[6], text: openColors.blue[9] },
-  { bg: openColors.teal[1], border: openColors.teal[6], text: openColors.teal[9] },
-  { bg: openColors.green[1], border: openColors.green[6], text: openColors.green[9] },
-  { bg: openColors.yellow[1], border: openColors.yellow[6], text: openColors.yellow[9] },
-  { bg: openColors.orange[1], border: openColors.orange[6], text: openColors.orange[9] },
-  { bg: openColors.red[1], border: openColors.red[6], text: openColors.red[9] },
-  { bg: openColors.pink[1], border: openColors.pink[6], text: openColors.pink[9] },
-  { bg: openColors.grape[1], border: openColors.grape[6], text: openColors.grape[9] },
-  { bg: openColors.violet[1], border: openColors.violet[6], text: openColors.violet[9] },
-  { bg: openColors.indigo[1], border: openColors.indigo[6], text: openColors.indigo[9] },
-  { bg: openColors.cyan[1], border: openColors.cyan[6], text: openColors.cyan[9] },
-  { bg: openColors.lime[1], border: openColors.lime[6], text: openColors.lime[9] },
-];
-
-// ============ THEME STYLES ============
-
-const themeStyles: Record<ThemeMode, { bg: string; text: string; border: string; panel: string; muted: string }> = {
-  light: {
-    bg: openColors.gray[0], // Excalidraw canvas background
-    text: openColors.gray[9],
-    border: openColors.gray[4],
-    panel: '#ffffff',
-    muted: openColors.gray[6],
-  },
-  dark: {
-    bg: '#1e1e1e',
-    text: openColors.gray[1],
-    border: openColors.gray[7],
-    panel: '#2d2d2d',
-    muted: openColors.gray[5],
-  },
-};
-
-// ============ EXCALIDRAW FONT STYLES ============
-// Using a hand-drawn style font similar to Virgil/Excalifont
-
-const excalidrawFontFamily = "'Virgil', 'Segoe Print', 'Bradley Hand', 'Chilanka', cursive";
-const excalidrawFontFamilyUI = "'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif";
-
-// ============ HELPER FUNCTIONS ============
-
-const formatValue = (value: number | undefined): string => {
-  if (value === undefined) return '';
-  if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`;
-  if (value >= 1e9) return `$${(value / 1e9).toFixed(1)}B`;
-  if (value >= 1e6) return `$${(value / 1e6).toFixed(1)}M`;
-  if (value >= 1e3) return `$${(value / 1e3).toFixed(1)}K`;
-  return `$${value.toFixed(0)}`;
-};
 
 // Squarified treemap algorithm
 const squarify = (
@@ -245,23 +99,6 @@ const squarify = (
   return positions;
 };
 
-// Generate hand-drawn style path with slight wobble
-const generateHandDrawnRect = (x: number, y: number, width: number, height: number, seed: number = 0): string => {
-  const wobble = 1.5;
-  const rand = (i: number) => Math.sin(seed + i * 12.9898) * 0.5;
-  
-  const x1 = x + rand(1) * wobble;
-  const y1 = y + rand(2) * wobble;
-  const x2 = x + width + rand(3) * wobble;
-  const y2 = y + rand(4) * wobble;
-  const x3 = x + width + rand(5) * wobble;
-  const y3 = y + height + rand(6) * wobble;
-  const x4 = x + rand(7) * wobble;
-  const y4 = y + height + rand(8) * wobble;
-  
-  return `M ${x1} ${y1} L ${x2} ${y2} L ${x3} ${y3} L ${x4} ${y4} Z`;
-};
-
 // ============ MAIN COMPONENT ============
 
 export function DiagramCanvas({
@@ -290,6 +127,42 @@ export function DiagramCanvas({
 
   const currentTheme = themeStyles[theme];
   const currentColors = colorSchemes[colorScheme];
+
+  // Dynamic canvas sizing based on layout type
+  const canvasDimensions = useMemo(() => {
+    const baseWidth = 900;
+    const baseHeight = 500;
+    
+    if (!diagramData) return { width: baseWidth, height: baseHeight };
+    
+    switch (diagramData.layoutType) {
+      case 'waterfall':
+        return { 
+          width: Math.max(baseWidth, (diagramData.nodes.length * 100) + 200), 
+          height: baseHeight + 80 
+        };
+      case 'hierarchy':
+        return { 
+          width: Math.max(baseWidth, 800), 
+          height: Math.max(baseHeight, 500) 
+        };
+      case 'timeline':
+        return { 
+          width: Math.max(baseWidth, (diagramData.nodes.length * 120) + 200), 
+          height: baseHeight 
+        };
+      case 'sankey':
+        return { 
+          width: baseWidth, 
+          height: Math.max(baseHeight, 450) 
+        };
+      default:
+        return { width: baseWidth, height: baseHeight };
+    }
+  }, [diagramData]);
+
+  const canvasWidth = canvasDimensions.width;
+  const canvasHeight = canvasDimensions.height;
 
   useEffect(() => {
     setEditedTitle(title);
@@ -373,27 +246,371 @@ export function DiagramCanvas({
   // Node positions for treemap
   const nodePositions = useMemo(() => {
     if (!diagramData || diagramData.layoutType !== 'treemap') return new Map();
-    const canvasWidth = 900;
-    const canvasHeight = 500;
     return squarify(diagramData.nodes, 50, 120, canvasWidth - 100, canvasHeight - 170);
-  }, [diagramData]);
+  }, [diagramData, canvasWidth, canvasHeight]);
 
   // Get color for node
-  const getNodeColor = useCallback((node: DiagramNode, index: number) => {
-    if (node.color) {
-      return { bg: node.color, border: node.color, text: '#ffffff' };
-    }
-    if (node.category && currentColors[node.category]) {
-      return currentColors[node.category];
-    }
-    // Use rotating Excalidraw colors for treemap segments
-    return excalidrawCategoryColors[index % excalidrawCategoryColors.length];
-  }, [currentColors]);
+  const getNodeColor = useCallback((node: DiagramNode, index: number): NodeColors => {
+    return getNodeColorHelper(node, index, colorScheme);
+  }, [colorScheme]);
 
   if (!isOpen) return null;
 
-  const canvasWidth = 900;
-  const canvasHeight = 500;
+  // Render the appropriate layout
+  const renderLayout = () => {
+    if (!diagramData) return null;
+
+    const commonProps = {
+      nodes: diagramData.nodes,
+      connections: diagramData.connections,
+      canvasWidth,
+      canvasHeight,
+      theme: currentTheme,
+      colorScheme,
+      hoveredNode,
+      onNodeHover: setHoveredNode,
+      getNodeColor,
+    };
+
+    switch (diagramData.layoutType) {
+      case 'waterfall':
+        return <WaterfallRenderer {...commonProps} />;
+      
+      case 'hierarchy':
+        return <HierarchyRenderer {...commonProps} />;
+      
+      case 'timeline':
+        return <TimelineRenderer {...commonProps} />;
+      
+      case 'sankey':
+        return <SankeyRenderer {...commonProps} />;
+      
+      case 'treemap':
+        return renderTreemap();
+      
+      case 'comparison':
+        return renderComparison();
+      
+      default:
+        // Fallback to treemap for unknown layouts
+        return renderTreemap();
+    }
+  };
+
+  // Treemap renderer (inline for backward compatibility)
+  const renderTreemap = () => {
+    if (!diagramData) return null;
+    
+    return (
+      <g>
+        {diagramData.nodes.map((node, index) => {
+          const pos = nodePositions.get(node.id);
+          if (!pos) return null;
+          
+          const colors = getNodeColor(node, index);
+          const isHovered = hoveredNode === node.id;
+          
+          return (
+            <g 
+              key={node.id}
+              onMouseEnter={() => setHoveredNode(node.id)}
+              onMouseLeave={() => setHoveredNode(null)}
+              style={{ cursor: 'pointer' }}
+            >
+              {/* Hand-drawn style rectangle */}
+              <path
+                d={generateHandDrawnRect(pos.x + 2, pos.y + 2, pos.width, pos.height, index)}
+                fill={isHovered ? colors.border : colors.bg}
+                stroke={colors.border}
+                strokeWidth={2}
+                style={{
+                  transition: 'all 0.2s ease',
+                  filter: isHovered ? 'brightness(1.05)' : 'none',
+                }}
+              />
+              
+              {/* Label */}
+              {pos.width > 60 && pos.height > 40 && (
+                <>
+                  <text
+                    x={pos.x + pos.width / 2 + 2}
+                    y={pos.y + pos.height / 2 - 10}
+                    textAnchor="middle"
+                    fontSize={Math.min(16, pos.width / 8)}
+                    fontWeight="500"
+                    fill={isHovered ? '#ffffff' : colors.text}
+                    fontFamily={excalidrawFontFamily}
+                    style={{ pointerEvents: 'none' }}
+                  >
+                    {node.label}
+                  </text>
+                  <text
+                    x={pos.x + pos.width / 2 + 2}
+                    y={pos.y + pos.height / 2 + 12}
+                    textAnchor="middle"
+                    fontSize={Math.min(20, pos.width / 6)}
+                    fontWeight="700"
+                    fill={isHovered ? '#ffffff' : colors.text}
+                    fontFamily={excalidrawFontFamily}
+                    style={{ pointerEvents: 'none' }}
+                  >
+                    {node.valueLabel || formatValue(node.value)}
+                  </text>
+                  {node.percentage !== undefined && (
+                    <text
+                      x={pos.x + pos.width / 2 + 2}
+                      y={pos.y + pos.height / 2 + 32}
+                      textAnchor="middle"
+                      fontSize={Math.min(12, pos.width / 10)}
+                      fill={isHovered ? 'rgba(255,255,255,0.8)' : colors.border}
+                      fontFamily={excalidrawFontFamilyUI}
+                      style={{ pointerEvents: 'none' }}
+                    >
+                      {node.percentage}%
+                    </text>
+                  )}
+                </>
+              )}
+            </g>
+          );
+        })}
+      </g>
+    );
+  };
+
+  // Comparison bar chart renderer (inline for backward compatibility)
+  const renderComparison = () => {
+    if (!diagramData) return null;
+    
+    const nodes = diagramData.nodes;
+    if (!nodes || nodes.length === 0) return null;
+    
+    // Determine which metrics to display
+    const hasNestedMetrics = nodes.some(n => n.metrics);
+    const metricKeys = hasNestedMetrics 
+      ? ['yield', 'growth', 'peRatio'].filter(key => 
+          nodes.some(n => n.metrics && n.metrics[key] !== undefined && n.metrics[key] !== null)
+        )
+      : [];
+    
+    const chartHeight = canvasHeight - 280;
+    const chartTop = 140;
+    const chartLeft = 80;
+    const chartRight = canvasWidth - 60;
+    const chartWidth = chartRight - chartLeft;
+    
+    // For grouped bars
+    const groupWidth = chartWidth / nodes.length;
+    const barPadding = 8;
+    
+    // Calculate bar width based on number of metrics
+    const numBars = hasNestedMetrics ? Math.max(metricKeys.length, 1) : 1;
+    const barWidth = Math.min(
+      (groupWidth - barPadding * 2) / numBars - 4,
+      50
+    );
+    
+    // Calculate max values for scaling
+    const maxValues: Record<string, number> = {};
+    if (hasNestedMetrics) {
+      metricKeys.forEach(key => {
+        maxValues[key] = Math.max(
+          ...nodes.map(n => {
+            const val = n.metrics?.[key];
+            return typeof val === 'number' ? Math.abs(val) : 0;
+          })
+        );
+      });
+    }
+    const singleMaxValue = Math.max(...nodes.map(n => Math.abs(n.value || n.percentage || 0)));
+
+    // Metric colors
+    const metricColors = [
+      { bg: openColors.blue[1], border: openColors.blue[6], text: openColors.blue[9] },
+      { bg: openColors.teal[1], border: openColors.teal[6], text: openColors.teal[9] },
+      { bg: openColors.violet[1], border: openColors.violet[6], text: openColors.violet[9] },
+    ];
+
+    return (
+      <g>
+        {/* Y-axis */}
+        <line
+          x1={chartLeft}
+          y1={chartTop}
+          x2={chartLeft}
+          y2={chartTop + chartHeight}
+          stroke={currentTheme.border}
+          strokeWidth={2}
+        />
+        
+        {/* X-axis */}
+        <line
+          x1={chartLeft}
+          y1={chartTop + chartHeight}
+          x2={chartRight}
+          y2={chartTop + chartHeight}
+          stroke={currentTheme.border}
+          strokeWidth={2}
+        />
+
+        {/* Legend for grouped bars */}
+        {hasNestedMetrics && metricKeys.length > 0 && (
+          <g transform={`translate(${chartLeft}, ${chartTop - 30})`}>
+            {metricKeys.map((key, i) => (
+              <g key={key} transform={`translate(${i * 100}, 0)`}>
+                <rect
+                  x={0}
+                  y={0}
+                  width={14}
+                  height={14}
+                  fill={metricColors[i % metricColors.length].bg}
+                  stroke={metricColors[i % metricColors.length].border}
+                  strokeWidth={1}
+                />
+                <text
+                  x={20}
+                  y={11}
+                  fontSize={11}
+                  fill={currentTheme.text}
+                  fontFamily={excalidrawFontFamilyUI}
+                  style={{ textTransform: 'capitalize' }}
+                >
+                  {key === 'peRatio' ? 'P/E Ratio' : key}
+                </text>
+              </g>
+            ))}
+          </g>
+        )}
+
+        {/* Bars */}
+        {nodes.map((node, nodeIndex) => {
+          const groupX = chartLeft + nodeIndex * groupWidth + barPadding;
+          const isHovered = hoveredNode === node.id;
+          
+          if (hasNestedMetrics && metricKeys.length > 0) {
+            // Render grouped bars for each metric
+            return (
+              <g
+                key={node.id}
+                onMouseEnter={() => setHoveredNode(node.id)}
+                onMouseLeave={() => setHoveredNode(null)}
+                style={{ cursor: 'pointer' }}
+              >
+                {metricKeys.map((key, barIndex) => {
+                  const val = node.metrics?.[key];
+                  const value = typeof val === 'number' ? val : 0;
+                  const maxVal = maxValues[key] || 25;
+                  const barHeight = Math.max(4, (value / maxVal) * chartHeight);
+                  const x = groupX + barIndex * (barWidth + 4);
+                  const y = chartTop + chartHeight - barHeight;
+                  const colors = metricColors[barIndex % metricColors.length];
+                  
+                  return (
+                    <g key={key}>
+                      <path
+                        d={generateHandDrawnRect(x, y, barWidth, barHeight, nodeIndex * 10 + barIndex)}
+                        fill={isHovered ? colors.border : colors.bg}
+                        stroke={colors.border}
+                        strokeWidth={2}
+                        style={{
+                          transition: 'all 0.2s ease',
+                          filter: isHovered ? 'brightness(1.1)' : 'none',
+                        }}
+                      />
+                      {/* Value on top */}
+                      <text
+                        x={x + barWidth / 2}
+                        y={y - 6}
+                        textAnchor="middle"
+                        fontSize={10}
+                        fontWeight="600"
+                        fill={currentTheme.text}
+                        fontFamily={excalidrawFontFamily}
+                      >
+                        {value.toFixed(1)}{key === 'yield' || key === 'growth' ? '%' : ''}
+                      </text>
+                    </g>
+                  );
+                })}
+                
+                {/* Company label */}
+                <text
+                  x={groupX + (metricKeys.length * (barWidth + 4)) / 2}
+                  y={chartTop + chartHeight + 18}
+                  textAnchor="middle"
+                  fontSize={11}
+                  fill={currentTheme.text}
+                  fontFamily={excalidrawFontFamily}
+                >
+                  {node.label.length > 12 ? node.label.substring(0, 10) + '...' : node.label}
+                </text>
+                
+                {/* Category/ticker */}
+                <text
+                  x={groupX + (metricKeys.length * (barWidth + 4)) / 2}
+                  y={chartTop + chartHeight + 32}
+                  textAnchor="middle"
+                  fontSize={9}
+                  fill={currentTheme.muted}
+                  fontFamily={excalidrawFontFamilyUI}
+                >
+                  {node.id}
+                </text>
+              </g>
+            );
+          } else {
+            // Single bar per node
+            const value = node.value || node.percentage || 0;
+            const barHeight = Math.max(4, (value / (singleMaxValue || 100)) * chartHeight);
+            const x = groupX + (groupWidth - barWidth) / 2 - barPadding;
+            const y = chartTop + chartHeight - barHeight;
+            const colors = getNodeColor(node, nodeIndex);
+            
+            return (
+              <g
+                key={node.id}
+                onMouseEnter={() => setHoveredNode(node.id)}
+                onMouseLeave={() => setHoveredNode(null)}
+                style={{ cursor: 'pointer' }}
+              >
+                <path
+                  d={generateHandDrawnRect(x, y, barWidth, barHeight, nodeIndex)}
+                  fill={isHovered ? colors.border : colors.bg}
+                  stroke={colors.border}
+                  strokeWidth={2}
+                  style={{
+                    transition: 'all 0.2s ease',
+                    filter: isHovered ? 'brightness(1.05)' : 'none',
+                  }}
+                />
+                <text
+                  x={x + barWidth / 2}
+                  y={y - 8}
+                  textAnchor="middle"
+                  fontSize={12}
+                  fontWeight="600"
+                  fill={currentTheme.text}
+                  fontFamily={excalidrawFontFamily}
+                >
+                  {node.valueLabel || formatValue(node.value)}
+                </text>
+                <text
+                  x={groupX + groupWidth / 2 - barPadding}
+                  y={chartTop + chartHeight + 20}
+                  textAnchor="middle"
+                  fontSize={11}
+                  fill={currentTheme.text}
+                  fontFamily={excalidrawFontFamily}
+                >
+                  {node.label.length > 15 ? node.label.substring(0, 12) + '...' : node.label}
+                </text>
+              </g>
+            );
+          }
+        })}
+      </g>
+    );
+  };
 
   return (
     <div 
@@ -466,6 +683,18 @@ export function DiagramCanvas({
                 {description}
               </span>
             )}
+            {/* Layout type badge */}
+            {diagramData?.layoutType && (
+              <span 
+                className="px-2 py-0.5 rounded text-xs font-medium"
+                style={{ 
+                  backgroundColor: excalidrawPrimary.violet,
+                  color: '#ffffff',
+                }}
+              >
+                {diagramData.layoutType}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -510,7 +739,7 @@ export function DiagramCanvas({
                           style={{
                             backgroundColor: colorScheme === scheme ? excalidrawPrimary.violet : currentTheme.bg,
                             color: colorScheme === scheme ? '#ffffff' : currentTheme.text,
-                            ringColor: excalidrawPrimary.violet,
+                            // ringColor handled by ring-2 class
                           }}
                         >
                           {scheme}
@@ -620,19 +849,49 @@ export function DiagramCanvas({
               fill={currentTheme.bg}
             />
 
+            {/* Title */}
+            {diagramData?.title && (
+              <text
+                x={canvasWidth / 2}
+                y={35}
+                textAnchor="middle"
+                fontSize={20}
+                fontWeight="600"
+                fill={currentTheme.text}
+                fontFamily={excalidrawFontFamily}
+              >
+                {diagramData.title}
+              </text>
+            )}
+
+            {/* Subtitle */}
+            {diagramData?.subtitle && (
+              <text
+                x={canvasWidth / 2}
+                y={58}
+                textAnchor="middle"
+                fontSize={12}
+                fill={currentTheme.muted}
+                fontFamily={excalidrawFontFamilyUI}
+              >
+                {diagramData.subtitle}
+              </text>
+            )}
+
             {/* Metrics Header */}
             {diagramData?.metrics && diagramData.metrics.length > 0 && (
               <g>
                 {diagramData.metrics.map((metric, i) => {
                   const metricWidth = 150;
-                  const startX = 50 + i * (metricWidth + 20);
+                  const totalMetricsWidth = diagramData.metrics!.length * (metricWidth + 20) - 20;
+                  const startX = (canvasWidth - totalMetricsWidth) / 2 + i * (metricWidth + 20);
                   return (
                     <g key={i}>
                       <rect
                         x={startX}
-                        y={20}
+                        y={70}
                         width={metricWidth}
-                        height={70}
+                        height={55}
                         rx={8}
                         fill={currentTheme.panel}
                         stroke={currentTheme.border}
@@ -640,18 +899,17 @@ export function DiagramCanvas({
                       />
                       <text
                         x={startX + 12}
-                        y={42}
+                        y={88}
                         fontSize={10}
                         fill={currentTheme.muted}
                         fontFamily={excalidrawFontFamilyUI}
-                        textTransform="uppercase"
                       >
                         {metric.label}
                       </text>
                       <text
                         x={startX + 12}
-                        y={65}
-                        fontSize={22}
+                        y={110}
+                        fontSize={18}
                         fontWeight="600"
                         fill={currentTheme.text}
                         fontFamily={excalidrawFontFamily}
@@ -660,8 +918,9 @@ export function DiagramCanvas({
                       </text>
                       {metric.change && (
                         <text
-                          x={startX + 12}
-                          y={82}
+                          x={startX + metricWidth - 12}
+                          y={110}
+                          textAnchor="end"
                           fontSize={11}
                           fill={
                             metric.trend === 'up' ? openColors.teal[6] :
@@ -670,7 +929,7 @@ export function DiagramCanvas({
                           }
                           fontFamily={excalidrawFontFamilyUI}
                         >
-                          {metric.change}
+                          {metric.trend === 'up' ? '▲' : metric.trend === 'down' ? '▼' : ''} {metric.change}
                         </text>
                       )}
                     </g>
@@ -679,362 +938,26 @@ export function DiagramCanvas({
               </g>
             )}
 
-            {/* Treemap Nodes */}
-            {diagramData?.layoutType === 'treemap' && diagramData.nodes.map((node, index) => {
-              const pos = nodePositions.get(node.id);
-              if (!pos) return null;
-              
-              const colors = getNodeColor(node, index);
-              const isHovered = hoveredNode === node.id;
-              
-              return (
-                <g 
-                  key={node.id}
-                  onMouseEnter={() => setHoveredNode(node.id)}
-                  onMouseLeave={() => setHoveredNode(null)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  {/* Hand-drawn style rectangle */}
-                  <path
-                    d={generateHandDrawnRect(pos.x + 2, pos.y + 2, pos.width, pos.height, index)}
-                    fill={isHovered ? colors.border : colors.bg}
-                    stroke={colors.border}
-                    strokeWidth={2}
-                    style={{
-                      transition: 'all 0.2s ease',
-                      filter: isHovered ? 'brightness(1.05)' : 'none',
-                    }}
-                  />
-                  
-                  {/* Label */}
-                  {pos.width > 60 && pos.height > 40 && (
-                    <>
-                      <text
-                        x={pos.x + pos.width / 2 + 2}
-                        y={pos.y + pos.height / 2 - 10}
-                        textAnchor="middle"
-                        fontSize={Math.min(16, pos.width / 8)}
-                        fontWeight="500"
-                        fill={isHovered ? '#ffffff' : colors.text}
-                        fontFamily={excalidrawFontFamily}
-                        style={{ pointerEvents: 'none' }}
-                      >
-                        {node.label}
-                      </text>
-                      <text
-                        x={pos.x + pos.width / 2 + 2}
-                        y={pos.y + pos.height / 2 + 12}
-                        textAnchor="middle"
-                        fontSize={Math.min(20, pos.width / 6)}
-                        fontWeight="700"
-                        fill={isHovered ? '#ffffff' : colors.text}
-                        fontFamily={excalidrawFontFamily}
-                        style={{ pointerEvents: 'none' }}
-                      >
-                        {node.valueLabel || formatValue(node.value)}
-                      </text>
-                      {node.percentage !== undefined && (
-                        <text
-                          x={pos.x + pos.width / 2 + 2}
-                          y={pos.y + pos.height / 2 + 32}
-                          textAnchor="middle"
-                          fontSize={Math.min(12, pos.width / 10)}
-                          fill={isHovered ? 'rgba(255,255,255,0.8)' : colors.border}
-                          fontFamily={excalidrawFontFamilyUI}
-                          style={{ pointerEvents: 'none' }}
-                        >
-                          {node.percentage}%
-                        </text>
-                      )}
-                    </>
-                  )}
-                </g>
-              );
-            })}
-
-            {/* Comparison Bar Chart */}
-            {diagramData?.layoutType === 'comparison' && (() => {
-              const nodes = diagramData.nodes;
-              if (!nodes || nodes.length === 0) return null;
-              
-              // Determine which metrics to display
-              const hasNestedMetrics = nodes.some(n => n.metrics);
-              const metricKeys = hasNestedMetrics 
-                ? ['yield', 'growth', 'peRatio'].filter(key => 
-                    nodes.some(n => n.metrics && n.metrics[key] !== undefined && n.metrics[key] !== null)
-                  )
-                : [];
-              
-              const chartHeight = canvasHeight - 280;
-              const chartTop = 140;
-              const chartLeft = 80;
-              const chartRight = canvasWidth - 60;
-              const chartWidth = chartRight - chartLeft;
-              
-              // For grouped bars
-              const groupWidth = chartWidth / nodes.length;
-              const barPadding = 8;
-              const numBars = hasNestedMetrics ? Math.max(metricKeys.length, 1) : 1;
-              const barWidth = Math.min(50, (groupWidth - barPadding * 2) / numBars - 4);
-              
-              // Calculate max values for each metric
-              const maxValues: Record<string, number> = {};
-              if (hasNestedMetrics) {
-                metricKeys.forEach(key => {
-                  maxValues[key] = Math.max(...nodes.map(n => {
-                    const val = n.metrics?.[key];
-                    return typeof val === 'number' ? val : 0;
-                  }));
-                });
-              }
-              const singleMaxValue = Math.max(...nodes.map(n => n.value || n.percentage || 0));
-              
-              // Metric labels and colors
-              const metricLabels: Record<string, string> = {
-                yield: 'Yield %',
-                growth: 'Growth %',
-                peRatio: 'P/E Ratio',
-                marketCap: 'Market Cap'
-              };
-              const metricColors = [
-                { bg: openColors.blue[3], border: openColors.blue[7] },
-                { bg: openColors.green[3], border: openColors.green[7] },
-                { bg: openColors.violet[3], border: openColors.violet[7] },
-                { bg: openColors.orange[3], border: openColors.orange[7] },
-              ];
-              
-              return (
-                <g>
-                  {/* Legend for grouped bars */}
-                  {hasNestedMetrics && metricKeys.length > 1 && (
-                    <g>
-                      {metricKeys.map((key, i) => (
-                        <g key={key} transform={`translate(${chartLeft + i * 100}, ${chartTop - 30})`}>
-                          <rect
-                            x={0}
-                            y={0}
-                            width={14}
-                            height={14}
-                            fill={metricColors[i % metricColors.length].bg}
-                            stroke={metricColors[i % metricColors.length].border}
-                            strokeWidth={1.5}
-                            rx={2}
-                          />
-                          <text
-                            x={20}
-                            y={11}
-                            fontSize={11}
-                            fill={currentTheme.text}
-                            fontFamily={excalidrawFontFamilyUI}
-                          >
-                            {metricLabels[key] || key}
-                          </text>
-                        </g>
-                      ))}
-                    </g>
-                  )}
-                  
-                  {/* Y-axis */}
-                  <line
-                    x1={chartLeft}
-                    y1={chartTop}
-                    x2={chartLeft}
-                    y2={chartTop + chartHeight}
-                    stroke={currentTheme.border}
-                    strokeWidth={2}
-                  />
-                  
-                  {/* X-axis */}
-                  <line
-                    x1={chartLeft}
-                    y1={chartTop + chartHeight}
-                    x2={chartRight}
-                    y2={chartTop + chartHeight}
-                    stroke={currentTheme.border}
-                    strokeWidth={2}
-                  />
-                  
-                  {/* Y-axis labels and grid */}
-                  {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
-                    const y = chartTop + chartHeight * (1 - ratio);
-                    // Use the first metric's max or single max
-                    const displayMax = hasNestedMetrics && metricKeys.length > 0 
-                      ? maxValues[metricKeys[0]] || 25 
-                      : singleMaxValue || 100;
-                    const value = displayMax * ratio;
-                    return (
-                      <g key={i}>
-                        <line
-                          x1={chartLeft - 5}
-                          y1={y}
-                          x2={chartLeft}
-                          y2={y}
-                          stroke={currentTheme.border}
-                          strokeWidth={1}
-                        />
-                        <text
-                          x={chartLeft - 10}
-                          y={y + 4}
-                          textAnchor="end"
-                          fontSize={10}
-                          fill={currentTheme.muted}
-                          fontFamily={excalidrawFontFamilyUI}
-                        >
-                          {value.toFixed(0)}
-                        </text>
-                        <line
-                          x1={chartLeft}
-                          y1={y}
-                          x2={chartRight}
-                          y2={y}
-                          stroke={currentTheme.border}
-                          strokeWidth={0.5}
-                          strokeDasharray="4,4"
-                          opacity={0.3}
-                        />
-                      </g>
-                    );
-                  })}
-                  
-                  {/* Bars */}
-                  {nodes.map((node, nodeIndex) => {
-                    const groupX = chartLeft + nodeIndex * groupWidth + barPadding;
-                    const isHovered = hoveredNode === node.id;
-                    
-                    if (hasNestedMetrics && metricKeys.length > 0) {
-                      // Render grouped bars for each metric
-                      return (
-                        <g
-                          key={node.id}
-                          onMouseEnter={() => setHoveredNode(node.id)}
-                          onMouseLeave={() => setHoveredNode(null)}
-                          style={{ cursor: 'pointer' }}
-                        >
-                          {metricKeys.map((key, barIndex) => {
-                            const val = node.metrics?.[key];
-                            const value = typeof val === 'number' ? val : 0;
-                            const maxVal = maxValues[key] || 25;
-                            const barHeight = Math.max(4, (value / maxVal) * chartHeight);
-                            const x = groupX + barIndex * (barWidth + 4);
-                            const y = chartTop + chartHeight - barHeight;
-                            const colors = metricColors[barIndex % metricColors.length];
-                            
-                            return (
-                              <g key={key}>
-                                <path
-                                  d={generateHandDrawnRect(x, y, barWidth, barHeight, nodeIndex * 10 + barIndex)}
-                                  fill={isHovered ? colors.border : colors.bg}
-                                  stroke={colors.border}
-                                  strokeWidth={2}
-                                  style={{
-                                    transition: 'all 0.2s ease',
-                                    filter: isHovered ? 'brightness(1.1)' : 'none',
-                                  }}
-                                />
-                                {/* Value on top */}
-                                <text
-                                  x={x + barWidth / 2}
-                                  y={y - 6}
-                                  textAnchor="middle"
-                                  fontSize={10}
-                                  fontWeight="600"
-                                  fill={currentTheme.text}
-                                  fontFamily={excalidrawFontFamily}
-                                >
-                                  {value.toFixed(1)}{key === 'yield' || key === 'growth' ? '%' : ''}
-                                </text>
-                              </g>
-                            );
-                          })}
-                          
-                          {/* Company label */}
-                          <text
-                            x={groupX + (metricKeys.length * (barWidth + 4)) / 2}
-                            y={chartTop + chartHeight + 18}
-                            textAnchor="middle"
-                            fontSize={11}
-                            fill={currentTheme.text}
-                            fontFamily={excalidrawFontFamily}
-                          >
-                            {node.label.length > 12 ? node.label.substring(0, 10) + '...' : node.label}
-                          </text>
-                          
-                          {/* Category/ticker */}
-                          <text
-                            x={groupX + (metricKeys.length * (barWidth + 4)) / 2}
-                            y={chartTop + chartHeight + 32}
-                            textAnchor="middle"
-                            fontSize={9}
-                            fill={currentTheme.muted}
-                            fontFamily={excalidrawFontFamilyUI}
-                          >
-                            {node.id}
-                          </text>
-                        </g>
-                      );
-                    } else {
-                      // Single bar per node
-                      const value = node.value || node.percentage || 0;
-                      const barHeight = Math.max(4, (value / (singleMaxValue || 100)) * chartHeight);
-                      const x = groupX + (groupWidth - barWidth) / 2 - barPadding;
-                      const y = chartTop + chartHeight - barHeight;
-                      const colors = getNodeColor(node, nodeIndex);
-                      
-                      return (
-                        <g
-                          key={node.id}
-                          onMouseEnter={() => setHoveredNode(node.id)}
-                          onMouseLeave={() => setHoveredNode(null)}
-                          style={{ cursor: 'pointer' }}
-                        >
-                          <path
-                            d={generateHandDrawnRect(x, y, barWidth, barHeight, nodeIndex)}
-                            fill={isHovered ? colors.border : colors.bg}
-                            stroke={colors.border}
-                            strokeWidth={2}
-                            style={{
-                              transition: 'all 0.2s ease',
-                              filter: isHovered ? 'brightness(1.05)' : 'none',
-                            }}
-                          />
-                          <text
-                            x={x + barWidth / 2}
-                            y={y - 8}
-                            textAnchor="middle"
-                            fontSize={12}
-                            fontWeight="600"
-                            fill={currentTheme.text}
-                            fontFamily={excalidrawFontFamily}
-                          >
-                            {node.valueLabel || formatValue(node.value)}
-                          </text>
-                          <text
-                            x={groupX + groupWidth / 2 - barPadding}
-                            y={chartTop + chartHeight + 20}
-                            textAnchor="middle"
-                            fontSize={11}
-                            fill={currentTheme.text}
-                            fontFamily={excalidrawFontFamily}
-                          >
-                            {node.label.length > 15 ? node.label.substring(0, 12) + '...' : node.label}
-                          </text>
-                        </g>
-                      );
-                    }
-                  })}
-                </g>
-              );
-            })()}
+            {/* Render the appropriate layout */}
+            {renderLayout()}
 
             {/* Tooltip */}
             {hoveredNode && diagramData && (
               (() => {
                 const node = diagramData.nodes.find(n => n.id === hoveredNode);
-                const pos = nodePositions.get(hoveredNode);
-                if (!node || !pos) return null;
+                if (!node) return null;
                 
-                const tooltipX = Math.min(pos.x + pos.width + 10, canvasWidth - 180);
-                const tooltipY = Math.max(pos.y, 20);
+                // Find position based on layout type
+                let tooltipX = canvasWidth - 190;
+                let tooltipY = 140;
+                
+                if (diagramData.layoutType === 'treemap') {
+                  const pos = nodePositions.get(hoveredNode);
+                  if (pos) {
+                    tooltipX = Math.min(pos.x + pos.width + 10, canvasWidth - 180);
+                    tooltipY = Math.max(pos.y, 20);
+                  }
+                }
                 
                 return (
                   <g style={{ pointerEvents: 'none' }}>
@@ -1042,7 +965,7 @@ export function DiagramCanvas({
                       x={tooltipX}
                       y={tooltipY}
                       width={170}
-                      height={90}
+                      height={node.details ? 110 : 90}
                       rx={8}
                       fill={currentTheme.panel}
                       stroke={excalidrawPrimary.violet}
@@ -1086,9 +1009,19 @@ export function DiagramCanvas({
                         fontSize={10}
                         fill={excalidrawPrimary.violet}
                         fontFamily={excalidrawFontFamilyUI}
-                        textTransform="capitalize"
                       >
                         Category: {node.category}
+                      </text>
+                    )}
+                    {node.details && (
+                      <text
+                        x={tooltipX + 12}
+                        y={tooltipY + 98}
+                        fontSize={9}
+                        fill={currentTheme.muted}
+                        fontFamily={excalidrawFontFamilyUI}
+                      >
+                        {node.details.substring(0, 30)}...
                       </text>
                     )}
                   </g>
@@ -1122,7 +1055,7 @@ export function DiagramCanvas({
               onClick={() => setZoom(prev => Math.max(prev * 0.8, 0.25))}
               className="p-1.5 rounded transition-colors"
               style={{ color: currentTheme.muted }}
-              title="Zoom In"
+              title="Zoom Out"
             >
               <ZoomOut className="w-4 h-4" />
             </button>
@@ -1142,7 +1075,7 @@ export function DiagramCanvas({
               onClick={() => setZoom(prev => Math.min(prev * 1.2, 4))}
               className="p-1.5 rounded transition-colors"
               style={{ color: currentTheme.muted }}
-              title="Zoom Out"
+              title="Zoom In"
             >
               <ZoomIn className="w-4 h-4" />
             </button>
