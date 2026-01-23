@@ -15,6 +15,7 @@ interface UseStudioReturn {
   error: string | null;
   generate: (type: OutputType, prompt?: string) => Promise<StudioOutput>;
   deleteOutput: (outputId: string) => Promise<void>;
+  renameOutput: (outputId: string, newTitle: string) => Promise<void>;
   refreshOutputs: () => Promise<void>;
   clearOutputs: () => void;
 }
@@ -214,6 +215,33 @@ export function useStudio({ chatId }: UseStudioOptions): UseStudioReturn {
     }
   }, [getAuthHeaders]);
 
+  const renameOutput = useCallback(async (outputId: string, newTitle: string): Promise<void> => {
+    try {
+      const response = await fetch(
+        `${SUPABASE_URL}/functions/v1/studio-api/outputs/${outputId}`,
+        {
+          method: 'PATCH',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ title: newTitle }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to rename output');
+      }
+
+      // Update local state
+      setOutputs(prev => prev.map(o => 
+        o.id === outputId ? { ...o, title: newTitle } : o
+      ));
+    } catch (err) {
+      console.error('Failed to rename output:', err);
+      setError(err instanceof Error ? err.message : 'Failed to rename output');
+      throw err;
+    }
+  }, [getAuthHeaders]);
+
   const clearOutputs = useCallback(() => {
     setOutputs([]);
   }, []);
@@ -225,6 +253,7 @@ export function useStudio({ chatId }: UseStudioOptions): UseStudioReturn {
     error,
     generate,
     deleteOutput,
+    renameOutput,
     refreshOutputs,
     clearOutputs,
   };

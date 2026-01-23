@@ -5,7 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-user-id',
-  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
 }
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || ''
@@ -560,6 +560,53 @@ serve(async (req) => {
       await deleteOutput(supabase, outputId, user.id)
       
       return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    // PATCH /outputs/:output_id - Update an output (rename)
+    if (req.method === 'PATCH' && relevantPath[0] === 'outputs' && relevantPath[1]) {
+      const outputId = relevantPath[1]
+      const body = await req.json()
+      const { title } = body
+      
+      if (!title) {
+        return new Response(JSON.stringify({ error: 'Missing title' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+      
+      // Update the output title
+      const { data, error } = await supabase
+        .from('studio_outputs')
+        .update({ title, updated_at: new Date().toISOString() })
+        .eq('output_id', outputId)
+        .eq('user_id', user.id)
+        .select()
+        .single()
+      
+      if (error) {
+        console.error('[studio-api] Error updating output:', error)
+        return new Response(JSON.stringify({ error: 'Failed to update output' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+      
+      return new Response(JSON.stringify({ 
+        success: true,
+        output: {
+          id: data.output_id,
+          title: data.title,
+          type: data.output_type,
+          status: data.status,
+          content: data.content,
+          diagramData: data.diagram_data,
+          createdAt: data.created_at,
+        }
+      }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
