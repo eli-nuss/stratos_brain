@@ -505,12 +505,18 @@ serve(async (req) => {
     }
 
     const token = authHeader.replace('Bearer ', '')
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
     
-    // Verify user
+    // Create Supabase client with the user's auth header
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+      global: { headers: { Authorization: authHeader } }
+    })
+    
+    // Verify user - get user from token
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Invalid authorization' }), {
+      console.error('[studio-api] Auth failed:', authError?.message || 'No user')
+      return new Response(JSON.stringify({ error: 'Invalid authorization', details: authError?.message }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
