@@ -264,7 +264,7 @@ const generateHandDrawnRect = (x: number, y: number, width: number, height: numb
 
 // ============ MAIN COMPONENT ============
 
-export default function DiagramCanvas({
+export function DiagramCanvas({
   title,
   description,
   diagramData,
