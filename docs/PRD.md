@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 22, 2026 (v2.5 - NotebookLM Sources)  
+**Last Updated: January 24, 2026 (v2.6 - Studio & Diagrams)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -249,6 +249,7 @@
                                                                                             | `company_documents` | SEC filings, transcripts | `document_id`, `asset_id`, `document_type`, `content` |
                                                                                             | `document_chunks` | RAG embeddings | `chunk_id`, `document_id`, `embedding`, `content` |
 | `chat_sources` | User-provided sources | `source_id`, `chat_id`, `user_id`, `source_type`, `name`, `status`, `is_enabled` |
+| `chat_diagrams` | AI-generated Excalidraw diagrams | `diagram_id`, `chat_id`, `user_id`, `name`, `excalidraw_data`, `is_ai_generated`, `status` |
 
                                                                                             ### 5.3 Institutional Data Tables
 
@@ -499,6 +500,7 @@
                                                                                             |----------|---------|---------------|
                                                                                             | `control-api` | Main dashboard API | `/dashboard/*`, `/assets/*`, `/watchlist/*` |
                                                                                             | `sources-api` | NotebookLM-style sources | `/sources`, `/sources/:id` |
+| `diagrams-api` | Excalidraw diagram CRUD | `/diagrams`, `/diagrams/:id`, `/diagrams/:id/export` |
 | `company-chat-api` | Asset chat | `/chats`, `/chats/:id/messages` |
                                                                                             | `global-chat-api` | Market chat | `/chat`, `/screen` |
                                                                                             | `generate-document` | Document generation | `/generate` |
@@ -581,6 +583,7 @@ PATCH  /api/dashboard/research-notes/:id/favorite # Toggle favorite status
 │   ├── useResearchNotes.ts
 │   | `useUnifiedSearch.ts` |
 | `useSources.ts` | Manages user-provided sources (files, URLs, text) for a chat
+| `useDiagrams.ts` | Manages AI-generated and user-created Excalidraw diagrams
                                                                                             ├── pages/               # Route pages
                                                                                             │   ├── Home.tsx
                                                                                             │   ├── CompanyChat.tsx
@@ -600,6 +603,8 @@ PATCH  /api/dashboard/research-notes/:id/favorite # Toggle favorite status
 | `AssetDetail` | Modal with charts, AI analysis, trade plan, and EV+MC display for equities |
 | `chat/BaseChatInterface` | **Shared base component for all chat interfaces** (v2.1) - Provides unified message rendering, tool call visualization, streaming support, and error recovery |
 | `SourcesPanel` | UI for managing user-provided sources (files, URLs, text) |
+| `StudioPanel` | NotebookLM-style studio section with diagrams, slide decks (future), summaries (future) |
+| `ExcalidrawEditor` | Full-screen Excalidraw canvas for viewing and editing diagrams |
 | `CompanyChatInterfaceNew` | Company-specific chat using BaseChatInterface with side panel for fundamentals/technicals and NotebookLM-style sources |
 | `BrainChatInterfaceNew` | Global Brain chat using BaseChatInterface with purple theme and market-wide tools |
 | `CompanySidePanel` | Mobile-optimized side panel with sticky tabs, touch-friendly controls, and drawer support |
@@ -844,6 +849,7 @@ You are Stratos, an elite autonomous financial analyst for {company_name} ({symb
 - Documents: get_company_docs, search_company_docs, get_deep_research_report
 - Market: get_macro_context, get_institutional_flows, get_market_pulse
 - Utility: execute_python, perform_grounded_research, generate_dynamic_ui (for charts, tables, and interactive models)
+- Studio: generate_diagram (creates Excalidraw diagrams saved to Studio panel)
 ```
 
 ### 10.4 Performance Optimizations (v2025.01.22)
@@ -1009,6 +1015,14 @@ Both hooks subscribe to Supabase Realtime channels for live updates:
 ### 11.1 Completed Features
 
 - **NotebookLM-style Sources (v2.5):** Users can now upload files, add URLs, and create text notes as custom sources for each chat. The AI will reference these sources when answering questions.
+
+- **Studio & AI Diagrams (v2.6):** NotebookLM-style Studio section added to Company Chat with AI-powered diagram generation using Excalidraw. Features include:
+  - AI-generated diagrams via the `generate_diagram` tool (flowcharts, org charts, mind maps, relationship diagrams, timelines, etc.)
+  - Full Excalidraw editor for viewing and editing diagrams
+  - Diagram persistence per chat session
+  - Export to PNG and Excalidraw JSON formats
+  - Blank canvas creation for manual diagramming
+  - Uses `gemini-3-pro-preview` model for diagram generation
 
 ### 11.2 Planned Features
 

@@ -31,6 +31,112 @@ const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 // Feature flags
 const ENABLE_SKEPTIC_AGENT = Deno.env.get('ENABLE_SKEPTIC_AGENT') !== 'false' // Default: enabled
 
+// Build prompt for AI diagram generation
+function buildDiagramGenerationPrompt(
+  request: string,
+  diagramType: string,
+  context: string,
+  style: string
+): string {
+  return `You are an expert Excalidraw diagram designer. Generate a professional diagram based on the user's request.
+
+## Request
+${request}
+
+## Diagram Type
+${diagramType}
+
+## Additional Context
+${context || 'None provided'}
+
+## Style Preference
+${style}
+
+## Excalidraw Element Types
+You can use these element types:
+- rectangle: Boxes for concepts, entities, or containers
+- ellipse: Circles/ovals for states, decisions, or emphasis
+- diamond: Decision points in flowcharts
+- arrow: Connections with direction (use startBinding/endBinding for connected arrows)
+- line: Simple connections without arrowheads
+- text: Labels and descriptions
+
+## Color Palette (use these for professional look)
+- Primary: #228be6 (blue)
+- Secondary: #40c057 (green)
+- Accent: #fab005 (yellow)
+- Warning: #fa5252 (red)
+- Neutral: #868e96 (gray)
+- Background fills: Use lighter versions like #e7f5ff, #ebfbee, #fff9db
+
+## Layout Guidelines
+- Start elements at x: 100, y: 100
+- Use consistent spacing (150-200px between elements)
+- Align elements on a grid
+- Group related elements visually
+- Use hierarchy (larger elements for main concepts)
+
+## Output Format
+Return a JSON object with this structure:
+{
+  "name": "Descriptive name for the diagram",
+  "description": "Brief description of what the diagram shows",
+  "elements": [
+    {
+      "id": "unique-id-1",
+      "type": "rectangle",
+      "x": 100,
+      "y": 100,
+      "width": 200,
+      "height": 80,
+      "strokeColor": "#228be6",
+      "backgroundColor": "#e7f5ff",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roundness": { "type": 3 },
+      "text": "Label text here"
+    },
+    {
+      "id": "unique-id-2",
+      "type": "arrow",
+      "x": 300,
+      "y": 140,
+      "width": 100,
+      "height": 0,
+      "strokeColor": "#868e96",
+      "strokeWidth": 2,
+      "points": [[0, 0], [100, 0]],
+      "startBinding": { "elementId": "unique-id-1", "focus": 0, "gap": 1 },
+      "endBinding": { "elementId": "unique-id-3", "focus": 0, "gap": 1 }
+    },
+    {
+      "id": "text-1",
+      "type": "text",
+      "x": 120,
+      "y": 125,
+      "text": "Label",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "textAlign": "center"
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#ffffff"
+  }
+}
+
+## Important Rules
+1. Generate unique IDs for each element (use descriptive names like "revenue-box", "arrow-1-2")
+2. For text inside shapes, create a separate text element positioned inside the shape
+3. Use appropriate sizes: main concepts (200x80), sub-concepts (150x60), small items (100x40)
+4. Ensure arrows connect logically between elements
+5. Create a visually balanced layout
+6. Include at least 5-15 elements for a meaningful diagram
+7. Return ONLY valid JSON, no markdown or explanations
+
+Generate the diagram now:`
+}
+
 // Broadcast event to Supabase Realtime channel for real-time updates
 async function broadcastEvent(
   jobId: string,
@@ -275,6 +381,20 @@ const unifiedFunctionDeclarations = [
         range_pct: { type: "number", description: "Range percentage for sensitivity (default 20)" }
       },
       required: ["ticker", "metric", "variable_1", "variable_2"]
+    }
+  },
+  {
+    name: "generate_diagram",
+    description: "Generate an Excalidraw diagram to visualize concepts, relationships, processes, or data. Use this when the user asks for a visual representation, flowchart, org chart, mind map, relationship diagram, timeline, or any other type of diagram. The AI will analyze the context and create an appropriate diagram.",
+    parameters: {
+      type: "object",
+      properties: {
+        request: { type: "string", description: "Description of what to visualize in the diagram" },
+        diagram_type: { type: "string", description: "Suggested type: flowchart, org_chart, mind_map, relationship, timeline, process, hierarchy, comparison, or custom" },
+        context: { type: "string", description: "Additional context or data to include in the diagram" },
+        style: { type: "string", description: "Visual style preference: minimal, detailed, colorful, or professional" }
+      },
+      required: ["request"]
     }
   }
 ]
@@ -704,6 +824,121 @@ async function executeFunctionCall(
         break
       }
       
+      case "generate_diagram": {
+        // This tool generates Excalidraw diagrams using AI
+        const request = args.request as string
+        const diagramType = args.diagram_type as string || 'custom'
+        const context = args.context as string || ''
+        const style = args.style as string || 'professional'
+        
+        // Get the chat_id from the job to save the diagram
+        const { data: jobData } = await supabase
+          .from('chat_jobs')
+          .select('chat_id, user_id')
+          .eq('job_id', jobId)
+          .single()
+        
+        if (!jobData) {
+          throw new Error('Could not find job data for diagram saving')
+        }
+        
+        // Call the diagram generation API
+        const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
+        const DIAGRAM_MODEL = 'gemini-3-pro-preview'
+        
+        const diagramPrompt = buildDiagramGenerationPrompt(request, diagramType, context, style)
+        
+        // Broadcast that we're generating a diagram
+        await broadcastEvent(jobId, 'diagram_generating', { request, diagram_type: diagramType })
+        
+        const geminiResponse = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${DIAGRAM_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: diagramPrompt }] }],
+              generationConfig: {
+                temperature: 0.7,
+                maxOutputTokens: 16384,
+                responseMimeType: 'application/json'
+              }
+            })
+          }
+        )
+        
+        if (!geminiResponse.ok) {
+          throw new Error(`Diagram generation failed: ${geminiResponse.status}`)
+        }
+        
+        const geminiData = await geminiResponse.json()
+        const diagramJson = geminiData.candidates?.[0]?.content?.parts?.[0]?.text
+        
+        if (!diagramJson) {
+          throw new Error('Failed to generate diagram')
+        }
+        
+        try {
+          const parsedDiagram = JSON.parse(diagramJson)
+          const excalidrawData = {
+            type: 'excalidraw',
+            version: 2,
+            source: 'stratos-brain-ai',
+            elements: parsedDiagram.elements || [],
+            appState: {
+              viewBackgroundColor: '#ffffff',
+              gridSize: null,
+              ...parsedDiagram.appState
+            },
+            files: parsedDiagram.files || {}
+          }
+          
+          const diagramName = parsedDiagram.name || `${diagramType} Diagram`
+          const diagramDescription = parsedDiagram.description || request
+          
+          // Save the diagram to the database
+          const { data: savedDiagram, error: saveError } = await supabase
+            .from('chat_diagrams')
+            .insert({
+              chat_id: jobData.chat_id,
+              user_id: jobData.user_id,
+              name: diagramName,
+              description: diagramDescription,
+              diagram_type: diagramType,
+              excalidraw_data: excalidrawData,
+              generation_prompt: request,
+              generation_model: DIAGRAM_MODEL,
+              is_ai_generated: true,
+              status: 'ready'
+            })
+            .select()
+            .single()
+          
+          if (saveError) {
+            console.error('Failed to save diagram:', saveError)
+            throw new Error(`Failed to save diagram: ${saveError.message}`)
+          }
+          
+          // Broadcast that diagram was created
+          await broadcastEvent(jobId, 'diagram_created', { 
+            diagram_id: savedDiagram.diagram_id,
+            name: diagramName
+          })
+          
+          result = {
+            success: true,
+            diagram_id: savedDiagram.diagram_id,
+            diagram_type: diagramType,
+            name: diagramName,
+            description: diagramDescription,
+            message: `Diagram "${diagramName}" has been created and saved to your Studio panel. You can view and edit it there.`
+          }
+        } catch (parseError) {
+          throw new Error(`Failed to parse diagram JSON: ${parseError}`)
+        }
+        break
+      }
+      
       default:
         result = { error: `Unknown function: ${functionName}` }
     }
@@ -746,7 +981,15 @@ ${contextSnapshot ? `## Latest Context\n${JSON.stringify(contextSnapshot, null, 
 - Use markdown with clear sections
 - Include relevant metrics with citations
 - Show calculation methodology when using Python
-- End with key takeaways`
+- End with key takeaways
+
+## Diagram Generation
+When the user asks to create a diagram, visualization, or flowchart:
+1. Use the \`generate_diagram\` tool to create professional Excalidraw diagrams
+2. Choose the appropriate diagram_type: flowchart, org_chart, mind_map, relationship, timeline, process, hierarchy, or comparison
+3. Provide clear context about what should be visualized
+4. After generating, explain what the diagram shows
+5. The diagram will be saved to the user's Studio panel for editing`
 }
 
 // Call Gemini with tools
