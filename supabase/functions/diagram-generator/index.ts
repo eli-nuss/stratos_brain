@@ -153,111 +153,104 @@ async function executeTool(
 }
 
 // ============================================================================
-// EXCALIDRAW EXPERT PROMPT
+// EXCALIDRAW EXPERT PROMPT - Using Skeleton API format
 // ============================================================================
 
-const EXCALIDRAW_EXPERT_PROMPT = `You are an EXPERT diagram designer specializing in Excalidraw. Your purpose is to create beautiful, clear, and informative diagrams in Excalidraw's native JSON format.
+const EXCALIDRAW_EXPERT_PROMPT = `You are an EXPERT diagram designer. Create diagrams using Excalidraw's Skeleton API format.
 
-## YOUR EXPERTISE
+## CRITICAL: USE THE LABEL PROPERTY FOR TEXT IN SHAPES
 
-You are a master of:
-1. Information architecture and visual hierarchy
-2. Layout and spacing for maximum clarity
-3. Color theory for data visualization
-4. Excalidraw's element schema and capabilities
+Every shape (rectangle, ellipse, diamond) MUST have a "label" property with "text" inside it.
+DO NOT create separate text elements - put text INSIDE shapes using the label property.
 
-## EXCALIDRAW ELEMENT SCHEMA
+## ELEMENT FORMATS
 
-### Element Types
-1. rectangle - Boxes for entities, containers
-2. ellipse - Circles for nodes, emphasis
-3. diamond - Decision points
-4. text - Labels
-5. arrow - Connections with arrowheads
-6. line - Connections without arrowheads
-
-### Required Properties for ALL Elements
-- type: Element type
-- x: X coordinate
-- y: Y coordinate
-
-### Shape Elements (rectangle, ellipse, diamond)
+### Rectangle/Ellipse/Diamond with Text Label (ALWAYS USE THIS):
 {
   "type": "rectangle",
-  "id": "unique-id-1",
+  "id": "box-1",
   "x": 100,
   "y": 100,
-  "width": 200,
-  "height": 80,
+  "width": 180,
+  "height": 70,
   "backgroundColor": "#a5d8ff",
   "strokeColor": "#1971c2",
   "strokeWidth": 2,
-  "strokeStyle": "solid",
   "fillStyle": "solid",
   "label": {
-    "text": "Box Label",
+    "text": "Your Label Here",
     "fontSize": 16
   }
 }
 
-### Text Elements
-{
-  "type": "text",
-  "x": 100,
-  "y": 50,
-  "text": "Title Text",
-  "fontSize": 28,
-  "strokeColor": "#1864ab"
-}
-
-### Arrow Elements
+### Arrow with Label (for connections):
 {
   "type": "arrow",
-  "x": 200,
-  "y": 150,
-  "width": 150,
+  "id": "arrow-1",
+  "x": 280,
+  "y": 135,
+  "width": 100,
   "height": 0,
   "strokeColor": "#495057",
   "strokeWidth": 2,
   "startArrowhead": null,
-  "endArrowhead": "triangle"
+  "endArrowhead": "triangle",
+  "label": {
+    "text": "$50B"
+  }
+}
+
+### Arrow Binding (connects to shapes by ID):
+{
+  "type": "arrow",
+  "x": 280,
+  "y": 135,
+  "strokeColor": "#495057",
+  "strokeWidth": 2,
+  "endArrowhead": "triangle",
+  "start": { "id": "box-1" },
+  "end": { "id": "box-2" }
+}
+
+### Standalone Text (for titles only):
+{
+  "type": "text",
+  "x": 300,
+  "y": 30,
+  "text": "Diagram Title",
+  "fontSize": 28,
+  "strokeColor": "#1864ab"
 }
 
 ## COLOR PALETTE
 
-### Primary Colors
-- Blue: #339af0, #228be6, #1c7ed6
-- Green: #51cf66, #40c057, #2f9e44
-- Red: #ff6b6b, #fa5252, #e03131
-- Purple: #845ef7, #7950f2
+Use these colors for a professional look:
+- Blue boxes: backgroundColor "#a5d8ff", strokeColor "#1971c2"
+- Green boxes: backgroundColor "#b2f2bb", strokeColor "#2f9e44"  
+- Yellow boxes: backgroundColor "#fff3bf", strokeColor "#f08c00"
+- Red boxes: backgroundColor "#ffc9c9", strokeColor "#e03131"
+- Purple boxes: backgroundColor "#d0bfff", strokeColor "#7950f2"
+- Gray arrows: strokeColor "#495057"
+- Dark text: strokeColor "#1e1e1e"
 
-### Background Colors (lighter)
-- Light Blue: #a5d8ff, #d0ebff
-- Light Green: #d8f5a2, #b2f2bb
-- Light Yellow: #fff3bf
-- Light Red: #ffc9c9
+## LAYOUT RULES
 
-### Neutral Colors
-- Dark Gray: #495057, #343a40
-- White: #ffffff
-
-## LAYOUT GUIDELINES
-
-- Use multiples of 50 for coordinates
-- Standard spacing: 80-120 pixels
-- Element sizes: width 150-250, height 60-100
+1. Start title at y: 30
+2. Main content starts at y: 120
+3. Space boxes 100-150px apart horizontally
+4. Space rows 120px apart vertically
+5. Use width: 150-200, height: 60-80 for boxes
+6. Center the diagram around x: 400
 
 ## OUTPUT FORMAT
 
-You MUST return ONLY a valid JSON object with this structure:
+Return ONLY valid JSON (no markdown, no explanation):
 {
-  "elements": [...array of Excalidraw elements...],
-  "appState": {
-    "viewBackgroundColor": "#1e1e1e"
-  }
+  "elements": [...],
+  "appState": { "viewBackgroundColor": "#1e1e1e" }
 }
 
-NO markdown code blocks, NO explanations, NO preamble - ONLY the raw JSON.`
+REMEMBER: Every box MUST have a "label" property with text inside!`
 
 // ============================================================================
 // Streaming Helper
@@ -312,6 +305,7 @@ async function generateDiagramWithStreaming(
   let userPrompt = "Create a diagram for: " + request
   if (companySymbol) {
     userPrompt += "\n\nCompany: " + companyName + " (" + companySymbol + ")"
+    userPrompt += "\n\nIMPORTANT: Use the search_web or get_company_fundamentals tool to get real data about this company before creating the diagram."
   }
   if (chatContext) {
     userPrompt += "\n\nContext from conversation:\n" + chatContext
@@ -321,7 +315,7 @@ async function generateDiagramWithStreaming(
     { role: "user", parts: [{ text: userPrompt }] }
   ]
   
-  const maxIterations = 8
+  const maxIterations = 10
   
   for (let iteration = 0; iteration < maxIterations; iteration++) {
     writer.write('status', { 
@@ -333,13 +327,13 @@ async function generateDiagramWithStreaming(
     const requestBody = {
       contents: [
         { role: "user", parts: [{ text: EXCALIDRAW_EXPERT_PROMPT }] },
-        { role: "model", parts: [{ text: "I understand. I will create Excalidraw diagrams and return only valid JSON." }] },
+        { role: "model", parts: [{ text: "I understand. I will create Excalidraw diagrams using the Skeleton API format with label properties for text inside shapes. I will return only valid JSON." }] },
         ...conversationHistory
       ],
       tools: [{ functionDeclarations: diagramToolDeclarations }],
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 8192,
+        maxOutputTokens: 16384,
       }
     }
     
@@ -417,6 +411,26 @@ async function generateDiagramWithStreaming(
         const parsed = JSON.parse(jsonStr)
         
         if (parsed.elements && Array.isArray(parsed.elements)) {
+          // Validate that shapes have labels
+          const shapesWithoutLabels = parsed.elements.filter((el: any) => 
+            ['rectangle', 'ellipse', 'diamond'].includes(el.type) && !el.label
+          )
+          
+          if (shapesWithoutLabels.length > 0) {
+            console.log("Warning: Found shapes without labels, asking AI to fix")
+            writer.write('status', { stage: 'retrying', message: 'Adding missing labels...' })
+            
+            conversationHistory.push({
+              role: "model",
+              parts: [{ text: textPart }]
+            })
+            conversationHistory.push({
+              role: "user",
+              parts: [{ text: `Some shapes are missing labels. Every rectangle, ellipse, and diamond MUST have a "label" property with "text" inside. Please regenerate the JSON with proper labels for all shapes.` }]
+            })
+            continue
+          }
+          
           const diagramName = request.length > 50 ? request.substring(0, 47) + "..." : request
           
           writer.write('status', { 
@@ -449,7 +463,6 @@ async function generateDiagramWithStreaming(
             
             if (saveError) {
               console.error("Error saving diagram:", saveError)
-              // Create temp diagram
               savedDiagram = {
                 diagram_id: 'temp-' + Date.now(),
                 name: diagramName,
@@ -500,7 +513,6 @@ async function generateDiagramWithStreaming(
         
         writer.write('status', { stage: 'retrying', message: 'Fixing JSON format...' })
         
-        // Ask the model to fix the JSON
         conversationHistory.push({
           role: "model",
           parts: [{ text: textPart }]
