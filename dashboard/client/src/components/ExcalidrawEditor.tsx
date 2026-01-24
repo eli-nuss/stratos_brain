@@ -5,6 +5,198 @@ import type { Diagram, ExcalidrawScene } from '@/hooks/useDiagrams';
 // CRITICAL: Import Excalidraw CSS - required for proper rendering
 import '@excalidraw/excalidraw/index.css';
 
+// ============ ELEMENT CONVERSION HELPERS ============
+
+// Helper: Calculate center of a shape
+function getCenter(el: any) {
+  return {
+    x: (el.x || 0) + (el.width || 100) / 2,
+    y: (el.y || 0) + (el.height || 100) / 2,
+  };
+}
+
+// Process skeleton elements into proper Excalidraw format with text binding and arrow math
+function processSkeletonElements(elements: unknown[]): unknown[] {
+  if (!Array.isArray(elements)) return [];
+  
+  const result: any[] = [];
+  const elementMap = new Map<string, any>();
+
+  // First pass: Assign IDs and map elements
+  const baseElements = elements.map((el: any, index: number) => {
+    const id = el.id || `el-${index}-${Date.now()}`;
+    const baseEl = { ...el, id };
+    elementMap.set(id, baseEl);
+    return baseEl;
+  });
+
+  // Second pass: Process shapes, generate text, calculate arrows
+  baseElements.forEach((el: any) => {
+    const processedShape = { ...el };
+
+    // A. HANDLE SHAPES WITH TEXT LABELS (MUTUAL BINDING)
+    if (el.label && ['rectangle', 'ellipse', 'diamond'].includes(el.type)) {
+      const textId = `${el.id}-text`;
+      const shapeWidth = el.width || 250;
+      const shapeHeight = el.height || 100;
+      
+      // 1. Tell shape it owns this text
+      processedShape.boundElements = [{ id: textId, type: "text" }];
+
+      // 2. Create the text element centered in the shape
+      result.push({
+        type: 'text',
+        id: textId,
+        x: el.x + (shapeWidth / 2),
+        y: el.y + (shapeHeight / 2),
+        text: el.label.text || '',
+        fontSize: el.label.fontSize || 20,
+        fontFamily: 1, // Virgil
+        strokeColor: el.label.strokeColor || '#ffffff',
+        textAlign: 'center',
+        verticalAlign: 'middle',
+        containerId: el.id, // 3. Tell text it is owned by the shape
+      });
+      
+      // Remove label from shape (it's now a separate text element)
+      delete processedShape.label;
+    }
+
+    // B. HANDLE ARROW MATH
+    if (['arrow', 'line'].includes(el.type)) {
+      const sourceId = el.start?.id;
+      const targetId = el.end?.id;
+      const source = sourceId ? elementMap.get(sourceId) : null;
+      const target = targetId ? elementMap.get(targetId) : null;
+
+      if (source && target) {
+        const startCenter = getCenter(source);
+        const endCenter = getCenter(target);
+
+        // Excalidraw arrows start at their x,y and move relative via points
+        processedShape.x = startCenter.x;
+        processedShape.y = startCenter.y;
+        processedShape.points = [
+          [0, 0],
+          [endCenter.x - startCenter.x, endCenter.y - startCenter.y]
+        ];
+
+        // Bindings to snap the arrow to the boxes
+        processedShape.startBinding = { elementId: source.id, focus: 0, gap: 1 };
+        processedShape.endBinding = { elementId: target.id, focus: 0, gap: 1 };
+        
+        // Also update the source shape to know it has a bound arrow
+        const sourceInResult = result.find((r: any) => r.id === source.id);
+        if (sourceInResult) {
+          sourceInResult.boundElements = sourceInResult.boundElements || [];
+          sourceInResult.boundElements.push({ id: el.id, type: 'arrow' });
+        }
+        const targetInResult = result.find((r: any) => r.id === target.id);
+        if (targetInResult) {
+          targetInResult.boundElements = targetInResult.boundElements || [];
+          targetInResult.boundElements.push({ id: el.id, type: 'arrow' });
+        }
+
+        // Process arrow labels (optional)
+        if (el.label) {
+          result.push({
+            type: 'text',
+            id: `${el.id}-label`,
+            x: startCenter.x + (endCenter.x - startCenter.x) / 2,
+            y: startCenter.y + (endCenter.y - startCenter.y) / 2 - 15,
+            text: el.label.text || '',
+            fontSize: 14,
+            fontFamily: 1,
+            strokeColor: '#ced4da',
+            textAlign: 'center',
+          });
+        }
+      } else {
+        // Fallback: use provided x,y or defaults, with basic points
+        processedShape.x = el.x || 0;
+        processedShape.y = el.y || 0;
+        processedShape.points = el.points || [[0, 0], [100, 50]];
+      }
+      
+      // Clean up start/end binding objects (they're now in startBinding/endBinding)
+      delete processedShape.start;
+      delete processedShape.end;
+      delete processedShape.label;
+    }
+
+    result.push(processedShape);
+  });
+  
+  return result;
+}
+
+// Enforce strict Excalidraw schema - add all required fields
+function enforceExcalidrawSchema(elements: unknown[]): unknown[] {
+  if (!Array.isArray(elements)) return [];
+  
+  return elements.map((el: any) => {
+    const baseElement = {
+      id: el.id || `el-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      type: el.type || 'rectangle',
+      x: el.x ?? 0,
+      y: el.y ?? 0,
+      width: el.width ?? 100,
+      height: el.height ?? 100,
+      angle: el.angle ?? 0,
+      strokeColor: el.strokeColor || '#ced4da',
+      backgroundColor: el.backgroundColor || 'transparent',
+      fillStyle: el.fillStyle || 'solid',
+      strokeWidth: el.strokeWidth ?? 2,
+      strokeStyle: el.strokeStyle || 'solid',
+      roughness: el.roughness ?? 1,
+      opacity: el.opacity ?? 100,
+      groupIds: el.groupIds || [],
+      frameId: el.frameId ?? null,
+      roundness: el.roundness || { type: 3 },
+      seed: el.seed ?? Math.floor(Math.random() * 1000000),
+      version: el.version ?? 1,
+      versionNonce: el.versionNonce ?? Math.floor(Math.random() * 1000000),
+      isDeleted: el.isDeleted ?? false,
+      boundElements: el.boundElements || null,
+      updated: el.updated ?? Date.now(),
+      link: el.link ?? null,
+      locked: el.locked ?? false,
+    };
+
+    // Type-specific required fields
+    if (el.type === 'text') {
+      return {
+        ...baseElement,
+        text: el.text || '',
+        fontSize: el.fontSize ?? 20,
+        fontFamily: el.fontFamily ?? 1,
+        textAlign: el.textAlign || 'center',
+        verticalAlign: el.verticalAlign || 'middle',
+        containerId: el.containerId ?? null,
+        originalText: el.originalText || el.text || '',
+        lineHeight: el.lineHeight ?? 1.25,
+        baseline: el.baseline ?? 18,
+      };
+    }
+    
+    if (['arrow', 'line'].includes(el.type)) {
+      return {
+        ...baseElement,
+        points: el.points || [[0, 0], [100, 50]],
+        lastCommittedPoint: el.lastCommittedPoint ?? null,
+        startBinding: el.startBinding ?? null,
+        endBinding: el.endBinding ?? null,
+        startArrowhead: el.startArrowhead ?? null,
+        endArrowhead: el.endArrowhead ?? 'triangle',
+      };
+    }
+
+    return baseElement;
+  });
+}
+
+// ============ MAIN COMPONENT ============
+
 interface ExcalidrawEditorProps {
   isOpen: boolean;
   diagram: Diagram | null;
@@ -20,7 +212,7 @@ export function ExcalidrawEditor({
   const [ExcalidrawModule, setExcalidrawModule] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [convertedElements, setConvertedElements] = useState<any[] | null>(null);
+  const [processedElements, setProcessedElements] = useState<any[] | null>(null);
   const [elementsReady, setElementsReady] = useState(false);
   const [sceneUpdated, setSceneUpdated] = useState(false);
   const excalidrawAPIRef = useRef<any>(null);
@@ -45,10 +237,10 @@ export function ExcalidrawEditor({
     }
   }, [isOpen, ExcalidrawModule]);
 
-  // Convert skeleton elements to full Excalidraw elements when diagram or module changes
+  // Process elements when diagram changes
   useEffect(() => {
-    if (!ExcalidrawModule || !diagram) {
-      setConvertedElements(null);
+    if (!diagram) {
+      setProcessedElements(null);
       setElementsReady(false);
       setSceneUpdated(false);
       return;
@@ -64,41 +256,46 @@ export function ExcalidrawEditor({
     
     // If no elements, we're ready with empty array
     if (rawElements.length === 0) {
-      console.log('[ExcalidrawEditor] No elements to convert, using empty array');
-      setConvertedElements([]);
+      console.log('[ExcalidrawEditor] No elements, using empty array');
+      setProcessedElements([]);
       setElementsReady(true);
       return;
     }
     
-    // Check if elements need conversion (have 'label' property = skeleton format)
-    const needsConversion = rawElements.some((el: any) => el.label !== undefined);
+    // Check if elements need processing (have 'label' or 'start'/'end' properties = skeleton format)
+    const needsProcessing = rawElements.some((el: any) => 
+      el.label !== undefined || el.start !== undefined || el.end !== undefined
+    );
     
-    if (needsConversion && ExcalidrawModule.convertToExcalidrawElements) {
-      try {
-        console.log('[ExcalidrawEditor] Converting skeleton elements to Excalidraw format...');
-        console.log('[ExcalidrawEditor] Raw elements:', rawElements);
-        const converted = ExcalidrawModule.convertToExcalidrawElements(rawElements);
-        console.log('[ExcalidrawEditor] Converted', rawElements.length, 'skeleton elements to', converted.length, 'Excalidraw elements');
-        console.log('[ExcalidrawEditor] Converted elements:', converted);
-        setConvertedElements(converted);
-        setElementsReady(true);
-      } catch (err) {
-        console.error('[ExcalidrawEditor] Failed to convert elements:', err);
-        // Fall back to raw elements
-        setConvertedElements(rawElements);
-        setElementsReady(true);
+    try {
+      console.log('[ExcalidrawEditor] Processing elements...');
+      console.log('[ExcalidrawEditor] Raw elements:', rawElements);
+      
+      let processed = rawElements;
+      if (needsProcessing) {
+        // First process skeleton format (labels, arrow bindings)
+        processed = processSkeletonElements(rawElements);
+        console.log('[ExcalidrawEditor] After skeleton processing:', processed);
       }
-    } else {
-      // Elements are already in full format
-      console.log('[ExcalidrawEditor] Elements already in full format, using as-is');
-      setConvertedElements(rawElements);
+      
+      // Then enforce strict schema
+      const final = enforceExcalidrawSchema(processed);
+      console.log('[ExcalidrawEditor] Final elements:', final);
+      
+      setProcessedElements(final);
+      setElementsReady(true);
+    } catch (err) {
+      console.error('[ExcalidrawEditor] Failed to process elements:', err);
+      // Fall back to enforcing schema on raw elements
+      const fallback = enforceExcalidrawSchema(rawElements);
+      setProcessedElements(fallback);
       setElementsReady(true);
     }
-  }, [ExcalidrawModule, diagram]);
+  }, [diagram]);
 
-  // Update scene via API after Excalidraw mounts (this is more reliable than initialData)
+  // Update scene via API after Excalidraw mounts
   useEffect(() => {
-    if (!excalidrawAPIRef.current || !elementsReady || !convertedElements || sceneUpdated) {
+    if (!excalidrawAPIRef.current || !elementsReady || !processedElements || sceneUpdated) {
       return;
     }
 
@@ -107,21 +304,21 @@ export function ExcalidrawEditor({
       const api = excalidrawAPIRef.current;
       if (!api) return;
 
-      console.log('[ExcalidrawEditor] Updating scene via API with', convertedElements.length, 'elements');
+      console.log('[ExcalidrawEditor] Updating scene via API with', processedElements.length, 'elements');
       
       try {
-        // Update the scene with converted elements
+        // Update the scene with processed elements
         api.updateScene({
-          elements: convertedElements,
+          elements: processedElements,
           appState: {
-            viewBackgroundColor: diagram?.excalidraw_data?.appState?.viewBackgroundColor || '#121212',
+            viewBackgroundColor: diagram?.excalidraw_data?.appState?.viewBackgroundColor || '#1e1e1e',
           }
         });
 
         // Scroll to content after a brief delay
         setTimeout(() => {
-          if (api && convertedElements.length > 0) {
-            api.scrollToContent(convertedElements, { fitToContent: true, animate: true });
+          if (api && processedElements.length > 0) {
+            api.scrollToContent(processedElements, { fitToContent: true, animate: true });
             console.log('[ExcalidrawEditor] Scrolled to content');
           }
         }, 100);
@@ -130,10 +327,10 @@ export function ExcalidrawEditor({
       } catch (err) {
         console.error('[ExcalidrawEditor] Failed to update scene:', err);
       }
-    }, 200);
+    }, 300);
 
     return () => clearTimeout(timer);
-  }, [elementsReady, convertedElements, sceneUpdated, diagram]);
+  }, [elementsReady, processedElements, sceneUpdated, diagram]);
 
   const handleSave = useCallback(async () => {
     if (!diagram || !excalidrawAPIRef.current) return;
@@ -148,7 +345,7 @@ export function ExcalidrawEditor({
         version: 2,
         source: 'stratos-brain',
         elements,
-        appState: { viewBackgroundColor: appState?.viewBackgroundColor || '#121212' },
+        appState: { viewBackgroundColor: appState?.viewBackgroundColor || '#1e1e1e' },
         files
       });
       alert("Diagram saved!");
@@ -158,7 +355,7 @@ export function ExcalidrawEditor({
     }
   }, [diagram, onSave]);
 
-  // Keyboard shortcut for save and close
+  // Keyboard shortcuts
   useEffect(() => {
     if (!isOpen) return;
     
@@ -182,28 +379,24 @@ export function ExcalidrawEditor({
     excalidrawAPIRef.current = api;
     
     // Trigger scene update after API is ready
-    if (elementsReady && convertedElements && convertedElements.length > 0) {
-      setSceneUpdated(false); // Reset to trigger the update effect
+    if (elementsReady && processedElements && processedElements.length > 0) {
+      setSceneUpdated(false);
     }
-  }, [elementsReady, convertedElements]);
+  }, [elementsReady, processedElements]);
 
   if (!isOpen) return null;
 
-  // Get components from module
   const Excalidraw = ExcalidrawModule?.Excalidraw;
   const MainMenu = ExcalidrawModule?.MainMenu;
-
-  // Determine if we're still loading/converting
   const isProcessing = isLoading || !elementsReady;
 
   return (
-    // Fixed fullscreen container
     <div 
       style={{ 
         position: 'fixed', 
         inset: 0,
         zIndex: 9999,
-        backgroundColor: '#121212',
+        backgroundColor: '#1e1e1e',
         overflow: 'hidden'
       }}
     >
@@ -225,20 +418,18 @@ export function ExcalidrawEditor({
           </button>
         </div>
       ) : Excalidraw && elementsReady ? (
-        // CRITICAL: Container MUST have explicit height for Excalidraw to render
         <div style={{ height: '100vh', width: '100vw' }}>
           <Excalidraw
             excalidrawAPI={handleExcalidrawAPI}
             initialData={{
-              elements: [], // Start empty, we'll update via API
+              elements: [],
               appState: { 
-                viewBackgroundColor: diagram?.excalidraw_data?.appState?.viewBackgroundColor || '#121212', 
+                viewBackgroundColor: diagram?.excalidraw_data?.appState?.viewBackgroundColor || '#1e1e1e', 
                 theme: 'dark',
               },
             }}
             theme="dark"
           >
-            {/* Custom MainMenu with our actions */}
             {MainMenu && (
               <MainMenu>
                 <MainMenu.DefaultItems.LoadScene />
