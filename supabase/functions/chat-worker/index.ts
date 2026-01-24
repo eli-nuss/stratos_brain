@@ -997,13 +997,21 @@ ${contextSnapshot ? `## Latest Context\n${JSON.stringify(contextSnapshot, null, 
 - Show calculation methodology when using Python
 - End with key takeaways
 
-## Diagram Generation
-When the user asks to create a diagram, visualization, or flowchart:
-1. Use the \`generate_diagram\` tool to create professional Excalidraw diagrams
-2. Choose the appropriate diagram_type: flowchart, org_chart, mind_map, relationship, timeline, process, hierarchy, or comparison
-3. Provide clear context about what should be visualized
-4. After generating, explain what the diagram shows
-5. The diagram will be saved to the user's Studio panel for editing`
+## Diagram Generation - MANDATORY TOOL USE
+When the user asks for ANY of the following, you MUST use the \`generate_diagram\` tool:
+- "create a diagram", "show me a diagram", "visualize", "flowchart", "chart", "graph"
+- "org chart", "mind map", "relationship diagram", "timeline"
+- Any request to visually represent data, processes, or relationships
+
+**CRITICAL**: Do NOT create ASCII art, text-based charts, or markdown tables when a diagram is requested.
+Do NOT say "I cannot generate images" - you CAN generate diagrams using the generate_diagram tool.
+ALWAYS call the generate_diagram tool first, then explain what the diagram shows.
+
+Parameters for generate_diagram:
+- request: Describe what to visualize (include specific data points)
+- diagram_type: flowchart, org_chart, mind_map, relationship, timeline, process, hierarchy, or comparison
+- context: Include any relevant data or details
+- style: professional (default), minimal, detailed, or colorful`
 }
 
 // Call Gemini with tools
