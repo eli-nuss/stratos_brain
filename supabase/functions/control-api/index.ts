@@ -1376,7 +1376,13 @@ ${markdownToHtml(markdown)}
           }
         }
 
-        // Apply primary sorting
+        // When searching, sort by symbol first to prioritize exact matches
+        // This ensures that searching for "URA" shows URA before "Natural Resource Partners"
+        if (search) {
+          query = query.order('symbol', { ascending: true })
+        }
+        
+        // Apply primary sorting (as secondary when searching)
         query = applySort(query, sortBy, sortOrder)
 
         // Apply secondary sorting if provided
