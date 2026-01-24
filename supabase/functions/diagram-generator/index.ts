@@ -1,5 +1,6 @@
 // Diagram Generator - Dedicated AI agent for generating Excalidraw diagrams directly
 // This agent is an expert in designing and building diagrams in Excalidraw format
+// NOW WITH STREAMING PROGRESS UPDATES
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0"
@@ -13,7 +14,7 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || ''
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
-const GEMINI_MODEL = 'gemini-3-pro-preview'
+const GEMINI_MODEL = 'gemini-2.5-flash'
 
 // ============================================================================
 // Focused Tool Declarations
@@ -152,262 +153,233 @@ async function executeTool(
 }
 
 // ============================================================================
-// EXCALIDRAW EXPERT PROMPT (using string concatenation to avoid template literal issues)
+// EXCALIDRAW EXPERT PROMPT
 // ============================================================================
 
-const EXCALIDRAW_EXPERT_PROMPT = [
-  "You are an EXPERT diagram designer specializing in Excalidraw. Your purpose is to create beautiful, clear, and informative diagrams in Excalidraw's native JSON format.",
-  "",
-  "## YOUR EXPERTISE",
-  "",
-  "You are a master of:",
-  "1. Information architecture and visual hierarchy",
-  "2. Layout and spacing for maximum clarity",
-  "3. Color theory for data visualization",
-  "4. Excalidraw's element schema and capabilities",
-  "",
-  "## EXCALIDRAW ELEMENT SCHEMA - COMPLETE REFERENCE",
-  "",
-  "### Element Types Available",
-  "",
-  "1. rectangle - Rectangular boxes (great for entities, containers, data cards)",
-  "2. ellipse - Oval/circular shapes (great for start/end nodes, emphasis)",
-  "3. diamond - Diamond shapes (great for decision points, conditions)",
-  "4. text - Standalone text labels",
-  "5. arrow - Arrows connecting elements (with optional labels)",
-  "6. line - Lines without arrowheads",
-  "",
-  "### Required Properties for ALL Elements",
-  "",
-  "Every element MUST have:",
-  "- type: The element type (rectangle, ellipse, diamond, text, arrow, line)",
-  "- x: X coordinate (horizontal position from left)",
-  "- y: Y coordinate (vertical position from top)",
-  "",
-  "### Shape Elements (rectangle, ellipse, diamond)",
-  "",
-  "Example rectangle:",
-  "{",
-  '  "type": "rectangle",',
-  '  "id": "unique-id-1",',
-  '  "x": 100,',
-  '  "y": 100,',
-  '  "width": 200,',
-  '  "height": 80,',
-  '  "backgroundColor": "#a5d8ff",',
-  '  "strokeColor": "#1971c2",',
-  '  "strokeWidth": 2,',
-  '  "strokeStyle": "solid",',
-  '  "fillStyle": "solid",',
-  '  "label": {',
-  '    "text": "Box Label",',
-  '    "fontSize": 16,',
-  '    "strokeColor": "#000000"',
-  '  }',
-  "}",
-  "",
-  "Optional Properties:",
-  "- id: Unique identifier (REQUIRED if you want to connect arrows to this element)",
-  "- width: Width in pixels (default ~100)",
-  "- height: Height in pixels (default ~100)",
-  "- backgroundColor: Fill color in hex (e.g., '#a5d8ff')",
-  "- strokeColor: Border color in hex (e.g., '#1971c2')",
-  "- strokeWidth: Border thickness (1, 2, or 4)",
-  "- strokeStyle: 'solid', 'dashed', or 'dotted'",
-  "- fillStyle: 'solid', 'hachure', or 'cross-hatch'",
-  "- label: Object with text inside the shape",
-  "",
-  "### Text Elements",
-  "",
-  "Example text:",
-  "{",
-  '  "type": "text",',
-  '  "x": 100,',
-  '  "y": 50,',
-  '  "text": "Title Text",',
-  '  "fontSize": 28,',
-  '  "strokeColor": "#1864ab"',
-  "}",
-  "",
-  "Properties:",
-  "- text: The text content (REQUIRED)",
-  "- fontSize: Font size in pixels (16, 20, 28, 36 are good sizes)",
-  "- strokeColor: Text color in hex",
-  "",
-  "### Arrow Elements",
-  "",
-  "Example arrow:",
-  "{",
-  '  "type": "arrow",',
-  '  "x": 200,',
-  '  "y": 150,',
-  '  "width": 150,',
-  '  "height": 0,',
-  '  "strokeColor": "#495057",',
-  '  "strokeWidth": 2,',
-  '  "startArrowhead": null,',
-  '  "endArrowhead": "triangle"',
-  "}",
-  "",
-  "Properties:",
-  "- width: Horizontal length of arrow",
-  "- height: Vertical offset (0 for horizontal, positive for downward)",
-  "- startArrowhead: null, 'arrow', 'bar', 'dot', 'triangle'",
-  "- endArrowhead: null, 'arrow', 'bar', 'dot', 'triangle'",
-  "- label: Optional label on the arrow",
-  "",
-  "## COLOR PALETTE (USE THESE EXACT HEX VALUES)",
-  "",
-  "### Primary Colors",
-  "- Blue: #339af0, #228be6, #1c7ed6, #1971c2, #1864ab",
-  "- Green: #51cf66, #40c057, #2f9e44, #099268",
-  "- Red: #ff6b6b, #fa5252, #e03131",
-  "- Orange: #ff922b, #fd7e14, #e8590c",
-  "- Yellow: #fcc419, #fab005, #f59f00",
-  "- Purple: #845ef7, #7950f2, #6741d9, #5f3dc4",
-  "",
-  "### Background Colors (lighter, for fills)",
-  "- Light Blue: #a5d8ff, #d0ebff",
-  "- Light Green: #d8f5a2, #c0eb75, #b2f2bb",
-  "- Light Yellow: #fff3bf, #ffec99",
-  "- Light Red: #ffc9c9, #ffe3e3",
-  "- Light Purple: #e5dbff, #d0bfff",
-  "",
-  "### Neutral Colors",
-  "- Dark Gray: #495057, #343a40, #212529",
-  "- Medium Gray: #868e96, #adb5bd",
-  "- White: #ffffff",
-  "",
-  "## LAYOUT GUIDELINES",
-  "",
-  "### Grid-Based Positioning",
-  "- Use multiples of 50 for x and y coordinates",
-  "- Standard spacing between elements: 80-120 pixels",
-  "- Typical element sizes: width 150-250, height 60-100",
-  "",
-  "### Common Layouts",
-  "",
-  "1. HORIZONTAL FLOW (left to right):",
-  "   - Start at x=100, y=200",
-  "   - Each subsequent element: x += 250",
-  "",
-  "2. VERTICAL FLOW (top to bottom):",
-  "   - Start at x=400, y=100",
-  "   - Each subsequent element: y += 120",
-  "",
-  "3. GRID LAYOUT (for comparisons):",
-  "   - Row 1: y=100, Row 2: y=220, Row 3: y=340",
-  "   - Col 1: x=100, Col 2: x=350, Col 3: x=600",
-  "",
-  "4. RADIAL/HUB LAYOUT (for relationships):",
-  "   - Center element at x=400, y=300",
-  "   - Surrounding elements at radius ~200 pixels",
-  "",
-  "## OUTPUT FORMAT",
-  "",
-  "You MUST return a valid JSON object with this structure:",
-  "{",
-  '  "elements": [',
-  "    // Array of Excalidraw elements",
-  "  ],",
-  '  "appState": {',
-  '    "viewBackgroundColor": "#1e1e1e"',
-  "  }",
-  "}",
-  "",
-  "## IMPORTANT RULES",
-  "",
-  "1. ALWAYS return valid JSON - no markdown, no explanations, just the JSON object",
-  "2. Use unique IDs for elements you want to connect with arrows",
-  "3. Position elements to avoid overlap",
-  "4. Use consistent colors within the same diagram",
-  "5. Add clear labels to all important elements",
-  "6. Create a title text element at the top of the diagram",
-  "7. Use arrows to show relationships and flow",
-  "8. Keep diagrams clean and uncluttered"
-].join("\n")
+const EXCALIDRAW_EXPERT_PROMPT = `You are an EXPERT diagram designer specializing in Excalidraw. Your purpose is to create beautiful, clear, and informative diagrams in Excalidraw's native JSON format.
+
+## YOUR EXPERTISE
+
+You are a master of:
+1. Information architecture and visual hierarchy
+2. Layout and spacing for maximum clarity
+3. Color theory for data visualization
+4. Excalidraw's element schema and capabilities
+
+## EXCALIDRAW ELEMENT SCHEMA
+
+### Element Types
+1. rectangle - Boxes for entities, containers
+2. ellipse - Circles for nodes, emphasis
+3. diamond - Decision points
+4. text - Labels
+5. arrow - Connections with arrowheads
+6. line - Connections without arrowheads
+
+### Required Properties for ALL Elements
+- type: Element type
+- x: X coordinate
+- y: Y coordinate
+
+### Shape Elements (rectangle, ellipse, diamond)
+{
+  "type": "rectangle",
+  "id": "unique-id-1",
+  "x": 100,
+  "y": 100,
+  "width": 200,
+  "height": 80,
+  "backgroundColor": "#a5d8ff",
+  "strokeColor": "#1971c2",
+  "strokeWidth": 2,
+  "strokeStyle": "solid",
+  "fillStyle": "solid",
+  "label": {
+    "text": "Box Label",
+    "fontSize": 16
+  }
+}
+
+### Text Elements
+{
+  "type": "text",
+  "x": 100,
+  "y": 50,
+  "text": "Title Text",
+  "fontSize": 28,
+  "strokeColor": "#1864ab"
+}
+
+### Arrow Elements
+{
+  "type": "arrow",
+  "x": 200,
+  "y": 150,
+  "width": 150,
+  "height": 0,
+  "strokeColor": "#495057",
+  "strokeWidth": 2,
+  "startArrowhead": null,
+  "endArrowhead": "triangle"
+}
+
+## COLOR PALETTE
+
+### Primary Colors
+- Blue: #339af0, #228be6, #1c7ed6
+- Green: #51cf66, #40c057, #2f9e44
+- Red: #ff6b6b, #fa5252, #e03131
+- Purple: #845ef7, #7950f2
+
+### Background Colors (lighter)
+- Light Blue: #a5d8ff, #d0ebff
+- Light Green: #d8f5a2, #b2f2bb
+- Light Yellow: #fff3bf
+- Light Red: #ffc9c9
+
+### Neutral Colors
+- Dark Gray: #495057, #343a40
+- White: #ffffff
+
+## LAYOUT GUIDELINES
+
+- Use multiples of 50 for coordinates
+- Standard spacing: 80-120 pixels
+- Element sizes: width 150-250, height 60-100
+
+## OUTPUT FORMAT
+
+You MUST return ONLY a valid JSON object with this structure:
+{
+  "elements": [...array of Excalidraw elements...],
+  "appState": {
+    "viewBackgroundColor": "#1e1e1e"
+  }
+}
+
+NO markdown code blocks, NO explanations, NO preamble - ONLY the raw JSON.`
 
 // ============================================================================
-// Main Diagram Generation Logic
+// Streaming Helper
 // ============================================================================
 
-async function generateDiagram(
+function createStreamWriter() {
+  const encoder = new TextEncoder()
+  let controller: ReadableStreamDefaultController<Uint8Array> | null = null
+  
+  const stream = new ReadableStream<Uint8Array>({
+    start(c) {
+      controller = c
+    }
+  })
+  
+  return {
+    stream,
+    write(event: string, data: unknown) {
+      if (controller) {
+        const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
+        controller.enqueue(encoder.encode(message))
+      }
+    },
+    close() {
+      if (controller) {
+        controller.close()
+      }
+    }
+  }
+}
+
+// ============================================================================
+// Diagram Generation with Streaming
+// ============================================================================
+
+async function generateDiagramWithStreaming(
   supabase: ReturnType<typeof createClient>,
+  writer: ReturnType<typeof createStreamWriter>,
   request: string,
   companySymbol: string,
   companyName: string,
-  chatContext: string
-): Promise<{ elements: unknown[]; appState: unknown; name: string }> {
+  chatContext: string,
+  chatId: string | null,
+  userId: string | null
+): Promise<void> {
+  
+  writer.write('status', { stage: 'starting', message: 'Initializing diagram generation...' })
   
   const apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/" + GEMINI_MODEL + ":generateContent?key=" + GEMINI_API_KEY
   
-  // Build the initial prompt
-  const userPrompt = [
-    "Create a diagram for the following request:",
-    "",
-    "REQUEST: " + request,
-    "",
-    "COMPANY CONTEXT:",
-    "- Symbol: " + companySymbol,
-    "- Name: " + companyName,
-    "",
-    chatContext ? ("CHAT CONTEXT:\n" + chatContext) : "",
-    "",
-    "First, use the available tools to gather any data you need. Then create the diagram.",
-    "Remember to return ONLY valid JSON with the elements array and appState."
-  ].join("\n")
+  // Build the user prompt
+  let userPrompt = "Create a diagram for: " + request
+  if (companySymbol) {
+    userPrompt += "\n\nCompany: " + companyName + " (" + companySymbol + ")"
+  }
+  if (chatContext) {
+    userPrompt += "\n\nContext from conversation:\n" + chatContext
+  }
   
-  let conversationHistory: Array<{ role: string; parts: Array<{ text?: string; functionCall?: unknown; functionResponse?: unknown }> }> = [
+  const conversationHistory: Array<{ role: string; parts: unknown[] }> = [
     { role: "user", parts: [{ text: userPrompt }] }
   ]
   
-  const maxIterations = 5
-  let iteration = 0
+  const maxIterations = 8
   
-  while (iteration < maxIterations) {
-    iteration++
-    console.log("Diagram generation iteration:", iteration)
+  for (let iteration = 0; iteration < maxIterations; iteration++) {
+    writer.write('status', { 
+      stage: 'thinking', 
+      message: `AI is designing the diagram... (step ${iteration + 1})`,
+      iteration 
+    })
+    
+    const requestBody = {
+      contents: [
+        { role: "user", parts: [{ text: EXCALIDRAW_EXPERT_PROMPT }] },
+        { role: "model", parts: [{ text: "I understand. I will create Excalidraw diagrams and return only valid JSON." }] },
+        ...conversationHistory
+      ],
+      tools: [{ functionDeclarations: diagramToolDeclarations }],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 8192,
+      }
+    }
     
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: EXCALIDRAW_EXPERT_PROMPT }] },
-        contents: conversationHistory,
-        tools: [{ functionDeclarations: diagramToolDeclarations }],
-        generationConfig: {
-          temperature: 0.4,
-          maxOutputTokens: 8192,
-          responseMimeType: "application/json"
-        }
-      })
+      body: JSON.stringify(requestBody)
     })
     
     if (!response.ok) {
       const errorText = await response.text()
       console.error("Gemini API error:", errorText)
-      throw new Error("Failed to generate diagram: " + response.status)
+      throw new Error("AI service error: " + response.status)
     }
     
     const data = await response.json()
-    const candidate = data.candidates?.[0]
-    const content = candidate?.content
-    const finishReason = candidate?.finishReason
-    
-    console.log("Finish reason:", finishReason)
+    const content = data.candidates?.[0]?.content
     
     if (!content) {
-      throw new Error("No content in response")
+      throw new Error("No response from AI")
     }
     
     // Check for function calls
     const functionCall = content.parts?.find((p: any) => p.functionCall)?.functionCall
     
     if (functionCall) {
-      console.log("Function call:", functionCall.name)
+      writer.write('tool_call', { 
+        tool: functionCall.name, 
+        args: functionCall.args,
+        message: `Using tool: ${functionCall.name}`
+      })
       
       // Execute the tool
       const toolResult = await executeTool(supabase, functionCall.name, functionCall.args || {})
+      
+      writer.write('tool_result', { 
+        tool: functionCall.name, 
+        success: !('error' in (toolResult as any)),
+        message: `Completed: ${functionCall.name}`
+      })
       
       // Add to conversation
       conversationHistory.push({
@@ -431,12 +403,10 @@ async function generateDiagram(
     const textPart = content.parts?.find((p: any) => p.text)?.text
     
     if (textPart) {
-      console.log("Got text response, attempting to parse as JSON")
-      console.log("Raw text length:", textPart.length)
+      writer.write('status', { stage: 'parsing', message: 'Parsing diagram data...' })
       
       try {
-        // THE FIX: Use regex to extract the JSON object, ignoring any preamble text
-        // This handles cases where the AI includes conversational text like "Here is the diagram:"
+        // Extract JSON from response
         const jsonMatch = textPart.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || textPart.match(/(\{[\s\S]*\})/)
         
         if (!jsonMatch) {
@@ -444,32 +414,91 @@ async function generateDiagram(
         }
         
         const jsonStr = jsonMatch[1].trim()
-        console.log("Extracted JSON length:", jsonStr.length)
-        
         const parsed = JSON.parse(jsonStr)
         
         if (parsed.elements && Array.isArray(parsed.elements)) {
-          // Generate a name from the request
           const diagramName = request.length > 50 ? request.substring(0, 47) + "..." : request
           
-          console.log("Successfully parsed diagram with", parsed.elements.length, "elements")
+          writer.write('status', { 
+            stage: 'saving', 
+            message: `Generated ${parsed.elements.length} elements. Saving...` 
+          })
           
-          return {
-            elements: parsed.elements,
-            appState: parsed.appState || { viewBackgroundColor: "#1e1e1e" },
-            name: diagramName
+          // Save to database if chat_id is provided
+          let savedDiagram = null
+          if (chatId && userId) {
+            const { data: dbDiagram, error: saveError } = await supabase
+              .from('chat_diagrams')
+              .insert({
+                chat_id: chatId,
+                user_id: userId,
+                name: diagramName,
+                excalidraw_data: {
+                  type: 'excalidraw',
+                  version: 2,
+                  elements: parsed.elements,
+                  appState: parsed.appState || { viewBackgroundColor: "#1e1e1e" },
+                  files: {}
+                },
+                is_ai_generated: true,
+                generation_prompt: request,
+                status: 'completed'
+              })
+              .select()
+              .single()
+            
+            if (saveError) {
+              console.error("Error saving diagram:", saveError)
+              // Create temp diagram
+              savedDiagram = {
+                diagram_id: 'temp-' + Date.now(),
+                name: diagramName,
+                excalidraw_data: {
+                  type: 'excalidraw',
+                  version: 2,
+                  elements: parsed.elements,
+                  appState: parsed.appState || { viewBackgroundColor: "#1e1e1e" },
+                  files: {}
+                },
+                is_ai_generated: true
+              }
+            } else {
+              savedDiagram = dbDiagram
+            }
+          } else {
+            savedDiagram = {
+              diagram_id: 'temp-' + Date.now(),
+              name: diagramName,
+              excalidraw_data: {
+                type: 'excalidraw',
+                version: 2,
+                elements: parsed.elements,
+                appState: parsed.appState || { viewBackgroundColor: "#1e1e1e" },
+                files: {}
+              },
+              is_ai_generated: true
+            }
           }
+          
+          // Send completion event
+          writer.write('complete', { 
+            success: true, 
+            diagram: savedDiagram,
+            message: 'Diagram generated successfully!'
+          })
+          
+          return
         } else {
           throw new Error("Response missing elements array")
         }
       } catch (parseError) {
         console.error("JSON parse error:", parseError)
-        console.error("Raw text (first 1000 chars):", textPart.substring(0, 1000))
         
-        // If we've tried multiple times, throw
-        if (iteration >= maxIterations) {
-          throw new Error("Failed to parse diagram JSON after " + maxIterations + " attempts: " + String(parseError))
+        if (iteration >= maxIterations - 1) {
+          throw new Error("Failed to parse diagram JSON: " + String(parseError))
         }
+        
+        writer.write('status', { stage: 'retrying', message: 'Fixing JSON format...' })
         
         // Ask the model to fix the JSON
         conversationHistory.push({
@@ -478,7 +507,7 @@ async function generateDiagram(
         })
         conversationHistory.push({
           role: "user",
-          parts: [{ text: "That response was not valid JSON. Please return ONLY a valid JSON object with an 'elements' array and 'appState' object. No markdown, no explanations, no preamble text - just the raw JSON starting with { and ending with }." }]
+          parts: [{ text: "That response was not valid JSON. Please return ONLY a valid JSON object with an 'elements' array and 'appState' object. No markdown, no explanations - just the raw JSON starting with { and ending with }." }]
         })
         continue
       }
@@ -495,7 +524,7 @@ async function generateDiagram(
 // ============================================================================
 
 serve(async (req) => {
-  // 1. ALWAYS return CORS for OPTIONS - this must be first
+  // CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -514,100 +543,48 @@ serve(async (req) => {
     
     console.log("Generating diagram for request:", request)
     console.log("Company:", company_symbol, company_name)
-    console.log("Chat ID:", chat_id, "User ID:", user_id)
     
-    // Generate the diagram
-    const result = await generateDiagram(
+    // Create streaming response
+    const writer = createStreamWriter()
+    
+    // Start generation in background
+    generateDiagramWithStreaming(
       supabase,
+      writer,
       request,
       company_symbol || '',
       company_name || '',
-      chat_context || ''
-    )
+      chat_context || '',
+      chat_id || null,
+      user_id || null
+    ).catch((error) => {
+      console.error("Generation error:", error)
+      writer.write('error', { 
+        success: false, 
+        error: String(error),
+        message: 'Diagram generation failed'
+      })
+    }).finally(() => {
+      writer.close()
+    })
     
-    console.log("Diagram generated successfully with", result.elements?.length || 0, "elements")
-    
-    // Save to database if chat_id is provided
-    if (chat_id && user_id) {
-      const { data: savedDiagram, error: saveError } = await supabase
-        .from('chat_diagrams')
-        .insert({
-          chat_id,
-          user_id,
-          name: result.name,
-          excalidraw_data: {
-            type: 'excalidraw',
-            version: 2,
-            elements: result.elements,
-            appState: result.appState,
-            files: {}
-          },
-          is_ai_generated: true,
-          generation_prompt: request,
-          status: 'completed'
-        })
-        .select()
-        .single()
-      
-      if (saveError) {
-        console.error("Error saving diagram:", saveError)
-        // Still return the diagram even if save failed
-        return new Response(
-          JSON.stringify({
-            success: true,
-            diagram: {
-              diagram_id: 'temp-' + Date.now(),
-              name: result.name,
-              excalidraw_data: {
-                type: 'excalidraw',
-                version: 2,
-                elements: result.elements,
-                appState: result.appState,
-                files: {}
-              },
-              is_ai_generated: true
-            },
-            warning: 'Diagram generated but failed to save: ' + saveError.message
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
+    // Return streaming response
+    return new Response(writer.stream, {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
       }
-      
-      console.log("Diagram saved with ID:", savedDiagram.diagram_id)
-      return new Response(
-        JSON.stringify({ success: true, diagram: savedDiagram }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-    
-    // Return the diagram without saving
-    return new Response(
-      JSON.stringify({
-        success: true,
-        diagram: {
-          diagram_id: 'temp-' + Date.now(),
-          name: result.name,
-          excalidraw_data: {
-            type: 'excalidraw',
-            version: 2,
-            elements: result.elements,
-            appState: result.appState,
-            files: {}
-          },
-          is_ai_generated: true
-        }
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    })
     
   } catch (error) {
-    // 2. GUARANTEE CORS headers are returned even on a crash
-    console.error("CRITICAL ERROR in diagram generation:", error)
+    console.error("CRITICAL ERROR:", error)
     return new Response(
       JSON.stringify({ 
         success: false, 
         error: String(error),
-        message: 'Diagram generation failed. The AI may have timed out or encountered an error.'
+        message: 'Diagram generation failed'
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

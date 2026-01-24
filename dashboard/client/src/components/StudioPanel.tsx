@@ -2,10 +2,11 @@ import { useState, useCallback } from 'react';
 import {
   Sparkles, Plus, Trash2, Edit3, Download, Image as ImageIcon,
   Loader2, ChevronDown, ChevronRight, MoreHorizontal, Eye,
-  FileJson, Wand2
+  FileJson, Wand2, Database, Search, Globe, CheckCircle2, Circle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Diagram } from '@/hooks/useDiagrams';
+import type { GenerationProgress } from '@/hooks/useDiagrams';
 
 // ============ TYPES ============
 
@@ -14,6 +15,8 @@ interface StudioPanelProps {
   diagrams: Diagram[];
   isLoading: boolean;
   isGenerating?: boolean;
+  generationProgress?: GenerationProgress | null;
+  toolCalls?: Array<{ tool: string; args?: Record<string, unknown>; status: 'running' | 'complete' }>;
   onCreateDiagram: (prompt?: string) => void;
   onOpenDiagram: (diagramId: string) => void;
   onDeleteDiagram: (diagramId: string) => Promise<void>;
@@ -51,6 +54,107 @@ function formatDate(dateString: string): string {
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays < 7) return `${diffDays}d ago`;
   return date.toLocaleDateString();
+}
+
+function getToolIcon(toolName: string) {
+  switch (toolName) {
+    case 'get_company_fundamentals':
+      return <Database className="w-3 h-3" />;
+    case 'get_sector_peers':
+      return <Database className="w-3 h-3" />;
+    case 'search_web':
+      return <Globe className="w-3 h-3" />;
+    default:
+      return <Search className="w-3 h-3" />;
+  }
+}
+
+function getToolLabel(toolName: string) {
+  switch (toolName) {
+    case 'get_company_fundamentals':
+      return 'Fetching fundamentals';
+    case 'get_sector_peers':
+      return 'Finding peers';
+    case 'search_web':
+      return 'Searching web';
+    default:
+      return toolName;
+  }
+}
+
+// ============ GENERATION PROGRESS COMPONENT ============
+
+interface GenerationProgressDisplayProps {
+  progress: GenerationProgress | null;
+  toolCalls: Array<{ tool: string; args?: Record<string, unknown>; status: 'running' | 'complete' }>;
+}
+
+function GenerationProgressDisplay({ progress, toolCalls }: GenerationProgressDisplayProps) {
+  if (!progress) return null;
+
+  const getStageIcon = () => {
+    switch (progress.stage) {
+      case 'starting':
+        return <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />;
+      case 'thinking':
+        return <Sparkles className="w-4 h-4 text-purple-400 animate-pulse" />;
+      case 'tool_call':
+      case 'tool_result':
+        return <Database className="w-4 h-4 text-blue-400" />;
+      case 'parsing':
+        return <Loader2 className="w-4 h-4 text-green-400 animate-spin" />;
+      case 'saving':
+        return <Loader2 className="w-4 h-4 text-green-400 animate-spin" />;
+      case 'retrying':
+        return <Loader2 className="w-4 h-4 text-yellow-400 animate-spin" />;
+      case 'complete':
+        return <CheckCircle2 className="w-4 h-4 text-green-400" />;
+      case 'error':
+        return <Circle className="w-4 h-4 text-red-400" />;
+      default:
+        return <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />;
+    }
+  };
+
+  return (
+    <div className="border border-purple-500/30 rounded-lg bg-purple-500/5 overflow-hidden">
+      {/* Main Progress */}
+      <div className="flex items-center gap-3 px-3 py-2.5 border-b border-purple-500/20">
+        {getStageIcon()}
+        <div className="flex-1 min-w-0">
+          <p className="text-xs text-white font-medium truncate">{progress.message}</p>
+          {progress.iteration !== undefined && (
+            <p className="text-[10px] text-zinc-500">Step {progress.iteration + 1}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Tool Calls */}
+      {toolCalls.length > 0 && (
+        <div className="px-3 py-2 space-y-1.5 bg-zinc-900/50">
+          <p className="text-[10px] text-zinc-500 uppercase tracking-wide">Tools Used</p>
+          {toolCalls.map((tc, idx) => (
+            <div key={idx} className="flex items-center gap-2">
+              <div className={cn(
+                "p-1 rounded",
+                tc.status === 'complete' ? "bg-green-500/20" : "bg-blue-500/20"
+              )}>
+                {tc.status === 'complete' ? (
+                  <CheckCircle2 className="w-2.5 h-2.5 text-green-400" />
+                ) : (
+                  <Loader2 className="w-2.5 h-2.5 text-blue-400 animate-spin" />
+                )}
+              </div>
+              <span className="text-[11px] text-zinc-300">{getToolLabel(tc.tool)}</span>
+              {tc.args?.symbol && (
+                <span className="text-[10px] text-zinc-500">({String(tc.args.symbol)})</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ============ CREATE DIAGRAM MODAL ============
@@ -303,6 +407,8 @@ export function StudioPanel({
   diagrams,
   isLoading,
   isGenerating = false,
+  generationProgress = null,
+  toolCalls = [],
   onCreateDiagram,
   onOpenDiagram,
   onDeleteDiagram,
@@ -336,6 +442,9 @@ export function StudioPanel({
               {diagrams.length}
             </span>
           )}
+          {isGenerating && (
+            <Loader2 className="w-3.5 h-3.5 text-purple-400 animate-spin ml-1" />
+          )}
         </div>
       </button>
 
@@ -348,7 +457,11 @@ export function StudioPanel({
               <span className="text-xs font-medium text-zinc-400">Diagrams</span>
               <button
                 onClick={() => setIsModalOpen(true)}
-                className="flex items-center gap-1 px-2 py-1 text-[10px] text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 rounded transition-colors"
+                disabled={isGenerating}
+                className={cn(
+                  "flex items-center gap-1 px-2 py-1 text-[10px] text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 rounded transition-colors",
+                  isGenerating && "opacity-50 cursor-not-allowed"
+                )}
               >
                 <Plus className="w-3 h-3" />
                 New
@@ -362,17 +475,18 @@ export function StudioPanel({
               </div>
             )}
 
-            {/* Generating State */}
+            {/* Generating State with Progress */}
             {isGenerating && (
-              <div className="flex flex-col items-center justify-center py-6 border border-purple-500/30 rounded-lg bg-purple-500/5">
-                <Loader2 className="w-6 h-6 text-purple-400 animate-spin mb-2" />
-                <span className="text-xs text-purple-300">Generating diagram...</span>
-                <span className="text-[10px] text-zinc-500 mt-1">AI is analyzing data and creating your diagram</span>
+              <div className="mb-3">
+                <GenerationProgressDisplay 
+                  progress={generationProgress} 
+                  toolCalls={toolCalls} 
+                />
               </div>
             )}
 
             {/* Empty State */}
-            {!isLoading && diagrams.length === 0 && (
+            {!isLoading && !isGenerating && diagrams.length === 0 && (
               <button
                 onClick={() => setIsModalOpen(true)}
                 className="w-full flex flex-col items-center justify-center py-6 border border-dashed border-zinc-600 rounded-lg text-zinc-400 hover:text-white hover:border-zinc-500 hover:bg-zinc-800/30 transition-colors"
@@ -400,22 +514,10 @@ export function StudioPanel({
               </div>
             )}
           </div>
-
-          {/* Future: Slide Deck, Summary sections */}
-          <div className="space-y-2 opacity-50">
-            <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-zinc-500">
-              <span>Slide Deck</span>
-              <span className="text-[9px] bg-zinc-700 px-1.5 py-0.5 rounded">Coming Soon</span>
-            </div>
-            <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-zinc-500">
-              <span>Summary</span>
-              <span className="text-[9px] bg-zinc-700 px-1.5 py-0.5 rounded">Coming Soon</span>
-            </div>
-          </div>
         </div>
       )}
 
-      {/* Create Diagram Modal */}
+      {/* Create Modal */}
       <CreateDiagramModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

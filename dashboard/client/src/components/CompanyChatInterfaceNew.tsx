@@ -56,6 +56,8 @@ export function CompanyChatInterfaceNew({ chat, onRefresh }: CompanyChatInterfac
     diagrams,
     isLoading: diagramsLoading,
     isGenerating: diagramGenerating,
+    generationProgress,
+    toolCalls: diagramToolCalls,
     createDiagram,
     generateDiagram,
     updateDiagram,
@@ -204,6 +206,8 @@ export function CompanyChatInterfaceNew({ chat, onRefresh }: CompanyChatInterfac
         diagrams={diagrams}
         isLoading={diagramsLoading}
         isGenerating={diagramGenerating}
+        generationProgress={generationProgress}
+        toolCalls={diagramToolCalls}
         onCreateDiagram={handleCreateDiagram}
         onOpenDiagram={handleOpenDiagram}
         onDeleteDiagram={deleteDiagram}
