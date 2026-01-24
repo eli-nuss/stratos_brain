@@ -54,6 +54,7 @@ interface UseDiagramsOptions {
 interface UseDiagramsReturn {
   diagrams: Diagram[];
   isLoading: boolean;
+  isGenerating: boolean;
   error: string | null;
   createDiagram: (diagram: {
     name: string;
@@ -63,6 +64,7 @@ interface UseDiagramsReturn {
     generation_prompt?: string;
     is_ai_generated?: boolean;
   }) => Promise<Diagram>;
+  generateDiagram: (request: string, companySymbol?: string, companyName?: string, chatSummary?: string) => Promise<Diagram>;
   updateDiagram: (diagramId: string, updates: Partial<Diagram>) => Promise<Diagram>;
   deleteDiagram: (diagramId: string) => Promise<void>;
   getDiagram: (diagramId: string) => Promise<Diagram>;
@@ -77,6 +79,7 @@ export function useDiagrams({ chatId, autoRefresh = false, refreshInterval = 500
   const { session } = useAuth();
   const [diagrams, setDiagrams] = useState<Diagram[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const getAuthHeaders = useCallback(() => {
@@ -125,7 +128,58 @@ export function useDiagrams({ chatId, autoRefresh = false, refreshInterval = 500
     }
   }, [chatId, refreshDiagrams, autoRefresh, refreshInterval, diagrams]);
 
-  // Create diagram
+  // Generate diagram using AI (calls the dedicated diagram-generator endpoint)
+  const generateDiagram = useCallback(async (
+    request: string,
+    companySymbol?: string,
+    companyName?: string,
+    chatSummary?: string
+  ): Promise<Diagram> => {
+    if (!session?.access_token) throw new Error('Not authenticated');
+
+    setIsGenerating(true);
+    setError(null);
+
+    try {
+      const response = await fetch(
+        `${SUPABASE_URL}/functions/v1/diagram-generator`,
+        {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            chat_id: chatId,
+            user_request: request,
+            company_symbol: companySymbol,
+            company_name: companyName,
+            chat_summary: chatSummary,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate diagram');
+      }
+
+      const data = await response.json();
+      
+      if (!data.success || !data.diagram) {
+        throw new Error(data.error || 'Failed to generate diagram');
+      }
+
+      // Add the new diagram to the list
+      setDiagrams(prev => [data.diagram, ...prev]);
+      return data.diagram;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to generate diagram';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [chatId, session?.access_token, getAuthHeaders]);
+
+  // Create diagram (manual/blank)
   const createDiagram = useCallback(async (diagram: {
     name: string;
     description?: string;
@@ -273,8 +327,10 @@ export function useDiagrams({ chatId, autoRefresh = false, refreshInterval = 500
   return {
     diagrams,
     isLoading,
+    isGenerating,
     error,
     createDiagram,
+    generateDiagram,
     updateDiagram,
     deleteDiagram,
     getDiagram,

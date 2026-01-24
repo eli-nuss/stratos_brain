@@ -13,6 +13,7 @@ interface StudioPanelProps {
   chatId: string;
   diagrams: Diagram[];
   isLoading: boolean;
+  isGenerating?: boolean;
   onCreateDiagram: (prompt?: string) => void;
   onOpenDiagram: (diagramId: string) => void;
   onDeleteDiagram: (diagramId: string) => Promise<void>;
@@ -301,6 +302,7 @@ export function StudioPanel({
   chatId,
   diagrams,
   isLoading,
+  isGenerating = false,
   onCreateDiagram,
   onOpenDiagram,
   onDeleteDiagram,
@@ -357,6 +359,15 @@ export function StudioPanel({
             {isLoading && (
               <div className="flex items-center justify-center py-6">
                 <Loader2 className="w-5 h-5 text-zinc-400 animate-spin" />
+              </div>
+            )}
+
+            {/* Generating State */}
+            {isGenerating && (
+              <div className="flex flex-col items-center justify-center py-6 border border-purple-500/30 rounded-lg bg-purple-500/5">
+                <Loader2 className="w-6 h-6 text-purple-400 animate-spin mb-2" />
+                <span className="text-xs text-purple-300">Generating diagram...</span>
+                <span className="text-[10px] text-zinc-500 mt-1">AI is analyzing data and creating your diagram</span>
               </div>
             )}
 

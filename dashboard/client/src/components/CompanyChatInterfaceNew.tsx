@@ -55,7 +55,9 @@ export function CompanyChatInterfaceNew({ chat, onRefresh }: CompanyChatInterfac
   const {
     diagrams,
     isLoading: diagramsLoading,
+    isGenerating: diagramGenerating,
     createDiagram,
+    generateDiagram,
     updateDiagram,
     deleteDiagram,
     getDiagram,
@@ -109,9 +111,21 @@ export function CompanyChatInterfaceNew({ chat, onRefresh }: CompanyChatInterfac
   // Diagram handlers
   const handleCreateDiagram = useCallback(async (prompt?: string) => {
     if (prompt) {
-      // AI-generated diagram - send message to chat to trigger generate_diagram tool
-      const diagramRequest = `Create a diagram: ${prompt}`;
-      await sendMessage(diagramRequest, 'pro');
+      // AI-generated diagram - use the dedicated diagram generator endpoint
+      try {
+        const newDiagram = await generateDiagram(
+          prompt,
+          chat.symbol, // company symbol
+          chat.name,   // company name
+          undefined    // chat summary (could be added later)
+        );
+        // Automatically open the generated diagram
+        setActiveDiagram(newDiagram);
+        setEditorOpen(true);
+      } catch (err) {
+        console.error('Failed to generate diagram:', err);
+        // Error is already set in the hook
+      }
     } else {
       // Blank canvas - create empty diagram directly
       const newDiagram = await createDiagram({
@@ -122,7 +136,7 @@ export function CompanyChatInterfaceNew({ chat, onRefresh }: CompanyChatInterfac
       setActiveDiagram(newDiagram);
       setEditorOpen(true);
     }
-  }, [createDiagram, sendMessage]);
+  }, [createDiagram, generateDiagram, chat.symbol, chat.name]);
 
   const handleOpenDiagram = useCallback(async (diagramId: string) => {
     const diagram = await getDiagram(diagramId);
@@ -178,6 +192,7 @@ export function CompanyChatInterfaceNew({ chat, onRefresh }: CompanyChatInterfac
         chatId={chat.chat_id}
         diagrams={diagrams}
         isLoading={diagramsLoading}
+        isGenerating={diagramGenerating}
         onCreateDiagram={handleCreateDiagram}
         onOpenDiagram={handleOpenDiagram}
         onDeleteDiagram={deleteDiagram}
