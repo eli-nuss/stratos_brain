@@ -20,7 +20,8 @@ export function ExcalidrawEditor({
   const [ExcalidrawModule, setExcalidrawModule] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [convertedElements, setConvertedElements] = useState<any[]>([]);
+  const [convertedElements, setConvertedElements] = useState<any[] | null>(null);
+  const [elementsReady, setElementsReady] = useState(false);
   const excalidrawAPIRef = useRef<any>(null);
 
   // Dynamically import Excalidraw only when modal opens
@@ -44,30 +45,45 @@ export function ExcalidrawEditor({
 
   // Convert skeleton elements to full Excalidraw elements when diagram or module changes
   useEffect(() => {
-    if (!ExcalidrawModule || !diagram?.excalidraw_data?.elements) {
-      setConvertedElements([]);
+    if (!ExcalidrawModule || !diagram) {
+      setConvertedElements(null);
+      setElementsReady(false);
       return;
     }
 
-    const rawElements = diagram.excalidraw_data.elements;
+    const rawElements = diagram.excalidraw_data?.elements || [];
+    
+    // If no elements, we're ready with empty array
+    if (rawElements.length === 0) {
+      console.log('[ExcalidrawEditor] No elements to convert, using empty array');
+      setConvertedElements([]);
+      setElementsReady(true);
+      return;
+    }
     
     // Check if elements need conversion (have 'label' property = skeleton format)
     const needsConversion = rawElements.some((el: any) => el.label !== undefined);
     
     if (needsConversion && ExcalidrawModule.convertToExcalidrawElements) {
       try {
-        console.log('Converting skeleton elements to Excalidraw format...');
+        console.log('[ExcalidrawEditor] Converting skeleton elements to Excalidraw format...');
+        console.log('[ExcalidrawEditor] Raw elements:', rawElements);
         const converted = ExcalidrawModule.convertToExcalidrawElements(rawElements);
-        console.log('Converted', rawElements.length, 'skeleton elements to', converted.length, 'Excalidraw elements');
+        console.log('[ExcalidrawEditor] Converted', rawElements.length, 'skeleton elements to', converted.length, 'Excalidraw elements');
+        console.log('[ExcalidrawEditor] Converted elements:', converted);
         setConvertedElements(converted);
+        setElementsReady(true);
       } catch (err) {
-        console.error('Failed to convert elements:', err);
+        console.error('[ExcalidrawEditor] Failed to convert elements:', err);
         // Fall back to raw elements
         setConvertedElements(rawElements);
+        setElementsReady(true);
       }
     } else {
       // Elements are already in full format
+      console.log('[ExcalidrawEditor] Elements already in full format, using as-is');
       setConvertedElements(rawElements);
+      setElementsReady(true);
     }
   }, [ExcalidrawModule, diagram]);
 
@@ -118,8 +134,11 @@ export function ExcalidrawEditor({
   const Excalidraw = ExcalidrawModule?.Excalidraw;
   const MainMenu = ExcalidrawModule?.MainMenu;
 
-  // Check if we're still converting elements
-  const isConverting = ExcalidrawModule && diagram?.excalidraw_data?.elements?.length > 0 && convertedElements.length === 0;
+  // Determine if we're still loading/converting
+  const isProcessing = isLoading || !elementsReady;
+
+  // Create a unique key based on diagram ID and element count to force remount when data changes
+  const excalidrawKey = diagram ? `${diagram.diagram_id}-${convertedElements?.length || 0}` : 'empty';
 
   return (
     // Fixed fullscreen container
@@ -132,11 +151,11 @@ export function ExcalidrawEditor({
         overflow: 'hidden'
       }}
     >
-      {(isLoading || isConverting) ? (
+      {isProcessing ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: '12px' }}>
           <Loader2 className="w-8 h-8 text-zinc-400 animate-spin" />
           <span style={{ color: '#9ca3af', fontSize: '14px' }}>
-            {isConverting ? 'Converting diagram elements...' : 'Loading editor...'}
+            {isLoading ? 'Loading editor...' : 'Preparing diagram...'}
           </span>
         </div>
       ) : loadError ? (
@@ -149,13 +168,14 @@ export function ExcalidrawEditor({
             Close
           </button>
         </div>
-      ) : Excalidraw ? (
+      ) : Excalidraw && elementsReady ? (
         // CRITICAL: Container MUST have explicit height for Excalidraw to render
-        <div style={{ height: '100vh', width: '100vw' }}>
+        // Key forces remount when diagram changes
+        <div style={{ height: '100vh', width: '100vw' }} key={excalidrawKey}>
           <Excalidraw
             excalidrawAPI={(api: any) => { excalidrawAPIRef.current = api; }}
             initialData={{
-              elements: convertedElements,
+              elements: convertedElements || [],
               appState: { 
                 viewBackgroundColor: diagram?.excalidraw_data?.appState?.viewBackgroundColor || '#121212', 
                 theme: 'dark',
