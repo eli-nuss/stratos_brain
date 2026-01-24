@@ -495,6 +495,7 @@ async function generateDiagram(
 // ============================================================================
 
 serve(async (req) => {
+  // 1. ALWAYS return CORS for OPTIONS - this must be first
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -504,7 +505,7 @@ serve(async (req) => {
     
     if (!request) {
       return new Response(
-        JSON.stringify({ error: 'Missing required field: request' }),
+        JSON.stringify({ success: false, error: 'Missing required field: request' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -513,6 +514,7 @@ serve(async (req) => {
     
     console.log("Generating diagram for request:", request)
     console.log("Company:", company_symbol, company_name)
+    console.log("Chat ID:", chat_id, "User ID:", user_id)
     
     // Generate the diagram
     const result = await generateDiagram(
@@ -522,6 +524,8 @@ serve(async (req) => {
       company_name || '',
       chat_context || ''
     )
+    
+    console.log("Diagram generated successfully with", result.elements?.length || 0, "elements")
     
     // Save to database if chat_id is provided
     if (chat_id && user_id) {
@@ -547,13 +551,33 @@ serve(async (req) => {
       
       if (saveError) {
         console.error("Error saving diagram:", saveError)
-      } else {
-        console.log("Diagram saved with ID:", savedDiagram.diagram_id)
+        // Still return the diagram even if save failed
         return new Response(
-          JSON.stringify({ success: true, diagram: savedDiagram }),
+          JSON.stringify({
+            success: true,
+            diagram: {
+              diagram_id: 'temp-' + Date.now(),
+              name: result.name,
+              excalidraw_data: {
+                type: 'excalidraw',
+                version: 2,
+                elements: result.elements,
+                appState: result.appState,
+                files: {}
+              },
+              is_ai_generated: true
+            },
+            warning: 'Diagram generated but failed to save: ' + saveError.message
+          }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
+      
+      console.log("Diagram saved with ID:", savedDiagram.diagram_id)
+      return new Response(
+        JSON.stringify({ success: true, diagram: savedDiagram }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
     
     // Return the diagram without saving
@@ -561,6 +585,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         diagram: {
+          diagram_id: 'temp-' + Date.now(),
           name: result.name,
           excalidraw_data: {
             type: 'excalidraw',
@@ -568,16 +593,22 @@ serve(async (req) => {
             elements: result.elements,
             appState: result.appState,
             files: {}
-          }
+          },
+          is_ai_generated: true
         }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
     
   } catch (error) {
-    console.error("Diagram generation error:", error)
+    // 2. GUARANTEE CORS headers are returned even on a crash
+    console.error("CRITICAL ERROR in diagram generation:", error)
     return new Response(
-      JSON.stringify({ error: String(error) }),
+      JSON.stringify({ 
+        success: false, 
+        error: String(error),
+        message: 'Diagram generation failed. The AI may have timed out or encountered an error.'
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
