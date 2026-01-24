@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   X, Save, Download, FileJson, Image as ImageIcon,
-  Loader2, Check, Undo2, Redo2, ZoomIn, ZoomOut
+  Loader2, Check, Undo2, Redo2, ZoomIn, ZoomOut, RefreshCw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Diagram, ExcalidrawScene } from '@/hooks/useDiagrams';
@@ -29,6 +29,33 @@ interface ExcalidrawAPI {
   zoomIn: () => void;
   zoomOut: () => void;
   exportToBlob: (opts: { mimeType: string; quality?: number }) => Promise<Blob>;
+  scrollToContent: () => void;
+}
+
+// ============ MERMAID TO EXCALIDRAW CONVERSION ============
+
+async function convertMermaidToExcalidraw(mermaidSyntax: string): Promise<{
+  elements: unknown[];
+  files: Record<string, unknown>;
+}> {
+  try {
+    // Dynamically import the mermaid-to-excalidraw library
+    const { parseMermaidToExcalidraw } = await import('@excalidraw/mermaid-to-excalidraw');
+    const { convertToExcalidrawElements } = await import('@excalidraw/excalidraw');
+    
+    // Parse Mermaid to Excalidraw skeleton
+    const { elements: skeletonElements, files } = await parseMermaidToExcalidraw(mermaidSyntax, {
+      fontSize: 16,
+    });
+    
+    // Convert skeleton to full Excalidraw elements
+    const elements = convertToExcalidrawElements(skeletonElements);
+    
+    return { elements, files: files || {} };
+  } catch (error) {
+    console.error('Failed to convert Mermaid to Excalidraw:', error);
+    throw error;
+  }
 }
 
 // ============ MAIN COMPONENT ============
@@ -46,23 +73,61 @@ export function ExcalidrawEditor({
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [ExcalidrawComponent, setExcalidrawComponent] = useState<React.ComponentType<any> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isConverting, setIsConverting] = useState(false);
+  const [conversionError, setConversionError] = useState<string | null>(null);
+  const [initialElements, setInitialElements] = useState<unknown[]>([]);
+  const [initialFiles, setInitialFiles] = useState<Record<string, unknown>>({});
   const excalidrawAPIRef = useRef<ExcalidrawAPI | null>(null);
 
-  // Dynamically import Excalidraw
+  // Dynamically import Excalidraw and handle Mermaid conversion
   useEffect(() => {
-    if (isOpen && !ExcalidrawComponent) {
+    if (isOpen && diagram) {
       setIsLoading(true);
-      import('@excalidraw/excalidraw')
-        .then((module) => {
+      setConversionError(null);
+      
+      const loadExcalidraw = async () => {
+        try {
+          // Load Excalidraw component
+          const module = await import('@excalidraw/excalidraw');
           setExcalidrawComponent(() => module.Excalidraw);
+          
+          // Check if this is a Mermaid diagram that needs conversion
+          const diagramData = diagram.excalidraw_data;
+          
+          if (diagramData?.type === 'mermaid' && diagramData?.mermaid) {
+            setIsConverting(true);
+            console.log('Converting Mermaid to Excalidraw:', diagramData.mermaid);
+            
+            try {
+              const { elements, files } = await convertMermaidToExcalidraw(diagramData.mermaid);
+              setInitialElements(elements);
+              setInitialFiles(files);
+              console.log('Conversion successful, elements:', elements.length);
+            } catch (convErr) {
+              console.error('Mermaid conversion failed:', convErr);
+              setConversionError(`Failed to convert diagram: ${convErr}`);
+              // Fall back to empty canvas
+              setInitialElements([]);
+              setInitialFiles({});
+            }
+            setIsConverting(false);
+          } else {
+            // Regular Excalidraw data
+            setInitialElements(diagramData?.elements || []);
+            setInitialFiles(diagramData?.files || {});
+          }
+          
           setIsLoading(false);
-        })
-        .catch((err) => {
+        } catch (err) {
           console.error('Failed to load Excalidraw:', err);
           setIsLoading(false);
-        });
+          setConversionError(`Failed to load editor: ${err}`);
+        }
+      };
+      
+      loadExcalidraw();
     }
-  }, [isOpen, ExcalidrawComponent]);
+  }, [isOpen, diagram]);
 
   // Handle save
   const handleSave = useCallback(async () => {
@@ -137,6 +202,15 @@ export function ExcalidrawEditor({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, handleSave, handleClose]);
+
+  // Scroll to content after elements are loaded
+  useEffect(() => {
+    if (excalidrawAPIRef.current && initialElements.length > 0) {
+      setTimeout(() => {
+        excalidrawAPIRef.current?.scrollToContent();
+      }, 100);
+    }
+  }, [initialElements]);
 
   if (!isOpen) return null;
 
@@ -247,11 +321,27 @@ export function ExcalidrawEditor({
 
       {/* Excalidraw Canvas */}
       <div className="absolute top-12 left-0 right-0 bottom-0">
-        {isLoading ? (
+        {isLoading || isConverting ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <Loader2 className="w-8 h-8 text-zinc-400 animate-spin mx-auto mb-3" />
-              <p className="text-sm text-zinc-400">Loading Excalidraw...</p>
+              <p className="text-sm text-zinc-400">
+                {isConverting ? 'Converting diagram...' : 'Loading Excalidraw...'}
+              </p>
+            </div>
+          </div>
+        ) : conversionError ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center max-w-md">
+              <p className="text-sm text-red-400 mb-2">Conversion Error</p>
+              <p className="text-xs text-zinc-500 mb-4">{conversionError}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="flex items-center gap-2 mx-auto px-4 py-2 text-xs text-blue-400 hover:text-blue-300 border border-blue-400/30 rounded"
+              >
+                <RefreshCw className="w-3 h-3" />
+                Reload page
+              </button>
             </div>
           </div>
         ) : ExcalidrawComponent ? (
@@ -260,13 +350,12 @@ export function ExcalidrawEditor({
               excalidrawAPIRef.current = api;
             }}
             initialData={{
-              elements: diagram?.excalidraw_data?.elements || [],
+              elements: initialElements,
               appState: {
                 viewBackgroundColor: diagram?.excalidraw_data?.appState?.viewBackgroundColor || '#ffffff',
                 theme: 'dark',
-                ...diagram?.excalidraw_data?.appState,
               },
-              files: diagram?.excalidraw_data?.files || {},
+              files: initialFiles,
             }}
             onChange={handleChange}
             theme="dark"

@@ -32,107 +32,93 @@ const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 const ENABLE_SKEPTIC_AGENT = Deno.env.get('ENABLE_SKEPTIC_AGENT') !== 'false' // Default: enabled
 
 // Build prompt for AI diagram generation
-function buildDiagramGenerationPrompt(
+function buildMermaidGenerationPrompt(
   request: string,
   diagramType: string,
-  context: string,
-  style: string
+  context: string
 ): string {
-  return `You are an expert Excalidraw diagram designer. Generate a professional diagram based on the user's request.
+  // Map diagram types to Mermaid diagram types
+  const mermaidTypeMap: Record<string, string> = {
+    'flowchart': 'flowchart TD',
+    'process': 'flowchart LR',
+    'org_chart': 'flowchart TB',
+    'hierarchy': 'flowchart TB',
+    'mind_map': 'mindmap',
+    'timeline': 'timeline',
+    'relationship': 'flowchart TD',
+    'comparison': 'flowchart LR',
+    'custom': 'flowchart TD'
+  }
+  
+  const mermaidType = mermaidTypeMap[diagramType] || 'flowchart TD'
+  
+  return `You are an expert at creating Mermaid diagrams. Generate a Mermaid diagram based on the user's request.
 
 ## Request
 ${request}
 
 ## Diagram Type
-${diagramType}
+${diagramType} (use Mermaid syntax: ${mermaidType})
 
 ## Additional Context
 ${context || 'None provided'}
 
-## Style Preference
-${style}
+## Mermaid Syntax Guidelines
 
-## Excalidraw Element Types
-You can use these element types:
-- rectangle: Boxes for concepts, entities, or containers
-- ellipse: Circles/ovals for states, decisions, or emphasis
-- diamond: Decision points in flowcharts
-- arrow: Connections with direction (use startBinding/endBinding for connected arrows)
-- line: Simple connections without arrowheads
-- text: Labels and descriptions
+### For Flowcharts (flowchart TD/LR/TB):
+\`\`\`mermaid
+flowchart TD
+    A[Start] --> B{Decision}
+    B -->|Yes| C[Action 1]
+    B -->|No| D[Action 2]
+    C --> E[End]
+    D --> E
+\`\`\`
 
-## Color Palette (use these for professional look)
-- Primary: #228be6 (blue)
-- Secondary: #40c057 (green)
-- Accent: #fab005 (yellow)
-- Warning: #fa5252 (red)
-- Neutral: #868e96 (gray)
-- Background fills: Use lighter versions like #e7f5ff, #ebfbee, #fff9db
+### Node Shapes:
+- [Text] = Rectangle
+- (Text) = Rounded rectangle  
+- {Text} = Diamond (decision)
+- ((Text)) = Circle
+- [[Text]] = Subroutine
+- [(Text)] = Cylinder (database)
 
-## Layout Guidelines
-- Start elements at x: 100, y: 100
-- Use consistent spacing (150-200px between elements)
-- Align elements on a grid
-- Group related elements visually
-- Use hierarchy (larger elements for main concepts)
+### For Mind Maps:
+\`\`\`mermaid
+mindmap
+  root((Main Topic))
+    Branch 1
+      Sub-topic 1.1
+      Sub-topic 1.2
+    Branch 2
+      Sub-topic 2.1
+\`\`\`
+
+### For Timelines:
+\`\`\`mermaid
+timeline
+    title Timeline Title
+    2020 : Event 1
+    2021 : Event 2
+    2022 : Event 3
+\`\`\`
 
 ## Output Format
-Return a JSON object with this structure:
+Return a JSON object with this EXACT structure:
 {
-  "name": "Descriptive name for the diagram",
-  "description": "Brief description of what the diagram shows",
-  "elements": [
-    {
-      "id": "unique-id-1",
-      "type": "rectangle",
-      "x": 100,
-      "y": 100,
-      "width": 200,
-      "height": 80,
-      "strokeColor": "#228be6",
-      "backgroundColor": "#e7f5ff",
-      "fillStyle": "solid",
-      "strokeWidth": 2,
-      "roundness": { "type": 3 },
-      "text": "Label text here"
-    },
-    {
-      "id": "unique-id-2",
-      "type": "arrow",
-      "x": 300,
-      "y": 140,
-      "width": 100,
-      "height": 0,
-      "strokeColor": "#868e96",
-      "strokeWidth": 2,
-      "points": [[0, 0], [100, 0]],
-      "startBinding": { "elementId": "unique-id-1", "focus": 0, "gap": 1 },
-      "endBinding": { "elementId": "unique-id-3", "focus": 0, "gap": 1 }
-    },
-    {
-      "id": "text-1",
-      "type": "text",
-      "x": 120,
-      "y": 125,
-      "text": "Label",
-      "fontSize": 16,
-      "fontFamily": 1,
-      "textAlign": "center"
-    }
-  ],
-  "appState": {
-    "viewBackgroundColor": "#ffffff"
-  }
+  "name": "Short descriptive name for the diagram",
+  "description": "One sentence describing what the diagram shows",
+  "mermaid": "flowchart TD\n    A[Node 1] --> B[Node 2]\n    B --> C[Node 3]"
 }
 
 ## Important Rules
-1. Generate unique IDs for each element (use descriptive names like "revenue-box", "arrow-1-2")
-2. For text inside shapes, create a separate text element positioned inside the shape
-3. Use appropriate sizes: main concepts (200x80), sub-concepts (150x60), small items (100x40)
-4. Ensure arrows connect logically between elements
-5. Create a visually balanced layout
-6. Include at least 5-15 elements for a meaningful diagram
-7. Return ONLY valid JSON, no markdown or explanations
+1. The "mermaid" field must contain VALID Mermaid syntax
+2. Use \\n for newlines in the mermaid string (JSON escaped)
+3. Keep node labels concise (max 3-4 words)
+4. Include 5-15 nodes for a meaningful diagram
+5. Use appropriate connections (-->, ---, -.->)
+6. Return ONLY valid JSON, no markdown code blocks around the response
+7. Do NOT include \`\`\`mermaid or \`\`\` in the mermaid field - just the raw syntax
 
 Generate the diagram now:`
 }
@@ -839,11 +825,10 @@ async function executeFunctionCall(
       }
       
       case "generate_diagram": {
-        // This tool generates Excalidraw diagrams using AI
+        // This tool generates diagrams using Mermaid syntax (more reliable than raw Excalidraw JSON)
         const request = args.request as string
-        const diagramType = args.diagram_type as string || 'custom'
+        const diagramType = args.diagram_type as string || 'flowchart'
         const context = args.context as string || ''
-        const style = args.style as string || 'professional'
         
         // Get the chat_id from the job to save the diagram
         const { data: jobData } = await supabase
@@ -856,14 +841,16 @@ async function executeFunctionCall(
           throw new Error('Could not find job data for diagram saving')
         }
         
-        // Call the diagram generation API
+        // Call the diagram generation API with Mermaid approach
         const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
-        const DIAGRAM_MODEL = 'gemini-3-pro-preview'
+        const DIAGRAM_MODEL = 'gemini-3-flash-preview' // Use flash for simpler Mermaid generation
         
-        const diagramPrompt = buildDiagramGenerationPrompt(request, diagramType, context, style)
+        const diagramPrompt = buildMermaidGenerationPrompt(request, diagramType, context)
         
         // Broadcast that we're generating a diagram
         await broadcastEvent(jobId, 'diagram_generating', { request, diagram_type: diagramType })
+        
+        console.log('Generating Mermaid diagram with prompt:', diagramPrompt.substring(0, 200) + '...')
         
         const geminiResponse = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${DIAGRAM_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
@@ -873,8 +860,8 @@ async function executeFunctionCall(
             body: JSON.stringify({
               contents: [{ parts: [{ text: diagramPrompt }] }],
               generationConfig: {
-                temperature: 0.7,
-                maxOutputTokens: 16384,
+                temperature: 0.3, // Lower temperature for more consistent output
+                maxOutputTokens: 4096,
                 responseMimeType: 'application/json'
               }
             })
@@ -882,33 +869,46 @@ async function executeFunctionCall(
         )
         
         if (!geminiResponse.ok) {
+          const errorText = await geminiResponse.text()
+          console.error('Diagram generation API error:', errorText)
           throw new Error(`Diagram generation failed: ${geminiResponse.status}`)
         }
         
         const geminiData = await geminiResponse.json()
+        console.log('Gemini response:', JSON.stringify(geminiData).substring(0, 500))
+        
         const diagramJson = geminiData.candidates?.[0]?.content?.parts?.[0]?.text
         
         if (!diagramJson) {
-          throw new Error('Failed to generate diagram')
+          console.error('No diagram JSON in response:', JSON.stringify(geminiData))
+          throw new Error('Failed to generate diagram - no content returned')
         }
         
         try {
           const parsedDiagram = JSON.parse(diagramJson)
-          const excalidrawData = {
-            type: 'excalidraw',
-            version: 2,
-            source: 'stratos-brain-ai',
-            elements: parsedDiagram.elements || [],
-            appState: {
-              viewBackgroundColor: '#ffffff',
-              gridSize: null,
-              ...parsedDiagram.appState
-            },
-            files: parsedDiagram.files || {}
+          const mermaidSyntax = parsedDiagram.mermaid
+          
+          if (!mermaidSyntax) {
+            throw new Error('No mermaid syntax in response')
           }
           
           const diagramName = parsedDiagram.name || `${diagramType} Diagram`
           const diagramDescription = parsedDiagram.description || request
+          
+          // Store the Mermaid syntax - frontend will convert to Excalidraw
+          // This is more reliable than generating Excalidraw JSON directly
+          const diagramData = {
+            type: 'mermaid',
+            version: 1,
+            source: 'stratos-brain-ai',
+            mermaid: mermaidSyntax,
+            // Include empty Excalidraw structure for compatibility
+            elements: [],
+            appState: {
+              viewBackgroundColor: '#ffffff'
+            },
+            files: {}
+          }
           
           // Save the diagram to the database
           const { data: savedDiagram, error: saveError } = await supabase
@@ -919,7 +919,7 @@ async function executeFunctionCall(
               name: diagramName,
               description: diagramDescription,
               diagram_type: diagramType,
-              excalidraw_data: excalidrawData,
+              excalidraw_data: diagramData,
               generation_prompt: request,
               generation_model: DIAGRAM_MODEL,
               is_ai_generated: true,
@@ -936,7 +936,8 @@ async function executeFunctionCall(
           // Broadcast that diagram was created
           await broadcastEvent(jobId, 'diagram_created', { 
             diagram_id: savedDiagram.diagram_id,
-            name: diagramName
+            name: diagramName,
+            mermaid: mermaidSyntax
           })
           
           result = {
@@ -945,10 +946,12 @@ async function executeFunctionCall(
             diagram_type: diagramType,
             name: diagramName,
             description: diagramDescription,
+            mermaid_preview: mermaidSyntax.substring(0, 200) + '...',
             message: `Diagram "${diagramName}" has been created and saved to your Studio panel. You can view and edit it there.`
           }
         } catch (parseError) {
-          throw new Error(`Failed to parse diagram JSON: ${parseError}`)
+          console.error('Failed to parse diagram JSON:', parseError, 'Raw:', diagramJson)
+          throw new Error(`Failed to parse diagram: ${parseError}`)
         }
         break
       }
