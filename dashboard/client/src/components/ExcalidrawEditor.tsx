@@ -54,6 +54,19 @@ function processSkeletonElements(elements: unknown[]): unknown[] {
       // Tell shape it owns this text
       processedShape.boundElements = [{ id: textId, type: "text" }];
 
+      // Determine text color based on background brightness
+      // Light backgrounds (like #fff3bf, #d3f9d8) need dark text
+      // Dark backgrounds need light text
+      const bgColor = el.backgroundColor || 'transparent';
+      const isLightBg = bgColor === 'transparent' || 
+        bgColor.startsWith('#fff') || 
+        bgColor.startsWith('#d') || 
+        bgColor.startsWith('#e') || 
+        bgColor.startsWith('#f') ||
+        bgColor.includes('bf') || 
+        bgColor.includes('d8');
+      const textColor = el.label.strokeColor || (isLightBg ? '#1e1e1e' : '#ffffff');
+      
       // Create the text element centered in the shape
       result.push({
         type: 'text',
@@ -63,7 +76,7 @@ function processSkeletonElements(elements: unknown[]): unknown[] {
         text: el.label.text || '',
         fontSize: el.label.fontSize || 16,
         fontFamily: 1,
-        strokeColor: el.label.strokeColor || '#ffffff',
+        strokeColor: textColor,
         textAlign: 'center',
         verticalAlign: 'middle',
         containerId: el.id,
