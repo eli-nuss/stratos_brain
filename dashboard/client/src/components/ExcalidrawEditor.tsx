@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import type { Diagram, ExcalidrawScene } from '@/hooks/useDiagrams';
 
@@ -22,7 +22,9 @@ export function ExcalidrawEditor({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [convertedElements, setConvertedElements] = useState<any[] | null>(null);
   const [elementsReady, setElementsReady] = useState(false);
+  const [sceneUpdated, setSceneUpdated] = useState(false);
   const excalidrawAPIRef = useRef<any>(null);
+  const diagramIdRef = useRef<string | null>(null);
 
   // Dynamically import Excalidraw only when modal opens
   useEffect(() => {
@@ -48,7 +50,14 @@ export function ExcalidrawEditor({
     if (!ExcalidrawModule || !diagram) {
       setConvertedElements(null);
       setElementsReady(false);
+      setSceneUpdated(false);
       return;
+    }
+
+    // Reset scene updated flag when diagram changes
+    if (diagramIdRef.current !== diagram.diagram_id) {
+      diagramIdRef.current = diagram.diagram_id;
+      setSceneUpdated(false);
     }
 
     const rawElements = diagram.excalidraw_data?.elements || [];
@@ -86,6 +95,45 @@ export function ExcalidrawEditor({
       setElementsReady(true);
     }
   }, [ExcalidrawModule, diagram]);
+
+  // Update scene via API after Excalidraw mounts (this is more reliable than initialData)
+  useEffect(() => {
+    if (!excalidrawAPIRef.current || !elementsReady || !convertedElements || sceneUpdated) {
+      return;
+    }
+
+    // Small delay to ensure Excalidraw is fully initialized
+    const timer = setTimeout(() => {
+      const api = excalidrawAPIRef.current;
+      if (!api) return;
+
+      console.log('[ExcalidrawEditor] Updating scene via API with', convertedElements.length, 'elements');
+      
+      try {
+        // Update the scene with converted elements
+        api.updateScene({
+          elements: convertedElements,
+          appState: {
+            viewBackgroundColor: diagram?.excalidraw_data?.appState?.viewBackgroundColor || '#121212',
+          }
+        });
+
+        // Scroll to content after a brief delay
+        setTimeout(() => {
+          if (api && convertedElements.length > 0) {
+            api.scrollToContent(convertedElements, { fitToContent: true, animate: true });
+            console.log('[ExcalidrawEditor] Scrolled to content');
+          }
+        }, 100);
+
+        setSceneUpdated(true);
+      } catch (err) {
+        console.error('[ExcalidrawEditor] Failed to update scene:', err);
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [elementsReady, convertedElements, sceneUpdated, diagram]);
 
   const handleSave = useCallback(async () => {
     if (!diagram || !excalidrawAPIRef.current) return;
@@ -128,6 +176,17 @@ export function ExcalidrawEditor({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, handleSave, onClose]);
 
+  // Handle API ready callback
+  const handleExcalidrawAPI = useCallback((api: any) => {
+    console.log('[ExcalidrawEditor] Excalidraw API ready');
+    excalidrawAPIRef.current = api;
+    
+    // Trigger scene update after API is ready
+    if (elementsReady && convertedElements && convertedElements.length > 0) {
+      setSceneUpdated(false); // Reset to trigger the update effect
+    }
+  }, [elementsReady, convertedElements]);
+
   if (!isOpen) return null;
 
   // Get components from module
@@ -136,9 +195,6 @@ export function ExcalidrawEditor({
 
   // Determine if we're still loading/converting
   const isProcessing = isLoading || !elementsReady;
-
-  // Create a unique key based on diagram ID and element count to force remount when data changes
-  const excalidrawKey = diagram ? `${diagram.diagram_id}-${convertedElements?.length || 0}` : 'empty';
 
   return (
     // Fixed fullscreen container
@@ -170,17 +226,15 @@ export function ExcalidrawEditor({
         </div>
       ) : Excalidraw && elementsReady ? (
         // CRITICAL: Container MUST have explicit height for Excalidraw to render
-        // Key forces remount when diagram changes
-        <div style={{ height: '100vh', width: '100vw' }} key={excalidrawKey}>
+        <div style={{ height: '100vh', width: '100vw' }}>
           <Excalidraw
-            excalidrawAPI={(api: any) => { excalidrawAPIRef.current = api; }}
+            excalidrawAPI={handleExcalidrawAPI}
             initialData={{
-              elements: convertedElements || [],
+              elements: [], // Start empty, we'll update via API
               appState: { 
                 viewBackgroundColor: diagram?.excalidraw_data?.appState?.viewBackgroundColor || '#121212', 
                 theme: 'dark',
               },
-              scrollToContent: true,
             }}
             theme="dark"
           >

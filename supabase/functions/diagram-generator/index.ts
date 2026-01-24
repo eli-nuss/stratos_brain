@@ -198,13 +198,18 @@ async function executeTool(
 
 const PLANNING_PROMPT = `You are an EXPERT Financial Analyst creating a diagram plan.
 
+## CRITICAL: Use the EXACT company provided in the user's request!
+- If the user mentions a company like "LLY" (Eli Lilly), use "LLY" as the symbol
+- If the user mentions "AAPL" (Apple), use "AAPL" as the symbol
+- NEVER substitute a different company - always use the one specified
+
 Your ONLY job right now is to create a detailed plan using the create_diagram_plan tool.
 
 Analyze the user's request and create a comprehensive plan that includes:
-1. A clear diagram title
+1. A clear diagram title (include the company name)
 2. The type of diagram (flowchart, breakdown, comparison, timeline, hierarchy)
-3. A list of ALL specific data points needed
-4. Which tools you'll need to call to get that data
+3. A list of ALL specific data points needed for THIS SPECIFIC COMPANY
+4. Which tools you'll need to call to get that data (use the exact company symbol provided)
 5. How you'll lay out the elements
 6. How many elements you expect to create (minimum 5)
 
@@ -338,7 +343,7 @@ async function generateDiagramWithStreaming(
   
   let userPrompt = `Create a diagram for: "${request}"`
   if (companySymbol) {
-    userPrompt += `\n\nCompany: ${companyName} (${companySymbol})`
+    userPrompt += `\n\n## TARGET COMPANY (USE THIS EXACT COMPANY - DO NOT SUBSTITUTE!):\n- Company Name: ${companyName}\n- Stock Symbol: ${companySymbol}\n\nWhen calling get_company_fundamentals, use symbol="${companySymbol}"\nWhen calling search_web, include "${companyName}" or "${companySymbol}" in your query`
   }
   if (chatContext) {
     userPrompt += "\n\nContext:\n" + chatContext
