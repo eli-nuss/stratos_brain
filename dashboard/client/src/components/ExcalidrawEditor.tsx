@@ -2,6 +2,9 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import type { Diagram, ExcalidrawScene } from '@/hooks/useDiagrams';
 
+// CRITICAL: Import Excalidraw CSS - required for proper rendering
+import '@excalidraw/excalidraw/index.css';
+
 interface ExcalidrawEditorProps {
   isOpen: boolean;
   diagram: Diagram | null;
@@ -61,7 +64,7 @@ export function ExcalidrawEditor({
     }
   }, [diagram, onSave]);
 
-  // Keyboard shortcut for save
+  // Keyboard shortcut for save and close
   useEffect(() => {
     if (!isOpen) return;
     
@@ -70,11 +73,14 @@ export function ExcalidrawEditor({
         e.preventDefault();
         handleSave();
       }
+      if (e.key === 'Escape') {
+        onClose();
+      }
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, handleSave]);
+  }, [isOpen, handleSave, onClose]);
 
   if (!isOpen) return null;
 
@@ -83,21 +89,22 @@ export function ExcalidrawEditor({
   const MainMenu = ExcalidrawModule?.MainMenu;
 
   return (
-    <div style={{ 
-      position: 'fixed', 
-      top: 0, 
-      left: 0, 
-      width: '100vw', 
-      height: '100vh', 
-      zIndex: 9999,
-      backgroundColor: '#121212'
-    }}>
+    // Fixed fullscreen container
+    <div 
+      style={{ 
+        position: 'fixed', 
+        inset: 0,
+        zIndex: 9999,
+        backgroundColor: '#121212',
+        overflow: 'hidden'
+      }}
+    >
       {isLoading ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
           <Loader2 className="w-8 h-8 text-zinc-400 animate-spin" />
         </div>
       ) : loadError ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#ef4444', gap: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#ef4444', gap: '16px' }}>
           <p>{loadError}</p>
           <button 
             onClick={onClose}
@@ -107,40 +114,42 @@ export function ExcalidrawEditor({
           </button>
         </div>
       ) : Excalidraw ? (
-        <Excalidraw
-          excalidrawAPI={(api: any) => { excalidrawAPIRef.current = api; }}
-          initialData={{
-            elements: diagram?.excalidraw_data?.elements || [],
-            appState: { 
-              viewBackgroundColor: '#121212', 
-              theme: 'dark',
-              currentItemFontFamily: 1
-            },
-            scrollToContent: true,
-          }}
-          theme="dark"
-        >
-          {/* Custom MainMenu with our actions - this is the correct API per Excalidraw docs */}
-          {MainMenu && (
-            <MainMenu>
-              <MainMenu.DefaultItems.LoadScene />
-              <MainMenu.DefaultItems.Export />
-              <MainMenu.DefaultItems.SaveAsImage />
-              <MainMenu.DefaultItems.ClearCanvas />
-              <MainMenu.Separator />
-              <MainMenu.Item onSelect={handleSave}>
-                💾 Save to Stratos Brain
-              </MainMenu.Item>
-              <MainMenu.Item onSelect={() => diagram && onExportJson(diagram.diagram_id)}>
-                📄 Export as JSON
-              </MainMenu.Item>
-              <MainMenu.Separator />
-              <MainMenu.Item onSelect={onClose}>
-                ❌ Close & Return to Chat
-              </MainMenu.Item>
-            </MainMenu>
-          )}
-        </Excalidraw>
+        // CRITICAL: Container MUST have explicit height for Excalidraw to render
+        <div style={{ height: '100vh', width: '100vw' }}>
+          <Excalidraw
+            excalidrawAPI={(api: any) => { excalidrawAPIRef.current = api; }}
+            initialData={{
+              elements: diagram?.excalidraw_data?.elements || [],
+              appState: { 
+                viewBackgroundColor: '#121212', 
+                theme: 'dark',
+              },
+              scrollToContent: true,
+            }}
+            theme="dark"
+          >
+            {/* Custom MainMenu with our actions */}
+            {MainMenu && (
+              <MainMenu>
+                <MainMenu.DefaultItems.LoadScene />
+                <MainMenu.DefaultItems.Export />
+                <MainMenu.DefaultItems.SaveAsImage />
+                <MainMenu.DefaultItems.ClearCanvas />
+                <MainMenu.Separator />
+                <MainMenu.Item onSelect={handleSave}>
+                  💾 Save to Stratos Brain
+                </MainMenu.Item>
+                <MainMenu.Item onSelect={() => diagram && onExportJson(diagram.diagram_id)}>
+                  📄 Export as JSON
+                </MainMenu.Item>
+                <MainMenu.Separator />
+                <MainMenu.Item onSelect={onClose}>
+                  ❌ Close & Return to Chat
+                </MainMenu.Item>
+              </MainMenu>
+            )}
+          </Excalidraw>
+        </div>
       ) : null}
     </div>
   );

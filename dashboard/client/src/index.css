@@ -243,24 +243,11 @@
 
 
 /* ============================================
-   EXCALIDRAW PROTECTION
-   Protect Excalidraw from Tailwind's global resets
+   EXCALIDRAW STYLES
+   Ensure Excalidraw renders correctly
    ============================================ */
-
-.excalidraw {
-  all: initial; /* Resets inherited styles */
-  font-family: inherit;
-  width: 100% !important;
-  height: 100% !important;
-}
 
 /* Ensure the portal where Excalidraw renders popovers is above everything */
 .excalidraw-portal {
   z-index: 10000 !important;
-}
-
-/* Fix for Excalidraw's internal styles being overridden */
-.excalidraw .Stack_vertical,
-.excalidraw .Stack_horizontal {
-  all: revert;
 }
