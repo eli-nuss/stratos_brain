@@ -371,30 +371,16 @@ const unifiedFunctionDeclarations = [
   },
   {
     name: "generate_diagram",
-    description: "REQUIRED: Generate a visual diagram when user asks for visualization. Call this tool whenever the user mentions: diagram, chart, graph, map, visualize, flowchart, timeline, org chart, mind map. This creates an interactive Excalidraw diagram in the Studio panel.",
+    description: "Generate a visual diagram. MUST be called when user asks for: diagram, chart, graph, map, visualization, flowchart, timeline. Pass all details in the request parameter.",
     parameters: {
       type: "object",
       properties: {
         request: { 
           type: "string", 
-          description: "What to visualize in the diagram" 
-        },
-        diagram_type: { 
-          type: "string", 
-          enum: ["flowchart", "org_chart", "mind_map", "relationship", "timeline", "process", "hierarchy", "comparison", "custom"],
-          description: "Type of diagram to create" 
-        },
-        context: { 
-          type: "string", 
-          description: "Additional context or data to include" 
-        },
-        style: { 
-          type: "string", 
-          enum: ["minimal", "detailed", "colorful", "professional"],
-          description: "Visual style preference" 
+          description: "Complete description of what to visualize. Include: 1) diagram type (flowchart/comparison/timeline/mindmap), 2) all data points with numbers, 3) relationships between items. Example: 'Comparison diagram of competitors: AAPL (P/E 28, $3T), MSFT (P/E 35, $2.8T), GOOGL (P/E 25, $1.9T) showing market cap and valuation'" 
         }
       },
-      required: ["request", "diagram_type"]
+      required: ["request"]
     }
   }
 ]
@@ -827,8 +813,17 @@ async function executeFunctionCall(
       case "generate_diagram": {
         // This tool generates diagrams using Mermaid syntax (more reliable than raw Excalidraw JSON)
         const request = args.request as string
-        const diagramType = args.diagram_type as string || 'flowchart'
-        const context = args.context as string || ''
+        
+        // Parse diagram type from request if mentioned, otherwise default to flowchart
+        let diagramType = 'flowchart'
+        const requestLower = request.toLowerCase()
+        if (requestLower.includes('comparison') || requestLower.includes('compare')) diagramType = 'comparison'
+        else if (requestLower.includes('timeline')) diagramType = 'timeline'
+        else if (requestLower.includes('mindmap') || requestLower.includes('mind map')) diagramType = 'mind_map'
+        else if (requestLower.includes('org chart') || requestLower.includes('organization')) diagramType = 'org_chart'
+        else if (requestLower.includes('hierarchy')) diagramType = 'hierarchy'
+        else if (requestLower.includes('process') || requestLower.includes('flow')) diagramType = 'flowchart'
+        else if (requestLower.includes('relationship')) diagramType = 'relationship'
         
         // Get the chat_id from the job to save the diagram
         const { data: jobData } = await supabase
@@ -845,7 +840,7 @@ async function executeFunctionCall(
         const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
         const DIAGRAM_MODEL = 'gemini-3-flash-preview' // Use flash for simpler Mermaid generation
         
-        const diagramPrompt = buildMermaidGenerationPrompt(request, diagramType, context)
+        const diagramPrompt = buildMermaidGenerationPrompt(request, diagramType, '')
         
         // Broadcast that we're generating a diagram
         await broadcastEvent(jobId, 'diagram_generating', { request, diagram_type: diagramType })
@@ -1020,21 +1015,25 @@ If the user's message contains ANY of these words/phrases, you MUST call generat
 - Do NOT say "I cannot create images" - you CAN via generate_diagram
 - The diagram will appear in the user's Studio panel
 
-### generate_diagram Parameters
-- request: DETAILED description including specific data points, names, numbers
-- diagram_type: flowchart | org_chart | mind_map | relationship | timeline | process | hierarchy | comparison
-- context: Raw data or additional details to include
-- style: professional (default) | minimal | detailed | colorful
+### generate_diagram - SINGLE PARAMETER
+The tool takes ONE parameter: request (string)
+Include ALL information in the request string:
+- Diagram type (comparison, flowchart, timeline, mindmap)
+- All data points with specific numbers
+- Company names and relationships
 
-### Example Usage
+### Example
 User: "Create a diagram showing competitors"
-You should:
-1. Call get_asset_fundamentals for each competitor
-2. Call generate_diagram with:
-   - request: "Market map comparing LLY, NVO, MRK showing P/E ratios, revenue growth, and market cap"
-   - diagram_type: "comparison"
-   - context: "LLY: P/E 53x, Growth 54%, $933B | NVO: P/E 15x, Growth 5%, $245B | MRK: P/E 14x, Growth 4%, $268B"
-   - style: "professional"`
+
+Step 1: Gather data with get_asset_fundamentals
+Step 2: Call generate_diagram with:
+```
+generate_diagram({
+  request: "Comparison diagram of pharmaceutical competitors: LLY (P/E 53x, Revenue Growth 54%, Market Cap $933B), NVO (P/E 15x, Revenue Growth 5%, Market Cap $245B), MRK (P/E 14x, Revenue Growth 4%, Market Cap $268B). Show valuation premium vs growth rate."
+})
+```
+
+That's it - just ONE parameter with all the details!`
 }
 
 // Call Gemini with tools
