@@ -171,7 +171,7 @@ function GenerationProgressDisplay({ progress, plan, toolCalls }: GenerationProg
               <ListChecks className="w-3 h-3" />
               Data Checklist
             </p>
-            {plan.checklist.map((item, idx) => (
+            {(plan.checklist || []).map((item, idx) => (
               <div key={idx} className="flex items-center gap-2">
                 {item.status === 'complete' ? (
                   <CheckCircle2 className="w-3 h-3 text-green-400 flex-shrink-0" />

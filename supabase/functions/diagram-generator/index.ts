@@ -189,11 +189,16 @@ Create a brief plan for this diagram. Output as JSON:
       }
     }
     
+    // Convert dataNeeded to checklist format for frontend
+    const checklist = (plan.dataNeeded || []).map((item: string) => ({ item, status: 'pending' as const }))
+    
     writer.write('plan', { 
-      title: plan.title, 
-      type: plan.type, 
-      dataNeeded: plan.dataNeeded,
-      estimatedElements: plan.estimatedElements 
+      title: plan.title || `${companyName || 'Company'} Analysis`, 
+      type: plan.type || 'breakdown', 
+      checklist: checklist,
+      tools: ['get_asset_fundamentals', 'get_deep_research_report', 'perform_grounded_research'],
+      layout: plan.layoutPlan || 'Grid layout',
+      estimated_elements: plan.estimatedElements || 6
     })
     
     // ========================================================================
