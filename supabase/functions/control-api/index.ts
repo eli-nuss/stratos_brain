@@ -1329,8 +1329,20 @@ ${markdownToHtml(markdown)}
         }
         
         // Optional search by symbol OR name
+        // We'll handle search differently - first get exact symbol matches, then partial matches
+        let exactSymbolMatch: any = null
         if (search) {
-          // Use OR filter to search both symbol and name
+          // First, try to find an exact symbol match (case-insensitive)
+          const { data: exactMatch } = await supabase
+            .from('mv_dashboard_all_assets')
+            .select('*')
+            .ilike('symbol', search)
+            .limit(1)
+            .single()
+          
+          exactSymbolMatch = exactMatch
+          
+          // Use OR filter to search both symbol and name for partial matches
           query = query.or(`symbol.ilike.%${search}%,name.ilike.%${search}%`)
         }
 
@@ -1396,6 +1408,15 @@ ${markdownToHtml(markdown)}
         
         let combinedData = data || []
         let totalCount = count || 0
+        
+        // If we found an exact symbol match, put it at the beginning of results
+        // and remove any duplicate from the rest of the results
+        if (exactSymbolMatch) {
+          // Remove the exact match from combinedData if it exists (to avoid duplicates)
+          combinedData = combinedData.filter((item: any) => item.asset_id !== exactSymbolMatch.asset_id)
+          // Add exact match at the beginning
+          combinedData = [exactSymbolMatch, ...combinedData]
+        }
         
         // Also search ETFs from v_etf_overview when search is provided
         // This allows ETFs to appear in portfolio search results
