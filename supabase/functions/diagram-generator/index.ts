@@ -344,21 +344,22 @@ Output ONLY the JSON, no markdown code blocks.`
     if (userId && chatId) {
       try {
         const { data: savedDiagram, error: saveError } = await supabase
-          .from('diagrams')
+          .from('chat_diagrams')
           .insert({
             user_id: userId,
             chat_id: chatId,
             name: plan.title || `${companyName} Diagram`,
             excalidraw_data: diagramJson,
-            is_ai_generated: true
+            is_ai_generated: true,
+            status: 'ready'
           })
-          .select('id')
+          .select('diagram_id')
           .single()
         
         if (saveError) {
           console.error('Save error:', saveError)
         } else if (savedDiagram) {
-          diagramId = savedDiagram.id
+          diagramId = savedDiagram.diagram_id
         }
       } catch (e) {
         console.error('Database save failed:', e)
