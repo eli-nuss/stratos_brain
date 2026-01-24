@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 import type { Diagram, ExcalidrawScene } from '@/hooks/useDiagrams';
 
@@ -20,6 +20,7 @@ export function ExcalidrawEditor({
   const [ExcalidrawModule, setExcalidrawModule] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [convertedElements, setConvertedElements] = useState<any[]>([]);
   const excalidrawAPIRef = useRef<any>(null);
 
   // Dynamically import Excalidraw only when modal opens
@@ -40,6 +41,35 @@ export function ExcalidrawEditor({
         });
     }
   }, [isOpen, ExcalidrawModule]);
+
+  // Convert skeleton elements to full Excalidraw elements when diagram or module changes
+  useEffect(() => {
+    if (!ExcalidrawModule || !diagram?.excalidraw_data?.elements) {
+      setConvertedElements([]);
+      return;
+    }
+
+    const rawElements = diagram.excalidraw_data.elements;
+    
+    // Check if elements need conversion (have 'label' property = skeleton format)
+    const needsConversion = rawElements.some((el: any) => el.label !== undefined);
+    
+    if (needsConversion && ExcalidrawModule.convertToExcalidrawElements) {
+      try {
+        console.log('Converting skeleton elements to Excalidraw format...');
+        const converted = ExcalidrawModule.convertToExcalidrawElements(rawElements);
+        console.log('Converted', rawElements.length, 'skeleton elements to', converted.length, 'Excalidraw elements');
+        setConvertedElements(converted);
+      } catch (err) {
+        console.error('Failed to convert elements:', err);
+        // Fall back to raw elements
+        setConvertedElements(rawElements);
+      }
+    } else {
+      // Elements are already in full format
+      setConvertedElements(rawElements);
+    }
+  }, [ExcalidrawModule, diagram]);
 
   const handleSave = useCallback(async () => {
     if (!diagram || !excalidrawAPIRef.current) return;
@@ -88,6 +118,9 @@ export function ExcalidrawEditor({
   const Excalidraw = ExcalidrawModule?.Excalidraw;
   const MainMenu = ExcalidrawModule?.MainMenu;
 
+  // Check if we're still converting elements
+  const isConverting = ExcalidrawModule && diagram?.excalidraw_data?.elements?.length > 0 && convertedElements.length === 0;
+
   return (
     // Fixed fullscreen container
     <div 
@@ -99,9 +132,12 @@ export function ExcalidrawEditor({
         overflow: 'hidden'
       }}
     >
-      {isLoading ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+      {(isLoading || isConverting) ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: '12px' }}>
           <Loader2 className="w-8 h-8 text-zinc-400 animate-spin" />
+          <span style={{ color: '#9ca3af', fontSize: '14px' }}>
+            {isConverting ? 'Converting diagram elements...' : 'Loading editor...'}
+          </span>
         </div>
       ) : loadError ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#ef4444', gap: '16px' }}>
@@ -119,9 +155,9 @@ export function ExcalidrawEditor({
           <Excalidraw
             excalidrawAPI={(api: any) => { excalidrawAPIRef.current = api; }}
             initialData={{
-              elements: diagram?.excalidraw_data?.elements || [],
+              elements: convertedElements,
               appState: { 
-                viewBackgroundColor: '#121212', 
+                viewBackgroundColor: diagram?.excalidraw_data?.appState?.viewBackgroundColor || '#121212', 
                 theme: 'dark',
               },
               scrollToContent: true,
