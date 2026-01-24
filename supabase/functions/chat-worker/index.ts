@@ -371,7 +371,7 @@ const unifiedFunctionDeclarations = [
   },
   {
     name: "generate_diagram",
-    description: "Generate an Excalidraw diagram to visualize concepts, relationships, processes, or data. Use this when the user asks for a diagram, flowchart, org chart, mind map, or any visual representation.",
+    description: "REQUIRED: Generate a visual diagram when user asks for visualization. Call this tool whenever the user mentions: diagram, chart, graph, map, visualize, flowchart, timeline, org chart, mind map. This creates an interactive Excalidraw diagram in the Studio panel.",
     parameters: {
       type: "object",
       properties: {
@@ -1000,21 +1000,41 @@ ${contextSnapshot ? `## Latest Context\n${JSON.stringify(contextSnapshot, null, 
 - Show calculation methodology when using Python
 - End with key takeaways
 
-## Diagram Generation - MANDATORY TOOL USE
-When the user asks for ANY of the following, you MUST use the \`generate_diagram\` tool:
-- "create a diagram", "show me a diagram", "visualize", "flowchart", "chart", "graph"
-- "org chart", "mind map", "relationship diagram", "timeline"
-- Any request to visually represent data, processes, or relationships
+## DIAGRAM GENERATION - MANDATORY
 
-**CRITICAL**: Do NOT create ASCII art, text-based charts, or markdown tables when a diagram is requested.
-Do NOT say "I cannot generate images" - you CAN generate diagrams using the generate_diagram tool.
-ALWAYS call the generate_diagram tool first, then explain what the diagram shows.
+### TRIGGER DETECTION
+If the user's message contains ANY of these words/phrases, you MUST call generate_diagram:
+- "diagram", "visualize", "flowchart", "chart", "graph", "map"
+- "org chart", "mind map", "timeline", "relationship"
+- "show me", "create a", "draw", "illustrate"
 
-Parameters for generate_diagram:
-- request: Describe what to visualize (include specific data points)
-- diagram_type: flowchart, org_chart, mind_map, relationship, timeline, process, hierarchy, or comparison
-- context: Include any relevant data or details
-- style: professional (default), minimal, detailed, or colorful`
+### EXECUTION ORDER (CRITICAL)
+1. FIRST: Gather any needed data using other tools (get_asset_fundamentals, web_search, etc.)
+2. THEN: Call generate_diagram with the collected data
+3. FINALLY: Provide a brief explanation of the diagram
+
+### ABSOLUTE RULES
+- You MUST call generate_diagram - this is NOT optional
+- Do NOT output a text response without calling generate_diagram
+- Do NOT create ASCII art, text tables, or markdown visualizations
+- Do NOT say "I cannot create images" - you CAN via generate_diagram
+- The diagram will appear in the user's Studio panel
+
+### generate_diagram Parameters
+- request: DETAILED description including specific data points, names, numbers
+- diagram_type: flowchart | org_chart | mind_map | relationship | timeline | process | hierarchy | comparison
+- context: Raw data or additional details to include
+- style: professional (default) | minimal | detailed | colorful
+
+### Example Usage
+User: "Create a diagram showing competitors"
+You should:
+1. Call get_asset_fundamentals for each competitor
+2. Call generate_diagram with:
+   - request: "Market map comparing LLY, NVO, MRK showing P/E ratios, revenue growth, and market cap"
+   - diagram_type: "comparison"
+   - context: "LLY: P/E 53x, Growth 54%, $933B | NVO: P/E 15x, Growth 5%, $245B | MRK: P/E 14x, Growth 4%, $268B"
+   - style: "professional"`
 }
 
 // Call Gemini with tools
