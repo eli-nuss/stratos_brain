@@ -385,16 +385,30 @@ const unifiedFunctionDeclarations = [
   },
   {
     name: "generate_diagram",
-    description: "Generate an Excalidraw diagram to visualize concepts, relationships, processes, or data. Use this when the user asks for a visual representation, flowchart, org chart, mind map, relationship diagram, timeline, or any other type of diagram. The AI will analyze the context and create an appropriate diagram.",
+    description: "Generate an Excalidraw diagram to visualize concepts, relationships, processes, or data. Use this when the user asks for a diagram, flowchart, org chart, mind map, or any visual representation.",
     parameters: {
       type: "object",
       properties: {
-        request: { type: "string", description: "Description of what to visualize in the diagram" },
-        diagram_type: { type: "string", description: "Suggested type: flowchart, org_chart, mind_map, relationship, timeline, process, hierarchy, comparison, or custom" },
-        context: { type: "string", description: "Additional context or data to include in the diagram" },
-        style: { type: "string", description: "Visual style preference: minimal, detailed, colorful, or professional" }
+        request: { 
+          type: "string", 
+          description: "What to visualize in the diagram" 
+        },
+        diagram_type: { 
+          type: "string", 
+          enum: ["flowchart", "org_chart", "mind_map", "relationship", "timeline", "process", "hierarchy", "comparison", "custom"],
+          description: "Type of diagram to create" 
+        },
+        context: { 
+          type: "string", 
+          description: "Additional context or data to include" 
+        },
+        style: { 
+          type: "string", 
+          enum: ["minimal", "detailed", "colorful", "professional"],
+          description: "Visual style preference" 
+        }
       },
-      required: ["request"]
+      required: ["request", "diagram_type"]
     }
   }
 ]
