@@ -39,19 +39,19 @@ async function convertMermaidToExcalidraw(mermaidSyntax: string): Promise<{
   files: Record<string, unknown>;
 }> {
   try {
-    // Dynamically import the mermaid-to-excalidraw library
+    // Dynamically import the mermaid-to-excalidraw library (v2.0.0+)
     const { parseMermaidToExcalidraw } = await import('@excalidraw/mermaid-to-excalidraw');
-    const { convertToExcalidrawElements } = await import('@excalidraw/excalidraw');
     
-    // Parse Mermaid to Excalidraw skeleton
-    const { elements: skeletonElements, files } = await parseMermaidToExcalidraw(mermaidSyntax, {
-      fontSize: 16,
+    // Parse Mermaid to Excalidraw elements (v2 returns ready-to-use elements)
+    const { elements, files } = await parseMermaidToExcalidraw(mermaidSyntax, {
+      themeVariables: {
+        fontSize: '16px',
+      },
     });
     
-    // Convert skeleton to full Excalidraw elements
-    const elements = convertToExcalidrawElements(skeletonElements);
+    console.log('Mermaid conversion result:', { elementCount: elements?.length, hasFiles: !!files });
     
-    return { elements, files: files || {} };
+    return { elements: elements || [], files: files || {} };
   } catch (error) {
     console.error('Failed to convert Mermaid to Excalidraw:', error);
     throw error;
