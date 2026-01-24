@@ -1,9 +1,10 @@
 // Diagram Generator Edge Function
-// This agent is an expert in designing and building diagrams in Excalidraw format
-// NOW WITH PLANNING PHASE, STREAMING PROGRESS, AND DATA-FIRST WORKFLOW
+// Uses the unified tool library from the shared brain architecture
+// Supports streaming progress updates
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0"
+import { executeUnifiedTool } from '../_shared/unified_tool_handlers.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,209 +16,6 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || ''
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
 const GEMINI_MODEL = 'gemini-2.5-flash'
-
-// ============================================================================
-// Research Tool Declarations
-// ============================================================================
-
-const researchToolDeclarations = [
-  {
-    name: "get_company_fundamentals",
-    description: "REQUIRED: Get financial fundamentals for a company including revenue, earnings, margins, valuation ratios. YOU MUST CALL THIS FIRST.",
-    parameters: {
-      type: "object",
-      properties: {
-        symbol: { type: "string", description: "Stock ticker symbol (e.g., 'AAPL', 'NVDA', 'LLY')" }
-      },
-      required: ["symbol"]
-    }
-  },
-  {
-    name: "get_sector_peers",
-    description: "Get a list of peer companies in the same sector/industry for comparison diagrams.",
-    parameters: {
-      type: "object",
-      properties: {
-        symbol: { type: "string", description: "Stock ticker symbol to find peers for" },
-        limit: { type: "number", description: "Maximum number of peers to return (default 5)" }
-      },
-      required: ["symbol"]
-    }
-  },
-  {
-    name: "search_web",
-    description: "Search the web for current information about a topic. Use this for revenue breakdowns, product segments, recent news, etc.",
-    parameters: {
-      type: "object",
-      properties: {
-        query: { type: "string", description: "Search query - be specific (e.g., 'Apple Q3 2024 revenue breakdown by product segment')" }
-      },
-      required: ["query"]
-    }
-  }
-]
-
-// ============================================================================
-// Tool Execution
-// ============================================================================
-
-async function executeTool(
-  supabase: ReturnType<typeof createClient>,
-  toolName: string,
-  args: Record<string, unknown>
-): Promise<unknown> {
-  console.log("Executing tool:", toolName, args)
-  
-  try {
-    if (toolName === "get_company_fundamentals") {
-      const symbol = args.symbol as string
-      if (!symbol) {
-        return { error: "Symbol is required" }
-      }
-      
-      // Call the existing company-fundamentals edge function
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/company-fundamentals`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`
-        },
-        body: JSON.stringify({ symbol })
-      })
-      
-      if (!response.ok) {
-        return { error: `Failed to fetch fundamentals: ${response.status}` }
-      }
-      
-      return await response.json()
-    }
-    
-    if (toolName === "get_sector_peers") {
-      const symbol = args.symbol as string
-      const limit = (args.limit as number) || 5
-      
-      // Call the existing sector-peers edge function
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/sector-peers`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`
-        },
-        body: JSON.stringify({ symbol, limit })
-      })
-      
-      if (!response.ok) {
-        return { error: `Failed to fetch peers: ${response.status}` }
-      }
-      
-      return await response.json()
-    }
-    
-    if (toolName === "search_web") {
-      const query = args.query as string
-      if (!query) {
-        return { error: "Query is required" }
-      }
-      
-      // Call the existing web-search edge function
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/web-search`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`
-        },
-        body: JSON.stringify({ query })
-      })
-      
-      if (!response.ok) {
-        return { error: `Failed to search: ${response.status}` }
-      }
-      
-      return await response.json()
-    }
-    
-    return { error: `Unknown tool: ${toolName}` }
-  } catch (error) {
-    console.error("Tool execution error:", error)
-    return { error: String(error) }
-  }
-}
-
-// ============================================================================
-// EXCALIDRAW EXPERT PROMPT - Design phase after data is gathered
-// ============================================================================
-
-const EXCALIDRAW_EXPERT_PROMPT = `You are an EXPERT Excalidraw diagram designer. You have already gathered the data - now create the diagram.
-
-## STRICT DESIGN SYSTEM & LAYOUT RULES
-
-### 1. STANDARD SIZES (Never deviate!):
-- Rectangles: width=250, height=100
-- Ellipses: width=200, height=100
-- Diamonds: width=150, height=150
-
-### 2. THE GRID FORMULA (Prevents overlapping!):
-- Column spacing: 350px apart (X: 100, 450, 800, 1150...)
-- Row spacing: 200px apart (Y: 100, 300, 500, 700...)
-
-EXAMPLE GRID POSITIONS:
-- Row 1: (100, 100), (450, 100), (800, 100)
-- Row 2: (100, 300), (450, 300), (800, 300)
-- Row 3: (100, 500), (450, 500), (800, 500)
-
-### 3. ARROWS - Use ID Binding (NOT coordinates!):
-{
-  "type": "arrow",
-  "id": "arrow_1",
-  "start": { "id": "source_node_id" },
-  "end": { "id": "target_node_id" },
-  "strokeColor": "#495057",
-  "strokeWidth": 2,
-  "endArrowhead": "triangle"
-}
-
-### 4. TEXT LABELS:
-- Inside shapes: Use the "label" property with actual data values
-- Include real numbers from your research (e.g., "$85B", "45%", etc.)
-
-### 5. COLOR PALETTE:
-- Positive/Growth: backgroundColor="#d3f9d8", strokeColor="#2b8a3e"
-- Negative/Risk: backgroundColor="#ffe3e3", strokeColor="#c92a2a"
-- Neutral/Info: backgroundColor="#e7f5ff", strokeColor="#1864ab"
-- Revenue/Money: backgroundColor="#fff3bf", strokeColor="#f08c00"
-- Primary: backgroundColor="#d0bfff", strokeColor="#7950f2"
-
-## OUTPUT FORMAT
-
-Return ONLY valid JSON:
-
-{
-  "elements": [
-    {
-      "id": "title",
-      "type": "text",
-      "x": 400,
-      "y": 30,
-      "text": "Diagram Title",
-      "fontSize": 28,
-      "strokeColor": "#ffffff"
-    },
-    {
-      "id": "node_1",
-      "type": "rectangle",
-      "x": 100,
-      "y": 100,
-      "width": 250,
-      "height": 100,
-      "backgroundColor": "#e7f5ff",
-      "strokeColor": "#1864ab",
-      "label": { "text": "Label with Data\\n$XX.XB", "fontSize": 18 }
-    }
-  ],
-  "appState": { "viewBackgroundColor": "#1e1e1e" }
-}
-
-Use the REAL data you gathered to populate the labels. Follow your plan's layout.`
 
 // ============================================================================
 // Streaming Helper
@@ -250,7 +48,82 @@ function createStreamWriter() {
 }
 
 // ============================================================================
-// Diagram Generation with Forced Tool Calling
+// EXCALIDRAW EXPERT PROMPT
+// ============================================================================
+
+const EXCALIDRAW_EXPERT_PROMPT = `You are an EXPERT Excalidraw diagram designer. You have been given REAL financial data - use it!
+
+## STRICT DESIGN SYSTEM & LAYOUT RULES
+
+### 1. STANDARD SIZES (Never deviate!):
+- Rectangles: width=250, height=100
+- Ellipses: width=200, height=100
+- Diamonds: width=150, height=150
+
+### 2. THE GRID FORMULA (Prevents overlapping!):
+- Column spacing: 350px apart (X: 100, 450, 800, 1150...)
+- Row spacing: 200px apart (Y: 100, 300, 500, 700...)
+
+EXAMPLE GRID POSITIONS:
+- Row 1: (100, 100), (450, 100), (800, 100)
+- Row 2: (100, 300), (450, 300), (800, 300)
+- Row 3: (100, 500), (450, 500), (800, 500)
+
+### 3. ARROWS - Use ID Binding (NOT coordinates!):
+{
+  "type": "arrow",
+  "id": "arrow_1",
+  "start": { "id": "source_node_id" },
+  "end": { "id": "target_node_id" },
+  "strokeColor": "#495057",
+  "strokeWidth": 2,
+  "endArrowhead": "triangle"
+}
+
+### 4. TEXT LABELS - USE THE REAL DATA PROVIDED:
+- Inside shapes: Use the "label" property
+- Include REAL numbers from the data (e.g., "$85.78B", "45.2%", etc.)
+- DO NOT use placeholder values like "XX" or "Data Unavailable"
+
+### 5. COLOR PALETTE:
+- Positive/Growth: backgroundColor="#d3f9d8", strokeColor="#2b8a3e"
+- Negative/Risk: backgroundColor="#ffe3e3", strokeColor="#c92a2a"
+- Neutral/Info: backgroundColor="#e7f5ff", strokeColor="#1864ab"
+- Revenue/Money: backgroundColor="#fff3bf", strokeColor="#f08c00"
+- Primary: backgroundColor="#d0bfff", strokeColor="#7950f2"
+
+## OUTPUT FORMAT
+
+Return ONLY valid JSON with NO markdown formatting:
+
+{
+  "elements": [
+    {
+      "id": "title",
+      "type": "text",
+      "x": 400,
+      "y": 30,
+      "text": "Diagram Title",
+      "fontSize": 28,
+      "strokeColor": "#ffffff"
+    },
+    {
+      "id": "node_1",
+      "type": "rectangle",
+      "x": 100,
+      "y": 100,
+      "width": 250,
+      "height": 100,
+      "backgroundColor": "#e7f5ff",
+      "strokeColor": "#1864ab",
+      "label": { "text": "Label with Real Data\\n$85.78B", "fontSize": 18 }
+    }
+  ],
+  "appState": { "viewBackgroundColor": "#1e1e1e" }
+}`
+
+// ============================================================================
+// Diagram Generation with Data-First Workflow
 // ============================================================================
 
 async function generateDiagramWithStreaming(
@@ -264,309 +137,326 @@ async function generateDiagramWithStreaming(
   userId: string | null
 ): Promise<void> {
   
-  const apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/" + GEMINI_MODEL + ":generateContent?key=" + GEMINI_API_KEY
+  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`
   
-  // Build context about the company
-  const companyContext = companySymbol 
-    ? `\n\n## CRITICAL - TARGET COMPANY (YOU MUST USE THIS COMPANY):\n- Company Name: ${companyName || companySymbol}\n- Stock Symbol: ${companySymbol}\n\nYOU MUST use "${companySymbol}" when calling get_company_fundamentals.\nYOU MUST include "${companyName || companySymbol}" in your search queries.`
-    : ''
-  
-  // ========== PHASE 1: FORCED DATA GATHERING ==========
-  writer.write('status', { stage: 'researching', message: 'Gathering company data...' })
-  writer.write('plan', {
-    title: `${companyName || companySymbol || 'Company'} - ${request}`,
-    type: 'breakdown',
-    checklist: [
-      { item: 'Company fundamentals', status: 'pending' },
-      { item: 'Revenue breakdown', status: 'pending' },
-      { item: 'Product segments', status: 'pending' }
-    ],
-    tools: ['get_company_fundamentals', 'search_web'],
-    layout: 'Hierarchical breakdown',
-    estimated_elements: 8
-  })
-  
-  const gatheredData: Record<string, unknown> = {}
-  
-  // FORCE TOOL CALL 1: Get company fundamentals if we have a symbol
-  if (companySymbol) {
-    writer.write('tool_call', {
-      tool: 'get_company_fundamentals',
-      args: { symbol: companySymbol },
-      message: `Fetching fundamentals for ${companySymbol}...`
-    })
-    
-    const fundamentals = await executeTool(supabase, 'get_company_fundamentals', { symbol: companySymbol })
-    gatheredData['fundamentals'] = fundamentals
-    
-    writer.write('checklist_update', { tool: 'get_company_fundamentals', status: 'complete' })
-    writer.write('tool_result', {
-      tool: 'get_company_fundamentals',
-      success: !('error' in (fundamentals as any)),
-      message: `Got fundamentals for ${companySymbol}`
-    })
-    
-    console.log("Fundamentals gathered:", JSON.stringify(fundamentals).substring(0, 500))
+  // Tool context for unified tools
+  const toolContext = {
+    ticker: companySymbol,
+    chatType: 'company' as const,
+    chatId: chatId || undefined
   }
   
-  // FORCE TOOL CALL 2: Search for specific data
-  const searchQuery = companySymbol 
-    ? `${companyName || companySymbol} ${request} revenue breakdown product segments 2024`
-    : request
-  
-  writer.write('tool_call', {
-    tool: 'search_web',
-    args: { query: searchQuery },
-    message: `Searching for ${companyName || 'company'} data...`
-  })
-  
-  const searchResults = await executeTool(supabase, 'search_web', { query: searchQuery })
-  gatheredData['search'] = searchResults
-  
-  writer.write('checklist_update', { tool: 'search_web', status: 'complete' })
-  writer.write('tool_result', {
-    tool: 'search_web',
-    success: !('error' in (searchResults as any)),
-    message: 'Got search results'
-  })
-  
-  console.log("Search results gathered:", JSON.stringify(searchResults).substring(0, 500))
-  
-  // ========== PHASE 2: DESIGN WITH REAL DATA ==========
-  writer.write('status', { stage: 'designing', message: 'Creating diagram with real data...' })
-  
-  const designPrompt = `Create an Excalidraw diagram for: "${request}"
-${companyContext}
+  try {
+    // ========================================================================
+    // PHASE 1: PLANNING
+    // ========================================================================
+    writer.write('status', { stage: 'planning', message: 'Creating diagram plan...' })
+    
+    const planPrompt = `You are planning a financial diagram for ${companyName} (${companySymbol}).
 
-## GATHERED DATA (USE THIS REAL DATA IN YOUR DIAGRAM):
+User Request: "${request}"
+
+Create a brief plan for this diagram. Output as JSON:
+{
+  "title": "Diagram title",
+  "type": "breakdown|comparison|flowchart|timeline",
+  "dataNeeded": ["list of specific data points needed"],
+  "layoutPlan": "Brief description of layout",
+  "estimatedElements": 8
+}`
+
+    const planResponse = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: planPrompt }] }],
+        generationConfig: { temperature: 0.3, maxOutputTokens: 1024 }
+      })
+    })
+    
+    let plan = { title: `${companyName} Analysis`, type: 'breakdown', dataNeeded: [], layoutPlan: '', estimatedElements: 6 }
+    
+    if (planResponse.ok) {
+      const planData = await planResponse.json()
+      const planText = planData.candidates?.[0]?.content?.parts?.[0]?.text || ''
+      try {
+        const jsonMatch = planText.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          plan = JSON.parse(jsonMatch[0])
+        }
+      } catch (e) {
+        console.log('Plan parsing failed, using defaults')
+      }
+    }
+    
+    writer.write('plan', { 
+      title: plan.title, 
+      type: plan.type, 
+      dataNeeded: plan.dataNeeded,
+      estimatedElements: plan.estimatedElements 
+    })
+    
+    // ========================================================================
+    // PHASE 2: DATA GATHERING (Using Unified Tools)
+    // ========================================================================
+    writer.write('status', { stage: 'researching', message: `Fetching data for ${companySymbol}...` })
+    
+    const gatheredData: Record<string, unknown> = {}
+    
+    // TOOL 1: Get company fundamentals
+    if (companySymbol) {
+      writer.write('tool_call', { tool: 'get_asset_fundamentals', args: { symbol: companySymbol }, message: `Fetching fundamentals for ${companySymbol}...` })
+      
+      try {
+        const fundamentals = await executeUnifiedTool('get_asset_fundamentals', { symbol: companySymbol }, supabase, toolContext)
+        gatheredData['fundamentals'] = fundamentals
+        writer.write('tool_result', { tool: 'get_asset_fundamentals', success: true, message: 'Got company fundamentals' })
+        writer.write('checklist_update', { item: 'Company fundamentals', status: 'complete' })
+      } catch (e) {
+        console.error('Fundamentals error:', e)
+        writer.write('tool_result', { tool: 'get_asset_fundamentals', success: false, message: String(e) })
+      }
+    }
+    
+    // TOOL 2: Get deep research report if available
+    writer.write('tool_call', { tool: 'get_deep_research_report', args: { symbol: companySymbol }, message: `Checking for research report...` })
+    
+    try {
+      const report = await executeUnifiedTool('get_deep_research_report', { symbol: companySymbol }, supabase, toolContext)
+      if (report && !(report as any).error) {
+        gatheredData['deepResearch'] = report
+        writer.write('tool_result', { tool: 'get_deep_research_report', success: true, message: 'Got deep research report' })
+        writer.write('checklist_update', { item: 'Deep research report', status: 'complete' })
+      } else {
+        writer.write('tool_result', { tool: 'get_deep_research_report', success: false, message: 'No report available' })
+      }
+    } catch (e) {
+      console.log('Deep research not available')
+    }
+    
+    // TOOL 3: Grounded research for specific data
+    const searchQuery = `${companyName} ${companySymbol} ${request} financial data revenue breakdown 2024`
+    writer.write('tool_call', { tool: 'perform_grounded_research', args: { query: searchQuery }, message: `Researching: ${searchQuery.substring(0, 50)}...` })
+    
+    try {
+      const searchResults = await executeUnifiedTool('perform_grounded_research', { query: searchQuery }, supabase, toolContext)
+      gatheredData['research'] = searchResults
+      writer.write('tool_result', { tool: 'perform_grounded_research', success: true, message: 'Got web research results' })
+      writer.write('checklist_update', { item: 'Web research', status: 'complete' })
+    } catch (e) {
+      console.error('Research error:', e)
+      writer.write('tool_result', { tool: 'perform_grounded_research', success: false, message: String(e) })
+    }
+    
+    // ========================================================================
+    // PHASE 3: DESIGN DIAGRAM
+    // ========================================================================
+    writer.write('status', { stage: 'designing', message: 'Creating diagram with real data...' })
+    
+    // Build the design prompt with all gathered data
+    const designPrompt = `${EXCALIDRAW_EXPERT_PROMPT}
+
+## TARGET COMPANY
+- Company Name: ${companyName}
+- Stock Symbol: ${companySymbol}
+
+## USER REQUEST
+"${request}"
+
+## GATHERED DATA (USE THIS REAL DATA - DO NOT MAKE UP NUMBERS!)
 
 ### Company Fundamentals:
-${JSON.stringify(gatheredData['fundamentals'], null, 2)}
+${JSON.stringify(gatheredData['fundamentals'] || {}, null, 2)}
 
-### Search Results:
-${JSON.stringify(gatheredData['search'], null, 2)}
+### Deep Research Report:
+${JSON.stringify(gatheredData['deepResearch'] || 'Not available', null, 2)}
 
-## INSTRUCTIONS:
-1. Extract the REAL revenue numbers, product names, and percentages from the data above
-2. Create a professional diagram showing the breakdown
-3. Use the actual company name "${companyName || companySymbol}" in the title
-4. Include real dollar amounts and percentages in each box
-5. Follow the grid layout system (X: 100, 450, 800; Y: 100, 300, 500)
+### Web Research:
+${typeof gatheredData['research'] === 'string' ? gatheredData['research'] : JSON.stringify(gatheredData['research'] || 'Not available', null, 2)}
 
-${EXCALIDRAW_EXPERT_PROMPT}
+## YOUR TASK
+Create an Excalidraw diagram that visualizes "${request}" for ${companyName}.
+Use the REAL numbers from the data above. Create at least 6 elements.
+Output ONLY the JSON, no markdown code blocks.`
 
-NOW OUTPUT THE JSON DIAGRAM:`
-
-  let diagramJson: any = null
-  const maxDesignIterations = 3
-  
-  for (let i = 0; i < maxDesignIterations; i++) {
-    writer.write('status', { stage: 'designing', message: 'Creating diagram layout...', iteration: i })
+    console.log('Design prompt length:', designPrompt.length)
     
+    // Generate the diagram
     const designResponse = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [
-          { role: "user", parts: [{ text: designPrompt }] }
-        ],
+        contents: [{ role: 'user', parts: [{ text: designPrompt }] }],
         generationConfig: { 
-          temperature: 0.3, 
+          temperature: 0.4, 
           maxOutputTokens: 16384,
-          responseMimeType: "application/json"
+          responseMimeType: 'application/json'
         }
       })
     })
     
     if (!designResponse.ok) {
-      throw new Error("Design phase failed: " + designResponse.status)
+      const errorText = await designResponse.text()
+      throw new Error(`Gemini API error: ${designResponse.status} - ${errorText}`)
     }
     
     const designData = await designResponse.json()
-    const textPart = designData.candidates?.[0]?.content?.parts?.find((p: any) => p.text)?.text
+    const responseText = designData.candidates?.[0]?.content?.parts?.[0]?.text || ''
     
-    if (!textPart) {
-      console.log("No text in design response, retrying...")
-      continue
-    }
+    console.log('Raw response length:', responseText.length)
     
-    // Parse JSON
+    // Parse the JSON
     writer.write('status', { stage: 'parsing', message: 'Parsing diagram data...' })
     
+    let diagramJson: { elements: unknown[], appState?: unknown }
+    
     try {
-      // Try to extract JSON from the response
-      let jsonStr = textPart.trim()
-      
-      // Remove markdown code blocks if present
-      const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
+      // Try direct parse first
+      diagramJson = JSON.parse(responseText)
+    } catch (e) {
+      // Try to extract JSON from markdown
+      const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || responseText.match(/(\{[\s\S]*\})/)
       if (jsonMatch) {
-        jsonStr = jsonMatch[1]
-      }
-      
-      // Try to find JSON object
-      const objectMatch = jsonStr.match(/\{[\s\S]*\}/)
-      if (objectMatch) {
-        jsonStr = objectMatch[0]
-      }
-      
-      diagramJson = JSON.parse(jsonStr)
-      
-      // Validate
-      if (!diagramJson.elements || !Array.isArray(diagramJson.elements)) {
-        throw new Error("Invalid diagram: missing elements array")
-      }
-      
-      if (diagramJson.elements.length < 3) {
-        console.log("Too few elements, retrying...")
-        continue
-      }
-      
-      // Success!
-      break
-      
-    } catch (parseError) {
-      console.error("JSON parse error:", parseError, "Raw:", textPart.substring(0, 500))
-      if (i === maxDesignIterations - 1) {
-        throw new Error("Failed to parse diagram JSON after " + maxDesignIterations + " attempts")
+        diagramJson = JSON.parse(jsonMatch[1])
+      } else {
+        throw new Error('Could not parse diagram JSON')
       }
     }
-  }
-  
-  if (!diagramJson) {
-    throw new Error("Failed to generate diagram")
-  }
-  
-  // ========== PHASE 3: SAVE ==========
-  writer.write('status', { stage: 'saving', message: `Generated ${diagramJson.elements.length} elements. Saving...` })
-  
-  const diagramName = request.substring(0, 100)
-  let diagramId = `temp-${Date.now()}`
-  
-  // Try to save to database
-  if (chatId && userId) {
-    try {
-      const { data, error } = await supabase
-        .from('diagrams')
-        .insert({
-          chat_id: chatId,
-          user_id: userId,
-          name: diagramName,
-          excalidraw_data: {
-            type: 'excalidraw',
-            version: 2,
-            elements: diagramJson.elements,
-            appState: diagramJson.appState || { viewBackgroundColor: '#1e1e1e' },
-            files: {}
-          },
-          generation_prompt: request,
-          generation_model: GEMINI_MODEL,
-          is_ai_generated: true,
-          status: 'ready'
-        })
-        .select()
-        .single()
-      
-      if (data) {
-        diagramId = data.diagram_id
-      } else if (error) {
-        console.error("Failed to save diagram:", error)
-      }
-    } catch (dbError) {
-      console.error("Database error:", dbError)
+    
+    if (!diagramJson.elements || !Array.isArray(diagramJson.elements)) {
+      throw new Error('Invalid diagram format: missing elements array')
     }
-  }
-  
-  // Send complete event
-  writer.write('complete', {
-    success: true,
-    diagram: {
-      diagram_id: diagramId,
-      name: diagramName,
-      excalidraw_data: {
-        type: 'excalidraw',
-        version: 2,
-        elements: diagramJson.elements,
-        appState: diagramJson.appState || { viewBackgroundColor: '#1e1e1e' },
-        files: {}
+    
+    const elementCount = diagramJson.elements.length
+    writer.write('status', { stage: 'saving', message: `Generated ${elementCount} elements. Saving...` })
+    
+    // ========================================================================
+    // PHASE 4: SAVE TO DATABASE
+    // ========================================================================
+    
+    let diagramId = `temp-${Date.now()}`
+    
+    if (userId && chatId) {
+      try {
+        const { data: savedDiagram, error: saveError } = await supabase
+          .from('diagrams')
+          .insert({
+            user_id: userId,
+            chat_id: chatId,
+            name: plan.title || `${companyName} Diagram`,
+            excalidraw_data: diagramJson,
+            is_ai_generated: true
+          })
+          .select('id')
+          .single()
+        
+        if (saveError) {
+          console.error('Save error:', saveError)
+        } else if (savedDiagram) {
+          diagramId = savedDiagram.id
+        }
+      } catch (e) {
+        console.error('Database save failed:', e)
+      }
+    }
+    
+    // ========================================================================
+    // COMPLETE
+    // ========================================================================
+    
+    writer.write('complete', {
+      success: true,
+      diagram: {
+        diagram_id: diagramId,
+        name: plan.title || `${companyName} Diagram`,
+        excalidraw_data: diagramJson,
+        is_ai_generated: true
       },
-      is_ai_generated: true
-    },
-    message: 'Diagram generated successfully!'
-  })
+      message: 'Diagram generated successfully!'
+    })
+    
+  } catch (error) {
+    console.error('Generation error:', error)
+    writer.write('error', {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      message: 'Failed to generate diagram'
+    })
+  }
 }
 
 // ============================================================================
 // HTTP Handler
 // ============================================================================
 
-serve(async (req) => {
-  // Handle CORS preflight
+serve(async (req: Request) => {
+  // Handle CORS
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders })
   }
   
   const writer = createStreamWriter()
   
   try {
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-    
-    const body = await req.json()
     const { 
-      request, 
+      prompt, 
       company_symbol, 
       company_name, 
       chat_context, 
-      chat_id, 
-      user_id 
-    } = body
+      chat_id 
+    } = await req.json()
     
-    if (!request) {
-      throw new Error("Request is required")
+    // Get user ID from auth header
+    const authHeader = req.headers.get('Authorization')
+    let userId: string | null = null
+    
+    if (authHeader) {
+      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+      const token = authHeader.replace('Bearer ', '')
+      const { data: { user } } = await supabase.auth.getUser(token)
+      userId = user?.id || null
     }
     
-    console.log("Generating diagram for:", request, "Company:", company_symbol, company_name)
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
     
     // Start streaming response
-    const responsePromise = generateDiagramWithStreaming(
-      supabase,
-      writer,
-      request,
-      company_symbol || '',
-      company_name || '',
-      chat_context || '',
-      chat_id,
-      user_id
-    )
-    
-    // Handle completion
-    responsePromise
-      .catch((error) => {
-        console.error("Generation error:", error)
-        writer.write('error', { message: error.message || 'Unknown error' })
-      })
-      .finally(() => {
-        writer.close()
-      })
-    
-    return new Response(writer.stream, {
+    const response = new Response(writer.stream, {
       headers: {
         ...corsHeaders,
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
+        'Connection': 'keep-alive'
       }
     })
     
+    // Generate diagram in background
+    generateDiagramWithStreaming(
+      supabase,
+      writer,
+      prompt || 'Create a financial diagram',
+      company_symbol || '',
+      company_name || 'Company',
+      chat_context || '',
+      chat_id || null,
+      userId
+    ).finally(() => {
+      writer.close()
+    })
+    
+    return response
+    
   } catch (error) {
-    console.error("Handler error:", error)
-    writer.write('error', { message: (error as Error).message || 'Unknown error' })
+    console.error('Request error:', error)
+    writer.write('error', {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    })
     writer.close()
     
     return new Response(writer.stream, {
       headers: {
         ...corsHeaders,
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
+        'Content-Type': 'text/event-stream'
       }
     })
   }
