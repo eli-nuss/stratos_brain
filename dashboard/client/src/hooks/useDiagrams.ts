@@ -148,10 +148,11 @@ export function useDiagrams({ chatId, autoRefresh = false, refreshInterval = 500
           headers: getAuthHeaders(),
           body: JSON.stringify({
             chat_id: chatId,
-            user_request: request,
+            user_id: session.user?.id,
+            request: request,
             company_symbol: companySymbol,
             company_name: companyName,
-            chat_summary: chatSummary,
+            chat_context: chatSummary,
           }),
         }
       );
@@ -197,6 +198,7 @@ export function useDiagrams({ chatId, autoRefresh = false, refreshInterval = 500
         headers: getAuthHeaders(),
         body: JSON.stringify({
           chat_id: chatId,
+            user_id: session.user?.id,
           ...diagram,
           excalidraw_data: diagram.excalidraw_data || {
             type: 'excalidraw',
