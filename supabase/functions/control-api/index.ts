@@ -1296,6 +1296,7 @@ ${markdownToHtml(markdown)}
 
       // GET /dashboard/all-assets - Get ALL assets with scores and AI reviews (paginated)
       // This shows the complete universe, not just triggered assets
+      // Also includes ETFs from v_etf_overview when searching
       case req.method === 'GET' && path === '/dashboard/all-assets': {
         const limit = url.searchParams.get('limit') || '50'
         const offset = url.searchParams.get('offset') || '0'
@@ -1311,6 +1312,7 @@ ${markdownToHtml(markdown)}
         const minMarketCap = url.searchParams.get('min_market_cap')
         const maxMarketCap = url.searchParams.get('max_market_cap')
         const industry = url.searchParams.get('industry')
+        const includeEtfs = url.searchParams.get('include_etfs') !== 'false' // Default to true
         
         let query = supabase
           .from('mv_dashboard_all_assets')
@@ -1386,9 +1388,82 @@ ${markdownToHtml(markdown)}
         
         if (error) throw error
         
+        let combinedData = data || []
+        let totalCount = count || 0
+        
+        // Also search ETFs from v_etf_overview when search is provided
+        // This allows ETFs to appear in portfolio search results
+        if (search && includeEtfs && (assetType === 'equity' || !assetType)) {
+          const { data: etfData, error: etfError } = await supabase
+            .from('v_etf_overview')
+            .select('etf_id, symbol, name, category, close, return_1d, return_7d, return_30d, return_365d, dollar_volume')
+            .or(`symbol.ilike.%${search}%,name.ilike.%${search}%`)
+            .limit(parseInt(limit))
+          
+          if (!etfError && etfData && etfData.length > 0) {
+            // Transform ETF data to match the expected format
+            // Use negative etf_id as asset_id to avoid conflicts with regular assets
+            const transformedEtfs = etfData.map(etf => ({
+              asset_id: -etf.etf_id, // Negative ID to distinguish from regular assets
+              symbol: etf.symbol,
+              name: etf.name,
+              asset_type: 'etf',
+              is_active: true,
+              price: etf.close,
+              close: etf.close,
+              return_1d: etf.return_1d,
+              return_7d: etf.return_7d,
+              return_30d: etf.return_30d,
+              return_365d: etf.return_365d,
+              dollar_volume_7d: etf.dollar_volume,
+              industry: etf.category,
+              // Set other fields to null for ETFs
+              price_date: null,
+              open: null,
+              high: null,
+              low: null,
+              volume: null,
+              rsi_14: null,
+              macd_line: null,
+              macd_signal: null,
+              sma_20: null,
+              sma_50: null,
+              sma_200: null,
+              atr_14: null,
+              dollar_volume_sma_20: null,
+              ai_direction_score: null,
+              ai_setup_quality_score: null,
+              ai_direction: null,
+              attention_level: null,
+              setup_type: null,
+              ai_summary: null,
+              score_total: null,
+              weighted_score: null,
+              score_delta: null,
+              inflection_score: null,
+              new_signal_count: null,
+              rank_in_universe: null,
+              fvs_score: null,
+              sector: null,
+              market_cap: null,
+              pe_ratio: null,
+              dividend_yield: null,
+              beta: null
+            }))
+            
+            // Filter out ETFs that are already in the main results (by symbol)
+            const existingSymbols = new Set(combinedData.map((a: any) => a.symbol))
+            const newEtfs = transformedEtfs.filter(etf => !existingSymbols.has(etf.symbol))
+            
+            // Prepend ETFs to results (they appear first in search)
+            combinedData = [...newEtfs, ...combinedData]
+            totalCount += newEtfs.length
+          }
+        }
+        
         return new Response(JSON.stringify({
-          data: data || [],
-          total: count || 0,
+          data: combinedData,
+          total: totalCount,
           limit: parseInt(limit),
           offset: parseInt(offset)
         }), {
