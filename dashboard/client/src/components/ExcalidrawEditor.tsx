@@ -14,29 +14,29 @@ interface ExcalidrawEditorProps {
 export function ExcalidrawEditor({
   isOpen, diagram, onClose, onSave, onExportPng, onExportJson
 }: ExcalidrawEditorProps) {
-  const [ExcalidrawComponent, setExcalidrawComponent] = useState<React.ComponentType<any> | null>(null);
+  const [ExcalidrawModule, setExcalidrawModule] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const excalidrawAPIRef = useRef<any>(null);
 
   // Dynamically import Excalidraw only when modal opens
   useEffect(() => {
-    if (isOpen && !ExcalidrawComponent) {
+    if (isOpen && !ExcalidrawModule) {
       setIsLoading(true);
       setLoadError(null);
       
       import('@excalidraw/excalidraw')
         .then((module) => {
-          setExcalidrawComponent(() => module.Excalidraw);
+          setExcalidrawModule(module);
           setIsLoading(false);
         })
         .catch((err) => {
           console.error('Failed to load Excalidraw:', err);
-          setLoadError('Failed to load diagram editor');
+          setLoadError('Failed to load diagram editor: ' + err.message);
           setIsLoading(false);
         });
     }
-  }, [isOpen, ExcalidrawComponent]);
+  }, [isOpen, ExcalidrawModule]);
 
   const handleSave = useCallback(async () => {
     if (!diagram || !excalidrawAPIRef.current) return;
@@ -70,100 +70,44 @@ export function ExcalidrawEditor({
         e.preventDefault();
         handleSave();
       }
-      if (e.key === 'Escape') {
-        onClose();
-      }
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, handleSave, onClose]);
+  }, [isOpen, handleSave]);
 
   if (!isOpen) return null;
 
-  return (
-    <div 
-      style={{ 
-        position: 'fixed', 
-        top: 0, 
-        left: 0, 
-        width: '100vw', 
-        height: '100vh', 
-        zIndex: 9999,
-        backgroundColor: '#121212'
-      }}
-    >
-      {/* Minimal floating toolbar */}
-      <div 
-        style={{
-          position: 'absolute',
-          top: '10px',
-          right: '10px',
-          zIndex: 10000,
-          display: 'flex',
-          gap: '8px',
-          padding: '8px',
-          backgroundColor: 'rgba(30, 30, 30, 0.9)',
-          borderRadius: '8px',
-          border: '1px solid #333'
-        }}
-      >
-        <button
-          onClick={handleSave}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: '#3b82f6',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '13px',
-            fontWeight: 500
-          }}
-        >
-          💾 Save
-        </button>
-        <button
-          onClick={() => diagram && onExportJson(diagram.diagram_id)}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: '#374151',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '13px'
-          }}
-        >
-          📄 JSON
-        </button>
-        <button
-          onClick={onClose}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: '#dc2626',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '13px'
-          }}
-        >
-          ✕ Close
-        </button>
-      </div>
+  // Get components from module
+  const Excalidraw = ExcalidrawModule?.Excalidraw;
+  const MainMenu = ExcalidrawModule?.MainMenu;
 
-      {/* Excalidraw Canvas */}
+  return (
+    <div style={{ 
+      position: 'fixed', 
+      top: 0, 
+      left: 0, 
+      width: '100vw', 
+      height: '100vh', 
+      zIndex: 9999,
+      backgroundColor: '#121212'
+    }}>
       {isLoading ? (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
           <Loader2 className="w-8 h-8 text-zinc-400 animate-spin" />
         </div>
       ) : loadError ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#ef4444' }}>
-          {loadError}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#ef4444', gap: '16px' }}>
+          <p>{loadError}</p>
+          <button 
+            onClick={onClose}
+            style={{ padding: '8px 16px', backgroundColor: '#374151', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+          >
+            Close
+          </button>
         </div>
-      ) : ExcalidrawComponent ? (
-        <ExcalidrawComponent
+      ) : Excalidraw ? (
+        <Excalidraw
           excalidrawAPI={(api: any) => { excalidrawAPIRef.current = api; }}
           initialData={{
             elements: diagram?.excalidraw_data?.elements || [],
@@ -175,14 +119,28 @@ export function ExcalidrawEditor({
             scrollToContent: true,
           }}
           theme="dark"
-          UIOptions={{
-            canvasActions: {
-              loadScene: true,
-              export: { saveFileToDisk: true },
-              saveToActiveFile: false,
-            },
-          }}
-        />
+        >
+          {/* Custom MainMenu with our actions - this is the correct API per Excalidraw docs */}
+          {MainMenu && (
+            <MainMenu>
+              <MainMenu.DefaultItems.LoadScene />
+              <MainMenu.DefaultItems.Export />
+              <MainMenu.DefaultItems.SaveAsImage />
+              <MainMenu.DefaultItems.ClearCanvas />
+              <MainMenu.Separator />
+              <MainMenu.Item onSelect={handleSave}>
+                💾 Save to Stratos Brain
+              </MainMenu.Item>
+              <MainMenu.Item onSelect={() => diagram && onExportJson(diagram.diagram_id)}>
+                📄 Export as JSON
+              </MainMenu.Item>
+              <MainMenu.Separator />
+              <MainMenu.Item onSelect={onClose}>
+                ❌ Close & Return to Chat
+              </MainMenu.Item>
+            </MainMenu>
+          )}
+        </Excalidraw>
       ) : null}
     </div>
   );
