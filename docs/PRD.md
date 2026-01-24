@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 24, 2026 (v2.6 - Studio & Diagrams)  
+**Last Updated: January 24, 2026 (v2.7 - Dedicated Diagram Generator)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -849,7 +849,7 @@ You are Stratos, an elite autonomous financial analyst for {company_name} ({symb
 - Documents: get_company_docs, search_company_docs, get_deep_research_report
 - Market: get_macro_context, get_institutional_flows, get_market_pulse
 - Utility: execute_python, perform_grounded_research, generate_dynamic_ui (for charts, tables, and interactive models)
-- Studio: generate_diagram (creates Excalidraw diagrams saved to Studio panel)
+- Studio: Diagrams now generated via dedicated `diagram-generator` endpoint (not a chat tool)
 ```
 
 ### 10.4 Performance Optimizations (v2025.01.22)
@@ -1022,6 +1022,12 @@ Both hooks subscribe to Supabase Realtime channels for live updates:
   - Diagram persistence per chat session
   - Export to PNG and Excalidraw JSON formats
   - Blank canvas creation for manual diagramming
+
+- **Dedicated Diagram Generator (v2.7):** Refactored diagram generation to use a dedicated endpoint for improved reliability:
+  - New `diagram-generator` edge function with focused tools (fundamentals, sector peers, chat summary, grounded research)
+  - Separate Gemini session prevents MALFORMED_FUNCTION_CALL errors that occurred with multi-tool orchestration
+  - Uses Mermaid syntax as intermediate format, converted to Excalidraw on frontend
+  - Button-triggered from Studio panel (not via chat agent)
   - Uses `gemini-3-pro-preview` model for diagram generation
 
 ### 11.2 Planned Features
