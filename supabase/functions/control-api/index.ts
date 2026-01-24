@@ -1393,6 +1393,7 @@ ${markdownToHtml(markdown)}
         
         // Also search ETFs from v_etf_overview when search is provided
         // This allows ETFs to appear in portfolio search results
+        // Only include ETFs that don't already exist in mv_dashboard_all_assets
         if (search && includeEtfs && (assetType === 'equity' || !assetType)) {
           const { data: etfData, error: etfError } = await supabase
             .from('v_etf_overview')
@@ -1401,9 +1402,22 @@ ${markdownToHtml(markdown)}
             .limit(parseInt(limit))
           
           if (!etfError && etfData && etfData.length > 0) {
+            // Check which ETF symbols already exist in mv_dashboard_all_assets
+            // This prevents duplicates when ETFs have been added to the main assets table
+            const etfSymbols = etfData.map(e => e.symbol)
+            const { data: existingAssets } = await supabase
+              .from('mv_dashboard_all_assets')
+              .select('symbol')
+              .in('symbol', etfSymbols)
+            
+            const assetsInMainTable = new Set((existingAssets || []).map((a: any) => a.symbol))
+            
+            // Filter out ETFs that exist in the main assets table
+            const etfsNotInMainTable = etfData.filter(etf => !assetsInMainTable.has(etf.symbol))
+            
             // Transform ETF data to match the expected format
             // Use negative etf_id as asset_id to avoid conflicts with regular assets
-            const transformedEtfs = etfData.map(etf => ({
+            const transformedEtfs = etfsNotInMainTable.map(etf => ({
               asset_id: -etf.etf_id, // Negative ID to distinguish from regular assets
               symbol: etf.symbol,
               name: etf.name,
@@ -1451,7 +1465,7 @@ ${markdownToHtml(markdown)}
               beta: null
             }))
             
-            // Filter out ETFs that are already in the main results (by symbol)
+            // Filter out ETFs that are already in the current page results (by symbol)
             const existingSymbols = new Set(combinedData.map((a: any) => a.symbol))
             const newEtfs = transformedEtfs.filter(etf => !existingSymbols.has(etf.symbol))
             
