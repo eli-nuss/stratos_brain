@@ -1,6 +1,6 @@
 // Diagram Generator - Dedicated AI agent for generating Excalidraw diagrams directly
 // This agent is an expert in designing and building diagrams in Excalidraw format
-// NOW WITH STREAMING PROGRESS UPDATES
+// NOW WITH STREAMING PROGRESS UPDATES AND DATA-FIRST WORKFLOW
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0"
@@ -23,18 +23,18 @@ const GEMINI_MODEL = 'gemini-2.5-flash'
 const diagramToolDeclarations = [
   {
     name: "get_company_fundamentals",
-    description: "Get financial fundamentals for a company including revenue, earnings, margins, valuation ratios.",
+    description: "REQUIRED: Get financial fundamentals for a company including revenue, earnings, margins, valuation ratios. YOU MUST CALL THIS TOOL before creating any financial diagram.",
     parameters: {
       type: "object",
       properties: {
-        symbol: { type: "string", description: "Stock ticker symbol (e.g., 'AAPL')" }
+        symbol: { type: "string", description: "Stock ticker symbol (e.g., 'AAPL', 'NVDA', 'MSFT')" }
       },
       required: ["symbol"]
     }
   },
   {
     name: "get_sector_peers",
-    description: "Get a list of peer companies in the same sector/industry.",
+    description: "Get a list of peer companies in the same sector/industry for comparison diagrams.",
     parameters: {
       type: "object",
       properties: {
@@ -46,11 +46,11 @@ const diagramToolDeclarations = [
   },
   {
     name: "search_web",
-    description: "Search the web for current information about a topic.",
+    description: "Search the web for current information about a topic. Use this for revenue breakdowns, product segments, recent news, etc.",
     parameters: {
       type: "object",
       properties: {
-        query: { type: "string", description: "Search query" }
+        query: { type: "string", description: "Search query - be specific (e.g., 'Apple Q3 2024 revenue breakdown by product segment')" }
       },
       required: ["query"]
     }
@@ -79,7 +79,7 @@ async function executeTool(
       
       if (error) {
         console.error('Error fetching fundamentals:', error)
-        return { error: "Could not find data for " + symbol }
+        return { error: "Could not find data for " + symbol, suggestion: "Try using search_web to find the information" }
       }
       return data
     }
@@ -127,9 +127,9 @@ async function executeTool(
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: "Search and summarize: " + query }] }],
+            contents: [{ parts: [{ text: "Search and provide detailed factual information about: " + query + ". Include specific numbers, percentages, and breakdowns where available." }] }],
             tools: [{ googleSearch: {} }],
-            generationConfig: { temperature: 0.3, maxOutputTokens: 1024 }
+            generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
           })
         })
         
@@ -140,7 +140,7 @@ async function executeTool(
         const searchData = await searchResponse.json()
         const searchText = searchData.candidates?.[0]?.content?.parts?.[0]?.text || 'No results found'
         
-        return { query, summary: searchText }
+        return { query, results: searchText }
       } catch (err) {
         console.error('Search error:', err)
         return { error: 'Search failed', details: String(err) }
@@ -153,14 +153,25 @@ async function executeTool(
 }
 
 // ============================================================================
-// EXCALIDRAW EXPERT PROMPT - Grid-Constrained for Perfect Layouts
+// EXCALIDRAW EXPERT PROMPT - Data-First Workflow
 // ============================================================================
 
-const EXCALIDRAW_EXPERT_PROMPT = `You are an EXPERT information architect and Excalidraw diagram designer.
-Your job is to fetch real financial data and visualize it beautifully.
+const EXCALIDRAW_EXPERT_PROMPT = `You are an EXPERT Financial Analyst and Excalidraw diagram designer.
+
+## CRITICAL WORKFLOW - YOU MUST FOLLOW THIS EXACTLY:
+
+### PHASE 1: RESEARCH (MANDATORY - DO THIS FIRST!)
+Before creating ANY diagram, you MUST gather real data:
+
+1. If a company symbol is provided, ALWAYS call get_company_fundamentals first
+2. For revenue breakdowns or product segments, ALWAYS call search_web with a specific query like "[Company] revenue breakdown by segment"
+3. DO NOT skip this phase. DO NOT guess or hallucinate numbers.
+4. If you don't have data, you cannot create a useful diagram.
+
+### PHASE 2: DESIGN (Only after you have real data!)
+Once you have the actual data, create the diagram using the strict grid system below.
 
 ## STRICT DESIGN SYSTEM & LAYOUT RULES
-LLMs struggle with spatial layouts. You MUST strictly follow this grid system:
 
 ### 1. STANDARD SIZES (Never deviate!):
 - Rectangles: width=250, height=100
@@ -177,34 +188,30 @@ EXAMPLE GRID POSITIONS:
 - Row 3: (100, 500), (450, 500), (800, 500)
 
 ### 3. ARROWS - Use ID Binding (NOT coordinates!):
-Arrows MUST connect shapes by ID. Do NOT provide x, y, width, height, or points for arrows.
-The rendering engine calculates the path automatically.
-
 {
   "type": "arrow",
   "id": "arrow_1",
-  "start": { "id": "node_1" },
-  "end": { "id": "node_2" },
+  "start": { "id": "source_node_id" },
+  "end": { "id": "target_node_id" },
   "strokeColor": "#495057",
   "strokeWidth": 2,
-  "endArrowhead": "triangle",
-  "label": { "text": "flows to" }
+  "endArrowhead": "triangle"
 }
 
 ### 4. TEXT LABELS:
-- Inside shapes: Use the "label" property. Keep text under 5 words.
-- Titles: Use standalone text element at y=30
+- Inside shapes: Use the "label" property with actual data values
+- Include real numbers from your research (e.g., "$85B", "45%", etc.)
 
-### 5. COLOR PALETTE (Financial Theme):
+### 5. COLOR PALETTE:
 - Positive/Growth: backgroundColor="#d3f9d8", strokeColor="#2b8a3e"
 - Negative/Risk: backgroundColor="#ffe3e3", strokeColor="#c92a2a"
 - Neutral/Info: backgroundColor="#e7f5ff", strokeColor="#1864ab"
 - Revenue/Money: backgroundColor="#fff3bf", strokeColor="#f08c00"
 - Primary: backgroundColor="#d0bfff", strokeColor="#7950f2"
 
-## SKELETON JSON SCHEMA
+## OUTPUT FORMAT
 
-Return ONLY valid JSON. No markdown, no explanation.
+Return ONLY valid JSON with real data from your research:
 
 {
   "elements": [
@@ -213,70 +220,31 @@ Return ONLY valid JSON. No markdown, no explanation.
       "type": "text",
       "x": 400,
       "y": 30,
-      "text": "Company Revenue Breakdown",
+      "text": "[Company Name] Revenue Breakdown Q3 2024",
       "fontSize": 28,
       "strokeColor": "#ffffff"
     },
     {
-      "id": "node_1",
+      "id": "total",
       "type": "rectangle",
-      "x": 100,
+      "x": 450,
       "y": 100,
       "width": 250,
       "height": 100,
       "backgroundColor": "#e7f5ff",
       "strokeColor": "#1864ab",
-      "label": { "text": "Total Revenue\\n$85B", "fontSize": 18 }
+      "label": { "text": "Total Revenue\\n$XX.XB", "fontSize": 18 }
     },
-    {
-      "id": "node_2",
-      "type": "rectangle",
-      "x": 100,
-      "y": 300,
-      "width": 250,
-      "height": 100,
-      "backgroundColor": "#d3f9d8",
-      "strokeColor": "#2b8a3e",
-      "label": { "text": "Products\\n$65B", "fontSize": 18 }
-    },
-    {
-      "id": "node_3",
-      "type": "rectangle",
-      "x": 450,
-      "y": 300,
-      "width": 250,
-      "height": 100,
-      "backgroundColor": "#fff3bf",
-      "strokeColor": "#f08c00",
-      "label": { "text": "Services\\n$20B", "fontSize": 18 }
-    },
-    {
-      "id": "arrow_1",
-      "type": "arrow",
-      "start": { "id": "node_1" },
-      "end": { "id": "node_2" },
-      "strokeColor": "#495057",
-      "strokeWidth": 2,
-      "endArrowhead": "triangle"
-    },
-    {
-      "id": "arrow_2",
-      "type": "arrow",
-      "start": { "id": "node_1" },
-      "end": { "id": "node_3" },
-      "strokeColor": "#495057",
-      "strokeWidth": 2,
-      "endArrowhead": "triangle"
-    }
+    ... more nodes with REAL data ...
   ],
   "appState": { "viewBackgroundColor": "#1e1e1e" }
 }
 
 REMEMBER:
-1. Use the EXACT grid positions (100, 450, 800 for X; 100, 300, 500 for Y)
-2. Every shape MUST have a "label" with "text"
-3. Arrows use "start": {"id": "..."} and "end": {"id": "..."} - NO coordinates
-4. Return ONLY JSON, nothing else`
+1. PHASE 1 FIRST: Call tools to get real data before generating JSON
+2. Use REAL numbers from your research in the labels
+3. Follow the grid system exactly
+4. Every shape MUST have a label with actual data`
 
 // ============================================================================
 // Streaming Helper
@@ -327,33 +295,40 @@ async function generateDiagramWithStreaming(
   
   const apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/" + GEMINI_MODEL + ":generateContent?key=" + GEMINI_API_KEY
   
-  // Build the user prompt
-  let userPrompt = "Create a diagram for: " + request
+  // Build the user prompt - emphasize data retrieval
+  let userPrompt = `Create a detailed diagram for: "${request}"`
+  
   if (companySymbol) {
-    userPrompt += "\n\nCompany: " + companyName + " (" + companySymbol + ")"
-    userPrompt += "\n\nIMPORTANT: Use the search_web or get_company_fundamentals tool to get real data about this company before creating the diagram."
+    userPrompt += `\n\nCompany: ${companyName} (${companySymbol})`
+    userPrompt += `\n\n⚠️ IMPORTANT: You MUST first call get_company_fundamentals with symbol "${companySymbol}" to get the real financial data.`
+    userPrompt += `\nThen call search_web to get detailed revenue breakdown information.`
+    userPrompt += `\nDO NOT generate the diagram until you have real data from these tools.`
+  } else {
+    userPrompt += `\n\n⚠️ IMPORTANT: Use search_web to find real data before creating the diagram.`
   }
+  
   if (chatContext) {
-    userPrompt += "\n\nContext from conversation:\n" + chatContext
+    userPrompt += "\n\nAdditional context from conversation:\n" + chatContext
   }
   
   const conversationHistory: Array<{ role: string; parts: unknown[] }> = [
     { role: "user", parts: [{ text: userPrompt }] }
   ]
   
-  const maxIterations = 10
+  const maxIterations = 15 // Increased to allow for multiple tool calls
+  let hasCalledTool = false
   
   for (let iteration = 0; iteration < maxIterations; iteration++) {
     writer.write('status', { 
       stage: 'thinking', 
-      message: `AI is designing the diagram... (step ${iteration + 1})`,
+      message: hasCalledTool ? `Designing diagram with real data... (step ${iteration + 1})` : `Researching data... (step ${iteration + 1})`,
       iteration 
     })
     
     const requestBody = {
       contents: [
         { role: "user", parts: [{ text: EXCALIDRAW_EXPERT_PROMPT }] },
-        { role: "model", parts: [{ text: "I understand. I will create Excalidraw diagrams using the strict grid system (X: 100, 450, 800; Y: 100, 300, 500), standard sizes (250x100 rectangles), and arrow bindings with start/end IDs. I will return only valid JSON." }] },
+        { role: "model", parts: [{ text: "I understand. I will ALWAYS call the research tools first (get_company_fundamentals, search_web) to gather real data before creating any diagram. I will not hallucinate or guess financial numbers. Let me start by gathering the data." }] },
         ...conversationHistory
       ],
       tools: [{ functionDeclarations: diagramToolDeclarations }],
@@ -386,10 +361,12 @@ async function generateDiagramWithStreaming(
     const functionCall = content.parts?.find((p: any) => p.functionCall)?.functionCall
     
     if (functionCall) {
+      hasCalledTool = true
+      
       writer.write('tool_call', { 
         tool: functionCall.name, 
         args: functionCall.args,
-        message: `Using tool: ${functionCall.name}`
+        message: `Fetching data: ${functionCall.name}...`
       })
       
       // Execute the tool
@@ -398,7 +375,7 @@ async function generateDiagramWithStreaming(
       writer.write('tool_result', { 
         tool: functionCall.name, 
         success: !('error' in (toolResult as any)),
-        message: `Completed: ${functionCall.name}`
+        message: `Got data from ${functionCall.name}`
       })
       
       // Add to conversation
@@ -423,6 +400,22 @@ async function generateDiagramWithStreaming(
     const textPart = content.parts?.find((p: any) => p.text)?.text
     
     if (textPart) {
+      // If AI tries to output JSON without calling tools first, force it to use tools
+      if (!hasCalledTool && companySymbol) {
+        console.log("AI tried to skip tool calls, forcing research phase")
+        writer.write('status', { stage: 'retrying', message: 'Gathering real data first...' })
+        
+        conversationHistory.push({
+          role: "model",
+          parts: [{ text: textPart }]
+        })
+        conversationHistory.push({
+          role: "user",
+          parts: [{ text: `STOP. You must call get_company_fundamentals with symbol "${companySymbol}" FIRST to get real data. Do not generate JSON until you have called the tools and received actual financial data.` }]
+        })
+        continue
+      }
+      
       writer.write('status', { stage: 'parsing', message: 'Parsing diagram data...' })
       
       try {
@@ -452,7 +445,23 @@ async function generateDiagramWithStreaming(
             })
             conversationHistory.push({
               role: "user",
-              parts: [{ text: `Some shapes are missing labels. Every rectangle, ellipse, and diamond MUST have a "label" property with "text" inside. Please regenerate the JSON with proper labels for all shapes.` }]
+              parts: [{ text: `Some shapes are missing labels. Every rectangle, ellipse, and diamond MUST have a "label" property with "text" containing real data values. Please regenerate with proper labels.` }]
+            })
+            continue
+          }
+          
+          // Check if we have enough elements (at least 4 for a meaningful diagram)
+          if (parsed.elements.length < 4 && hasCalledTool) {
+            console.log("Warning: Too few elements, asking AI to add more detail")
+            writer.write('status', { stage: 'retrying', message: 'Adding more detail...' })
+            
+            conversationHistory.push({
+              role: "model",
+              parts: [{ text: textPart }]
+            })
+            conversationHistory.push({
+              role: "user",
+              parts: [{ text: `This diagram only has ${parsed.elements.length} elements, which is too simple. Based on the data you retrieved, create a more detailed breakdown with at least 6-8 nodes showing the key components. Use the grid system to lay them out properly.` }]
             })
             continue
           }
