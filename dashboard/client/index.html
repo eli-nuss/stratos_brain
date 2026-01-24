@@ -2,6 +2,10 @@
 <html lang="en">
 
   <head>
+    <!-- Excalidraw requires process.env to be defined -->
+    <script>
+      window.process = { env: { IS_PREACT: 'true' } };
+    </script>
     <meta charset="UTF-8" />
     <meta
       name="viewport"

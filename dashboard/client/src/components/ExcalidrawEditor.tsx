@@ -428,32 +428,18 @@ export function ExcalidrawEditor({
         </div>
       </div>
 
-      {/* Excalidraw Canvas Container - MUST have explicit dimensions for Excalidraw to render */}
-      <div className="absolute top-12 left-0 right-0 bottom-0 overflow-hidden bg-[#1e1e1e]">
+      {/* Excalidraw Canvas Container */}
+      <div className="absolute top-12 left-0 right-0 bottom-0 bg-[#1e1e1e] overflow-hidden">
         {isLoading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <Loader2 className="w-8 h-8 text-zinc-400 animate-spin mx-auto mb-3" />
-              <p className="text-sm text-zinc-400">Loading Excalidraw...</p>
-            </div>
+          <div className="flex flex-col items-center justify-center h-full text-zinc-400">
+            <Loader2 className="w-8 h-8 animate-spin mb-3" />
+            <span className="text-sm">Loading Canvas...</span>
           </div>
         ) : loadError ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center max-w-md">
-              <p className="text-sm text-red-400 mb-2">Load Error</p>
-              <p className="text-xs text-zinc-500 mb-4">{loadError}</p>
-              <button
-                onClick={() => window.location.reload()}
-                className="flex items-center gap-2 mx-auto px-4 py-2 text-xs text-blue-400 hover:text-blue-300 border border-blue-400/30 rounded"
-              >
-                <RefreshCw className="w-3 h-3" />
-                Reload page
-              </button>
-            </div>
-          </div>
+          <div className="flex items-center justify-center h-full text-red-400">{loadError}</div>
         ) : ExcalidrawComponent ? (
-          /* THE FIX: Excalidraw REQUIRES this wrapper to have explicit dimensions */
-          <div style={{ height: "100%", width: "100%" }}>
+          /* CRITICAL FIX: Excalidraw MUST have a parent with explicit height/width and position */
+          <div className="excalidraw-wrapper" style={{ height: '100%', width: '100%', position: 'relative' }}>
             <ExcalidrawComponent
               excalidrawAPI={(api: ExcalidrawAPI) => {
                 excalidrawAPIRef.current = api;
@@ -463,6 +449,7 @@ export function ExcalidrawEditor({
                 appState: {
                   viewBackgroundColor: '#1e1e1e',
                   theme: 'dark',
+                  gridSize: 20, // Added grid for better blank canvas experience
                 },
                 files: initialFiles,
                 scrollToContent: true,
@@ -478,19 +465,7 @@ export function ExcalidrawEditor({
               }}
             />
           </div>
-        ) : (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <p className="text-sm text-red-400">Failed to load Excalidraw</p>
-              <button
-                onClick={() => window.location.reload()}
-                className="mt-2 text-xs text-blue-400 hover:text-blue-300"
-              >
-                Reload page
-              </button>
-            </div>
-          </div>
-        )}
+        ) : null}
       </div>
     </div>
   );
