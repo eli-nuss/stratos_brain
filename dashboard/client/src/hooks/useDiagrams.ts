@@ -45,9 +45,19 @@ export interface ExcalidrawElement {
   [key: string]: unknown;
 }
 
+// Plan/Checklist types
+export interface DiagramPlan {
+  title: string;
+  type: string;
+  checklist: Array<{ item: string; status: 'pending' | 'complete' }>;
+  tools: string[];
+  layout: string;
+  estimated_elements: number;
+}
+
 // Generation progress types
 export interface GenerationProgress {
-  stage: 'starting' | 'thinking' | 'tool_call' | 'tool_result' | 'parsing' | 'saving' | 'retrying' | 'complete' | 'error';
+  stage: 'planning' | 'researching' | 'designing' | 'parsing' | 'saving' | 'refining' | 'complete' | 'error';
   message: string;
   tool?: string;
   args?: Record<string, unknown>;
@@ -65,6 +75,7 @@ interface UseDiagramsReturn {
   isLoading: boolean;
   isGenerating: boolean;
   generationProgress: GenerationProgress | null;
+  diagramPlan: DiagramPlan | null;
   toolCalls: Array<{ tool: string; args?: Record<string, unknown>; status: 'running' | 'complete' }>;
   error: string | null;
   createDiagram: (diagram: {
@@ -92,6 +103,7 @@ export function useDiagrams({ chatId, autoRefresh = false, refreshInterval = 500
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState<GenerationProgress | null>(null);
+  const [diagramPlan, setDiagramPlan] = useState<DiagramPlan | null>(null);
   const [toolCalls, setToolCalls] = useState<Array<{ tool: string; args?: Record<string, unknown>; status: 'running' | 'complete' }>>([]);
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -158,7 +170,8 @@ export function useDiagrams({ chatId, autoRefresh = false, refreshInterval = 500
 
     setIsGenerating(true);
     setError(null);
-    setGenerationProgress({ stage: 'starting', message: 'Starting diagram generation...' });
+    setGenerationProgress({ stage: 'planning', message: 'Creating diagram plan...' });
+    setDiagramPlan(null);
     setToolCalls([]);
 
     try {
@@ -195,7 +208,6 @@ export function useDiagrams({ chatId, autoRefresh = false, refreshInterval = 500
       const decoder = new TextDecoder();
       let buffer = '';
       let resultDiagram: Diagram | null = null;
-      let currentEventType = '';
 
       console.log('[DiagramGen] Starting to read stream...');
 
@@ -235,9 +247,22 @@ export function useDiagrams({ chatId, autoRefresh = false, refreshInterval = 500
             
             // Handle based on event type
             switch (eventType) {
+              case 'plan':
+                // Received the diagram plan/checklist
+                setDiagramPlan({
+                  title: data.title,
+                  type: data.type,
+                  checklist: data.checklist,
+                  tools: data.tools,
+                  layout: data.layout,
+                  estimated_elements: data.estimated_elements
+                });
+                setGenerationProgress({ stage: 'planning', message: `Plan: ${data.title}` });
+                break;
+                
               case 'status':
                 setGenerationProgress({
-                  stage: data.stage || 'thinking',
+                  stage: data.stage || 'researching',
                   message: data.message || '',
                   iteration: data.iteration,
                 });
@@ -250,7 +275,7 @@ export function useDiagrams({ chatId, autoRefresh = false, refreshInterval = 500
                   status: 'running' as const 
                 }]);
                 setGenerationProgress({
-                  stage: 'tool_call',
+                  stage: 'researching',
                   message: data.message || `Using ${data.tool}...`,
                 });
                 break;
@@ -260,8 +285,23 @@ export function useDiagrams({ chatId, autoRefresh = false, refreshInterval = 500
                   prev.map(tc => tc.tool === data.tool ? { ...tc, status: 'complete' as const } : tc)
                 );
                 setGenerationProgress({
-                  stage: 'tool_result',
+                  stage: 'researching',
                   message: data.message || `Completed ${data.tool}`,
+                });
+                break;
+                
+              case 'checklist_update':
+                // Update a specific checklist item
+                setDiagramPlan(prev => {
+                  if (!prev) return prev;
+                  return {
+                    ...prev,
+                    checklist: prev.checklist.map(item => 
+                      item.item.toLowerCase().includes(data.tool.toLowerCase().replace(/_/g, ' '))
+                        ? { ...item, status: data.status }
+                        : item
+                    )
+                  };
                 });
                 break;
                 
@@ -501,6 +541,7 @@ export function useDiagrams({ chatId, autoRefresh = false, refreshInterval = 500
     isLoading,
     isGenerating,
     generationProgress,
+    diagramPlan,
     toolCalls,
     error,
     createDiagram,
