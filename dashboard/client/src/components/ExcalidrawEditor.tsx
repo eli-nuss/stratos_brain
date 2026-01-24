@@ -214,6 +214,7 @@ export function ExcalidrawEditor({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [processedElements, setProcessedElements] = useState<any[] | null>(null);
   const [elementsReady, setElementsReady] = useState(false);
+  const [apiReady, setApiReady] = useState(false); // NEW: Track API readiness as state
   const [sceneUpdated, setSceneUpdated] = useState(false);
   const excalidrawAPIRef = useRef<any>(null);
   const diagramIdRef = useRef<string | null>(null);
@@ -236,6 +237,18 @@ export function ExcalidrawEditor({
         });
     }
   }, [isOpen, ExcalidrawModule]);
+
+  // Reset states when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setApiReady(false);
+      setSceneUpdated(false);
+      setElementsReady(false);
+      setProcessedElements(null);
+      excalidrawAPIRef.current = null;
+      diagramIdRef.current = null;
+    }
+  }, [isOpen]);
 
   // Process elements when diagram changes
   useEffect(() => {
@@ -293,44 +306,44 @@ export function ExcalidrawEditor({
     }
   }, [diagram]);
 
-  // Update scene via API after Excalidraw mounts
+  // Update scene via API after both API and elements are ready
   useEffect(() => {
-    if (!excalidrawAPIRef.current || !elementsReady || !processedElements || sceneUpdated) {
+    console.log('[ExcalidrawEditor] Update effect check:', { apiReady, elementsReady, hasElements: !!processedElements, sceneUpdated });
+    
+    if (!apiReady || !elementsReady || !processedElements || sceneUpdated) {
       return;
     }
 
-    // Small delay to ensure Excalidraw is fully initialized
-    const timer = setTimeout(() => {
-      const api = excalidrawAPIRef.current;
-      if (!api) return;
+    const api = excalidrawAPIRef.current;
+    if (!api) {
+      console.log('[ExcalidrawEditor] API ref is null despite apiReady=true');
+      return;
+    }
 
-      console.log('[ExcalidrawEditor] Updating scene via API with', processedElements.length, 'elements');
-      
-      try {
-        // Update the scene with processed elements
-        api.updateScene({
-          elements: processedElements,
-          appState: {
-            viewBackgroundColor: diagram?.excalidraw_data?.appState?.viewBackgroundColor || '#1e1e1e',
-          }
-        });
+    console.log('[ExcalidrawEditor] Updating scene via API with', processedElements.length, 'elements');
+    
+    try {
+      // Update the scene with processed elements
+      api.updateScene({
+        elements: processedElements,
+        appState: {
+          viewBackgroundColor: diagram?.excalidraw_data?.appState?.viewBackgroundColor || '#1e1e1e',
+        }
+      });
 
-        // Scroll to content after a brief delay
-        setTimeout(() => {
-          if (api && processedElements.length > 0) {
-            api.scrollToContent(processedElements, { fitToContent: true, animate: true });
-            console.log('[ExcalidrawEditor] Scrolled to content');
-          }
-        }, 100);
+      // Scroll to content after a brief delay
+      setTimeout(() => {
+        if (api && processedElements.length > 0) {
+          api.scrollToContent(processedElements, { fitToContent: true, animate: true });
+          console.log('[ExcalidrawEditor] Scrolled to content');
+        }
+      }, 100);
 
-        setSceneUpdated(true);
-      } catch (err) {
-        console.error('[ExcalidrawEditor] Failed to update scene:', err);
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [elementsReady, processedElements, sceneUpdated, diagram]);
+      setSceneUpdated(true);
+    } catch (err) {
+      console.error('[ExcalidrawEditor] Failed to update scene:', err);
+    }
+  }, [apiReady, elementsReady, processedElements, sceneUpdated, diagram]);
 
   const handleSave = useCallback(async () => {
     if (!diagram || !excalidrawAPIRef.current) return;
@@ -373,16 +386,12 @@ export function ExcalidrawEditor({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, handleSave, onClose]);
 
-  // Handle API ready callback
+  // Handle API ready callback - this triggers the update effect
   const handleExcalidrawAPI = useCallback((api: any) => {
     console.log('[ExcalidrawEditor] Excalidraw API ready');
     excalidrawAPIRef.current = api;
-    
-    // Trigger scene update after API is ready
-    if (elementsReady && processedElements && processedElements.length > 0) {
-      setSceneUpdated(false);
-    }
-  }, [elementsReady, processedElements]);
+    setApiReady(true); // This will trigger the update effect
+  }, []);
 
   if (!isOpen) return null;
 
