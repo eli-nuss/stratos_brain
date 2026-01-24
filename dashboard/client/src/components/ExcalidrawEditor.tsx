@@ -32,30 +32,148 @@ interface ExcalidrawAPI {
   scrollToContent: () => void;
 }
 
-// ============ MERMAID TO EXCALIDRAW CONVERSION ============
+// ============ ELEMENT CONVERSION ============
 
-async function convertMermaidToExcalidraw(mermaidSyntax: string): Promise<{
-  elements: unknown[];
-  files: Record<string, unknown>;
-}> {
-  try {
-    // Dynamically import the mermaid-to-excalidraw library (v2.0.0+)
-    const { parseMermaidToExcalidraw } = await import('@excalidraw/mermaid-to-excalidraw');
+// Convert our simplified element format to full Excalidraw elements
+function convertToExcalidrawElements(elements: unknown[]): unknown[] {
+  if (!Array.isArray(elements)) return [];
+  
+  return elements.map((el: any, index: number) => {
+    // Generate a unique ID if not provided
+    const id = el.id || `element-${index}-${Date.now()}`;
     
-    // Parse Mermaid to Excalidraw elements (v2 returns ready-to-use elements)
-    const { elements, files } = await parseMermaidToExcalidraw(mermaidSyntax, {
-      themeVariables: {
-        fontSize: '16px',
-      },
-    });
+    // Base properties all elements need
+    const baseProps = {
+      id,
+      x: el.x || 0,
+      y: el.y || 0,
+      width: el.width || 100,
+      height: el.height || 100,
+      angle: el.angle || 0,
+      strokeColor: el.strokeColor || '#000000',
+      backgroundColor: el.backgroundColor || 'transparent',
+      fillStyle: el.fillStyle || 'solid',
+      strokeWidth: el.strokeWidth || 2,
+      strokeStyle: el.strokeStyle || 'solid',
+      roughness: el.roughness ?? 1,
+      opacity: el.opacity ?? 100,
+      groupIds: el.groupIds || [],
+      frameId: el.frameId || null,
+      roundness: el.roundness || null,
+      seed: el.seed || Math.floor(Math.random() * 1000000),
+      version: el.version || 1,
+      versionNonce: el.versionNonce || Math.floor(Math.random() * 1000000),
+      isDeleted: false,
+      boundElements: el.boundElements || null,
+      updated: Date.now(),
+      link: el.link || null,
+      locked: el.locked || false,
+    };
+
+    switch (el.type) {
+      case 'rectangle':
+      case 'ellipse':
+      case 'diamond':
+        return {
+          ...baseProps,
+          type: el.type,
+          // Handle label (text inside shape)
+          ...(el.label && {
+            boundElements: [
+              {
+                id: `${id}-label`,
+                type: 'text',
+              },
+            ],
+          }),
+        };
+
+      case 'text':
+        return {
+          ...baseProps,
+          type: 'text',
+          text: el.text || '',
+          fontSize: el.fontSize || 20,
+          fontFamily: el.fontFamily || 1, // 1 = Hand-drawn, 2 = Normal, 3 = Code
+          textAlign: el.textAlign || 'center',
+          verticalAlign: el.verticalAlign || 'middle',
+          containerId: el.containerId || null,
+          originalText: el.text || '',
+          lineHeight: el.lineHeight || 1.25,
+          baseline: el.baseline || 18,
+        };
+
+      case 'arrow':
+      case 'line':
+        return {
+          ...baseProps,
+          type: el.type,
+          points: el.points || [[0, 0], [el.width || 100, el.height || 0]],
+          lastCommittedPoint: null,
+          startBinding: el.start?.id ? { elementId: el.start.id, focus: 0, gap: 1 } : null,
+          endBinding: el.end?.id ? { elementId: el.end.id, focus: 0, gap: 1 } : null,
+          startArrowhead: el.startArrowhead || null,
+          endArrowhead: el.type === 'arrow' ? (el.endArrowhead || 'triangle') : null,
+        };
+
+      default:
+        return {
+          ...baseProps,
+          type: el.type || 'rectangle',
+        };
+    }
+  });
+}
+
+// Process elements with labels - create separate text elements for labels
+function processElementsWithLabels(elements: unknown[]): unknown[] {
+  if (!Array.isArray(elements)) return [];
+  
+  const result: unknown[] = [];
+  
+  elements.forEach((el: any, index: number) => {
+    const id = el.id || `element-${index}-${Date.now()}`;
     
-    console.log('Mermaid conversion result:', { elementCount: elements?.length, hasFiles: !!files });
+    // Add the main element
+    result.push(el);
     
-    return { elements: elements || [], files: files || {} };
-  } catch (error) {
-    console.error('Failed to convert Mermaid to Excalidraw:', error);
-    throw error;
-  }
+    // If element has a label, create a text element for it
+    if (el.label && (el.type === 'rectangle' || el.type === 'ellipse' || el.type === 'diamond')) {
+      const labelId = `${id}-label`;
+      const labelText = {
+        type: 'text',
+        id: labelId,
+        x: (el.x || 0) + (el.width || 100) / 2,
+        y: (el.y || 0) + (el.height || 100) / 2,
+        text: el.label.text || '',
+        fontSize: el.label.fontSize || 16,
+        strokeColor: el.label.strokeColor || '#000000',
+        textAlign: 'center',
+        verticalAlign: 'middle',
+        containerId: id,
+      };
+      result.push(labelText);
+    }
+    
+    // If arrow has a label, create a text element for it
+    if (el.label && (el.type === 'arrow' || el.type === 'line')) {
+      const labelId = `${id}-arrow-label`;
+      const labelText = {
+        type: 'text',
+        id: labelId,
+        x: (el.x || 0) + (el.width || 100) / 2,
+        y: (el.y || 0) + (el.height || 0) / 2 - 10,
+        text: el.label.text || '',
+        fontSize: el.label.fontSize || 14,
+        strokeColor: el.label.strokeColor || '#000000',
+        textAlign: 'center',
+        verticalAlign: 'middle',
+      };
+      result.push(labelText);
+    }
+  });
+  
+  return result;
 }
 
 // ============ MAIN COMPONENT ============
@@ -73,17 +191,16 @@ export function ExcalidrawEditor({
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [ExcalidrawComponent, setExcalidrawComponent] = useState<React.ComponentType<any> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isConverting, setIsConverting] = useState(false);
-  const [conversionError, setConversionError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [initialElements, setInitialElements] = useState<unknown[]>([]);
   const [initialFiles, setInitialFiles] = useState<Record<string, unknown>>({});
   const excalidrawAPIRef = useRef<ExcalidrawAPI | null>(null);
 
-  // Dynamically import Excalidraw and handle Mermaid conversion
+  // Dynamically import Excalidraw and process elements
   useEffect(() => {
     if (isOpen && diagram) {
       setIsLoading(true);
-      setConversionError(null);
+      setLoadError(null);
       
       const loadExcalidraw = async () => {
         try {
@@ -91,37 +208,29 @@ export function ExcalidrawEditor({
           const module = await import('@excalidraw/excalidraw');
           setExcalidrawComponent(() => module.Excalidraw);
           
-          // Check if this is a Mermaid diagram that needs conversion
+          // Get diagram data
           const diagramData = diagram.excalidraw_data;
+          console.log('Loading diagram data:', diagramData);
           
-          if (diagramData?.type === 'mermaid' && diagramData?.mermaid) {
-            setIsConverting(true);
-            console.log('Converting Mermaid to Excalidraw:', diagramData.mermaid);
+          if (diagramData?.elements && Array.isArray(diagramData.elements)) {
+            // Process elements - handle labels and convert to full format
+            const processedElements = processElementsWithLabels(diagramData.elements);
+            const convertedElements = convertToExcalidrawElements(processedElements);
             
-            try {
-              const { elements, files } = await convertMermaidToExcalidraw(diagramData.mermaid);
-              setInitialElements(elements);
-              setInitialFiles(files);
-              console.log('Conversion successful, elements:', elements.length);
-            } catch (convErr) {
-              console.error('Mermaid conversion failed:', convErr);
-              setConversionError(`Failed to convert diagram: ${convErr}`);
-              // Fall back to empty canvas
-              setInitialElements([]);
-              setInitialFiles({});
-            }
-            setIsConverting(false);
+            console.log('Processed elements:', convertedElements.length);
+            setInitialElements(convertedElements);
+            setInitialFiles(diagramData.files || {});
           } else {
-            // Regular Excalidraw data
-            setInitialElements(diagramData?.elements || []);
-            setInitialFiles(diagramData?.files || {});
+            console.log('No elements found, starting with empty canvas');
+            setInitialElements([]);
+            setInitialFiles({});
           }
           
           setIsLoading(false);
         } catch (err) {
           console.error('Failed to load Excalidraw:', err);
           setIsLoading(false);
-          setConversionError(`Failed to load editor: ${err}`);
+          setLoadError(`Failed to load editor: ${err}`);
         }
       };
       
@@ -147,7 +256,7 @@ export function ExcalidrawEditor({
         source: 'stratos-brain',
         elements: elements as any[],
         appState: {
-          viewBackgroundColor: (appState as any)?.viewBackgroundColor || '#ffffff',
+          viewBackgroundColor: (appState as any)?.viewBackgroundColor || '#1e1e1e',
           gridSize: (appState as any)?.gridSize || null,
         },
         files: files,
@@ -208,7 +317,7 @@ export function ExcalidrawEditor({
     if (excalidrawAPIRef.current && initialElements.length > 0) {
       setTimeout(() => {
         excalidrawAPIRef.current?.scrollToContent();
-      }, 100);
+      }, 200);
     }
   }, [initialElements]);
 
@@ -321,20 +430,18 @@ export function ExcalidrawEditor({
 
       {/* Excalidraw Canvas */}
       <div className="absolute top-12 left-0 right-0 bottom-0">
-        {isLoading || isConverting ? (
+        {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <Loader2 className="w-8 h-8 text-zinc-400 animate-spin mx-auto mb-3" />
-              <p className="text-sm text-zinc-400">
-                {isConverting ? 'Converting diagram...' : 'Loading Excalidraw...'}
-              </p>
+              <p className="text-sm text-zinc-400">Loading Excalidraw...</p>
             </div>
           </div>
-        ) : conversionError ? (
+        ) : loadError ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center max-w-md">
-              <p className="text-sm text-red-400 mb-2">Conversion Error</p>
-              <p className="text-xs text-zinc-500 mb-4">{conversionError}</p>
+              <p className="text-sm text-red-400 mb-2">Load Error</p>
+              <p className="text-xs text-zinc-500 mb-4">{loadError}</p>
               <button
                 onClick={() => window.location.reload()}
                 className="flex items-center gap-2 mx-auto px-4 py-2 text-xs text-blue-400 hover:text-blue-300 border border-blue-400/30 rounded"
@@ -346,16 +453,17 @@ export function ExcalidrawEditor({
           </div>
         ) : ExcalidrawComponent ? (
           <ExcalidrawComponent
-            ref={(api: ExcalidrawAPI) => {
+            excalidrawAPI={(api: ExcalidrawAPI) => {
               excalidrawAPIRef.current = api;
             }}
             initialData={{
               elements: initialElements,
               appState: {
-                viewBackgroundColor: diagram?.excalidraw_data?.appState?.viewBackgroundColor || '#ffffff',
+                viewBackgroundColor: '#1e1e1e',
                 theme: 'dark',
               },
               files: initialFiles,
+              scrollToContent: true,
             }}
             onChange={handleChange}
             theme="dark"
