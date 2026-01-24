@@ -119,22 +119,33 @@ export function CompanyChatInterfaceNew({ chat, onRefresh }: CompanyChatInterfac
           chat.name,   // company name
           undefined    // chat summary (could be added later)
         );
-        // Automatically open the generated diagram
-        setActiveDiagram(newDiagram);
-        setEditorOpen(true);
+        // THE FIX: Only open the editor if generation actually succeeded
+        if (newDiagram && newDiagram.diagram_id) {
+          setActiveDiagram(newDiagram);
+          setEditorOpen(true);
+        } else {
+          // Diagram generation returned but without valid data
+          alert('Diagram generation completed but returned invalid data. Please try again.');
+        }
       } catch (err) {
         console.error('Failed to generate diagram:', err);
-        // Error is already set in the hook
+        // THE FIX: Actually show the error to the user instead of failing silently
+        alert(`Failed to generate diagram: ${err instanceof Error ? err.message : 'Unknown error'}`);
       }
     } else {
       // Blank canvas - create empty diagram directly
-      const newDiagram = await createDiagram({
-        name: 'Untitled Diagram',
-        description: 'New blank diagram',
-        is_ai_generated: false,
-      });
-      setActiveDiagram(newDiagram);
-      setEditorOpen(true);
+      try {
+        const newDiagram = await createDiagram({
+          name: 'Untitled Diagram',
+          description: 'New blank diagram',
+          is_ai_generated: false,
+        });
+        setActiveDiagram(newDiagram);
+        setEditorOpen(true);
+      } catch (err) {
+        console.error('Failed to create blank diagram:', err);
+        alert(`Failed to create diagram: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      }
     }
   }, [createDiagram, generateDiagram, chat.symbol, chat.name]);
 

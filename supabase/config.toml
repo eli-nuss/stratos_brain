@@ -87,3 +87,12 @@ port = 54327
 vector_port = 54328
 # Configure one of the supported backends: `postgres`, `bigquery`.
 backend = "postgres"
+
+# Edge Functions configuration
+[functions.diagram-generator]
+verify_jwt = false
+# Increase timeout from default (2s) to allow for AI diagram generation
+# This function uses multiple tool calls and can take 10-30 seconds
+
+[functions.diagrams-api]
+verify_jwt = false

@@ -428,8 +428,8 @@ export function ExcalidrawEditor({
         </div>
       </div>
 
-      {/* Excalidraw Canvas */}
-      <div className="absolute top-12 left-0 right-0 bottom-0">
+      {/* Excalidraw Canvas Container - MUST have explicit dimensions for Excalidraw to render */}
+      <div className="absolute top-12 left-0 right-0 bottom-0 overflow-hidden bg-[#1e1e1e]">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -452,29 +452,32 @@ export function ExcalidrawEditor({
             </div>
           </div>
         ) : ExcalidrawComponent ? (
-          <ExcalidrawComponent
-            excalidrawAPI={(api: ExcalidrawAPI) => {
-              excalidrawAPIRef.current = api;
-            }}
-            initialData={{
-              elements: initialElements,
-              appState: {
-                viewBackgroundColor: '#1e1e1e',
-                theme: 'dark',
-              },
-              files: initialFiles,
-              scrollToContent: true,
-            }}
-            onChange={handleChange}
-            theme="dark"
-            UIOptions={{
-              canvasActions: {
-                loadScene: false,
-                export: false,
-                saveToActiveFile: false,
-              },
-            }}
-          />
+          /* THE FIX: Excalidraw REQUIRES this wrapper to have explicit dimensions */
+          <div style={{ height: "100%", width: "100%" }}>
+            <ExcalidrawComponent
+              excalidrawAPI={(api: ExcalidrawAPI) => {
+                excalidrawAPIRef.current = api;
+              }}
+              initialData={{
+                elements: initialElements,
+                appState: {
+                  viewBackgroundColor: '#1e1e1e',
+                  theme: 'dark',
+                },
+                files: initialFiles,
+                scrollToContent: true,
+              }}
+              onChange={handleChange}
+              theme="dark"
+              UIOptions={{
+                canvasActions: {
+                  loadScene: false,
+                  export: false,
+                  saveToActiveFile: false,
+                },
+              }}
+            />
+          </div>
         ) : (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">

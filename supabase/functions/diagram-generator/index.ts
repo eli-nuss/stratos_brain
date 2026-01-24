@@ -432,28 +432,27 @@ async function generateDiagram(
     
     if (textPart) {
       console.log("Got text response, attempting to parse as JSON")
+      console.log("Raw text length:", textPart.length)
       
       try {
-        // Try to parse the JSON
-        let jsonStr = textPart.trim()
+        // THE FIX: Use regex to extract the JSON object, ignoring any preamble text
+        // This handles cases where the AI includes conversational text like "Here is the diagram:"
+        const jsonMatch = textPart.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || textPart.match(/(\{[\s\S]*\})/)
         
-        // Remove markdown code blocks if present
-        if (jsonStr.startsWith("```json")) {
-          jsonStr = jsonStr.slice(7)
+        if (!jsonMatch) {
+          throw new Error("Could not find JSON structure in response")
         }
-        if (jsonStr.startsWith("```")) {
-          jsonStr = jsonStr.slice(3)
-        }
-        if (jsonStr.endsWith("```")) {
-          jsonStr = jsonStr.slice(0, -3)
-        }
-        jsonStr = jsonStr.trim()
+        
+        const jsonStr = jsonMatch[1].trim()
+        console.log("Extracted JSON length:", jsonStr.length)
         
         const parsed = JSON.parse(jsonStr)
         
         if (parsed.elements && Array.isArray(parsed.elements)) {
           // Generate a name from the request
           const diagramName = request.length > 50 ? request.substring(0, 47) + "..." : request
+          
+          console.log("Successfully parsed diagram with", parsed.elements.length, "elements")
           
           return {
             elements: parsed.elements,
@@ -465,11 +464,11 @@ async function generateDiagram(
         }
       } catch (parseError) {
         console.error("JSON parse error:", parseError)
-        console.error("Raw text:", textPart.substring(0, 500))
+        console.error("Raw text (first 1000 chars):", textPart.substring(0, 1000))
         
         // If we've tried multiple times, throw
         if (iteration >= maxIterations) {
-          throw new Error("Failed to parse diagram JSON after " + maxIterations + " attempts")
+          throw new Error("Failed to parse diagram JSON after " + maxIterations + " attempts: " + String(parseError))
         }
         
         // Ask the model to fix the JSON
@@ -479,7 +478,7 @@ async function generateDiagram(
         })
         conversationHistory.push({
           role: "user",
-          parts: [{ text: "That response was not valid JSON. Please return ONLY a valid JSON object with an 'elements' array and 'appState' object. No markdown, no explanations." }]
+          parts: [{ text: "That response was not valid JSON. Please return ONLY a valid JSON object with an 'elements' array and 'appState' object. No markdown, no explanations, no preamble text - just the raw JSON starting with { and ending with }." }]
         })
         continue
       }
