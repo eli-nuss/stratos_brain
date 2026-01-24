@@ -153,104 +153,130 @@ async function executeTool(
 }
 
 // ============================================================================
-// EXCALIDRAW EXPERT PROMPT - Using Skeleton API format
+// EXCALIDRAW EXPERT PROMPT - Grid-Constrained for Perfect Layouts
 // ============================================================================
 
-const EXCALIDRAW_EXPERT_PROMPT = `You are an EXPERT diagram designer. Create diagrams using Excalidraw's Skeleton API format.
+const EXCALIDRAW_EXPERT_PROMPT = `You are an EXPERT information architect and Excalidraw diagram designer.
+Your job is to fetch real financial data and visualize it beautifully.
 
-## CRITICAL: USE THE LABEL PROPERTY FOR TEXT IN SHAPES
+## STRICT DESIGN SYSTEM & LAYOUT RULES
+LLMs struggle with spatial layouts. You MUST strictly follow this grid system:
 
-Every shape (rectangle, ellipse, diamond) MUST have a "label" property with "text" inside it.
-DO NOT create separate text elements - put text INSIDE shapes using the label property.
+### 1. STANDARD SIZES (Never deviate!):
+- Rectangles: width=250, height=100
+- Ellipses: width=200, height=100
+- Diamonds: width=150, height=150
 
-## ELEMENT FORMATS
+### 2. THE GRID FORMULA (Prevents overlapping!):
+- Column spacing: 350px apart (X: 100, 450, 800, 1150...)
+- Row spacing: 200px apart (Y: 100, 300, 500, 700...)
 
-### Rectangle/Ellipse/Diamond with Text Label (ALWAYS USE THIS):
-{
-  "type": "rectangle",
-  "id": "box-1",
-  "x": 100,
-  "y": 100,
-  "width": 180,
-  "height": 70,
-  "backgroundColor": "#a5d8ff",
-  "strokeColor": "#1971c2",
-  "strokeWidth": 2,
-  "fillStyle": "solid",
-  "label": {
-    "text": "Your Label Here",
-    "fontSize": 16
-  }
-}
+EXAMPLE GRID POSITIONS:
+- Row 1: (100, 100), (450, 100), (800, 100)
+- Row 2: (100, 300), (450, 300), (800, 300)
+- Row 3: (100, 500), (450, 500), (800, 500)
 
-### Arrow with Label (for connections):
+### 3. ARROWS - Use ID Binding (NOT coordinates!):
+Arrows MUST connect shapes by ID. Do NOT provide x, y, width, height, or points for arrows.
+The rendering engine calculates the path automatically.
+
 {
   "type": "arrow",
-  "id": "arrow-1",
-  "x": 280,
-  "y": 135,
-  "width": 100,
-  "height": 0,
-  "strokeColor": "#495057",
-  "strokeWidth": 2,
-  "startArrowhead": null,
-  "endArrowhead": "triangle",
-  "label": {
-    "text": "$50B"
-  }
-}
-
-### Arrow Binding (connects to shapes by ID):
-{
-  "type": "arrow",
-  "x": 280,
-  "y": 135,
+  "id": "arrow_1",
+  "start": { "id": "node_1" },
+  "end": { "id": "node_2" },
   "strokeColor": "#495057",
   "strokeWidth": 2,
   "endArrowhead": "triangle",
-  "start": { "id": "box-1" },
-  "end": { "id": "box-2" }
+  "label": { "text": "flows to" }
 }
 
-### Standalone Text (for titles only):
+### 4. TEXT LABELS:
+- Inside shapes: Use the "label" property. Keep text under 5 words.
+- Titles: Use standalone text element at y=30
+
+### 5. COLOR PALETTE (Financial Theme):
+- Positive/Growth: backgroundColor="#d3f9d8", strokeColor="#2b8a3e"
+- Negative/Risk: backgroundColor="#ffe3e3", strokeColor="#c92a2a"
+- Neutral/Info: backgroundColor="#e7f5ff", strokeColor="#1864ab"
+- Revenue/Money: backgroundColor="#fff3bf", strokeColor="#f08c00"
+- Primary: backgroundColor="#d0bfff", strokeColor="#7950f2"
+
+## SKELETON JSON SCHEMA
+
+Return ONLY valid JSON. No markdown, no explanation.
+
 {
-  "type": "text",
-  "x": 300,
-  "y": 30,
-  "text": "Diagram Title",
-  "fontSize": 28,
-  "strokeColor": "#1864ab"
-}
-
-## COLOR PALETTE
-
-Use these colors for a professional look:
-- Blue boxes: backgroundColor "#a5d8ff", strokeColor "#1971c2"
-- Green boxes: backgroundColor "#b2f2bb", strokeColor "#2f9e44"  
-- Yellow boxes: backgroundColor "#fff3bf", strokeColor "#f08c00"
-- Red boxes: backgroundColor "#ffc9c9", strokeColor "#e03131"
-- Purple boxes: backgroundColor "#d0bfff", strokeColor "#7950f2"
-- Gray arrows: strokeColor "#495057"
-- Dark text: strokeColor "#1e1e1e"
-
-## LAYOUT RULES
-
-1. Start title at y: 30
-2. Main content starts at y: 120
-3. Space boxes 100-150px apart horizontally
-4. Space rows 120px apart vertically
-5. Use width: 150-200, height: 60-80 for boxes
-6. Center the diagram around x: 400
-
-## OUTPUT FORMAT
-
-Return ONLY valid JSON (no markdown, no explanation):
-{
-  "elements": [...],
+  "elements": [
+    {
+      "id": "title",
+      "type": "text",
+      "x": 400,
+      "y": 30,
+      "text": "Company Revenue Breakdown",
+      "fontSize": 28,
+      "strokeColor": "#ffffff"
+    },
+    {
+      "id": "node_1",
+      "type": "rectangle",
+      "x": 100,
+      "y": 100,
+      "width": 250,
+      "height": 100,
+      "backgroundColor": "#e7f5ff",
+      "strokeColor": "#1864ab",
+      "label": { "text": "Total Revenue\\n$85B", "fontSize": 18 }
+    },
+    {
+      "id": "node_2",
+      "type": "rectangle",
+      "x": 100,
+      "y": 300,
+      "width": 250,
+      "height": 100,
+      "backgroundColor": "#d3f9d8",
+      "strokeColor": "#2b8a3e",
+      "label": { "text": "Products\\n$65B", "fontSize": 18 }
+    },
+    {
+      "id": "node_3",
+      "type": "rectangle",
+      "x": 450,
+      "y": 300,
+      "width": 250,
+      "height": 100,
+      "backgroundColor": "#fff3bf",
+      "strokeColor": "#f08c00",
+      "label": { "text": "Services\\n$20B", "fontSize": 18 }
+    },
+    {
+      "id": "arrow_1",
+      "type": "arrow",
+      "start": { "id": "node_1" },
+      "end": { "id": "node_2" },
+      "strokeColor": "#495057",
+      "strokeWidth": 2,
+      "endArrowhead": "triangle"
+    },
+    {
+      "id": "arrow_2",
+      "type": "arrow",
+      "start": { "id": "node_1" },
+      "end": { "id": "node_3" },
+      "strokeColor": "#495057",
+      "strokeWidth": 2,
+      "endArrowhead": "triangle"
+    }
+  ],
   "appState": { "viewBackgroundColor": "#1e1e1e" }
 }
 
-REMEMBER: Every box MUST have a "label" property with text inside!`
+REMEMBER:
+1. Use the EXACT grid positions (100, 450, 800 for X; 100, 300, 500 for Y)
+2. Every shape MUST have a "label" with "text"
+3. Arrows use "start": {"id": "..."} and "end": {"id": "..."} - NO coordinates
+4. Return ONLY JSON, nothing else`
 
 // ============================================================================
 // Streaming Helper
@@ -327,7 +353,7 @@ async function generateDiagramWithStreaming(
     const requestBody = {
       contents: [
         { role: "user", parts: [{ text: EXCALIDRAW_EXPERT_PROMPT }] },
-        { role: "model", parts: [{ text: "I understand. I will create Excalidraw diagrams using the Skeleton API format with label properties for text inside shapes. I will return only valid JSON." }] },
+        { role: "model", parts: [{ text: "I understand. I will create Excalidraw diagrams using the strict grid system (X: 100, 450, 800; Y: 100, 300, 500), standard sizes (250x100 rectangles), and arrow bindings with start/end IDs. I will return only valid JSON." }] },
         ...conversationHistory
       ],
       tools: [{ functionDeclarations: diagramToolDeclarations }],
