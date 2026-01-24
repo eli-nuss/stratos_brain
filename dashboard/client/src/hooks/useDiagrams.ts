@@ -162,6 +162,7 @@ export function useDiagrams({ chatId, autoRefresh = false, refreshInterval = 500
     setToolCalls([]);
 
     try {
+      console.log('[DiagramGen] Starting generation request...');
       const response = await fetch(
         `${SUPABASE_URL}/functions/v1/diagram-generator`,
         {
@@ -180,8 +181,9 @@ export function useDiagrams({ chatId, autoRefresh = false, refreshInterval = 500
       );
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate diagram');
+        const errorText = await response.text();
+        console.error('[DiagramGen] Response not OK:', response.status, errorText);
+        throw new Error(errorText || 'Failed to generate diagram');
       }
 
       // Handle streaming response
@@ -193,66 +195,142 @@ export function useDiagrams({ chatId, autoRefresh = false, refreshInterval = 500
       const decoder = new TextDecoder();
       let buffer = '';
       let resultDiagram: Diagram | null = null;
+      let currentEventType = '';
+
+      console.log('[DiagramGen] Starting to read stream...');
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          console.log('[DiagramGen] Stream ended');
+          break;
+        }
 
         buffer += decoder.decode(value, { stream: true });
         
-        // Parse SSE events
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+        // Parse SSE events - split by double newlines for complete events
+        const events = buffer.split('\n\n');
+        buffer = events.pop() || ''; // Keep incomplete event in buffer
 
-        for (const line of lines) {
-          if (line.startsWith('event: ')) {
-            const eventType = line.slice(7);
-            continue;
+        for (const event of events) {
+          if (!event.trim()) continue;
+          
+          const lines = event.split('\n');
+          let eventType = '';
+          let eventData = '';
+          
+          for (const line of lines) {
+            if (line.startsWith('event: ')) {
+              eventType = line.slice(7).trim();
+            } else if (line.startsWith('data: ')) {
+              eventData = line.slice(6);
+            }
           }
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              
-              // Handle different event types based on data content
-              if (data.stage) {
+          
+          if (!eventData) continue;
+          
+          try {
+            const data = JSON.parse(eventData);
+            console.log('[DiagramGen] Event:', eventType, data);
+            
+            // Handle based on event type
+            switch (eventType) {
+              case 'status':
                 setGenerationProgress({
-                  stage: data.stage,
+                  stage: data.stage || 'thinking',
                   message: data.message || '',
                   iteration: data.iteration,
                 });
-              }
-              
-              if (data.tool) {
-                if (data.success !== undefined) {
-                  // Tool result
-                  setToolCalls(prev => 
-                    prev.map(tc => tc.tool === data.tool ? { ...tc, status: 'complete' as const } : tc)
-                  );
-                } else {
-                  // Tool call
-                  setToolCalls(prev => [...prev, { tool: data.tool, args: data.args, status: 'running' as const }]);
+                break;
+                
+              case 'tool_call':
+                setToolCalls(prev => [...prev, { 
+                  tool: data.tool, 
+                  args: data.args, 
+                  status: 'running' as const 
+                }]);
+                setGenerationProgress({
+                  stage: 'tool_call',
+                  message: data.message || `Using ${data.tool}...`,
+                });
+                break;
+                
+              case 'tool_result':
+                setToolCalls(prev => 
+                  prev.map(tc => tc.tool === data.tool ? { ...tc, status: 'complete' as const } : tc)
+                );
+                setGenerationProgress({
+                  stage: 'tool_result',
+                  message: data.message || `Completed ${data.tool}`,
+                });
+                break;
+                
+              case 'complete':
+                console.log('[DiagramGen] Received complete event with diagram:', data.diagram);
+                if (data.success && data.diagram) {
+                  resultDiagram = data.diagram;
+                  setGenerationProgress({ stage: 'complete', message: data.message || 'Done!' });
                 }
-              }
-              
+                break;
+                
+              case 'error':
+                console.error('[DiagramGen] Error event:', data);
+                throw new Error(data.error || data.message || 'Generation failed');
+                
+              default:
+                // Fallback: check data content for backwards compatibility
+                if (data.stage) {
+                  setGenerationProgress({
+                    stage: data.stage,
+                    message: data.message || '',
+                    iteration: data.iteration,
+                  });
+                }
+                if (data.success && data.diagram) {
+                  console.log('[DiagramGen] Found diagram in data:', data.diagram);
+                  resultDiagram = data.diagram;
+                  setGenerationProgress({ stage: 'complete', message: data.message || 'Done!' });
+                }
+                if (data.error) {
+                  throw new Error(data.error);
+                }
+            }
+          } catch (parseErr) {
+            if (parseErr instanceof SyntaxError) {
+              console.error('[DiagramGen] JSON parse error:', parseErr, 'Data:', eventData);
+            } else {
+              throw parseErr;
+            }
+          }
+        }
+      }
+
+      // Process any remaining buffer
+      if (buffer.trim()) {
+        console.log('[DiagramGen] Processing remaining buffer:', buffer);
+        const lines = buffer.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
               if (data.success && data.diagram) {
+                console.log('[DiagramGen] Found diagram in remaining buffer');
                 resultDiagram = data.diagram;
-                setGenerationProgress({ stage: 'complete', message: data.message || 'Done!' });
               }
-              
-              if (data.error) {
-                throw new Error(data.error);
-              }
-            } catch (parseErr) {
-              console.error('Error parsing SSE data:', parseErr, line);
+            } catch (e) {
+              console.error('[DiagramGen] Error parsing remaining buffer:', e);
             }
           }
         }
       }
 
       if (!resultDiagram) {
+        console.error('[DiagramGen] No diagram received after stream ended');
         throw new Error('No diagram received from generation');
       }
 
+      console.log('[DiagramGen] Success! Diagram received:', resultDiagram.diagram_id || resultDiagram.name);
+      
       // Add the new diagram to the list
       setDiagrams(prev => [resultDiagram!, ...prev]);
       return resultDiagram;
@@ -262,6 +340,7 @@ export function useDiagrams({ chatId, autoRefresh = false, refreshInterval = 500
         throw new Error('Generation cancelled');
       }
       const errorMessage = err instanceof Error ? err.message : 'Failed to generate diagram';
+      console.error('[DiagramGen] Error:', errorMessage);
       setError(errorMessage);
       setGenerationProgress({ stage: 'error', message: errorMessage });
       throw err;
@@ -332,14 +411,12 @@ export function useDiagrams({ chatId, autoRefresh = false, refreshInterval = 500
     }
 
     const data = await response.json();
-    setDiagrams(prev =>
-      prev.map(d => d.diagram_id === diagramId ? data.diagram : d)
-    );
+    setDiagrams(prev => prev.map(d => d.diagram_id === diagramId ? data.diagram : d));
     return data.diagram;
   }, [session?.access_token, getAuthHeaders]);
 
   // Delete diagram
-  const deleteDiagram = useCallback(async (diagramId: string) => {
+  const deleteDiagram = useCallback(async (diagramId: string): Promise<void> => {
     if (!session?.access_token) throw new Error('Not authenticated');
 
     const response = await fetch(
@@ -351,13 +428,14 @@ export function useDiagrams({ chatId, autoRefresh = false, refreshInterval = 500
     );
 
     if (!response.ok) {
-      throw new Error('Failed to delete diagram');
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to delete diagram');
     }
 
     setDiagrams(prev => prev.filter(d => d.diagram_id !== diagramId));
   }, [session?.access_token, getAuthHeaders]);
 
-  // Get single diagram with full data
+  // Get single diagram
   const getDiagram = useCallback(async (diagramId: string): Promise<Diagram> => {
     if (!session?.access_token) throw new Error('Not authenticated');
 
@@ -367,7 +445,8 @@ export function useDiagrams({ chatId, autoRefresh = false, refreshInterval = 500
     );
 
     if (!response.ok) {
-      throw new Error('Failed to get diagram');
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to get diagram');
     }
 
     const data = await response.json();
@@ -388,19 +467,18 @@ export function useDiagrams({ chatId, autoRefresh = false, refreshInterval = 500
     );
 
     if (!response.ok) {
-      throw new Error('Failed to upload thumbnail');
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to upload thumbnail');
     }
 
     const data = await response.json();
-    
-    setDiagrams(prev =>
-      prev.map(d => d.diagram_id === diagramId ? { ...d, thumbnail_url: data.thumbnail_url } : d)
-    );
-    
+    setDiagrams(prev => prev.map(d => 
+      d.diagram_id === diagramId ? { ...d, thumbnail_url: data.thumbnail_url } : d
+    ));
     return data.thumbnail_url;
   }, [session?.access_token, getAuthHeaders]);
 
-  // Export diagram as Excalidraw JSON
+  // Export diagram
   const exportDiagram = useCallback(async (diagramId: string): Promise<ExcalidrawScene> => {
     if (!session?.access_token) throw new Error('Not authenticated');
 
@@ -410,10 +488,12 @@ export function useDiagrams({ chatId, autoRefresh = false, refreshInterval = 500
     );
 
     if (!response.ok) {
-      throw new Error('Failed to export diagram');
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to export diagram');
     }
 
-    return await response.json();
+    const data = await response.json();
+    return data.excalidraw_data;
   }, [session?.access_token, getAuthHeaders]);
 
   return {
@@ -433,5 +513,3 @@ export function useDiagrams({ chatId, autoRefresh = false, refreshInterval = 500
     refreshDiagrams,
   };
 }
-
-export default useDiagrams;
