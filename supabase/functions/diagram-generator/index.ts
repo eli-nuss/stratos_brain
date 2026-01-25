@@ -148,77 +148,108 @@ You have access to deep research - use it to find the interesting angles, not ju
 | **Yellow** | Money, revenue, financial | #ffec99 | #f08c00 |
 | **Gray** | Context, notes, supporting | #e9ecef | #495057 |
 
-### LAYOUT BEST PRACTICES (CRITICAL)
+### STRICT GRID SYSTEM (YOU MUST FOLLOW THIS EXACTLY)
 
-A messy layout destroys comprehension. Follow these rules:
+You MUST place elements on a precise grid. Think of the canvas as graph paper.
 
-**1. CHOOSE A CLEAR STRUCTURE**
-Pick ONE primary direction and stick to it:
-- **Top-to-Bottom**: For hierarchies, breakdowns (most common)
-- **Left-to-Right**: For processes, timelines, flows
-- **Columns**: For comparisons, categories
+**CANVAS DIMENSIONS:**
+- Total width: 1000px (usable: 100-900)
+- Total height: 800px (usable: 80-750)
+- Center X: 500
 
-**2. GRID ALIGNMENT IS MANDATORY**
-- All boxes in the same row MUST have the same Y coordinate
-- All boxes in the same column MUST have the same X coordinate
-- Use consistent spacing: 300px between columns, 150px between rows
-- Start your grid at x=100, y=100
+**THE GRID (memorize these coordinates):**
 
-**3. LIMIT COMPLEXITY**
-- Maximum 8-10 boxes per diagram (fewer is better)
-- Maximum 3 levels of hierarchy
-- If you need more, you're trying to show too much - simplify
+```
+ROW 0 (Title):     y = 40
+ROW 1 (Main):      y = 120
+ROW 2 (Secondary): y = 270
+ROW 3 (Tertiary):  y = 420
+ROW 4 (Footer):    y = 570
+ROW 5 (Notes):     y = 680
 
-**4. ARROWS MUST BE CLEAN**
-- Arrows should NEVER cross each other
-- Arrows should NEVER pass through boxes
-- Use simple vertical or horizontal arrows when possible
-- If arrows would cross, reorganize the boxes instead
-- For hierarchy: arrows go DOWN (parent above, children below)
-- For flow: arrows go RIGHT (input left, output right)
+COL 1 (Left):      x = 100
+COL 2 (Center-L):  x = 360
+COL 3 (Center):    x = 500 (for centered single items)
+COL 4 (Center-R):  x = 640
+COL 5 (Right):     x = 700
+```
 
-**5. BREATHING ROOM**
-- Minimum 100px gap between any two boxes
-- Text inside boxes should have padding (don't cram it)
-- Leave margins around the entire diagram
+**STANDARD BOX SIZES (use these exact dimensions):**
+| Type | Width | Height | Use For |
+|------|-------|--------|--------|
+| Hero | 400 | 100 | Main concept at top |
+| Standard | 240 | 80 | Most boxes |
+| Wide | 320 | 80 | Boxes with more text |
+| Compact | 180 | 70 | Small supporting items |
 
-**6. VISUAL GROUPING**
-- Related items should be spatially close
-- Use rows to group items at the same level
-- The most important element goes at the top or center
+**CENTERING FORMULA:**
+- To center a box of width W at center X=500: x = 500 - (W/2)
+- Hero box (400w) centered: x = 300
+- Standard box (240w) centered: x = 380
+- Wide box (320w) centered: x = 340
 
-**7. STANDALONE TEXT PLACEMENT**
-- Title: Centered at top (y=30)
-- Insight/annotation text: Below the main diagram, not floating in the middle
-- Key risks or notes: At the bottom as a separate section
+**COMMON LAYOUTS (copy these exactly):**
 
-### TEXT BEST PRACTICES
+**Layout A: Hierarchy (1 → 2 → 4)**
+```
+Title:        x=300, y=40, w=400 (centered)
+Hero:         x=300, y=120, w=400, h=100 (centered)
+Row 2 (2 boxes): x=180, x=580, y=270, w=240, h=80
+Row 3 (4 boxes): x=100, x=310, x=520, x=730, y=420, w=180, h=70
+```
 
-- Titles can include a tagline: "Company Name\nThe One-Line Insight"
-- Keep box labels SHORT: Max 3 lines, max 25 chars per line
-- If text is too long, break it into multiple boxes or use annotation text below
-- Numbers should include context: "$2.5B (+40% YoY)" not just "$2.5B"
+**Layout B: Flow (Left → Right)**
+```
+Title:        x=300, y=40, w=400
+Box 1:        x=100, y=200, w=200, h=100
+Box 2:        x=400, y=200, w=200, h=100
+Box 3:        x=700, y=200, w=200, h=100
+(Arrows connect horizontally)
+```
 
-### TECHNICAL SPECS
+**Layout C: Breakdown (1 → 3)**
+```
+Title:        x=300, y=40, w=400
+Hero:         x=300, y=120, w=400, h=100
+Row 2 (3 boxes): x=100, x=380, x=660, y=280, w=220, h=80
+```
 
-**Box Sizes (use consistently within a row):**
-- Large: 320w × 100h (for main concepts)
-- Medium: 280w × 85h (for segments)
-- Small: 240w × 70h (for details)
+**TEXT SIZING RULES (CRITICAL):**
 
-**Spacing:**
-- Column gap: 300px (e.g., x=100, x=400, x=700)
-- Row gap: 150px (e.g., y=100, y=250, y=400)
+1. **Calculate text width BEFORE choosing box size:**
+   - Each character ≈ 8px at fontSize 14
+   - Each character ≈ 10px at fontSize 16
+   - Add 40px padding (20px each side)
+   - Formula: boxWidth = (maxCharsPerLine × charWidth) + 40
 
-**Arrows:**
-- strokeColor: "#495057"
-- strokeWidth: 2
-- endArrowhead: "triangle"
+2. **Line breaks for long text:**
+   - Max 20 characters per line for Standard boxes
+   - Max 30 characters per line for Wide boxes
+   - Use \n to break lines manually
 
-**Title:**
-- fontSize: 22
-- strokeColor: "#1e1e1e"
-- Position: x=400, y=30 (centered)
+3. **Font sizes by importance:**
+   - Title: 20-24px
+   - Hero box: 16-18px
+   - Standard boxes: 14-16px
+   - Notes/annotations: 12-14px
+
+**EXAMPLE: Sizing a box for "Data Center Revenue: $190B (89%)"**
+- Text length: 32 characters
+- At fontSize 14: 32 × 8 = 256px + 40 padding = 296px
+- Use Wide box (320w) or break into 2 lines:
+  "Data Center Revenue\n$190B (89%)" → fits in Standard (240w)
+
+**ARROWS:**
+- Only connect boxes that are adjacent in the hierarchy
+- Vertical arrows: parent above, child below
+- Horizontal arrows: left-to-right flow
+- strokeColor: "#495057", strokeWidth: 2
+
+**ANNOTATIONS/NOTES:**
+- Place at y=680 or below
+- Use type: "text" (not rectangle)
+- Align in columns: x=100, x=400, x=700
+- fontSize: 13, strokeColor: "#495057"
 
 ## OUTPUT FORMAT
 
@@ -236,57 +267,69 @@ Element types you can use:
 4. Double-check that every arrow's start.id and end.id matches an existing element's id
 5. If you create a box with id "revenue_box", the arrow must reference "revenue_box" exactly (case-sensitive)
 
-Example structure (note how arrow IDs match exactly):
+**COMPLETE EXAMPLE using Layout C (1->3 breakdown):**
+
 {
   "elements": [
     {
       "id": "title",
       "type": "text",
-      "x": 350,
-      "y": 30,
-      "text": "Company Name\nThe One-Line Insight",
+      "x": 300,
+      "y": 40,
+      "text": "Company Name FY2025\nThe Key Insight",
       "fontSize": 22,
       "strokeColor": "#1e1e1e",
       "textAlign": "center"
     },
     {
-      "id": "box1",
+      "id": "hero",
       "type": "rectangle",
       "x": 300,
-      "y": 100,
-      "width": 320,
-      "height": 90,
+      "y": 120,
+      "width": 400,
+      "height": 100,
       "backgroundColor": "#ffc9c9",
       "strokeColor": "#e03131",
-      "label": { "text": "Main Concept\n$XX.XB (+XX%)", "fontSize": 16 }
+      "label": { "text": "Total Revenue: $XXB\n+XX% YoY", "fontSize": 16 }
     },
     {
-      "id": "box2",
+      "id": "seg1",
       "type": "rectangle",
       "x": 100,
-      "y": 260,
-      "width": 280,
+      "y": 280,
+      "width": 220,
       "height": 80,
       "backgroundColor": "#a5d8ff",
       "strokeColor": "#1971c2",
-      "label": { "text": "Supporting Detail", "fontSize": 14 }
+      "label": { "text": "Segment A\n$XB (XX%)", "fontSize": 14 }
     },
     {
-      "id": "box3",
+      "id": "seg2",
       "type": "rectangle",
-      "x": 420,
-      "y": 260,
-      "width": 280,
+      "x": 390,
+      "y": 280,
+      "width": 220,
       "height": 80,
       "backgroundColor": "#b2f2bb",
       "strokeColor": "#2f9e44",
-      "label": { "text": "Another Detail", "fontSize": 14 }
+      "label": { "text": "Segment B\n$XB (XX%)", "fontSize": 14 }
+    },
+    {
+      "id": "seg3",
+      "type": "rectangle",
+      "x": 680,
+      "y": 280,
+      "width": 220,
+      "height": 80,
+      "backgroundColor": "#ffec99",
+      "strokeColor": "#f08c00",
+      "label": { "text": "Segment C\n$XB (XX%)", "fontSize": 14 }
     },
     {
       "id": "arrow1",
       "type": "arrow",
-      "start": { "id": "box1" },
-      "end": { "id": "box2" },
+      "start": { "id": "hero" },
+      "end": { "id": "seg1" },
       "strokeColor": "#495057",
       "strokeWidth": 2,
       "endArrowhead": "triangle"
@@ -294,23 +337,48 @@ Example structure (note how arrow IDs match exactly):
     {
       "id": "arrow2",
       "type": "arrow",
-      "start": { "id": "box1" },
-      "end": { "id": "box3" },
+      "start": { "id": "hero" },
+      "end": { "id": "seg2" },
       "strokeColor": "#495057",
       "strokeWidth": 2,
       "endArrowhead": "triangle"
+    },
+    {
+      "id": "arrow3",
+      "type": "arrow",
+      "start": { "id": "hero" },
+      "end": { "id": "seg3" },
+      "strokeColor": "#495057",
+      "strokeWidth": 2,
+      "endArrowhead": "triangle"
+    },
+    {
+      "id": "note1",
+      "type": "text",
+      "x": 100,
+      "y": 420,
+      "text": "Key Insight:\nBrief explanation",
+      "fontSize": 13,
+      "strokeColor": "#495057",
+      "textAlign": "left"
     }
   ],
   "appState": { "viewBackgroundColor": "#f8f9fa" }
 }
 
-NOTICE: arrow1 references "box1" and "box2" - these EXACTLY match the id fields of the rectangles above.
+**CHECKLIST before outputting:**
+1. Title at y=40? Check.
+2. Hero box centered (x=300 for 400w)? Check.
+3. All boxes in same row have same y? Check (seg1, seg2, seg3 all at y=280).
+4. Boxes evenly spaced? Check (100, 390, 680 with 220w = ~70px gaps).
+5. All arrow IDs match element IDs exactly? Check.
+6. Text fits in boxes (max 20 chars/line for 220w)? Check.
 
 ## FINAL REMINDER
 
-Your goal is to TEACH and EXPLAIN, not just display data. 
-Ask yourself: "After seeing this diagram, will someone understand something they didn't before?"
-If the answer is no, add more context, insight, or explanation.`
+Your goal is to TEACH and EXPLAIN, not just display data.
+But EQUALLY IMPORTANT: The layout must be CLEAN and ALIGNED.
+A messy diagram with great content is still a bad diagram.`
 
 // ============================================================================
 // Diagram Generation with Data-First Workflow
