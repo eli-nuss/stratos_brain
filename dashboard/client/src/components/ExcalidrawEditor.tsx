@@ -55,17 +55,11 @@ function processSkeletonElements(elements: unknown[]): unknown[] {
       processedShape.boundElements = [{ id: textId, type: "text" }];
 
       // Determine text color based on background brightness
-      // Light backgrounds (like #fff3bf, #d3f9d8) need dark text
-      // Dark backgrounds need light text
+      // All Excalidraw pastel colors are light, so use dark text
       const bgColor = el.backgroundColor || 'transparent';
-      const isLightBg = bgColor === 'transparent' || 
-        bgColor.startsWith('#fff') || 
-        bgColor.startsWith('#d') || 
-        bgColor.startsWith('#e') || 
-        bgColor.startsWith('#f') ||
-        bgColor.includes('bf') || 
-        bgColor.includes('d8');
-      const textColor = el.label.strokeColor || (isLightBg ? '#1e1e1e' : '#ffffff');
+      // Check if it's a dark background (starts with #1, #2, #3, #4, #5)
+      const isDarkBg = bgColor.match(/^#[0-5]/);
+      const textColor = el.label.strokeColor || (isDarkBg ? '#ffffff' : '#1e1e1e');
       
       // Create the text element centered in the shape
       result.push({

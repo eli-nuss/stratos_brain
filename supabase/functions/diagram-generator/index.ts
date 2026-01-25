@@ -48,26 +48,55 @@ function createStreamWriter() {
 }
 
 // ============================================================================
-// EXCALIDRAW EXPERT PROMPT
+// Get current date info for context
 // ============================================================================
 
-const EXCALIDRAW_EXPERT_PROMPT = `You are an EXPERT Excalidraw diagram designer. You have been given REAL financial data - use it!
+function getCurrentDateContext(): { year: number; month: string; quarter: string; fiscalContext: string } {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.toLocaleString('en-US', { month: 'long' })
+  const quarterNum = Math.ceil((now.getMonth() + 1) / 3)
+  const quarter = `Q${quarterNum}`
+  
+  // Determine which fiscal year data would be most recent
+  // If we're in Q1, the most recent full year is the previous year
+  // Otherwise, we might have partial current year data
+  const fiscalContext = quarterNum === 1 
+    ? `Most recent complete fiscal year is FY${year - 1}. FY${year} has just begun.`
+    : `We are in ${quarter} of FY${year}. FY${year - 1} is the most recent complete fiscal year.`
+  
+  return { year, month, quarter, fiscalContext }
+}
+
+// ============================================================================
+// EXCALIDRAW EXPERT PROMPT - Updated with beautiful pastel colors
+// ============================================================================
+
+const EXCALIDRAW_EXPERT_PROMPT = `You are an EXPERT Excalidraw diagram designer creating beautiful, professional financial diagrams.
+
+## CRITICAL: USE THE CORRECT COMPANY DATA
+- You MUST use data for the SPECIFIC company mentioned in the request
+- DO NOT confuse companies - if asked about Eli Lilly (LLY), use LLY data, NOT Amazon or Apple
+- Double-check that all numbers match the company symbol provided
 
 ## STRICT DESIGN SYSTEM & LAYOUT RULES
 
-### 1. STANDARD SIZES (Never deviate!):
-- Rectangles: width=250, height=100
-- Ellipses: width=200, height=100
-- Diamonds: width=150, height=150
+### 1. DYNAMIC BOX SIZING (Based on text content):
+- Calculate width based on longest text line: (character_count * 10) + 40 padding
+- Minimum width: 180px, Maximum width: 350px
+- Calculate height based on number of lines: (line_count * 24) + 40 padding
+- Minimum height: 80px
 
 ### 2. THE GRID FORMULA (Prevents overlapping!):
-- Column spacing: 350px apart (X: 100, 450, 800, 1150...)
-- Row spacing: 200px apart (Y: 100, 300, 500, 700...)
+- Column spacing: 400px apart (X: 100, 500, 900, 1300...)
+- Row spacing: 220px apart (Y: 100, 320, 540, 760...)
+- Center the diagram horizontally starting around X: 300
 
 EXAMPLE GRID POSITIONS:
-- Row 1: (100, 100), (450, 100), (800, 100)
-- Row 2: (100, 300), (450, 300), (800, 300)
-- Row 3: (100, 500), (450, 500), (800, 500)
+- Row 1 (Title): Center at (500, 50)
+- Row 2 (Main): (300, 150), (700, 150), (1100, 150)
+- Row 3: (300, 370), (700, 370), (1100, 370)
+- Row 4: (300, 590), (700, 590), (1100, 590)
 
 ### 3. ARROWS - Use ID Binding (NOT coordinates!):
 {
@@ -75,7 +104,7 @@ EXAMPLE GRID POSITIONS:
   "id": "arrow_1",
   "start": { "id": "source_node_id" },
   "end": { "id": "target_node_id" },
-  "strokeColor": "#495057",
+  "strokeColor": "#868e96",
   "strokeWidth": 2,
   "endArrowhead": "triangle"
 }
@@ -83,14 +112,54 @@ EXAMPLE GRID POSITIONS:
 ### 4. TEXT LABELS - USE THE REAL DATA PROVIDED:
 - Inside shapes: Use the "label" property
 - Include REAL numbers from the data (e.g., "$85.78B", "45.2%", etc.)
+- Keep labels concise: max 3 lines, max 25 characters per line
+- Use line breaks (\\n) to separate title from value
 - DO NOT use placeholder values like "XX" or "Data Unavailable"
 
-### 5. COLOR PALETTE:
-- Positive/Growth: backgroundColor="#d3f9d8", strokeColor="#2b8a3e"
-- Negative/Risk: backgroundColor="#ffe3e3", strokeColor="#c92a2a"
-- Neutral/Info: backgroundColor="#e7f5ff", strokeColor="#1864ab"
-- Revenue/Money: backgroundColor="#fff3bf", strokeColor="#f08c00"
-- Primary: backgroundColor="#d0bfff", strokeColor="#7950f2"
+### 5. EXCALIDRAW PASTEL COLOR PALETTE (Beautiful & Professional):
+Use these exact Excalidraw pastel colors for a cohesive, beautiful look:
+
+**Primary/Highlight (Purple):**
+- backgroundColor: "#e5dbff"
+- strokeColor: "#845ef7"
+
+**Positive/Growth (Green):**
+- backgroundColor: "#c3fae8"
+- strokeColor: "#20c997"
+
+**Negative/Risk (Red):**
+- backgroundColor: "#ffe3e3"
+- strokeColor: "#fa5252"
+
+**Neutral/Info (Blue):**
+- backgroundColor: "#d0ebff"
+- strokeColor: "#339af0"
+
+**Revenue/Money (Yellow):**
+- backgroundColor: "#fff9db"
+- strokeColor: "#fab005"
+
+**Secondary (Cyan):**
+- backgroundColor: "#c5f6fa"
+- strokeColor: "#22b8cf"
+
+**Accent (Pink):**
+- backgroundColor: "#ffdeeb"
+- strokeColor: "#f06595"
+
+**Neutral Gray:**
+- backgroundColor: "#e9ecef"
+- strokeColor: "#495057"
+
+### 6. TITLE STYLING:
+- Use type: "text" for the main title
+- fontSize: 32 for main title
+- strokeColor: "#343a40" (dark gray for readability on light backgrounds)
+- Position centered at top: x around 400-600, y: 30-50
+
+### 7. BACKGROUND:
+- Use light background: "viewBackgroundColor": "#f8f9fa" (light gray)
+- This makes the pastel colors pop beautifully
 
 ## OUTPUT FORMAT
 
@@ -101,25 +170,25 @@ Return ONLY valid JSON with NO markdown formatting:
     {
       "id": "title",
       "type": "text",
-      "x": 400,
+      "x": 450,
       "y": 30,
-      "text": "Diagram Title",
-      "fontSize": 28,
-      "strokeColor": "#ffffff"
+      "text": "Company Name - Analysis Title",
+      "fontSize": 32,
+      "strokeColor": "#343a40"
     },
     {
-      "id": "node_1",
+      "id": "main_box",
       "type": "rectangle",
-      "x": 100,
-      "y": 100,
-      "width": 250,
+      "x": 400,
+      "y": 120,
+      "width": 280,
       "height": 100,
-      "backgroundColor": "#e7f5ff",
-      "strokeColor": "#1864ab",
-      "label": { "text": "Label with Real Data\\n$85.78B", "fontSize": 18 }
+      "backgroundColor": "#e5dbff",
+      "strokeColor": "#845ef7",
+      "label": { "text": "Main Metric\\n$XX.XB (XX%)", "fontSize": 16 }
     }
   ],
-  "appState": { "viewBackgroundColor": "#1e1e1e" }
+  "appState": { "viewBackgroundColor": "#f8f9fa" }
 }`
 
 // ============================================================================
@@ -139,6 +208,9 @@ async function generateDiagramWithStreaming(
   
   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`
   
+  // Get current date context
+  const dateContext = getCurrentDateContext()
+  
   // Tool context for unified tools
   const toolContext = {
     ticker: companySymbol,
@@ -153,12 +225,14 @@ async function generateDiagramWithStreaming(
     writer.write('status', { stage: 'planning', message: 'Creating diagram plan...' })
     
     const planPrompt = `You are planning a financial diagram for ${companyName} (${companySymbol}).
+Today's Date: ${dateContext.month} ${dateContext.year}
+${dateContext.fiscalContext}
 
 User Request: "${request}"
 
 Create a brief plan for this diagram. Output as JSON:
 {
-  "title": "Diagram title",
+  "title": "Diagram title - include company name and year",
   "type": "breakdown|comparison|flowchart|timeline",
   "dataNeeded": ["list of specific data points needed"],
   "layoutPlan": "Brief description of layout",
@@ -239,8 +313,8 @@ Create a brief plan for this diagram. Output as JSON:
       console.log('Deep research not available')
     }
     
-    // TOOL 3: Grounded research for specific data
-    const searchQuery = `${companyName} ${companySymbol} ${request} financial data revenue breakdown 2024`
+    // TOOL 3: Grounded research for specific data - USE CURRENT YEAR
+    const searchQuery = `${companyName} ${companySymbol} ${request} financial data revenue breakdown ${dateContext.year}`
     writer.write('tool_call', { tool: 'perform_grounded_research', args: { query: searchQuery }, message: `Researching: ${searchQuery.substring(0, 50)}...` })
     
     try {
@@ -261,28 +335,40 @@ Create a brief plan for this diagram. Output as JSON:
     // Build the design prompt with all gathered data
     const designPrompt = `${EXCALIDRAW_EXPERT_PROMPT}
 
-## TARGET COMPANY
+## CURRENT DATE CONTEXT
+- Today's Date: ${dateContext.month} ${dateContext.year}
+- Current Quarter: ${dateContext.quarter}
+- ${dateContext.fiscalContext}
+
+## TARGET COMPANY (USE ONLY THIS COMPANY'S DATA!)
 - Company Name: ${companyName}
 - Stock Symbol: ${companySymbol}
+
+IMPORTANT: You are creating a diagram for ${companyName} (${companySymbol}) ONLY.
+Do NOT use data from any other company. If the data below mentions other companies, ignore them.
 
 ## USER REQUEST
 "${request}"
 
-## GATHERED DATA (USE THIS REAL DATA - DO NOT MAKE UP NUMBERS!)
+## GATHERED DATA FOR ${companySymbol} (USE THIS REAL DATA - DO NOT MAKE UP NUMBERS!)
 
-### Company Fundamentals:
+### Company Fundamentals for ${companySymbol}:
 ${JSON.stringify(gatheredData['fundamentals'] || {}, null, 2)}
 
-### Deep Research Report:
+### Deep Research Report for ${companySymbol}:
 ${JSON.stringify(gatheredData['deepResearch'] || 'Not available', null, 2)}
 
-### Web Research:
-${typeof gatheredData['research'] === 'string' ? gatheredData['research'] : JSON.stringify(gatheredData['research'] || 'Not available', null, 2)}
+### Web Research for ${companySymbol}:
+${JSON.stringify(gatheredData['research'] || 'Not available', null, 2)}
 
 ## YOUR TASK
-Create an Excalidraw diagram that visualizes "${request}" for ${companyName}.
-Use the REAL numbers from the data above. Create at least 6 elements.
-Output ONLY the JSON, no markdown code blocks.`
+Create an Excalidraw diagram that visualizes "${request}" for ${companyName} (${companySymbol}).
+- Use the REAL numbers from the data above for ${companySymbol}
+- Use the beautiful Excalidraw pastel color palette specified
+- Make sure text fits inside boxes (use dynamic sizing)
+- Include the year in the title (e.g., "${companyName} FY${dateContext.year - 1} Revenue Breakdown")
+- Create at least 6 elements
+- Output ONLY the JSON, no markdown code blocks.`
 
     console.log('Design prompt length:', designPrompt.length)
     
@@ -331,6 +417,12 @@ Output ONLY the JSON, no markdown code blocks.`
     if (!diagramJson.elements || !Array.isArray(diagramJson.elements)) {
       throw new Error('Invalid diagram format: missing elements array')
     }
+    
+    // Ensure light background is set
+    if (!diagramJson.appState) {
+      diagramJson.appState = {}
+    }
+    (diagramJson.appState as any).viewBackgroundColor = '#f8f9fa'
     
     const elementCount = diagramJson.elements.length
     writer.write('status', { stage: 'saving', message: `Generated ${elementCount} elements. Saving...` })
@@ -401,69 +493,58 @@ serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders })
   }
   
-  const writer = createStreamWriter()
-  
   try {
     const { 
-      prompt, 
+      request, 
       company_symbol, 
       company_name, 
-      chat_context, 
-      chat_id 
+      chat_context,
+      chat_id,
+      user_id 
     } = await req.json()
     
-    // Get user ID from auth header
-    const authHeader = req.headers.get('Authorization')
-    let userId: string | null = null
-    
-    if (authHeader) {
-      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-      const token = authHeader.replace('Bearer ', '')
-      const { data: { user } } = await supabase.auth.getUser(token)
-      userId = user?.id || null
+    if (!request) {
+      return new Response(
+        JSON.stringify({ error: 'Missing request parameter' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
     
+    // Create Supabase client
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
     
-    // Start streaming response
-    const response = new Response(writer.stream, {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive'
-      }
-    })
+    // Create stream writer
+    const writer = createStreamWriter()
     
-    // Generate diagram in background
+    // Start generation in background
     generateDiagramWithStreaming(
       supabase,
       writer,
-      prompt || 'Create a financial diagram',
+      request,
       company_symbol || '',
       company_name || 'Company',
       chat_context || '',
       chat_id || null,
-      userId
+      user_id || null
     ).finally(() => {
       writer.close()
     })
     
-    return response
-    
-  } catch (error) {
-    console.error('Request error:', error)
-    writer.write('error', {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    })
-    writer.close()
-    
+    // Return streaming response
     return new Response(writer.stream, {
       headers: {
         ...corsHeaders,
-        'Content-Type': 'text/event-stream'
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
       }
     })
+    
+  } catch (error) {
+    console.error('Handler error:', error)
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
   }
 })
