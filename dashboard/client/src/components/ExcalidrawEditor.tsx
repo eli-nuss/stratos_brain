@@ -184,20 +184,29 @@ function enforceExcalidrawSchema(elements: unknown[]): unknown[] {
 
     // Text elements
     if (el.type === 'text') {
+      const fontSize = el.fontSize ?? 16;
+      const text = el.text || '';
+      const lines = text.split('\n');
+      const maxLineLength = Math.max(...lines.map((l: string) => l.length));
+      // Estimate width based on font size and character count
+      const estimatedWidth = maxLineLength * fontSize * 0.6;
+      const estimatedHeight = lines.length * fontSize * 1.25;
+      
       return {
         ...baseElement,
-        text: el.text || '',
-        fontSize: el.fontSize ?? 16,
+        text: text,
+        fontSize: fontSize,
         fontFamily: el.fontFamily ?? 1,
         textAlign: el.textAlign || 'center',
         verticalAlign: el.verticalAlign || 'middle',
         containerId: el.containerId ?? null,
-        originalText: el.originalText || el.text || '',
+        originalText: el.originalText || text,
         lineHeight: el.lineHeight ?? 1.25,
-        baseline: el.baseline ?? Math.round((el.fontSize ?? 16) * 0.9),
-        // Remove width/height for text - Excalidraw calculates these
-        width: undefined,
-        height: undefined,
+        baseline: el.baseline ?? Math.round(fontSize * 0.9),
+        // Excalidraw needs width/height for text to render
+        width: el.width ?? estimatedWidth,
+        height: el.height ?? estimatedHeight,
+        autoResize: true,
       };
     }
     
