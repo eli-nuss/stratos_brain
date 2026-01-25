@@ -868,12 +868,10 @@ Element types you can use:
 - "arrow": Connections between elements
 
 **CRITICAL ARROW RULES:**
-1. Arrows MUST reference element IDs that EXACTLY match the "id" field of other elements
-2. Use simple, consistent IDs like "box1", "box2", "segment_a", "segment_b"
-3. Arrow format: { "type": "arrow", "start": { "id": "source_element_id" }, "end": { "id": "target_element_id" } }
-4. Double-check that every arrow's start.id and end.id matches an existing element's id
-5. If you create a box with id "revenue_box", the arrow must reference "revenue_box" exactly (case-sensitive)
-
+1. Arrows MUST use the simple skeleton format: { "start": { "id": "source_id" }, "end": { "id": "target_id" } }
+2. DO NOT use "startBinding" or "endBinding" - the renderer handles bindings automatically
+3. DO NOT include "points" arrays - the renderer calculates the perfect geometric points
+4. Arrow IDs must EXACTLY match element IDs (case-sensitive)
 **COMPLETE EXAMPLE using Layout C (1->3 breakdown):**
 
 {

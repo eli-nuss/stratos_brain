@@ -237,8 +237,8 @@ function processSkeletonElements(elements: unknown[]): unknown[] {
     const processedArrow = { ...el, id: el.id || `arrow-${generateId()}` };
     
     // Get source and target IDs - handle various formats
-    let sourceId = el.start?.id || el.startId || el.sourceId;
-    let targetId = el.end?.id || el.endId || el.targetId;
+    let sourceId = el.start?.id || el.startBinding?.elementId || el.startId || el.sourceId;
+    let targetId = el.end?.id || el.endBinding?.elementId || el.endId || el.targetId;
     
     console.log('[processSkeletonElements] Arrow:', el.id, 'start:', sourceId, 'end:', targetId);
     
