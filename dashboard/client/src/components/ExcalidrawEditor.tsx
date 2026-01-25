@@ -320,7 +320,7 @@ export function ExcalidrawEditor({
 
   // Process elements when diagram changes
   useEffect(() => {
-    if (!diagram || !isOpen) {
+    if (!diagram || !isOpen || !ExcalidrawModule) {
       setProcessedElements(null);
       return;
     }
@@ -334,7 +334,7 @@ export function ExcalidrawEditor({
       return;
     }
     
-    // Check if elements need processing (skeleton format)
+    // Check if elements need processing (skeleton format with label, start, end)
     const needsProcessing = rawElements.some((el: any) => 
       el.label !== undefined || el.start !== undefined || el.end !== undefined
     );
@@ -344,9 +344,17 @@ export function ExcalidrawEditor({
       console.log('[ExcalidrawEditor] Raw elements:', JSON.stringify(rawElements, null, 2));
       
       let processed = rawElements;
-      if (needsProcessing) {
+      
+      // Use Excalidraw's official convertToExcalidrawElements API for skeleton elements
+      // This properly handles text binding, arrow connections, etc.
+      if (needsProcessing && ExcalidrawModule.convertToExcalidrawElements) {
+        console.log('[ExcalidrawEditor] Using Excalidraw convertToExcalidrawElements API');
+        processed = ExcalidrawModule.convertToExcalidrawElements(rawElements, { regenerateIds: false });
+        console.log('[ExcalidrawEditor] After Excalidraw conversion:', processed.length, 'elements');
+      } else if (needsProcessing) {
+        // Fallback to our manual processing if API not available
         processed = processSkeletonElements(rawElements);
-        console.log('[ExcalidrawEditor] After skeleton processing:', processed.length, 'elements');
+        console.log('[ExcalidrawEditor] After manual skeleton processing:', processed.length, 'elements');
       }
       
       const final = enforceExcalidrawSchema(processed);
@@ -360,7 +368,7 @@ export function ExcalidrawEditor({
       setProcessedElements(fallback);
       setRenderKey(prev => prev + 1);
     }
-  }, [diagram, isOpen]);
+  }, [diagram, isOpen, ExcalidrawModule]);
 
   const handleSave = useCallback(async () => {
     if (!diagram || !excalidrawAPIRef.current) return;
