@@ -378,7 +378,24 @@
                                                                                             | `etfs` | ETF tracking for subsectors | `etf_id`, `symbol`, `name`, `description`, `subsector` |
                                                                                             | `etf_holdings` | ETF constituent holdings | `id`, `etf_id`, `asset_id`, `weight_pct`, `as_of_date` |
                                                                                          
-### 5.12 Research Notes Tables
+### 5.12 Backtesting System Tables
+
+| Table | Purpose | Key Columns |
+|-------|---------|-------------|
+| `backtest_runs` | Backtest execution metadata | `run_id`, `setup_name`, `asset_universe`, `start_date`, `end_date`, `parameters` |
+| `backtest_trades` | Individual trade results | `trade_id`, `run_id`, `asset_id`, `entry_date`, `exit_date`, `return_pct`, `exit_reason` |
+| `backtest_summary_metrics` | Aggregate performance metrics | `run_id`, `total_trades`, `win_rate`, `profit_factor`, `sharpe_ratio`, `reliability_score` |
+| `setup_optimal_params` | Best parameters per setup | `setup_name`, `asset_universe`, `optimal_params`, `win_rate`, `reliability_score` |
+| `setup_performance_rankings` | Cross-setup comparison | `ranking_date`, `asset_universe`, `rankings`, `best_setup`, `best_reliability_score` |
+
+**Key Views:**
+| View | Purpose |
+|------|---------|
+| `v_current_optimal_params` | Latest optimal parameters for each setup |
+| `v_latest_rankings` | Most recent setup rankings by universe |
+| `v_setup_trade_stats` | Aggregate trade statistics by setup |
+
+### 5.13 Research Notes Tables
 
 | Table | Purpose | Key Columns |
 |-------|---------|-------------|
@@ -1090,7 +1107,7 @@ Both hooks subscribe to Supabase Realtime channels for live updates:
                                                                                            
                                                                                             - [ ] ### 11.3 Platform Enhancements
                                                                                            
-                                                                                            - [ ] - [ ] Backtesting framework for signal validation
+                                                                                            - [x] - [x] Backtesting framework for signal validation ✅ **Implemented (Jan 25, 2026)**
                                                                                             - [ ] - [ ] Reinforcement learning from historical performance
                                                                                             - [ ] - [ ] TradingView chart integration
                                                                                             - [ ] - [ ] Streaming chat responses
@@ -1147,7 +1164,7 @@ Both hooks subscribe to Supabase Realtime channels for live updates:
                                                                                            
                                                                                             - [ ] | Metric | Target | Measurement |
                                                                                             - [ ] |--------|--------|-------------|
-                                                                                            - [ ] | Signal accuracy (backtested) | TBD | Backtesting framework (roadmap) |
+                                                                                            - [ ] | Signal accuracy (backtested) | 60%+ win rate | Backtesting framework ✅ |
                                                                                             - [ ] | Daily active users | Growth | Supabase Analytics |
                                                                                             - [ ] | Chat sessions per user | Engagement | Database query |
                                                                                             - [ ] | Document generation completion | > 95% | Job success rate |
@@ -1171,7 +1188,7 @@ Both hooks subscribe to Supabase Realtime channels for live updates:
                                                                                             - [ ] | Issue | Impact | Priority |
                                                                                             - [ ] |-------|--------|----------|
                                                                                             - [ ] | Environment variable consolidation | Multiple sources of truth | Medium |
-                                                                                            - [ ] | Backtesting not implemented | Cannot validate signal accuracy | High |
+                                                                                            - [ ] | ~~Backtesting not implemented~~ | ~~Cannot validate signal accuracy~~ | ~~High~~ | **RESOLVED** |
                                                                                             - [ ] | Component Storybook missing | UI documentation gap | Low |
                                                                                             - [ ] | Monitoring granularity | Limited alerting | Medium |
                                                                                            
