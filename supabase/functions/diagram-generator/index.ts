@@ -1039,13 +1039,60 @@ Element types you can use:
   "appState": { "viewBackgroundColor": "#f8f9fa" }
 }
 
-**CHECKLIST before outputting:**
-1. Title at y=40? Check.
-2. Hero box centered (x=300 for 400w)? Check.
-3. All boxes in same row have same y? Check (seg1, seg2, seg3 all at y=280).
-4. Boxes evenly spaced? Check (100, 390, 680 with 220w = ~70px gaps).
-5. All arrow IDs match element IDs exactly? Check.
-6. Text fits in boxes (max 20 chars/line for 220w)? Check.
+
+## ⚠️ MANDATORY VALIDATION - DO NOT SKIP ⚠️
+
+Before outputting your JSON, you MUST validate each of these. If ANY check fails, STOP and fix it.
+
+### VALIDATION 1: ARROW PATH CHECK
+For EACH arrow in your diagram:
+- Trace the path from start box to end box
+- Does this path pass through ANY other box? 
+- If YES → Your layout is WRONG. Move boxes so arrows only travel through empty space.
+
+### VALIDATION 2: CENTERING CHECK
+- Calculate the leftmost box X and rightmost box (X + width)
+- The center of your content = (leftmost + rightmost) / 2
+- This should be approximately 400 (half of 800px canvas)
+- If your content is off-center → Shift ALL boxes left or right to center the composition
+
+### VALIDATION 3: SHAPE VARIETY CHECK
+Look at your boxes. Did you use:
+- **Ellipse** for the central theme, core concept, or starting point? (At least 1)
+- **Diamond** for risks, catalysts, decision points, or pivotal moments? (If applicable)
+- If everything is rectangles and the content has a clear central concept → Change the hero to an ellipse
+- If there are risks or catalysts mentioned → Use diamonds for those
+
+### VALIDATION 4: OVERLAP CHECK
+For each pair of boxes (A, B):
+- Does A's right edge (x + width) + 40px < B's left edge (x)?
+- Does A's bottom edge (y + height) + 50px < B's top edge (y)?
+- If boxes are too close or overlapping → Increase spacing
+
+### VALIDATION 5: TEXT FIT CHECK
+For each box:
+- Count the longest line of text (in characters)
+- Box width should be at least: (chars × 9) + 60
+- If text is longer → Either make box wider OR edit text to be shorter
+
+### VALIDATION 6: ALIGNMENT CHECK
+- All boxes in the same logical row should have the EXACT same Y coordinate
+- All boxes in the same logical column should have the EXACT same X coordinate
+- Slight misalignments look sloppy → Round to clean numbers
+
+**CHECKLIST FORMAT:**
+After your <layout_math> block, include:
+```
+<validation>
+✓ Arrow paths: [list each arrow and confirm it doesn't cross boxes]
+✓ Centering: Content spans X=[left] to X=[right], center=[value], canvas center=400 ✓
+✓ Shapes: Used ellipse for [element], diamond for [element] (or N/A)
+✓ Overlaps: None detected
+✓ Text fit: All boxes sized for content
+✓ Alignment: Row 1 all at y=[value], Row 2 all at y=[value]
+</validation>
+```
+
 
 ## FINAL REMINDER
 
@@ -1257,6 +1304,7 @@ Create an Excalidraw diagram that visualizes "${request}" for ${companyName} (${
     // Strip layout_math block if present (CoT spatial reasoning)
     let responseText = designData.candidates?.[0]?.content?.parts?.[0]?.text || ''
     responseText = responseText.replace(/<layout_math>[\s\S]*?<\/layout_math>/g, '').trim()
+    responseText = responseText.replace(/<validation>[\s\S]*?<\/validation>/g, '').trim()
     
     console.log('Raw response length:', responseText.length)
     
