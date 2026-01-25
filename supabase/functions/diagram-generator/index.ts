@@ -344,6 +344,115 @@ Test for balance:
 - Is there significantly more content on one side?
 - Does the eye naturally rest in the center, or does it drift to one side?
 
+
+### PRINCIPLE 14: HIERARCHY THROUGH SIZE
+
+**Size differences create instant visual hierarchy.**
+
+The most important element should be noticeably larger than supporting elements. Don't rely on color alone—size is the most powerful hierarchy signal.
+
+Size ratios:
+- Hero element: 1.5-2x the size of children
+- Children: roughly equal to each other
+- Annotations: smaller than boxes
+
+If all boxes are the same size, the viewer doesn't know where to look first. Make the hierarchy obvious through scale.
+
+### PRINCIPLE 15: BREATHING ROOM
+
+**A diagram that breathes is easier to read.**
+
+Don't fill every inch of the canvas. Generous white space:
+- Reduces cognitive load
+- Makes the content feel more premium
+- Helps elements stand out
+
+Guidelines:
+- Leave at least 50-80px margins from canvas edges
+- Space between elements should feel comfortable, not cramped
+- When in doubt, add more space
+
+A sparse diagram with clear relationships beats a dense diagram with everything crammed together.
+
+### PRINCIPLE 16: CONSISTENT STROKES
+
+**Visual consistency signals professionalism.**
+
+All similar elements should share the same visual properties:
+- All boxes: same stroke width (typically 2px)
+- All arrows: same thickness
+- All rounded corners: same radius
+
+Inconsistency—even subtle—makes a diagram feel amateurish and unintentional. Pick your styles and apply them uniformly.
+
+### PRINCIPLE 17: FONT SIZE HIERARCHY
+
+**Text size reinforces information hierarchy.**
+
+Use distinct font sizes for different levels of information:
+- Title: largest (20-24px) - the diagram's headline
+- Box labels: medium (14-16px) - the main content
+- Annotations: smaller (12-14px) - supporting context
+
+Never use the same font size for everything. The size differences help viewers parse the information structure instantly.
+
+### PRINCIPLE 18: THE ONE GLANCE TEST
+
+**Can someone understand the main message in 3 seconds?**
+
+This is different from the squint test. The squint test checks visual structure. The one glance test checks cognitive clarity.
+
+After creating your diagram, imagine showing it to someone for just 3 seconds. Would they understand:
+- What the main topic is?
+- How many key parts there are?
+- The basic relationship between parts?
+
+If not, the diagram is either too complex or poorly organized. Simplify until it passes.
+
+### PRINCIPLE 19: ANNOTATION PLACEMENT
+
+**Annotations support, they don't compete.**
+
+Annotations (explanatory text outside boxes) should be:
+- Clearly separated from the main diagram structure
+- Positioned below or to the side of the main content
+- Visually distinct (smaller, lighter, different style)
+
+They should never:
+- Interrupt the visual flow between main elements
+- Be confused with box labels
+- Compete for attention with the primary hierarchy
+
+Think of annotations as footnotes—helpful but secondary.
+
+### PRINCIPLE 20: EDGE CASE HANDLING
+
+**Know what to do in unusual situations.**
+
+**Single child:**
+Don't leave one box awkwardly alone. Either:
+- Center it prominently below the hero
+- Add context through annotations rather than more boxes
+- Question if you really need a hierarchy (maybe just one box with details)
+
+**Many children (5+):**
+Too many children in one row becomes unreadable. Options:
+- Split into two rows (2-3 per row)
+- Group related items and show groups instead of individuals
+- Simplify—do you really need to show all of them?
+
+**Uneven content:**
+When some boxes have much more text than others:
+- Size boxes to their content (Principle 10)
+- Consider if the verbose box should be split or simplified
+- Use annotations for the extra detail instead of cramming it in
+
+**No clear hierarchy:**
+If the content doesn't have a natural hierarchy:
+- Use a flow pattern (left to right) instead
+- Use a comparison pattern (columns) instead
+- Don't force a tree structure where it doesn't fit
+
 ### APPLYING THESE PRINCIPLES
 
 **Before generating JSON, work through this mental checklist:**
