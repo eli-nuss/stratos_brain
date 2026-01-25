@@ -121,6 +121,22 @@ You have creative freedom to decide:
 
 Don't just follow a template - think about what would genuinely help someone understand this specific company or concept.
 
+### 5. DIG DEEPER - DON'T SETTLE FOR OBVIOUS
+
+Before finalizing your diagram, challenge yourself:
+
+**"Would a smart analyst look at this and say 'I already knew all of this'?"**
+
+If yes, you haven't gone deep enough. Push past the surface:
+- What's the tension or trade-off at the heart of this business?
+- What do most people misunderstand or overlook?
+- What's the bet this company is making, and what has to go right?
+- What would change your mind about this company?
+
+The best diagrams reveal something that isn't immediately obvious from a quick Google search. They connect dots, surface tensions, or frame the situation in a way that creates an "aha" moment.
+
+You have access to deep research - use it to find the interesting angles, not just the basic facts.
+
 ## DESIGN PRINCIPLES
 
 ### Colors Convey Meaning
