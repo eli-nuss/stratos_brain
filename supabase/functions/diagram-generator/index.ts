@@ -45,7 +45,7 @@ function getCurrentDateContext() {
 }
 
 // ============================================================================
-// Arrow Routing Post-Processor - Snaps arrows to box edges and routes around obstacles
+// Arrow Routing Post-Processor - Splits arrows that pass through boxes and creates proper connections
 // ============================================================================
 
 function fixArrowRouting(elements: any[]): any[] {
@@ -62,177 +62,143 @@ function fixArrowRouting(elements: any[]): any[] {
       centerY: e.y + (e.height || 70) / 2
     }));
 
-  // Find which box a point is inside or closest to
-  function findBoxForPoint(px: number, py: number, excludeBoxId?: string): any | null {
-    // First check if point is inside any box
+  if (boxes.length === 0) return elements;
+
+  // Find all boxes that a line segment passes through
+  function findBoxesOnPath(p1: {x: number, y: number}, p2: {x: number, y: number}): any[] {
+    const result: any[] = [];
     for (const box of boxes) {
-      if (excludeBoxId && box.id === excludeBoxId) continue;
-      if (px >= box.x && px <= box.x + box.width &&
-          py >= box.y && py <= box.y + box.height) {
-        return box;
+      // Check if line passes through this box
+      const padding = 2;
+      const left = box.x - padding;
+      const right = box.x + box.width + padding;
+      const top = box.y - padding;
+      const bottom = box.y + box.height + padding;
+
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+
+      let tmin = 0, tmax = 1;
+
+      if (dx !== 0) {
+        const t1 = (left - p1.x) / dx;
+        const t2 = (right - p1.x) / dx;
+        tmin = Math.max(tmin, Math.min(t1, t2));
+        tmax = Math.min(tmax, Math.max(t1, t2));
+      } else if (p1.x < left || p1.x > right) {
+        continue;
+      }
+
+      if (dy !== 0) {
+        const t1 = (top - p1.y) / dy;
+        const t2 = (bottom - p1.y) / dy;
+        tmin = Math.max(tmin, Math.min(t1, t2));
+        tmax = Math.min(tmax, Math.max(t1, t2));
+      } else if (p1.y < top || p1.y > bottom) {
+        continue;
+      }
+
+      if (tmax >= tmin && tmin < 1 && tmax > 0) {
+        // Calculate intersection point for sorting
+        const intersectT = Math.max(0, tmin);
+        result.push({ box, t: intersectT });
       }
     }
-    // If not inside, find closest box within threshold
-    let closestBox = null;
-    let closestDist = 50; // threshold distance
-    for (const box of boxes) {
-      if (excludeBoxId && box.id === excludeBoxId) continue;
-      const dist = Math.sqrt(Math.pow(px - box.centerX, 2) + Math.pow(py - box.centerY, 2));
-      if (dist < closestDist) {
-        closestDist = dist;
-        closestBox = box;
-      }
-    }
-    return closestBox;
+    // Sort by intersection parameter (order along the arrow path)
+    result.sort((a, b) => a.t - b.t);
+    return result.map(r => r.box);
   }
 
-  // Calculate the best edge point on a box to connect to another point
-  function getEdgePoint(box: any, targetX: number, targetY: number): {x: number, y: number, edge: string} {
-    const edges = {
-      top: { x: box.centerX, y: box.y, edge: 'top' },
-      bottom: { x: box.centerX, y: box.y + box.height, edge: 'bottom' },
-      left: { x: box.x, y: box.centerY, edge: 'left' },
-      right: { x: box.x + box.width, y: box.centerY, edge: 'right' }
-    };
-
-    // Determine best edge based on target direction
+  // Get edge point on a box facing toward a target
+  function getEdgePoint(box: any, targetX: number, targetY: number): {x: number, y: number} {
     const dx = targetX - box.centerX;
     const dy = targetY - box.centerY;
 
-    // If target is mostly above/below, use top/bottom edges
     if (Math.abs(dy) > Math.abs(dx)) {
-      return dy < 0 ? edges.top : edges.bottom;
+      // Vertical connection
+      return dy < 0 
+        ? { x: box.centerX, y: box.y }  // top edge
+        : { x: box.centerX, y: box.y + box.height };  // bottom edge
     } else {
-      // Target is mostly left/right, use left/right edges
-      return dx < 0 ? edges.left : edges.right;
+      // Horizontal connection
+      return dx < 0 
+        ? { x: box.x, y: box.centerY }  // left edge
+        : { x: box.x + box.width, y: box.centerY };  // right edge
     }
-  }
-
-  // Check if a line segment intersects a box (excluding source and target boxes)
-  function lineIntersectsBox(p1: {x: number, y: number}, p2: {x: number, y: number}, box: any): boolean {
-    const padding = 5;
-    const left = box.x - padding;
-    const right = box.x + box.width + padding;
-    const top = box.y - padding;
-    const bottom = box.y + box.height + padding;
-
-    // Check if line crosses the box using parametric line intersection
-    const dx = p2.x - p1.x;
-    const dy = p2.y - p1.y;
-
-    let tmin = 0, tmax = 1;
-
-    // Check X bounds
-    if (dx !== 0) {
-      const t1 = (left - p1.x) / dx;
-      const t2 = (right - p1.x) / dx;
-      tmin = Math.max(tmin, Math.min(t1, t2));
-      tmax = Math.min(tmax, Math.max(t1, t2));
-    } else if (p1.x < left || p1.x > right) {
-      return false;
-    }
-
-    // Check Y bounds
-    if (dy !== 0) {
-      const t1 = (top - p1.y) / dy;
-      const t2 = (bottom - p1.y) / dy;
-      tmin = Math.max(tmin, Math.min(t1, t2));
-      tmax = Math.min(tmax, Math.max(t1, t2));
-    } else if (p1.y < top || p1.y > bottom) {
-      return false;
-    }
-
-    return tmax >= tmin;
-  }
-
-  // Route an arrow around obstacle boxes
-  function routeArrow(startBox: any, endBox: any, startEdge: {x: number, y: number, edge: string}, endEdge: {x: number, y: number, edge: string}): number[][] {
-    const start = { x: startEdge.x, y: startEdge.y };
-    const end = { x: endEdge.x, y: endEdge.y };
-
-    // Check if direct path intersects any box (excluding start and end boxes)
-    let hasObstacle = false;
-    let obstacleBox: any = null;
-    for (const box of boxes) {
-      if (box.id === startBox.id || box.id === endBox.id) continue;
-      if (lineIntersectsBox(start, end, box)) {
-        hasObstacle = true;
-        obstacleBox = box;
-        break;
-      }
-    }
-
-    if (!hasObstacle) {
-      // Direct path is clear
-      return [[0, 0], [end.x - start.x, end.y - start.y]];
-    }
-
-    // Need to route around the obstacle
-    console.log(`Routing arrow around obstacle box ${obstacleBox.id}`);
-    const padding = 25;
-
-    // Determine routing direction based on relative positions
-    const goRight = start.x < obstacleBox.centerX;
-    const goDown = start.y < obstacleBox.centerY;
-
-    let midPoint: {x: number, y: number};
-
-    // Route around the obstacle
-    if (startEdge.edge === 'bottom' || startEdge.edge === 'top') {
-      // Exiting vertically, need to go around horizontally
-      const routeX = goRight ? obstacleBox.x + obstacleBox.width + padding : obstacleBox.x - padding;
-      midPoint = { x: routeX, y: (start.y + end.y) / 2 };
-    } else {
-      // Exiting horizontally, need to go around vertically
-      const routeY = goDown ? obstacleBox.y + obstacleBox.height + padding : obstacleBox.y - padding;
-      midPoint = { x: (start.x + end.x) / 2, y: routeY };
-    }
-
-    return [
-      [0, 0],
-      [midPoint.x - start.x, midPoint.y - start.y],
-      [end.x - start.x, end.y - start.y]
-    ];
   }
 
   const arrows = elements.filter((e: any) => e.type === 'arrow');
   const otherElements = elements.filter((e: any) => e.type !== 'arrow');
+  const newArrows: any[] = [];
 
-  const fixedArrows = arrows.map((arrow: any) => {
-    if (!arrow.points || arrow.points.length < 2) return arrow;
-
-    // Get current start and end points
-    const currentStart = { x: arrow.x, y: arrow.y };
-    const lastPt = arrow.points[arrow.points.length - 1] || [0, 0];
-    const currentEnd = { x: arrow.x + lastPt[0], y: arrow.y + lastPt[1] };
-
-    // Find source and target boxes
-    const sourceBox = findBoxForPoint(currentStart.x, currentStart.y);
-    const targetBox = findBoxForPoint(currentEnd.x, currentEnd.y, sourceBox?.id);
-
-    if (!sourceBox || !targetBox) {
-      // Can't identify boxes, return arrow as-is
-      return arrow;
+  for (const arrow of arrows) {
+    if (!arrow.points || arrow.points.length < 2) {
+      newArrows.push(arrow);
+      continue;
     }
 
-    // Calculate proper edge connection points
-    const startEdge = getEdgePoint(sourceBox, targetBox.centerX, targetBox.centerY);
-    const endEdge = getEdgePoint(targetBox, sourceBox.centerX, sourceBox.centerY);
+    // Get arrow start and end points
+    const startX = arrow.x;
+    const startY = arrow.y;
+    const lastPt = arrow.points[arrow.points.length - 1] || [0, 0];
+    const endX = startX + lastPt[0];
+    const endY = startY + lastPt[1];
 
-    // Route the arrow, avoiding obstacles
-    const newPoints = routeArrow(sourceBox, targetBox, startEdge, endEdge);
+    // Find all boxes this arrow passes through
+    const boxesOnPath = findBoxesOnPath({x: startX, y: startY}, {x: endX, y: endY});
 
-    console.log(`Fixed arrow ${arrow.id}: ${sourceBox.id} -> ${targetBox.id}`);
+    if (boxesOnPath.length <= 2) {
+      // Arrow only connects 2 boxes (or less) - just fix the edge points
+      if (boxesOnPath.length === 2) {
+        const sourceBox = boxesOnPath[0];
+        const targetBox = boxesOnPath[1];
+        const startEdge = getEdgePoint(sourceBox, targetBox.centerX, targetBox.centerY);
+        const endEdge = getEdgePoint(targetBox, sourceBox.centerX, sourceBox.centerY);
+        
+        newArrows.push({
+          ...arrow,
+          x: startEdge.x,
+          y: startEdge.y,
+          points: [[0, 0], [endEdge.x - startEdge.x, endEdge.y - startEdge.y]]
+        });
+      } else {
+        newArrows.push(arrow);
+      }
+      continue;
+    }
 
-    return {
-      ...arrow,
-      x: startEdge.x,
-      y: startEdge.y,
-      points: newPoints
-    };
-  });
+    // Arrow passes through multiple boxes - split it into separate arrows
+    console.log(`Splitting arrow ${arrow.id} that passes through ${boxesOnPath.length} boxes`);
+    
+    for (let i = 0; i < boxesOnPath.length - 1; i++) {
+      const sourceBox = boxesOnPath[i];
+      const targetBox = boxesOnPath[i + 1];
+      
+      const startEdge = getEdgePoint(sourceBox, targetBox.centerX, targetBox.centerY);
+      const endEdge = getEdgePoint(targetBox, sourceBox.centerX, sourceBox.centerY);
+      
+      const newArrow = {
+        type: 'arrow',
+        id: `${arrow.id}-split-${i}`,
+        x: startEdge.x,
+        y: startEdge.y,
+        width: Math.abs(endEdge.x - startEdge.x) || 1,
+        height: Math.abs(endEdge.y - startEdge.y) || 1,
+        points: [[0, 0], [endEdge.x - startEdge.x, endEdge.y - startEdge.y]],
+        strokeColor: arrow.strokeColor || '#1e1e1e',
+        strokeWidth: arrow.strokeWidth || 2,
+        strokeStyle: arrow.strokeStyle || 'solid',
+        roughness: arrow.roughness ?? 0,
+        endArrowhead: 'arrow',
+        startArrowhead: null
+      };
+      
+      newArrows.push(newArrow);
+    }
+  }
 
-  return [...otherElements, ...fixedArrows];
+  console.log(`Arrow post-processor: ${arrows.length} arrows -> ${newArrows.length} arrows`);
+  return [...otherElements, ...newArrows];
 }
 
 // ============================================================================
