@@ -187,6 +187,74 @@ Ask yourself:
 
 If none fit perfectly, default to Tree—it's the most versatile.
 
+#### CONCRETE LAYOUT EXAMPLES
+
+**FLYWHEEL EXAMPLE (4 elements in a circle with looping arrows):**
+```json
+{
+  "elements": [
+    { "id": "title", "type": "text", "x": 350, "y": 30, "text": "The Growth Flywheel", "fontSize": 22, "strokeColor": "#1e1e1e", "textAlign": "center" },
+    { "id": "top", "type": "ellipse", "x": 300, "y": 80, "width": 200, "height": 80, "backgroundColor": "bg-hero", "strokeColor": "stroke-hero", "label": { "text": "Better Product", "fontSize": 14 } },
+    { "id": "right", "type": "rectangle", "x": 520, "y": 220, "width": 180, "height": 70, "backgroundColor": "bg-positive", "strokeColor": "stroke-positive", "label": { "text": "More Users", "fontSize": 14 } },
+    { "id": "bottom", "type": "rectangle", "x": 300, "y": 360, "width": 200, "height": 70, "backgroundColor": "bg-highlight", "strokeColor": "stroke-highlight", "label": { "text": "More Data", "fontSize": 14 } },
+    { "id": "left", "type": "rectangle", "x": 100, "y": 220, "width": 180, "height": 70, "backgroundColor": "bg-neutral", "strokeColor": "stroke-neutral", "label": { "text": "Better AI", "fontSize": 14 } },
+    { "id": "a1", "type": "arrow", "start": { "id": "top" }, "end": { "id": "right" }, "strokeColor": "#495057", "strokeWidth": 2 },
+    { "id": "a2", "type": "arrow", "start": { "id": "right" }, "end": { "id": "bottom" }, "strokeColor": "#495057", "strokeWidth": 2 },
+    { "id": "a3", "type": "arrow", "start": { "id": "bottom" }, "end": { "id": "left" }, "strokeColor": "#495057", "strokeWidth": 2 },
+    { "id": "a4", "type": "arrow", "start": { "id": "left" }, "end": { "id": "top" }, "strokeColor": "#495057", "strokeWidth": 2 }
+  ]
+}
+```
+Key: Arrows form a CONTINUOUS LOOP. Use ellipse for the central/starting concept.
+
+**QUADRANT EXAMPLE (2x2 grid with axis labels):**
+```json
+{
+  "elements": [
+    { "id": "title", "type": "text", "x": 350, "y": 30, "text": "Strategic Positioning Matrix", "fontSize": 22, "strokeColor": "#1e1e1e", "textAlign": "center" },
+    { "id": "y_axis", "type": "text", "x": 50, "y": 220, "text": "← Low Risk    High Risk →", "fontSize": 12, "strokeColor": "#868e96" },
+    { "id": "x_axis", "type": "text", "x": 350, "y": 450, "text": "← Low Growth    High Growth →", "fontSize": 12, "strokeColor": "#868e96" },
+    { "id": "q1", "type": "rectangle", "x": 120, "y": 100, "width": 200, "height": 140, "backgroundColor": "bg-positive", "strokeColor": "stroke-positive", "label": { "text": "Safe Bet\nLow Risk, High Growth", "fontSize": 13 } },
+    { "id": "q2", "type": "rectangle", "x": 480, "y": 100, "width": 200, "height": 140, "backgroundColor": "bg-highlight", "strokeColor": "stroke-highlight", "label": { "text": "High Potential\nHigh Risk, High Growth", "fontSize": 13 } },
+    { "id": "q3", "type": "rectangle", "x": 120, "y": 280, "width": 200, "height": 140, "backgroundColor": "bg-neutral", "strokeColor": "stroke-neutral", "label": { "text": "Cash Cow\nLow Risk, Low Growth", "fontSize": 13 } },
+    { "id": "q4", "type": "rectangle", "x": 480, "y": 280, "width": 200, "height": 140, "backgroundColor": "bg-negative", "strokeColor": "stroke-negative", "label": { "text": "Avoid\nHigh Risk, Low Growth", "fontSize": 13 } }
+  ]
+}
+```
+Key: NO arrows in quadrant layouts. Position conveys meaning.
+
+**ICEBERG EXAMPLE (visible above, hidden below a dividing line):**
+```json
+{
+  "elements": [
+    { "id": "title", "type": "text", "x": 350, "y": 30, "text": "What You See vs. What Matters", "fontSize": 22, "strokeColor": "#1e1e1e", "textAlign": "center" },
+    { "id": "visible", "type": "rectangle", "x": 250, "y": 80, "width": 300, "height": 100, "backgroundColor": "bg-neutral", "strokeColor": "stroke-neutral", "label": { "text": "Visible: Revenue Growth\n+15% YoY Headlines", "fontSize": 14 } },
+    { "id": "waterline", "type": "line", "x": 100, "y": 220, "width": 600, "height": 0, "strokeColor": "#228be6", "strokeWidth": 3 },
+    { "id": "waterline_label", "type": "text", "x": 720, "y": 215, "text": "Surface", "fontSize": 11, "strokeColor": "#228be6" },
+    { "id": "hidden1", "type": "rectangle", "x": 100, "y": 260, "width": 220, "height": 90, "backgroundColor": "bg-highlight", "strokeColor": "stroke-highlight", "label": { "text": "Hidden Driver 1\nMargin Compression", "fontSize": 13 } },
+    { "id": "hidden2", "type": "rectangle", "x": 340, "y": 260, "width": 220, "height": 90, "backgroundColor": "bg-negative", "strokeColor": "stroke-negative", "label": { "text": "Hidden Risk\nDebt Refinancing 2026", "fontSize": 13 } },
+    { "id": "hidden3", "type": "rectangle", "x": 580, "y": 260, "width": 220, "height": 90, "backgroundColor": "bg-positive", "strokeColor": "stroke-positive", "label": { "text": "Hidden Catalyst\nNew Product Launch", "fontSize": 13 } }
+  ]
+}
+```
+Key: Use a horizontal LINE element as the "waterline". More boxes below than above.
+
+**BRIDGE EXAMPLE (Current → Catalyst → Future):**
+```json
+{
+  "elements": [
+    { "id": "title", "type": "text", "x": 350, "y": 30, "text": "The Transformation Journey", "fontSize": 22, "strokeColor": "#1e1e1e", "textAlign": "center" },
+    { "id": "current", "type": "rectangle", "x": 80, "y": 150, "width": 200, "height": 120, "backgroundColor": "bg-neutral", "strokeColor": "stroke-neutral", "label": { "text": "Current State\nLegacy Business\n$10B Revenue", "fontSize": 13 } },
+    { "id": "catalyst", "type": "diamond", "x": 350, "y": 140, "width": 140, "height": 140, "backgroundColor": "bg-highlight", "strokeColor": "stroke-highlight", "label": { "text": "Catalyst\nAI Pivot", "fontSize": 13 } },
+    { "id": "future", "type": "rectangle", "x": 520, "y": 150, "width": 200, "height": 120, "backgroundColor": "bg-positive", "strokeColor": "stroke-positive", "label": { "text": "Future State\nAI-First Company\n$25B Revenue", "fontSize": 13 } },
+    { "id": "a1", "type": "arrow", "start": { "id": "current" }, "end": { "id": "catalyst" }, "strokeColor": "#495057", "strokeWidth": 2 },
+    { "id": "a2", "type": "arrow", "start": { "id": "catalyst" }, "end": { "id": "future" }, "strokeColor": "#495057", "strokeWidth": 2 }
+  ]
+}
+```
+Key: Use DIAMOND for the catalyst/pivot point. Horizontal flow left-to-right.
+
+
 #### SHAPE SEMANTICS
 
 Use distinct shapes to create additional meaning:
