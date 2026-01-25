@@ -90,6 +90,37 @@ Tree flowing top to bottom:
 Horizontal left to right:
 - Steps at y=200, x=50/250/450/650
 
+## CRITICAL ARROW ROUTING RULES
+
+Arrows MUST connect to box EDGES, never pass through boxes:
+
+1. **Calculate connection points on box edges:**
+   - Top edge center: (box.x + box.width/2, box.y)
+   - Bottom edge center: (box.x + box.width/2, box.y + box.height)
+   - Left edge center: (box.x, box.y + box.height/2)
+   - Right edge center: (box.x + box.width, box.y + box.height/2)
+
+2. **Arrow direction determines which edges to use:**
+   - Going DOWN: Start from source's BOTTOM edge, end at target's TOP edge
+   - Going UP: Start from source's TOP edge, end at target's BOTTOM edge
+   - Going RIGHT: Start from source's RIGHT edge, end at target's LEFT edge
+   - Going LEFT: Start from source's LEFT edge, end at target's RIGHT edge
+
+3. **For diagonal connections, use intermediate points:**
+   - If source is above-left of target: Exit source's RIGHT or BOTTOM edge, enter target's LEFT or TOP edge
+   - Add a bend point to route AROUND any boxes in between
+   - Arrow points array: [[0,0], [midX, midY], [endX, endY]] for bent arrows
+
+4. **Arrow position and points:**
+   - Arrow x,y is the START point (on source box edge)
+   - points[0] is always [0,0] (relative to arrow x,y)
+   - points[1] (optional) is the bend point for routing around obstacles
+   - points[last] is the END point relative to arrow x,y
+
+5. **NEVER let an arrow line pass through any box rectangle**
+   - If a straight line would cross a box, add a bend point to go around it
+   - Route arrows on the OUTSIDE of the diagram, not through the middle
+
 ## OUTPUT FORMAT
 
 Return ONLY this JSON structure:
@@ -98,9 +129,9 @@ Return ONLY this JSON structure:
   "version": 2,
   "source": "stratos-brain",
   "elements": [
-    // rectangles with: id, type, x, y, width (180), height (70), backgroundColor, strokeColor, strokeWidth (2), roundness: {type: 3}
-    // text with: id, type, x, y, width, height, text, fontSize (16), fontFamily (1), textAlign ("center"), strokeColor
-    // arrows with: id, type, x, y, width, height, points, strokeColor, strokeWidth (2), endArrowhead ("arrow")
+    // rectangles: {id, type:"rectangle", x, y, width:180, height:70, backgroundColor, strokeColor, strokeWidth:2, roundness:{type:3}}
+    // text: {id, type:"text", x, y, width, height, text, fontSize:16, fontFamily:1, textAlign:"center", strokeColor}
+    // arrows: {id, type:"arrow", x, y, width, height, points:[[0,0],[dx,dy]], strokeColor, strokeWidth:2, endArrowhead:"arrow"}
   ],
   "appState": {"viewBackgroundColor": "#ffffff"}
 }
