@@ -227,9 +227,16 @@ Return ONLY valid JSON (no markdown, no explanation).
 Element types you can use:
 - "text": Standalone text for titles, annotations, insights
 - "rectangle": Boxes with labels inside
-- "arrow": Connections between elements (use start/end with IDs)
+- "arrow": Connections between elements
 
-Example structure:
+**CRITICAL ARROW RULES:**
+1. Arrows MUST reference element IDs that EXACTLY match the "id" field of other elements
+2. Use simple, consistent IDs like "box1", "box2", "segment_a", "segment_b"
+3. Arrow format: { "type": "arrow", "start": { "id": "source_element_id" }, "end": { "id": "target_element_id" } }
+4. Double-check that every arrow's start.id and end.id matches an existing element's id
+5. If you create a box with id "revenue_box", the arrow must reference "revenue_box" exactly (case-sensitive)
+
+Example structure (note how arrow IDs match exactly):
 {
   "elements": [
     {
@@ -237,13 +244,13 @@ Example structure:
       "type": "text",
       "x": 350,
       "y": 30,
-      "text": "Company Name\nThe One-Line Insight That Captures the Essence",
+      "text": "Company Name\nThe One-Line Insight",
       "fontSize": 22,
       "strokeColor": "#1e1e1e",
       "textAlign": "center"
     },
     {
-      "id": "key_insight",
+      "id": "box1",
       "type": "rectangle",
       "x": 300,
       "y": 100,
@@ -251,31 +258,53 @@ Example structure:
       "height": 90,
       "backgroundColor": "#ffc9c9",
       "strokeColor": "#e03131",
-      "label": { "text": "The Key Answer\n$XX.XB (+XX% because...)", "fontSize": 16 }
+      "label": { "text": "Main Concept\n$XX.XB (+XX%)", "fontSize": 16 }
     },
     {
-      "id": "context_box",
+      "id": "box2",
       "type": "rectangle",
       "x": 100,
       "y": 260,
       "width": 280,
       "height": 80,
-      "backgroundColor": "#e9ecef",
-      "strokeColor": "#495057",
-      "label": { "text": "Why This Matters\nThe insight or context", "fontSize": 14 }
+      "backgroundColor": "#a5d8ff",
+      "strokeColor": "#1971c2",
+      "label": { "text": "Supporting Detail", "fontSize": 14 }
     },
     {
-      "id": "arrow_1",
+      "id": "box3",
+      "type": "rectangle",
+      "x": 420,
+      "y": 260,
+      "width": 280,
+      "height": 80,
+      "backgroundColor": "#b2f2bb",
+      "strokeColor": "#2f9e44",
+      "label": { "text": "Another Detail", "fontSize": 14 }
+    },
+    {
+      "id": "arrow1",
       "type": "arrow",
-      "start": { "id": "key_insight" },
-      "end": { "id": "context_box" },
+      "start": { "id": "box1" },
+      "end": { "id": "box2" },
+      "strokeColor": "#495057",
+      "strokeWidth": 2,
+      "endArrowhead": "triangle"
+    },
+    {
+      "id": "arrow2",
+      "type": "arrow",
+      "start": { "id": "box1" },
+      "end": { "id": "box3" },
       "strokeColor": "#495057",
       "strokeWidth": 2,
       "endArrowhead": "triangle"
     }
   ],
-  "appState": { "viewBackgroundColor": "#ffffff" }
+  "appState": { "viewBackgroundColor": "#f8f9fa" }
 }
+
+NOTICE: arrow1 references "box1" and "box2" - these EXACTLY match the id fields of the rectangles above.
 
 ## FINAL REMINDER
 
