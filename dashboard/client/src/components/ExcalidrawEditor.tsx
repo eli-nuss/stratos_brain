@@ -15,6 +15,53 @@ function getCenter(el: any) {
   };
 }
 
+// Helper: Calculate edge connection points for arrows
+// Connects from bottom edge of source to top edge of target
+function getEdgePoints(source: any, target: any) {
+  const sourceCenter = getCenter(source);
+  const targetCenter = getCenter(target);
+  
+  // Determine if arrow goes primarily vertical or horizontal
+  const dx = targetCenter.x - sourceCenter.x;
+  const dy = targetCenter.y - sourceCenter.y;
+  
+  let startX, startY, endX, endY;
+  
+  if (Math.abs(dy) > Math.abs(dx)) {
+    // Primarily vertical - connect top/bottom edges
+    if (dy > 0) {
+      // Target is below source - connect source bottom to target top
+      startX = sourceCenter.x;
+      startY = (source.y || 0) + (source.height || 100);
+      endX = targetCenter.x;
+      endY = target.y || 0;
+    } else {
+      // Target is above source - connect source top to target bottom
+      startX = sourceCenter.x;
+      startY = source.y || 0;
+      endX = targetCenter.x;
+      endY = (target.y || 0) + (target.height || 100);
+    }
+  } else {
+    // Primarily horizontal - connect left/right edges
+    if (dx > 0) {
+      // Target is to the right - connect source right to target left
+      startX = (source.x || 0) + (source.width || 100);
+      startY = sourceCenter.y;
+      endX = target.x || 0;
+      endY = targetCenter.y;
+    } else {
+      // Target is to the left - connect source left to target right
+      startX = source.x || 0;
+      startY = sourceCenter.y;
+      endX = (target.x || 0) + (target.width || 100);
+      endY = targetCenter.y;
+    }
+  }
+  
+  return { startX, startY, endX, endY };
+}
+
 // Generate unique ID
 function generateId() {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -93,20 +140,20 @@ function processSkeletonElements(elements: unknown[]): unknown[] {
     const target = targetId ? elementMap.get(targetId) : null;
 
     if (source && target) {
-      const startCenter = getCenter(source);
-      const endCenter = getCenter(target);
+      // Calculate edge connection points (not centers)
+      const { startX, startY, endX, endY } = getEdgePoints(source, target);
 
-      // Set arrow position and points
-      processedArrow.x = startCenter.x;
-      processedArrow.y = startCenter.y;
+      // Set arrow position and points - start from edge, end at edge
+      processedArrow.x = startX;
+      processedArrow.y = startY;
       processedArrow.points = [
         [0, 0],
-        [endCenter.x - startCenter.x, endCenter.y - startCenter.y]
+        [endX - startX, endY - startY]
       ];
 
-      // Bindings
-      processedArrow.startBinding = { elementId: source.id, focus: 0, gap: 8 };
-      processedArrow.endBinding = { elementId: target.id, focus: 0, gap: 8 };
+      // Bindings with proper focus and gap for edge connection
+      processedArrow.startBinding = { elementId: source.id, focus: 0, gap: 4 };
+      processedArrow.endBinding = { elementId: target.id, focus: 0, gap: 4 };
       
       // Update source/target shapes to know they have bound arrows
       const sourceInResult = result.find((r: any) => r.id === source.id);
@@ -380,7 +427,7 @@ export function ExcalidrawEditor({
         position: 'fixed', 
         inset: 0,
         zIndex: 9999,
-        backgroundColor: '#1e1e1e',
+        backgroundColor: '#f8f9fa', // Light background to match Excalidraw theme
         overflow: 'hidden'
       }}
     >
@@ -408,12 +455,13 @@ export function ExcalidrawEditor({
             initialData={{
               elements: processedElements || [],
               appState: { 
-                viewBackgroundColor: diagram?.excalidraw_data?.appState?.viewBackgroundColor || '#1e1e1e', 
-                theme: 'dark',
+                // Use the diagram's background color, defaulting to light gray for AI-generated diagrams
+                viewBackgroundColor: diagram?.excalidraw_data?.appState?.viewBackgroundColor || '#f8f9fa', 
+                theme: 'light',
                 gridSize: null,
               },
             }}
-            theme="dark"
+            theme="light"
           >
             {MainMenu && (
               <MainMenu>

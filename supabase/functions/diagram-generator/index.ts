@@ -82,84 +82,76 @@ const EXCALIDRAW_EXPERT_PROMPT = `You are an EXPERT Excalidraw diagram designer 
 ## STRICT DESIGN SYSTEM & LAYOUT RULES
 
 ### 1. DYNAMIC BOX SIZING (Based on text content):
-- Calculate width based on longest text line: (character_count * 10) + 40 padding
-- Minimum width: 180px, Maximum width: 350px
-- Calculate height based on number of lines: (line_count * 24) + 40 padding
-- Minimum height: 80px
+- Calculate width based on longest text line: (character_count * 12) + 60 padding
+- Minimum width: 200px, Maximum width: 400px
+- Calculate height based on number of lines: (line_count * 28) + 50 padding
+- Minimum height: 90px
 
 ### 2. THE GRID FORMULA (Prevents overlapping!):
-- Column spacing: 400px apart (X: 100, 500, 900, 1300...)
-- Row spacing: 220px apart (Y: 100, 320, 540, 760...)
+- Column spacing: 450px apart (X: 100, 550, 1000, 1450...)
+- Row spacing: 250px apart (Y: 100, 350, 600, 850...)
 - Center the diagram horizontally starting around X: 300
 
 EXAMPLE GRID POSITIONS:
-- Row 1 (Title): Center at (500, 50)
-- Row 2 (Main): (300, 150), (700, 150), (1100, 150)
-- Row 3: (300, 370), (700, 370), (1100, 370)
-- Row 4: (300, 590), (700, 590), (1100, 590)
+- Row 1 (Title): Center at (500, 40)
+- Row 2 (Main): (300, 150), (750, 150), (1200, 150)
+- Row 3: (300, 400), (750, 400), (1200, 400)
+- Row 4: (300, 650), (750, 650), (1200, 650)
 
-### 3. ARROWS - Use ID Binding (NOT coordinates!):
+### 3. ARROWS - EDGE BINDING (Connect to box edges, NOT centers!):
+Arrows should connect from the BOTTOM edge of parent boxes to the TOP edge of child boxes.
+Use ID binding so the frontend can calculate proper edge connection points:
 {
   "type": "arrow",
   "id": "arrow_1",
-  "start": { "id": "source_node_id" },
-  "end": { "id": "target_node_id" },
+  "start": { "id": "parent_box_id" },
+  "end": { "id": "child_box_id" },
   "strokeColor": "#868e96",
   "strokeWidth": 2,
   "endArrowhead": "triangle"
 }
 
-### 4. TEXT LABELS - USE THE REAL DATA PROVIDED:
-- Inside shapes: Use the "label" property
+### 4. TEXT LABELS - CENTERED IN BOXES:
+- Use the "label" property for text inside shapes
+- Text will be automatically CENTERED both horizontally and vertically
 - Include REAL numbers from the data (e.g., "$85.78B", "45.2%", etc.)
-- Keep labels concise: max 3 lines, max 25 characters per line
+- Keep labels concise: max 3 lines, max 20 characters per line
 - Use line breaks (\\n) to separate title from value
 - DO NOT use placeholder values like "XX" or "Data Unavailable"
 
-### 5. EXCALIDRAW PASTEL COLOR PALETTE (Beautiful & Professional):
-Use these exact Excalidraw pastel colors for a cohesive, beautiful look:
+### 5. OFFICIAL EXCALIDRAW COLOR PALETTE:
+Use ONLY these official Excalidraw colors for a clean, professional look:
 
-**Primary/Highlight (Purple):**
-- backgroundColor: "#e5dbff"
-- strokeColor: "#845ef7"
+**Light Pink (for totals/headers):**
+- backgroundColor: "#ffc9c9"
+- strokeColor: "#e03131"
 
-**Positive/Growth (Green):**
-- backgroundColor: "#c3fae8"
-- strokeColor: "#20c997"
+**Light Green (for positive/growth):**
+- backgroundColor: "#b2f2bb"
+- strokeColor: "#2f9e44"
 
-**Negative/Risk (Red):**
-- backgroundColor: "#ffe3e3"
-- strokeColor: "#fa5252"
+**Light Blue (for neutral/info):**
+- backgroundColor: "#a5d8ff"
+- strokeColor: "#1971c2"
 
-**Neutral/Info (Blue):**
-- backgroundColor: "#d0ebff"
-- strokeColor: "#339af0"
+**Light Yellow (for revenue/money):**
+- backgroundColor: "#ffec99"
+- strokeColor: "#f08c00"
 
-**Revenue/Money (Yellow):**
-- backgroundColor: "#fff9db"
-- strokeColor: "#fab005"
-
-**Secondary (Cyan):**
-- backgroundColor: "#c5f6fa"
-- strokeColor: "#22b8cf"
-
-**Accent (Pink):**
-- backgroundColor: "#ffdeeb"
-- strokeColor: "#f06595"
-
-**Neutral Gray:**
-- backgroundColor: "#e9ecef"
-- strokeColor: "#495057"
+**Arrows:**
+- strokeColor: "#1e1e1e" (black for visibility)
+- strokeWidth: 2
 
 ### 6. TITLE STYLING:
 - Use type: "text" for the main title
-- fontSize: 32 for main title
-- strokeColor: "#343a40" (dark gray for readability on light backgrounds)
-- Position centered at top: x around 400-600, y: 30-50
+- fontSize: 28 for main title
+- strokeColor: "#1e1e1e" (black for readability)
+- Position centered at top: x around 400-600, y: 40
+- textAlign: "center"
 
 ### 7. BACKGROUND:
-- Use light background: "viewBackgroundColor": "#f8f9fa" (light gray)
-- This makes the pastel colors pop beautifully
+- Use white background: "viewBackgroundColor": "#ffffff"
+- This makes the pastel colors look clean and professional
 
 ## OUTPUT FORMAT
 
@@ -171,24 +163,45 @@ Return ONLY valid JSON with NO markdown formatting:
       "id": "title",
       "type": "text",
       "x": 450,
-      "y": 30,
+      "y": 40,
       "text": "Company Name - Analysis Title",
-      "fontSize": 32,
-      "strokeColor": "#343a40"
+      "fontSize": 28,
+      "strokeColor": "#1e1e1e",
+      "textAlign": "center"
     },
     {
       "id": "main_box",
       "type": "rectangle",
       "x": 400,
-      "y": 120,
-      "width": 280,
+      "y": 150,
+      "width": 300,
       "height": 100,
-      "backgroundColor": "#e5dbff",
-      "strokeColor": "#845ef7",
-      "label": { "text": "Main Metric\\n$XX.XB (XX%)", "fontSize": 16 }
+      "backgroundColor": "#ffc9c9",
+      "strokeColor": "#e03131",
+      "label": { "text": "Total Revenue\\n$XX.XB", "fontSize": 18, "textAlign": "center" }
+    },
+    {
+      "id": "child_box",
+      "type": "rectangle",
+      "x": 400,
+      "y": 400,
+      "width": 280,
+      "height": 90,
+      "backgroundColor": "#b2f2bb",
+      "strokeColor": "#2f9e44",
+      "label": { "text": "Segment Name\\n$XX.XB (XX%)", "fontSize": 16, "textAlign": "center" }
+    },
+    {
+      "id": "arrow_main_to_child",
+      "type": "arrow",
+      "start": { "id": "main_box" },
+      "end": { "id": "child_box" },
+      "strokeColor": "#1e1e1e",
+      "strokeWidth": 2,
+      "endArrowhead": "triangle"
     }
   ],
-  "appState": { "viewBackgroundColor": "#f8f9fa" }
+  "appState": { "viewBackgroundColor": "#ffffff" }
 }`
 
 // ============================================================================
