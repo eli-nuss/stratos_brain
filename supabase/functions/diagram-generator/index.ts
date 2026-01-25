@@ -41,7 +41,132 @@ function getCurrentDateContext() {
   const year = now.getFullYear()
   const month = now.toLocaleString('en-US', { month: 'long' })
   const quarterNum = Math.ceil((now.getMonth() + 1) / 3)
-  return { year, month, quarter: \`Q\${quarterNum}\` }
+  return { year, month, quarter: `Q${quarterNum}` }
+}
+
+// ============================================================================
+// Arrow Routing Post-Processor - Ensures arrows never pass through boxes
+// ============================================================================
+
+function fixArrowRouting(elements: any[]): any[] {
+  function lineIntersectsRect(p1: {x: number, y: number}, p2: {x: number, y: number}, rect: {x: number, y: number, width: number, height: number}): boolean {
+    const padding = 5;
+    const left = rect.x - padding;
+    const right = rect.x + rect.width + padding;
+    const top = rect.y - padding;
+    const bottom = rect.y + rect.height + padding;
+
+    const p1Inside = p1.x > left && p1.x < right && p1.y > top && p1.y < bottom;
+    const p2Inside = p2.x > left && p2.x < right && p2.y > top && p2.y < bottom;
+    
+    if (p1Inside || p2Inside) return true;
+
+    // Check line-edge intersections using cross product
+    const edges = [
+      { a: { x: left, y: top }, b: { x: right, y: top } },
+      { a: { x: right, y: top }, b: { x: right, y: bottom } },
+      { a: { x: left, y: bottom }, b: { x: right, y: bottom } },
+      { a: { x: left, y: top }, b: { x: left, y: bottom } }
+    ];
+
+    for (const edge of edges) {
+      if (lineSegmentsIntersect(p1, p2, edge.a, edge.b)) return true;
+    }
+    return false;
+  }
+
+  function lineSegmentsIntersect(p1: {x: number, y: number}, p2: {x: number, y: number}, p3: {x: number, y: number}, p4: {x: number, y: number}): boolean {
+    const d1 = direction(p3, p4, p1);
+    const d2 = direction(p3, p4, p2);
+    const d3 = direction(p1, p2, p3);
+    const d4 = direction(p1, p2, p4);
+
+    if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+        ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+      return true;
+    }
+    return false;
+  }
+
+  function direction(p1: {x: number, y: number}, p2: {x: number, y: number}, p3: {x: number, y: number}): number {
+    return (p3.x - p1.x) * (p2.y - p1.y) - (p2.x - p1.x) * (p3.y - p1.y);
+  }
+
+  function routeAroundBox(start: {x: number, y: number}, end: {x: number, y: number}, box: {x: number, y: number, width: number, height: number}): {x: number, y: number}[] {
+    const padding = 30;
+    const boxCenterX = box.x + box.width / 2;
+    const boxCenterY = box.y + box.height / 2;
+    
+    const topY = box.y - padding;
+    const bottomY = box.y + box.height + padding;
+    const leftX = box.x - padding;
+    const rightX = box.x + box.width + padding;
+
+    const midX = (start.x + end.x) / 2;
+    const midY = (start.y + end.y) / 2;
+
+    // Decide routing based on movement direction
+    if (Math.abs(end.x - start.x) > Math.abs(end.y - start.y)) {
+      // Primarily horizontal - go around top or bottom
+      if (midY < boxCenterY) {
+        return [start, { x: start.x, y: topY }, { x: end.x, y: topY }, end];
+      } else {
+        return [start, { x: start.x, y: bottomY }, { x: end.x, y: bottomY }, end];
+      }
+    } else {
+      // Primarily vertical - go around left or right
+      if (midX < boxCenterX) {
+        return [start, { x: leftX, y: start.y }, { x: leftX, y: end.y }, end];
+      } else {
+        return [start, { x: rightX, y: start.y }, { x: rightX, y: end.y }, end];
+      }
+    }
+  }
+
+  const boxes = elements
+    .filter((e: any) => e.type === 'rectangle')
+    .map((e: any) => ({ id: e.id, x: e.x, y: e.y, width: e.width || 180, height: e.height || 70 }));
+
+  const arrows = elements.filter((e: any) => e.type === 'arrow');
+  const otherElements = elements.filter((e: any) => e.type !== 'arrow');
+
+  const fixedArrows = arrows.map((arrow: any) => {
+    if (!arrow.points || arrow.points.length < 2) return arrow;
+    
+    const startPoint = { x: arrow.x, y: arrow.y };
+    const lastPt = arrow.points[arrow.points.length - 1] || [0, 0];
+    const endPoint = { x: arrow.x + lastPt[0], y: arrow.y + lastPt[1] };
+
+    // Check for intersections with any box
+    let hasIntersection = false;
+    let obstacleBox: any = null;
+
+    for (const box of boxes) {
+      for (let i = 0; i < arrow.points.length - 1; i++) {
+        const p1 = { x: arrow.x + arrow.points[i][0], y: arrow.y + arrow.points[i][1] };
+        const p2 = { x: arrow.x + arrow.points[i + 1][0], y: arrow.y + arrow.points[i + 1][1] };
+        if (lineIntersectsRect(p1, p2, box)) {
+          hasIntersection = true;
+          obstacleBox = box;
+          break;
+        }
+      }
+      if (hasIntersection) break;
+    }
+
+    if (!hasIntersection) return arrow;
+
+    console.log(`Fixing arrow ${arrow.id} - routing around box ${obstacleBox.id}`);
+    
+    const newPath = routeAroundBox(startPoint, endPoint, obstacleBox);
+    const newPoints = newPath.map((p: {x: number, y: number}, i: number) => 
+      i === 0 ? [0, 0] : [p.x - arrow.x, p.y - arrow.y]
+    );
+
+    return { ...arrow, points: newPoints };
+  });
+
+  return [...otherElements, ...fixedArrows];
 }
 
 // ============================================================================
@@ -330,8 +455,10 @@ Create the diagram now. Output ONLY valid JSON.\`
       throw new Error('Invalid format: missing elements')
     }
     
-    // Post-process elements
-    const processedElements = diagramJson.elements.map((el: any, idx: number) => {
+    // Post-process elements - first fix arrow routing
+    const arrowFixedElements = fixArrowRouting(diagramJson.elements)
+    
+    const processedElements = arrowFixedElements.map((el: any, idx: number) => {
       if (!el.id) el.id = \`el-\${idx}\`
       if (el.type === 'rectangle' || el.type === 'ellipse') {
         el.fillStyle = el.fillStyle || 'solid'
