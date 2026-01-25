@@ -284,17 +284,48 @@ If squinting reveals chaos, simplify.
 
 ### PRINCIPLE 10: CONTENT DETERMINES SIZE
 
-**The box must fit the content, never the reverse.**
+**The box must fit the content, never the reverse. This is non-negotiable.**
 
-If text doesn't fit in a box, make the box bigger. Never truncate or cram content to fit a predetermined size. The information is what matters—the container is just there to hold it.
+Text overflow is the most common diagram failure. It makes diagrams look unprofessional and unreadable. Prevent it by always sizing containers AFTER you know what goes in them.
 
-Sizing priority:
-1. Write your full text (with appropriate line breaks)
-2. Calculate the required dimensions
-3. Create a box that size
-4. If it seems too big, consider if the text can be shortened naturally (not forced)
+#### THE SIZING WORKFLOW
 
-A larger box with readable text is always better than a cramped box with overflow.
+1. **Write your text first** - Decide exactly what words will appear in the box
+2. **Break into lines** - Determine natural line breaks (aim for readable line lengths)
+3. **Count and calculate** - Measure the longest line and number of lines
+4. **Add generous padding** - The text should never touch the edges
+5. **Create the box** - Now you know the minimum size needed
+
+#### THE PADDING MINDSET
+
+Think of padding as breathing room for your text. Text that touches or nearly touches the box edge feels cramped and rushed. Generous padding makes content feel considered and professional.
+
+Imagine the text is a person standing in a room. They should be able to stretch their arms without touching the walls. If the room feels claustrophobic, it's too small.
+
+#### WHEN TEXT SEEMS TOO LONG
+
+If calculating the box size reveals it would be uncomfortably large, you have options:
+
+**Option 1: Edit the text**
+Can you say the same thing in fewer words? Often the answer is yes. "Primary Growth Driver: ~$3.4B ARR by 2026" could become "Growth Driver\n$3.4B ARR (2026)". Shorter is usually clearer anyway.
+
+**Option 2: Use line breaks strategically**
+Breaking text into more lines makes the box narrower (though taller). Sometimes a taller, narrower box fits the layout better.
+
+**Option 3: Accept the larger box**
+If the information is important and can't be shortened, the box needs to be big. That's okay. A large box with readable text beats a small box with overflow.
+
+**Never Option: Cram it in anyway**
+This is never acceptable. If text overflows, the diagram is broken.
+
+#### VISUAL VERIFICATION
+
+Before finalizing any box, mentally "render" it:
+- Can you see all the text clearly inside the boundaries?
+- Is there comfortable space between text and edges on all four sides?
+- Does the text have room to "breathe"?
+
+If you're unsure, make the box slightly larger. Erring on the side of more space is always safer than less.
 
 ### PRINCIPLE 11: VERTICAL RHYTHM
 
@@ -478,21 +509,60 @@ After creating your diagram, imagine showing it to someone for just 3 seconds. W
 
 If not, the diagram is either too complex or poorly organized. Simplify until it passes.
 
-### PRINCIPLE 19: ANNOTATION PLACEMENT
+### PRINCIPLE 19: ANNOTATION LAYOUT
 
-**Annotations support, they don't compete.**
+**Annotations are supporting actors, not the main cast.**
 
-Annotations (explanatory text outside boxes) should be:
-- Clearly separated from the main diagram structure
-- Positioned below or to the side of the main content
-- Visually distinct (smaller, lighter, different style)
+Annotations provide context, caveats, or additional details that don't belong in the main diagram structure. They're like footnotes in a document—useful but clearly secondary.
 
-They should never:
-- Interrupt the visual flow between main elements
-- Be confused with box labels
-- Compete for attention with the primary hierarchy
+#### ANNOTATION TYPES
 
-Think of annotations as footnotes—helpful but secondary.
+**Single insight annotation:**
+A brief takeaway or summary below the main diagram. Center it, keep it to one or two lines, and make sure it doesn't compete with the boxes above.
+
+**Paired annotations (e.g., Bull/Bear, Pros/Cons):**
+When showing two contrasting viewpoints, treat them as a pair:
+- Place them side by side with clear separation
+- Give each its own visual territory (left half / right half)
+- Use consistent formatting between them
+- Never let them overlap or run into each other
+
+**List annotations:**
+When you have multiple points to make:
+- Group them logically
+- Align them in columns if there are multiple categories
+- Ensure adequate spacing between items
+- Keep each item brief—if it needs explanation, it might belong in a box instead
+
+#### THE SEPARATION PRINCIPLE
+
+Annotations must be clearly separated from the main diagram. This means:
+
+**Vertical separation:** Leave significant empty space between the lowest box and the annotations. The viewer should immediately perceive "the diagram ends here, notes begin here."
+
+**Visual distinction:** Annotations should look different from box content—typically smaller text, possibly a different color (like a muted gray), and no containing box.
+
+**Horizontal boundaries:** If you have multiple annotation groups (like Bull Case / Bear Case), each group needs its own horizontal territory. They should never overlap or interleave.
+
+#### AVOIDING ANNOTATION CHAOS
+
+Common mistakes:
+- **Overlapping text** - Two annotations running into each other
+- **Competing with boxes** - Annotations placed too close to diagram elements
+- **Wall of text** - Too much annotation content, overwhelming the diagram
+- **Random placement** - Annotations scattered without clear organization
+
+The fix is always the same: give each piece of content its own clear space. If annotations are colliding, either reduce the content or increase the canvas size.
+
+#### THE "NEWSPAPER COLUMN" MENTAL MODEL
+
+Think of annotation areas like newspaper columns. Each column has:
+- A clear starting point (left edge)
+- A defined width
+- Content that stays within its boundaries
+- Gutters (empty space) separating it from neighboring columns
+
+When placing paired or grouped annotations, mentally draw these column boundaries first, then fill in the content.
 
 ### PRINCIPLE 20: EDGE CASE HANDLING
 
