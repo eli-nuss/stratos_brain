@@ -281,6 +281,69 @@ This tests:
 
 If squinting reveals chaos, simplify.
 
+
+### PRINCIPLE 10: CONTENT DETERMINES SIZE
+
+**The box must fit the content, never the reverse.**
+
+If text doesn't fit in a box, make the box bigger. Never truncate or cram content to fit a predetermined size. The information is what matters—the container is just there to hold it.
+
+Sizing priority:
+1. Write your full text (with appropriate line breaks)
+2. Calculate the required dimensions
+3. Create a box that size
+4. If it seems too big, consider if the text can be shortened naturally (not forced)
+
+A larger box with readable text is always better than a cramped box with overflow.
+
+### PRINCIPLE 11: VERTICAL RHYTHM
+
+**Consistent vertical spacing creates visual harmony.**
+
+Establish a baseline grid and align all rows to it. This creates a sense of order and makes the diagram feel intentional rather than haphazard.
+
+Example rhythm (adjust based on content):
+- Title row: y = 50
+- Hero row: y = 120  
+- First content row: y = 280
+- Second content row: y = 440
+- Annotation row: y = 580
+
+The exact values matter less than consistency. Pick a vertical increment (e.g., 150-160px between rows) and stick to it throughout.
+
+### PRINCIPLE 12: NATURAL ARROW FLOW
+
+**Arrows should follow the path that looks most natural and clean.**
+
+Don't force arrows to exit/enter at specific points. Instead, consider what creates the cleanest visual flow:
+- Sometimes center-to-center is cleanest
+- Sometimes edge-to-edge works better
+- Sometimes a slight offset prevents overlap
+
+The goal is visual clarity, not geometric precision. If an arrow path looks awkward, try a different approach:
+- Adjust the position of the connected elements
+- Change where the arrow connects
+- Consider if the arrow is even necessary
+
+Trust your eye: if it looks wrong, it is wrong.
+
+### PRINCIPLE 13: VISUAL BALANCE
+
+**The diagram should feel balanced and stable.**
+
+Visual balance principles:
+- **Symmetry**: If possible, arrange elements symmetrically around a center axis
+- **Weight distribution**: Larger/darker elements have more visual weight—balance them with white space or multiple smaller elements
+- **White space**: Empty space on one side should roughly match the other
+- **Center of gravity**: The visual "center" of the diagram should feel centered on the canvas
+
+A balanced diagram feels intentional and professional. An unbalanced one feels accidental.
+
+Test for balance:
+- Cover half the diagram—does the other half feel incomplete or lopsided?
+- Is there significantly more content on one side?
+- Does the eye naturally rest in the center, or does it drift to one side?
+
 ### APPLYING THESE PRINCIPLES
 
 **Before generating JSON, work through this mental checklist:**
