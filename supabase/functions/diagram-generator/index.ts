@@ -311,21 +311,90 @@ Example rhythm (adjust based on content):
 
 The exact values matter less than consistency. Pick a vertical increment (e.g., 150-160px between rows) and stick to it throughout.
 
-### PRINCIPLE 12: NATURAL ARROW FLOW
+### PRINCIPLE 12: INTUITIVE ARROW FLOW
 
-**Arrows should follow the path that looks most natural and clean.**
+**Arrows should feel like natural extensions of the visual story.**
 
-Don't force arrows to exit/enter at specific points. Instead, consider what creates the cleanest visual flow:
-- Sometimes center-to-center is cleanest
-- Sometimes edge-to-edge works better
-- Sometimes a slight offset prevents overlap
+Think of arrows as visual sentences—they say "this leads to that" or "this breaks down into these." The path an arrow takes should reinforce that meaning, not distract from it.
 
-The goal is visual clarity, not geometric precision. If an arrow path looks awkward, try a different approach:
-- Adjust the position of the connected elements
-- Change where the arrow connects
-- Consider if the arrow is even necessary
+#### THE ARROW MINDSET
 
-Trust your eye: if it looks wrong, it is wrong.
+Before drawing any arrow, ask:
+1. What relationship am I showing? (breakdown, sequence, causation, dependency)
+2. What's the most direct visual path between these elements?
+3. Does this path feel natural to the eye?
+
+#### VISUAL FLOW PRINCIPLES
+
+**Follow the reading direction:**
+- For hierarchies (parent → children): arrows flow downward
+- For sequences (step → step): arrows flow left-to-right
+- For dependencies (A needs B): arrow points toward the dependency
+
+**Minimize visual distance:**
+- The shortest clear path is usually the best path
+- But "clear" matters more than "short"—avoid paths that create confusion
+
+**Respect the gestalt:**
+- Arrows should feel like they belong to the elements they connect
+- An arrow that seems to "reach across" the diagram awkwardly is wrong
+- The connection should feel inevitable, not forced
+
+#### CONNECTION POINT INTUITION
+
+Where an arrow connects to a box matters. Think about it like this:
+
+**Exiting a box:**
+- If the target is below → exit from bottom area
+- If the target is to the right → exit from right area  
+- If the target is diagonal → exit from the corner region closest to the target
+- The exit point should "point toward" the destination
+
+**Entering a box:**
+- Enter from the direction the arrow is coming from
+- If arrow comes from above → enter at top
+- If arrow comes from left → enter at left
+- The entry should feel like a natural arrival
+
+**The "string" mental model:**
+Imagine a string connecting the two boxes. If you pulled it taut, where would it naturally touch each box? That's your connection point.
+
+#### AVOIDING AWKWARDNESS
+
+Signs an arrow path is wrong:
+- It looks like it's "reaching around" something
+- It creates an unexpected diagonal when vertical/horizontal would work
+- It makes the viewer's eye jump unnaturally
+- It crosses or nearly crosses another element
+- The connection points feel arbitrary
+
+Fixes:
+- Reposition the elements so a cleaner path exists
+- Adjust which edge/area the arrow connects to
+- Consider if the arrow is even necessary (sometimes proximity implies relationship)
+
+#### MULTIPLE ARROWS FROM ONE SOURCE
+
+When one element connects to multiple targets (like a hero connecting to children):
+
+**Fan pattern:**
+- Arrows should fan out naturally
+- Each arrow takes the most direct path to its target
+- The overall pattern should feel balanced and intentional
+
+**Avoid the "octopus":**
+- Don't have arrows shooting out in random directions
+- If arrows would cross each other, reorganize the targets
+- The fan should feel orderly, not chaotic
+
+#### THE FINAL CHECK
+
+After placing arrows, step back and ask:
+- Do the arrows guide the eye through the diagram in the right order?
+- Does each arrow feel like the natural path between its endpoints?
+- Would a viewer intuitively understand the flow without thinking about it?
+
+If any arrow makes you pause or feels "off," trust that instinct and adjust.
 
 ### PRINCIPLE 13: VISUAL BALANCE
 
