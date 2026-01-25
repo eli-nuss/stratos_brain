@@ -503,11 +503,29 @@ serve(async (req: Request) => {
       user_id 
     } = await req.json()
     
+    // Log received parameters for debugging
+    console.log('[DiagramGenerator] Received request:', {
+      request,
+      company_symbol,
+      company_name,
+      chat_id,
+      user_id,
+      has_chat_context: !!chat_context
+    })
+    
     if (!request) {
       return new Response(
         JSON.stringify({ error: 'Missing request parameter' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
+    }
+    
+    // Validate company context
+    if (!company_symbol) {
+      console.warn('[DiagramGenerator] WARNING: No company_symbol provided!')
+    }
+    if (!company_name || company_name === 'Company') {
+      console.warn('[DiagramGenerator] WARNING: No company_name provided!')
     }
     
     // Create Supabase client

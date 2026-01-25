@@ -116,10 +116,18 @@ export function CompanyChatInterfaceNew({ chat, onRefresh }: CompanyChatInterfac
     if (prompt) {
       // AI-generated diagram - use the dedicated diagram generator endpoint
       try {
+        // Extract symbol from asset_id and name from display_name
+        const symbol = chat.asset_id; // e.g., "LLY"
+        // Parse company name from display_name (format: "Company Name (Ticker: SYMBOL)")
+        const nameMatch = chat.display_name.match(/^(.+?)\s*\(/);
+        const companyName = nameMatch ? nameMatch[1].trim() : chat.display_name;
+        
+        console.log('[DiagramGen] Using company context:', { symbol, companyName, display_name: chat.display_name });
+        
         const newDiagram = await generateDiagram(
           prompt,
-          chat.symbol, // company symbol
-          chat.name,   // company name
+          symbol,      // company symbol from asset_id
+          companyName, // company name parsed from display_name
           undefined    // chat summary (could be added later)
         );
         // THE FIX: Only open the editor if generation actually succeeded
@@ -150,7 +158,7 @@ export function CompanyChatInterfaceNew({ chat, onRefresh }: CompanyChatInterfac
         alert(`Failed to create diagram: ${err instanceof Error ? err.message : 'Unknown error'}`);
       }
     }
-  }, [createDiagram, generateDiagram, chat.symbol, chat.name]);
+  }, [createDiagram, generateDiagram, chat.asset_id, chat.display_name]);
 
   const handleOpenDiagram = useCallback(async (diagramId: string) => {
     const diagram = await getDiagram(diagramId);
