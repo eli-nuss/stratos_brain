@@ -303,6 +303,16 @@ Return ONLY this JSON structure:
 
 These rules are ABSOLUTE and must NEVER be violated:
 
+0. EACH ARROW CONNECTS ONLY TWO ADJACENT BOXES
+   - If you have boxes A → B → C → D, you need THREE separate arrows:
+     * Arrow 1: A to B
+     * Arrow 2: B to C  
+     * Arrow 3: C to D
+   - NEVER create one arrow from A to D that passes through B and C
+   - Each arrow is a separate element in the elements array
+   - For a chain of N boxes, create exactly N-1 arrows
+   - Example: 5 boxes in a column = 4 separate arrows
+
 1. ARROWS MUST NEVER PASS THROUGH ANY BOX
    - Before drawing any arrow, mentally trace its path
    - If the straight line from start to end would cross ANY box, you MUST add bend points
