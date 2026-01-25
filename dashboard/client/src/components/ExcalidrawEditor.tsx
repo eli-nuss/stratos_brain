@@ -74,19 +74,31 @@ function processSkeletonElements(elements: unknown[]): unknown[] {
   const result: any[] = [];
   const elementMap = new Map<string, any>();
 
-  // First pass: Assign IDs and map elements, also store processed shapes
+  // First pass: Build a map of ALL element IDs (original IDs from AI)
+  // This is critical for arrow binding to work
   const processedShapes: any[] = [];
   
   elements.forEach((el: any, index: number) => {
+    // IMPORTANT: Preserve the original ID from the AI
+    // Only generate a new one if none exists
     const id = el.id || `el-${index}-${generateId()}`;
     const baseEl = { ...el, id };
+    
+    // Map the element by its ID
     elementMap.set(id, baseEl);
+    
+    // Also map by original ID if different (for arrow binding)
+    if (el.id && el.id !== id) {
+      elementMap.set(el.id, baseEl);
+    }
     
     // Only process shapes in first pass (not arrows)
     if (!['arrow', 'line'].includes(el.type)) {
       processedShapes.push(baseEl);
     }
   });
+  
+  console.log('[processSkeletonElements] Element map keys:', Array.from(elementMap.keys()));
 
   // Second pass: Process shapes with labels
   processedShapes.forEach((el: any) => {
@@ -135,15 +147,43 @@ function processSkeletonElements(elements: unknown[]): unknown[] {
     result.push(processedShape);
   });
 
-  // Third pass: Process arrows
+  // Third pass: Process arrows with ROBUST ID matching
   elements.forEach((el: any) => {
     if (!['arrow', 'line'].includes(el.type)) return;
     
     const processedArrow = { ...el, id: el.id || `arrow-${generateId()}` };
-    const sourceId = el.start?.id;
-    const targetId = el.end?.id;
-    const source = sourceId ? elementMap.get(sourceId) : null;
-    const target = targetId ? elementMap.get(targetId) : null;
+    
+    // Get source and target IDs - handle various formats
+    let sourceId = el.start?.id || el.startId || el.sourceId;
+    let targetId = el.end?.id || el.endId || el.targetId;
+    
+    console.log('[processSkeletonElements] Arrow:', el.id, 'start:', sourceId, 'end:', targetId);
+    
+    // Try to find source and target in our element map
+    let source = sourceId ? elementMap.get(sourceId) : null;
+    let target = targetId ? elementMap.get(targetId) : null;
+    
+    // If not found, try case-insensitive matching
+    if (!source && sourceId) {
+      const lowerSourceId = sourceId.toLowerCase();
+      for (const [key, val] of elementMap.entries()) {
+        if (key.toLowerCase() === lowerSourceId) {
+          source = val;
+          break;
+        }
+      }
+    }
+    if (!target && targetId) {
+      const lowerTargetId = targetId.toLowerCase();
+      for (const [key, val] of elementMap.entries()) {
+        if (key.toLowerCase() === lowerTargetId) {
+          target = val;
+          break;
+        }
+      }
+    }
+    
+    console.log('[processSkeletonElements] Found source:', !!source, 'target:', !!target);
 
     if (source && target) {
       // Calculate edge connection points (not centers)
@@ -177,10 +217,20 @@ function processSkeletonElements(elements: unknown[]): unknown[] {
         }
       }
     } else {
-      // Fallback for unbound arrows
-      processedArrow.x = el.x || 0;
-      processedArrow.y = el.y || 0;
-      processedArrow.points = el.points || [[0, 0], [100, 50]];
+      // FALLBACK: If we can't find the elements, try to use explicit x/y/points from AI
+      // Or calculate from the arrow's own position data
+      if (el.x !== undefined && el.y !== undefined && el.points && el.points.length >= 2) {
+        // AI provided explicit coordinates - use them
+        processedArrow.x = el.x;
+        processedArrow.y = el.y;
+        processedArrow.points = el.points;
+        console.log('[processSkeletonElements] Using explicit arrow coords:', el.x, el.y);
+      } else {
+        // Last resort: Don't add the arrow at all if we can't position it
+        // This prevents arrows from piling up at (0,0)
+        console.warn('[processSkeletonElements] Skipping arrow with no valid position:', el.id);
+        return; // Skip this arrow entirely
+      }
     }
     
     delete processedArrow.start;
@@ -345,14 +395,10 @@ export function ExcalidrawEditor({
       
       let processed = rawElements;
       
-      // Use Excalidraw's official convertToExcalidrawElements API for skeleton elements
-      // This properly handles text binding, arrow connections, etc.
-      if (needsProcessing && ExcalidrawModule.convertToExcalidrawElements) {
-        console.log('[ExcalidrawEditor] Using Excalidraw convertToExcalidrawElements API');
-        processed = ExcalidrawModule.convertToExcalidrawElements(rawElements, { regenerateIds: false });
-        console.log('[ExcalidrawEditor] After Excalidraw conversion:', processed.length, 'elements');
-      } else if (needsProcessing) {
-        // Fallback to our manual processing if API not available
+      // ALWAYS use our manual processing for skeleton elements
+      // The Excalidraw API doesn't handle arrow binding well with AI-generated IDs
+      if (needsProcessing) {
+        console.log('[ExcalidrawEditor] Using manual skeleton processing for better arrow handling');
         processed = processSkeletonElements(rawElements);
         console.log('[ExcalidrawEditor] After manual skeleton processing:', processed.length, 'elements');
       }
@@ -383,7 +429,7 @@ export function ExcalidrawEditor({
         version: 2,
         source: 'stratos-brain',
         elements,
-        appState: { viewBackgroundColor: appState?.viewBackgroundColor || '#1e1e1e' },
+        appState: { viewBackgroundColor: appState?.viewBackgroundColor || '#f8f9fa' },
         files
       });
       alert("Diagram saved!");
@@ -398,10 +444,12 @@ export function ExcalidrawEditor({
     if (!isOpen) return;
     
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + S to save
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault();
         handleSave();
       }
+      // Escape to close
       if (e.key === 'Escape') {
         onClose();
       }
@@ -411,96 +459,102 @@ export function ExcalidrawEditor({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, handleSave, onClose]);
 
-  // Handle API ready callback
-  const handleExcalidrawAPI = useCallback((api: any) => {
-    console.log('[ExcalidrawEditor] Excalidraw API ready');
-    excalidrawAPIRef.current = api;
-    
-    // Scroll to content after a delay
-    if (processedElements && processedElements.length > 0) {
-      setTimeout(() => {
-        try {
-          api.scrollToContent(undefined, { fitToContent: true, animate: false });
-          console.log('[ExcalidrawEditor] Scrolled to content');
-        } catch (err) {
-          console.error('[ExcalidrawEditor] Failed to scroll:', err);
-        }
-      }, 500);
-    }
-  }, [processedElements]);
-
   if (!isOpen) return null;
 
   const Excalidraw = ExcalidrawModule?.Excalidraw;
-  const MainMenu = ExcalidrawModule?.MainMenu;
-  const isReady = !isLoading && processedElements !== null;
+
+  // Get app state from diagram data or use defaults
+  const appState = diagram?.excalidraw_data?.appState || {};
+  const initialAppState = {
+    viewBackgroundColor: appState.viewBackgroundColor || '#f8f9fa', // Light background
+    theme: 'light' as const,
+    zenModeEnabled: false,
+    gridSize: null,
+  };
 
   return (
-    <div 
-      style={{ 
-        position: 'fixed', 
-        inset: 0,
-        zIndex: 9999,
-        backgroundColor: '#f8f9fa', // Light background to match Excalidraw theme
-        overflow: 'hidden'
-      }}
-    >
-      {!isReady ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: '12px' }}>
-          <Loader2 className="w-8 h-8 text-zinc-400 animate-spin" />
-          <span style={{ color: '#9ca3af', fontSize: '14px' }}>
-            {isLoading ? 'Loading editor...' : 'Preparing diagram...'}
-          </span>
-        </div>
-      ) : loadError ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#ef4444', gap: '16px' }}>
-          <p>{loadError}</p>
-          <button 
+    <div className="fixed inset-0 z-50 flex flex-col bg-white">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
+        <div className="flex items-center gap-4">
+          <button
             onClick={onClose}
-            style={{ padding: '8px 16px', backgroundColor: '#374151', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+            className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
           >
-            Close
+            ← Back
+          </button>
+          <h2 className="text-lg font-semibold text-gray-900">
+            {diagram?.name || 'Diagram Editor'}
+          </h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => diagram && onExportPng(diagram.diagram_id)}
+            className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded"
+          >
+            Export PNG
+          </button>
+          <button
+            onClick={() => diagram && onExportJson(diagram.diagram_id)}
+            className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded"
+          >
+            Export JSON
+          </button>
+          <button
+            onClick={handleSave}
+            className="px-3 py-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded"
+          >
+            Save
           </button>
         </div>
-      ) : Excalidraw ? (
-        <div style={{ height: '100vh', width: '100vw' }} key={renderKey}>
+      </div>
+
+      {/* Editor Area */}
+      <div className="flex-1 relative">
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            <span className="ml-2 text-gray-600">Loading editor...</span>
+          </div>
+        )}
+        
+        {loadError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white">
+            <div className="text-center">
+              <p className="text-red-600 mb-2">{loadError}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Reload Page
+              </button>
+            </div>
+          </div>
+        )}
+        
+        {!isLoading && !loadError && Excalidraw && processedElements && (
           <Excalidraw
-            excalidrawAPI={handleExcalidrawAPI}
+            key={renderKey}
+            excalidrawAPI={(api: any) => {
+              excalidrawAPIRef.current = api;
+            }}
             initialData={{
-              elements: processedElements || [],
-              appState: { 
-                // Use the diagram's background color, defaulting to light gray for AI-generated diagrams
-                viewBackgroundColor: diagram?.excalidraw_data?.appState?.viewBackgroundColor || '#f8f9fa', 
-                theme: 'light',
-                gridSize: null,
-              },
+              elements: processedElements,
+              appState: initialAppState,
+              files: diagram?.excalidraw_data?.files || {},
             }}
             theme="light"
-          >
-            {MainMenu && (
-              <MainMenu>
-                <MainMenu.DefaultItems.LoadScene />
-                <MainMenu.DefaultItems.Export />
-                <MainMenu.DefaultItems.SaveAsImage />
-                <MainMenu.DefaultItems.ClearCanvas />
-                <MainMenu.Separator />
-                <MainMenu.Item onSelect={handleSave}>
-                  💾 Save to Stratos Brain
-                </MainMenu.Item>
-                <MainMenu.Item onSelect={() => diagram && onExportJson(diagram.diagram_id)}>
-                  📄 Export as JSON
-                </MainMenu.Item>
-                <MainMenu.Separator />
-                <MainMenu.Item onSelect={onClose}>
-                  ❌ Close & Return to Chat
-                </MainMenu.Item>
-              </MainMenu>
-            )}
-          </Excalidraw>
-        </div>
-      ) : null}
+            langCode="en"
+            UIOptions={{
+              canvasActions: {
+                loadScene: false,
+                export: false,
+                saveToActiveFile: false,
+              },
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 }
-
-export default ExcalidrawEditor;
