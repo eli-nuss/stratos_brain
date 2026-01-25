@@ -108,12 +108,16 @@ function processSkeletonElements(elements: unknown[]): unknown[] {
       const isDarkBg = bgColor.match(/^#[0-5]/);
       const textColor = el.label.strokeColor || (isDarkBg ? '#ffffff' : '#1e1e1e');
       
-      // Create the text element centered in the shape
+      // Create the text element bound to the shape
+      // For bound text, x/y should match the container's position
+      // Excalidraw will auto-center based on textAlign and verticalAlign
       result.push({
         type: 'text',
         id: textId,
-        x: el.x + (shapeWidth / 2),
-        y: el.y + (shapeHeight / 2),
+        x: el.x,  // Use container's x, not center
+        y: el.y,  // Use container's y, not center
+        width: shapeWidth,   // Match container width for proper centering
+        height: shapeHeight, // Match container height for proper centering
         text: el.label.text || '',
         fontSize: el.label.fontSize || 16,
         fontFamily: 1,
@@ -121,6 +125,8 @@ function processSkeletonElements(elements: unknown[]): unknown[] {
         textAlign: 'center',
         verticalAlign: 'middle',
         containerId: el.id,
+        originalText: el.label.text || '',
+        lineHeight: 1.25,
       });
       
       delete processedShape.label;
