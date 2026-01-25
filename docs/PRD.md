@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 24, 2026 (v2.8 - Diagram Generator Improvements)  
+**Last Updated: January 24, 2026 (v3.0 - Professional Diagram Design System)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -1029,13 +1029,21 @@ Both hooks subscribe to Supabase Realtime channels for live updates:
   - Direct Excalidraw JSON generation (no intermediate Mermaid format)
   - Button-triggered from Studio panel (not via chat agent)
   - Uses `gemini-2.5-flash` model for diagram generation
-  - **v2.8 Improvements (January 24, 2026):**
-    - Beautiful Excalidraw pastel color palette (purple, green, blue, cyan, pink, yellow)
-    - Dynamic box sizing based on text content length
-    - Date-aware data fetching (uses current year context)
-    - Reinforced company context to prevent data confusion between companies
-    - Fixed database table references (`chat_diagrams` table, `diagram_id` column)
-    - Light background color (`#f8f9fa`) for better contrast with pastel colors
+  - **v3.0 Professional Diagram Design System (January 24, 2026):**
+    - **Layout Templates:** Hierarchy (top-down tree), Flow (left-to-right), Comparison (side-by-side), Timeline (chronological)
+    - **Semantic Color System:** Colors convey meaning consistently:
+      - Pink (#ffc9c9) = Totals/Results/KPIs
+      - Green (#b2f2bb) = Growth/Positive metrics
+      - Blue (#a5d8ff) = Neutral/Process/Activities
+      - Yellow (#ffec99) = Revenue/Money/Financial data
+      - Gray (#e9ecef) = Context/Notes/Supporting info
+    - **Strict Grid System:** Consistent box sizes within rows, proper spacing (40px horizontal, 70px vertical)
+    - **Smart Arrow Routing:** Arrows connect to box edges (not centers), never cross through boxes
+    - **Visual Hierarchy:** Size indicates importance, position indicates flow, color indicates meaning
+    - **Professional Number Formatting:** $XX.XB for billions, $XXXM for millions, XX% for percentages
+    - **Text Centering Fix:** Bound text elements properly centered in containers
+    - **Light Theme:** White background (#ffffff) with official Excalidraw pastel colors
+    - **5-Second Comprehension Goal:** Diagrams designed for busy executives to understand instantly
 
 ### 11.2 Planned Features
 
