@@ -1,6 +1,6 @@
-// Diagram Generator v12
-// Key insight: Layout instructions must come LAST, right before output request
-// The shape of the diagram must match the concept
+// Diagram Generator v13
+// Key insight: Use natural language spatial descriptions (clock positions)
+// instead of JSON coordinates - Gemini understands "3 o'clock" better than "x: 520"
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0"
@@ -17,180 +17,110 @@ const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
 const GEMINI_MODEL_SMART = 'gemini-3-pro-preview'
 
-// ============================================================================
-// Streaming Helper
-// ============================================================================
-
 function createStreamWriter() {
   const encoder = new TextEncoder()
   let controller: ReadableStreamDefaultController<Uint8Array> | null = null
   
   const stream = new ReadableStream<Uint8Array>({
-    start(c) {
-      controller = c
-    }
+    start(c) { controller = c }
   })
   
   return {
     stream,
     write(event: string, data: unknown) {
       if (controller) {
-        const message = \`event: \${event}\ndata: \${JSON.stringify(data)}\n\n\`
-        controller.enqueue(encoder.encode(message))
+        controller.enqueue(encoder.encode(\`event: \${event}\ndata: \${JSON.stringify(data)}\n\n\`))
       }
     },
-    close() {
-      if (controller) {
-        controller.close()
-      }
-    }
+    close() { if (controller) controller.close() }
   }
 }
 
-// ============================================================================
-// Get current date info for context
-// ============================================================================
-
-function getCurrentDateContext(): { year: number; month: string; quarter: string; fiscalContext: string } {
+function getCurrentDateContext() {
   const now = new Date()
   const year = now.getFullYear()
   const month = now.toLocaleString('en-US', { month: 'long' })
   const quarterNum = Math.ceil((now.getMonth() + 1) / 3)
-  const quarter = \`Q\${quarterNum}\`
-  
-  const fiscalContext = quarterNum === 1 
-    ? \`Most recent complete fiscal year is FY\${year - 1}. FY\${year} has just begun.\`
-    : \`We are in \${quarter} of FY\${year}. FY\${year - 1} is the most recent complete fiscal year.\`
-  
-  return { year, month, quarter, fiscalContext }
+  return { year, month, quarter: \`Q\${quarterNum}\` }
 }
 
 // ============================================================================
-// LAYOUT TEMPLATES - Exact coordinates for each diagram type
+// THE PROMPT - Natural language with clock positions
 // ============================================================================
 
-const LAYOUT_TEMPLATES = {
-  cycle: \`
-## REQUIRED LAYOUT: CIRCULAR FLYWHEEL
+const DIAGRAM_PROMPT = \`You are creating an Excalidraw diagram. Your output must be valid JSON only.
 
-Your diagram MUST form a CIRCLE shape. This is NON-NEGOTIABLE for flywheel/cycle concepts.
+## CRITICAL LAYOUT RULES
 
-Place exactly 4 boxes at these coordinates (like clock positions):
+The SHAPE of your diagram must match the CONCEPT:
 
-TOP (12 o'clock):
-{"id": "box-top", "type": "rectangle", "x": 300, "y": 100, "width": 180, "height": 70, "backgroundColor": "#a5d8ff", "strokeColor": "#1971c2", "strokeWidth": 2, "roundness": {"type": 3}}
+### FOR FLYWHEEL/CYCLE DIAGRAMS (feedback loops, virtuous cycles):
 
-RIGHT (3 o'clock):
-{"id": "box-right", "type": "rectangle", "x": 520, "y": 280, "width": 180, "height": 70, "backgroundColor": "#b2f2bb", "strokeColor": "#2f9e44", "strokeWidth": 2, "roundness": {"type": 3}}
+The diagram MUST form a CIRCLE. Think of a clock face:
 
-BOTTOM (6 o'clock):
-{"id": "box-bottom", "type": "rectangle", "x": 300, "y": 460, "width": 180, "height": 70, "backgroundColor": "#b2f2bb", "strokeColor": "#2f9e44", "strokeWidth": 2, "roundness": {"type": 3}}
+- Box 1 goes at 12 o'clock (TOP CENTER): x=300, y=100
+- Box 2 goes at 3 o'clock (RIGHT SIDE): x=520, y=280
+- Box 3 goes at 6 o'clock (BOTTOM CENTER): x=300, y=460
+- Box 4 goes at 9 o'clock (LEFT SIDE): x=80, y=280
 
-LEFT (9 o'clock):
-{"id": "box-left", "type": "rectangle", "x": 80, "y": 280, "width": 180, "height": 70, "backgroundColor": "#ffec99", "strokeColor": "#f08c00", "strokeWidth": 2, "roundness": {"type": 3}}
+Arrows go CLOCKWISE around the outside:
+- Arrow from Box 1 to Box 2 (curves down-right)
+- Arrow from Box 2 to Box 3 (curves down-left)
+- Arrow from Box 3 to Box 4 (curves up-left)
+- Arrow from Box 4 to Box 1 (curves up-right)
 
-Connect with CLOCKWISE arrows around the outside (not through center):
-- Arrow 1: TOP → RIGHT (going down-right)
-- Arrow 2: RIGHT → BOTTOM (going down-left)  
-- Arrow 3: BOTTOM → LEFT (going up-left)
-- Arrow 4: LEFT → TOP (going up-right)
+DO NOT stack boxes vertically. DO NOT create a diamond shape.
+The boxes must form a SQUARE pattern like the 4 corners of a clock.
 
-Add center label at x=350, y=310 with the core concept (e.g., "GROWTH").
-Add title at top and key insight at bottom.
-\`,
+### FOR COMPARISON DIAGRAMS (vs, compare):
 
-  comparison: \`
-## REQUIRED LAYOUT: SIDE-BY-SIDE COLUMNS
+Two columns side by side:
+- Left column at x=80
+- Right column at x=440
+- Rows at y=100, 180, 260, 340
 
-Your diagram MUST have two distinct columns for comparison.
+### FOR HIERARCHY DIAGRAMS (structure, breakdown):
 
-LEFT COLUMN (Company A / Option A):
-- Header: {"id": "left-header", "type": "rectangle", "x": 80, "y": 100, "width": 280, "height": 50, "backgroundColor": "#ff8787", "strokeColor": "#c92a2a", "strokeWidth": 2, "roundness": {"type": 3}}
-- Row 1: {"id": "left-row1", "type": "rectangle", "x": 80, "y": 170, "width": 280, "height": 60, "backgroundColor": "#fff5f5", "strokeColor": "#ffc9c9", "strokeWidth": 1, "roundness": {"type": 3}}
-- Row 2: {"id": "left-row2", "type": "rectangle", "x": 80, "y": 250, "width": 280, "height": 60, ...}
-- Row 3: {"id": "left-row3", "type": "rectangle", "x": 80, "y": 330, "width": 280, "height": 60, ...}
+Tree flowing top to bottom:
+- Parent at top center: x=320, y=100
+- Children spread below: x=80/320/560, y=260
 
-RIGHT COLUMN (Company B / Option B):
-- Header: {"id": "right-header", "type": "rectangle", "x": 440, "y": 100, "width": 280, "height": 50, "backgroundColor": "#339af0", "strokeColor": "#1864ab", "strokeWidth": 2, "roundness": {"type": 3}}
-- Row 1: {"id": "right-row1", "type": "rectangle", "x": 440, "y": 170, "width": 280, "height": 60, "backgroundColor": "#e7f5ff", "strokeColor": "#a5d8ff", "strokeWidth": 1, "roundness": {"type": 3}}
-- Row 2, Row 3 at same y-coordinates as left column
+### FOR PROCESS DIAGRAMS (flow, steps):
 
-VS BADGE in center:
-{"id": "vs", "type": "ellipse", "x": 375, "y": 105, "width": 50, "height": 40, "backgroundColor": "#ffffff", "strokeColor": "#868e96", "strokeWidth": 2}
-
-Rows must align horizontally so items can be compared directly.
-\`,
-
-  hierarchy: \`
-## REQUIRED LAYOUT: TOP-DOWN TREE
-
-Your diagram MUST flow from top to bottom, with parent above children.
-
-PARENT (top center):
-{"id": "parent", "type": "rectangle", "x": 320, "y": 100, "width": 180, "height": 60, "backgroundColor": "#a5d8ff", "strokeColor": "#1971c2", "strokeWidth": 2, "roundness": {"type": 3}}
-
-CHILDREN (spread below):
-{"id": "child1", "type": "rectangle", "x": 80, "y": 260, "width": 160, "height": 60, "backgroundColor": "#b2f2bb", "strokeColor": "#2f9e44", "strokeWidth": 2, "roundness": {"type": 3}}
-{"id": "child2", "type": "rectangle", "x": 320, "y": 260, "width": 160, "height": 60, "backgroundColor": "#ffec99", "strokeColor": "#f08c00", "strokeWidth": 2, "roundness": {"type": 3}}
-{"id": "child3", "type": "rectangle", "x": 560, "y": 260, "width": 160, "height": 60, "backgroundColor": "#e9ecef", "strokeColor": "#868e96", "strokeWidth": 2, "roundness": {"type": 3}}
-
-Connect with LINES (not arrows) from parent to each child:
-{"id": "line1", "type": "line", "x": 410, "y": 160, "width": 250, "height": 100, "points": [[0,0], [-250, 100]], "strokeColor": "#868e96", "strokeWidth": 2}
-\`,
-
-  process: \`
-## REQUIRED LAYOUT: LEFT-TO-RIGHT FLOW
-
-Your diagram MUST flow horizontally from left to right.
-
-STEPS (in a row):
-{"id": "step1", "type": "rectangle", "x": 50, "y": 200, "width": 150, "height": 70, "backgroundColor": "#e7f5ff", "strokeColor": "#1971c2", "strokeWidth": 2, "roundness": {"type": 3}}
-{"id": "step2", "type": "rectangle", "x": 250, "y": 200, "width": 150, "height": 70, "backgroundColor": "#b2f2bb", "strokeColor": "#2f9e44", "strokeWidth": 2, "roundness": {"type": 3}}
-{"id": "step3", "type": "rectangle", "x": 450, "y": 200, "width": 150, "height": 70, "backgroundColor": "#ffec99", "strokeColor": "#f08c00", "strokeWidth": 2, "roundness": {"type": 3}}
-{"id": "step4", "type": "rectangle", "x": 650, "y": 200, "width": 150, "height": 70, "backgroundColor": "#ffc9c9", "strokeColor": "#e03131", "strokeWidth": 2, "roundness": {"type": 3}}
-
-ARROWS between steps (pointing right):
-{"id": "arrow1", "type": "arrow", "x": 200, "y": 235, "width": 50, "height": 0, "points": [[0,0], [50, 0]], "strokeColor": "#868e96", "strokeWidth": 2, "endArrowhead": "arrow"}
-\`
-}
-
-// ============================================================================
-// Base prompt - kept short and focused
-// ============================================================================
-
-const BASE_PROMPT = \`You are an expert diagram designer. Your diagrams are famous for being instantly understandable.
+Horizontal left to right:
+- Steps at y=200, x=50/250/450/650
 
 ## OUTPUT FORMAT
-Return ONLY valid JSON (no markdown, no explanation):
+
+Return ONLY this JSON structure:
 {
   "type": "excalidraw",
   "version": 2,
   "source": "stratos-brain",
-  "elements": [...],
+  "elements": [
+    // rectangles with: id, type, x, y, width (180), height (70), backgroundColor, strokeColor, strokeWidth (2), roundness: {type: 3}
+    // text with: id, type, x, y, width, height, text, fontSize (16), fontFamily (1), textAlign ("center"), strokeColor
+    // arrows with: id, type, x, y, width, height, points, strokeColor, strokeWidth (2), endArrowhead ("arrow")
+  ],
   "appState": {"viewBackgroundColor": "#ffffff"}
 }
 
-## ELEMENT STRUCTURE
-Each element needs: id, type, x, y, width, height, and for shapes: backgroundColor, strokeColor, strokeWidth, roundness.
-Text elements need: text, fontSize (16-24), fontFamily (1), textAlign ("center"), strokeColor.
-
 ## COLORS
-- Blue (#a5d8ff, stroke #1971c2): Core/Primary
-- Green (#b2f2bb, stroke #2f9e44): Growth/Positive  
-- Yellow (#ffec99, stroke #f08c00): Money/Catalyst
-- Red (#ffc9c9, stroke #e03131): Important/Results
-- Gray (#e9ecef, stroke #868e96): Secondary
+- Blue: backgroundColor "#a5d8ff", strokeColor "#1971c2"
+- Green: backgroundColor "#b2f2bb", strokeColor "#2f9e44"
+- Yellow: backgroundColor "#ffec99", strokeColor "#f08c00"
+- Red: backgroundColor "#ffc9c9", strokeColor "#e03131"
 
 ## QUALITY RULES
-1. Maximum 6-8 main elements
-2. Short labels (2-4 words per box)
-3. Include specific numbers from the data
-4. Add a "Key Insight" text at the bottom
-5. Title at top with company name and year
-\`
+1. Maximum 4-6 main boxes
+2. Short labels (2-4 words per line)
+3. Include a title at top
+4. Include "Key Insight:" text at bottom
+
+Now create the diagram. Output ONLY JSON.\`
 
 // ============================================================================
-// Diagram Generation with Data-First Workflow
+// Main Generation Function
 // ============================================================================
 
 async function generateDiagramWithStreaming(
@@ -205,7 +135,6 @@ async function generateDiagramWithStreaming(
 ): Promise<void> {
   
   const apiUrl = \`https://generativelanguage.googleapis.com/v1beta/models/\${GEMINI_MODEL_SMART}:generateContent?key=\${GEMINI_API_KEY}\`
-  
   const dateContext = getCurrentDateContext()
   
   const toolContext = {
@@ -215,35 +144,28 @@ async function generateDiagramWithStreaming(
   }
   
   try {
-    // ========================================================================
-    // PHASE 1: DETERMINE DIAGRAM TYPE
-    // ========================================================================
+    // PHASE 1: Detect diagram type
     writer.write('status', { stage: 'planning', message: 'Analyzing request...' })
     
-    const typePrompt = \`Classify this diagram request into exactly ONE type.
+    const typePrompt = \`Classify this request into ONE type:
+- "cycle" for flywheel, feedback loop, virtuous cycle
+- "comparison" for vs, compare, differences
+- "hierarchy" for structure, breakdown, segments
+- "process" for flow, steps, how it works
 
 Request: "\${request}"
-Company: \${companyName} (\${companySymbol})
-
-Types:
-- "cycle" = flywheel, feedback loop, virtuous cycle, reinforcing system
-- "comparison" = vs, compare, versus, side-by-side, differences
-- "hierarchy" = structure, breakdown, organization, ownership, segments
-- "process" = flow, pipeline, how it works, steps, sequence
-
-Output ONLY the type word, nothing else.\`
+Output ONLY the type word.\`
 
     const typeResponse = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: typePrompt }] }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 50 }
+        generationConfig: { temperature: 0.1, maxOutputTokens: 20 }
       })
     })
     
-    let diagramType = 'hierarchy' // default
-    
+    let diagramType = 'hierarchy'
     if (typeResponse.ok) {
       const typeData = await typeResponse.json()
       const typeText = (typeData.candidates?.[0]?.content?.parts?.[0]?.text || '').toLowerCase().trim()
@@ -251,93 +173,65 @@ Output ONLY the type word, nothing else.\`
         diagramType = typeText
       } else if (typeText.includes('cycle') || typeText.includes('flywheel')) {
         diagramType = 'cycle'
-      } else if (typeText.includes('compar') || typeText.includes('vs')) {
-        diagramType = 'comparison'
-      } else if (typeText.includes('process') || typeText.includes('flow')) {
-        diagramType = 'process'
       }
     }
     
-    console.log('Detected diagram type:', diagramType)
+    console.log('Detected type:', diagramType)
     
     writer.write('plan', { 
       title: \`\${companyName} Analysis\`, 
-      type: diagramType, 
-      checklist: [
-        { item: 'Company fundamentals', status: 'pending' },
-        { item: 'Research data', status: 'pending' }
-      ],
-      tools: ['get_asset_fundamentals', 'perform_grounded_research'],
-      layout: diagramType === 'cycle' ? 'Circular flywheel' : 
-              diagramType === 'comparison' ? 'Side-by-side columns' :
-              diagramType === 'hierarchy' ? 'Top-down tree' : 'Left-to-right flow',
+      type: diagramType,
+      checklist: [{ item: 'Fetching data', status: 'pending' }],
+      layout: diagramType === 'cycle' ? 'Circular (clock positions)' : diagramType,
       estimated_elements: 6
     })
     
-    // ========================================================================
-    // PHASE 2: DATA GATHERING
-    // ========================================================================
-    writer.write('status', { stage: 'researching', message: \`Fetching data for \${companySymbol}...\` })
+    // PHASE 2: Get data
+    writer.write('status', { stage: 'researching', message: 'Fetching data...' })
     
-    const gatheredData: Record<string, unknown> = {}
-    
+    let fundamentals = {}
     if (companySymbol) {
-      writer.write('tool_call', { tool: 'get_asset_fundamentals', args: { symbol: companySymbol }, message: \`Fetching fundamentals...\` })
-      
       try {
-        const fundamentals = await executeUnifiedTool('get_asset_fundamentals', { symbol: companySymbol }, supabase, toolContext)
-        gatheredData['fundamentals'] = fundamentals
-        writer.write('tool_result', { tool: 'get_asset_fundamentals', success: true, message: 'Got fundamentals' })
-        writer.write('checklist_update', { item: 'Company fundamentals', status: 'complete' })
+        fundamentals = await executeUnifiedTool('get_asset_fundamentals', { symbol: companySymbol }, supabase, toolContext)
+        writer.write('checklist_update', { item: 'Fetching data', status: 'complete' })
       } catch (e) {
         console.error('Fundamentals error:', e)
-        writer.write('tool_result', { tool: 'get_asset_fundamentals', success: false, message: String(e) })
       }
     }
     
-    const searchQuery = \`\${companyName} \${request} \${dateContext.year}\`
-    writer.write('tool_call', { tool: 'perform_grounded_research', args: { query: searchQuery }, message: \`Researching...\` })
-    
-    try {
-      const searchResults = await executeUnifiedTool('perform_grounded_research', { query: searchQuery }, supabase, toolContext)
-      gatheredData['research'] = searchResults
-      writer.write('tool_result', { tool: 'perform_grounded_research', success: true, message: 'Got research' })
-      writer.write('checklist_update', { item: 'Research data', status: 'complete' })
-    } catch (e) {
-      console.error('Research error:', e)
-    }
-    
-    // ========================================================================
-    // PHASE 3: GENERATE DIAGRAM
-    // ========================================================================
+    // PHASE 3: Generate diagram
     writer.write('status', { stage: 'designing', message: 'Creating diagram...' })
     
-    // Get the appropriate layout template
-    const layoutTemplate = LAYOUT_TEMPLATES[diagramType as keyof typeof LAYOUT_TEMPLATES] || LAYOUT_TEMPLATES.hierarchy
-    
-    // Build the prompt with layout instructions LAST (most important = most recent in context)
-    const designPrompt = \`\${BASE_PROMPT}
+    // Build type-specific instruction
+    let layoutReminder = ''
+    if (diagramType === 'cycle') {
+      layoutReminder = \`
+IMPORTANT: This is a CYCLE/FLYWHEEL diagram. You MUST use the CLOCK POSITION layout:
+- Box 1 at 12 o'clock (x=300, y=100) - TOP CENTER
+- Box 2 at 3 o'clock (x=520, y=280) - RIGHT SIDE  
+- Box 3 at 6 o'clock (x=300, y=460) - BOTTOM CENTER
+- Box 4 at 9 o'clock (x=80, y=280) - LEFT SIDE
 
-## COMPANY DATA
-Company: \${companyName} (\${companySymbol})
+The 4 boxes form a SQUARE pattern. Arrows go CLOCKWISE around the outside.
+DO NOT stack boxes vertically. DO NOT make a diamond shape.\`
+    }
+    
+    const designPrompt = \`\${DIAGRAM_PROMPT}
+
+## COMPANY
+\${companyName} (\${companySymbol})
 Date: \${dateContext.month} \${dateContext.year}
 
-Fundamentals:
-\${JSON.stringify(gatheredData['fundamentals'] || {}, null, 2).substring(0, 3000)}
+## DATA
+\${JSON.stringify(fundamentals, null, 2).substring(0, 2000)}
 
-Research:
-\${JSON.stringify(gatheredData['research'] || {}, null, 2).substring(0, 2000)}
-
-## USER REQUEST
+## REQUEST
 "\${request}"
+\${layoutReminder}
 
-## CRITICAL: FOLLOW THIS EXACT LAYOUT
-\${layoutTemplate}
+Create the diagram now. Output ONLY valid JSON.\`
 
-Now create the diagram. Use the EXACT coordinates from the layout template above. Output ONLY JSON.\`
-
-    console.log('Design prompt length:', designPrompt.length)
-    console.log('Using layout type:', diagramType)
+    console.log('Prompt length:', designPrompt.length)
     
     const designResponse = await fetch(apiUrl, {
       method: 'POST',
@@ -345,7 +239,7 @@ Now create the diagram. Use the EXACT coordinates from the layout template above
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: designPrompt }] }],
         generationConfig: { 
-          temperature: 0.3, 
+          temperature: 0.2,
           maxOutputTokens: 16384,
           responseMimeType: 'application/json'
         }
@@ -353,57 +247,37 @@ Now create the diagram. Use the EXACT coordinates from the layout template above
     })
     
     if (!designResponse.ok) {
-      const errorText = await designResponse.text()
-      throw new Error(\`Gemini API error: \${designResponse.status} - \${errorText}\`)
+      throw new Error(\`API error: \${designResponse.status}\`)
     }
     
     const designData = await designResponse.json()
     let responseText = designData.candidates?.[0]?.content?.parts?.[0]?.text || ''
     
-    console.log('Raw response length:', responseText.length)
+    writer.write('status', { stage: 'parsing', message: 'Parsing...' })
     
-    writer.write('status', { stage: 'parsing', message: 'Parsing diagram...' })
-    
+    // Parse JSON
     let diagramJson: { elements: unknown[], appState?: unknown }
     
-    function sanitizeJsonString(str: string): string {
-      return str.replace(/[\\x00-\\x1F\\x7F]/g, (char) => {
-        const code = char.charCodeAt(0)
-        if (code === 0x09) return '\\\\t'
-        if (code === 0x0A) return '\\\\n'
-        if (code === 0x0D) return '\\\\r'
-        return ''
-      })
-    }
+    const sanitize = (str: string) => str.replace(/[\\x00-\\x1F\\x7F]/g, '')
     
     try {
-      diagramJson = JSON.parse(sanitizeJsonString(responseText))
+      diagramJson = JSON.parse(sanitize(responseText))
     } catch (e) {
-      const jsonMatch = responseText.match(/\`\`\`(?:json)?\\s*([\\s\\S]*?)\\s*\`\`\`/) || responseText.match(/(\\{[\\s\\S]*\\})/)
-      if (jsonMatch) {
-        diagramJson = JSON.parse(sanitizeJsonString(jsonMatch[1]))
+      const match = responseText.match(/(\\{[\\s\\S]*\\})/)
+      if (match) {
+        diagramJson = JSON.parse(sanitize(match[1]))
       } else {
-        throw new Error('Could not parse diagram JSON: ' + (e as Error).message)
+        throw new Error('Could not parse JSON')
       }
     }
     
     if (!diagramJson.elements || !Array.isArray(diagramJson.elements)) {
-      throw new Error('Invalid diagram format: missing elements array')
+      throw new Error('Invalid format: missing elements')
     }
     
-    if (!diagramJson.appState) {
-      diagramJson.appState = {}
-    }
-    (diagramJson.appState as any).viewBackgroundColor = '#ffffff'
-    
-    // ========================================================================
-    // PHASE 4: POST-PROCESS AND SAVE
-    // ========================================================================
-    writer.write('status', { stage: 'finalizing', message: 'Saving diagram...' })
-    
-    // Ensure all elements have required fields
+    // Post-process elements
     const processedElements = diagramJson.elements.map((el: any, idx: number) => {
-      if (!el.id) el.id = \`element-\${idx}\`
+      if (!el.id) el.id = \`el-\${idx}\`
       if (el.type === 'rectangle' || el.type === 'ellipse') {
         el.fillStyle = el.fillStyle || 'solid'
         el.strokeStyle = el.strokeStyle || 'solid'
@@ -420,7 +294,6 @@ Now create the diagram. Use the EXACT coordinates from the layout template above
         el.strokeStyle = el.strokeStyle || 'solid'
         el.roughness = el.roughness ?? 0
         if (el.type === 'arrow') {
-          el.startArrowhead = el.startArrowhead || null
           el.endArrowhead = el.endArrowhead || 'arrow'
         }
       }
@@ -432,45 +305,36 @@ Now create the diagram. Use the EXACT coordinates from the layout template above
       version: 2,
       source: 'stratos-brain',
       elements: processedElements,
-      appState: {
-        viewBackgroundColor: '#ffffff',
-        gridSize: null
-      }
+      appState: { viewBackgroundColor: '#ffffff', gridSize: null }
     }
     
     // Save to database
     if (chatId && userId) {
       try {
-        const { error } = await supabase
-          .from('chat_diagrams')
-          .insert({
-            chat_id: chatId,
-            user_id: userId,
-            title: \`\${companyName} - \${request.substring(0, 50)}\`,
-            diagram_data: finalDiagram,
-            diagram_type: diagramType,
-            source: 'ai'
-          })
-        
-        if (error) {
-          console.error('Error saving diagram:', error)
-        }
+        await supabase.from('chat_diagrams').insert({
+          chat_id: chatId,
+          user_id: userId,
+          title: \`\${companyName} - \${request.substring(0, 50)}\`,
+          diagram_data: finalDiagram,
+          diagram_type: diagramType,
+          source: 'ai'
+        })
       } catch (e) {
-        console.error('Database error:', e)
+        console.error('DB error:', e)
       }
     }
     
     writer.write('diagram', finalDiagram)
-    writer.write('status', { stage: 'complete', message: 'Diagram complete!' })
+    writer.write('status', { stage: 'complete', message: 'Done!' })
     
   } catch (error) {
-    console.error('Diagram generation error:', error)
+    console.error('Error:', error)
     writer.write('error', { message: String(error) })
   }
 }
 
 // ============================================================================
-// Main Handler
+// Handler
 // ============================================================================
 
 serve(async (req) => {
@@ -482,27 +346,19 @@ serve(async (req) => {
     const { request, companySymbol, companyName, chatContext, chatId, userId } = await req.json()
     
     if (!request) {
-      return new Response(
-        JSON.stringify({ error: 'Missing request parameter' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return new Response(JSON.stringify({ error: 'Missing request' }), { 
+        status: 400, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      })
     }
     
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
     const writer = createStreamWriter()
     
     generateDiagramWithStreaming(
-      supabase,
-      writer,
-      request,
-      companySymbol || '',
-      companyName || 'Company',
-      chatContext || '',
-      chatId || null,
-      userId || null
-    ).finally(() => {
-      writer.close()
-    })
+      supabase, writer, request, companySymbol || '', companyName || 'Company',
+      chatContext || '', chatId || null, userId || null
+    ).finally(() => writer.close())
     
     return new Response(writer.stream, {
       headers: {
@@ -514,10 +370,9 @@ serve(async (req) => {
     })
     
   } catch (error) {
-    console.error('Handler error:', error)
-    return new Response(
-      JSON.stringify({ error: String(error) }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return new Response(JSON.stringify({ error: String(error) }), { 
+      status: 500, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    })
   }
 })
