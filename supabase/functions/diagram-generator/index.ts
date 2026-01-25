@@ -132,23 +132,77 @@ Don't just follow a template - think about what would genuinely help someone und
 | **Yellow** | Money, revenue, financial | #ffec99 | #f08c00 |
 | **Gray** | Context, notes, supporting | #e9ecef | #495057 |
 
-### Layout Guidelines
-- Use the layout that best tells the story (hierarchy, flow, comparison, etc.)
-- Keep boxes aligned on a grid for professionalism
-- Arrows should connect edges, not centers, and never cross through boxes
-- Leave enough space for readability
+### LAYOUT BEST PRACTICES (CRITICAL)
 
-### Text Should Teach
-- Titles can include a tagline: "Company Name - The One-Line Insight"
-- Labels should include context, not just names
-- Numbers should include comparison or trend when relevant
-- Use annotations freely to add insight
+A messy layout destroys comprehension. Follow these rules:
 
-### Technical Specs
-- Box sizes: Large 300×90, Medium 260×80, Small 220×70
-- Spacing: 40px horizontal min, 70px vertical min
-- Arrows: strokeColor "#495057", strokeWidth 2, endArrowhead "triangle"
-- Title: fontSize 22, strokeColor "#1e1e1e"
+**1. CHOOSE A CLEAR STRUCTURE**
+Pick ONE primary direction and stick to it:
+- **Top-to-Bottom**: For hierarchies, breakdowns (most common)
+- **Left-to-Right**: For processes, timelines, flows
+- **Columns**: For comparisons, categories
+
+**2. GRID ALIGNMENT IS MANDATORY**
+- All boxes in the same row MUST have the same Y coordinate
+- All boxes in the same column MUST have the same X coordinate
+- Use consistent spacing: 300px between columns, 150px between rows
+- Start your grid at x=100, y=100
+
+**3. LIMIT COMPLEXITY**
+- Maximum 8-10 boxes per diagram (fewer is better)
+- Maximum 3 levels of hierarchy
+- If you need more, you're trying to show too much - simplify
+
+**4. ARROWS MUST BE CLEAN**
+- Arrows should NEVER cross each other
+- Arrows should NEVER pass through boxes
+- Use simple vertical or horizontal arrows when possible
+- If arrows would cross, reorganize the boxes instead
+- For hierarchy: arrows go DOWN (parent above, children below)
+- For flow: arrows go RIGHT (input left, output right)
+
+**5. BREATHING ROOM**
+- Minimum 100px gap between any two boxes
+- Text inside boxes should have padding (don't cram it)
+- Leave margins around the entire diagram
+
+**6. VISUAL GROUPING**
+- Related items should be spatially close
+- Use rows to group items at the same level
+- The most important element goes at the top or center
+
+**7. STANDALONE TEXT PLACEMENT**
+- Title: Centered at top (y=30)
+- Insight/annotation text: Below the main diagram, not floating in the middle
+- Key risks or notes: At the bottom as a separate section
+
+### TEXT BEST PRACTICES
+
+- Titles can include a tagline: "Company Name\nThe One-Line Insight"
+- Keep box labels SHORT: Max 3 lines, max 25 chars per line
+- If text is too long, break it into multiple boxes or use annotation text below
+- Numbers should include context: "$2.5B (+40% YoY)" not just "$2.5B"
+
+### TECHNICAL SPECS
+
+**Box Sizes (use consistently within a row):**
+- Large: 320w × 100h (for main concepts)
+- Medium: 280w × 85h (for segments)
+- Small: 240w × 70h (for details)
+
+**Spacing:**
+- Column gap: 300px (e.g., x=100, x=400, x=700)
+- Row gap: 150px (e.g., y=100, y=250, y=400)
+
+**Arrows:**
+- strokeColor: "#495057"
+- strokeWidth: 2
+- endArrowhead: "triangle"
+
+**Title:**
+- fontSize: 22
+- strokeColor: "#1e1e1e"
+- Position: x=400, y=30 (centered)
 
 ## OUTPUT FORMAT
 
