@@ -493,16 +493,32 @@ Create an Excalidraw diagram that visualizes "${request}" for ${companyName} (${
     
     let diagramJson: { elements: unknown[], appState?: unknown }
     
+    // Sanitize JSON string to remove control characters that break parsing
+    // This handles newlines, tabs, and other control chars inside string literals
+    function sanitizeJsonString(str: string): string {
+      // First, try to fix common issues with control characters in JSON strings
+      // Replace literal newlines/tabs inside strings with escaped versions
+      return str
+        .replace(/[\x00-\x1F\x7F]/g, (char) => {
+          // Keep valid JSON escapes, replace others
+          const code = char.charCodeAt(0)
+          if (code === 0x09) return '\\t'  // tab
+          if (code === 0x0A) return '\\n'  // newline
+          if (code === 0x0D) return '\\r'  // carriage return
+          return '' // Remove other control characters
+        })
+    }
+    
     try {
-      // Try direct parse first
-      diagramJson = JSON.parse(responseText)
+      // Try direct parse first with sanitization
+      diagramJson = JSON.parse(sanitizeJsonString(responseText))
     } catch (e) {
       // Try to extract JSON from markdown
       const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || responseText.match(/(\{[\s\S]*\})/)
       if (jsonMatch) {
-        diagramJson = JSON.parse(jsonMatch[1])
+        diagramJson = JSON.parse(sanitizeJsonString(jsonMatch[1]))
       } else {
-        throw new Error('Could not parse diagram JSON')
+        throw new Error('Could not parse diagram JSON: ' + (e as Error).message)
       }
     }
     
