@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 24, 2026 (v2.7 - Dedicated Diagram Generator)  
+**Last Updated: January 24, 2026 (v2.8 - Diagram Generator Improvements)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -1023,12 +1023,19 @@ Both hooks subscribe to Supabase Realtime channels for live updates:
   - Export to PNG and Excalidraw JSON formats
   - Blank canvas creation for manual diagramming
 
-- **Dedicated Diagram Generator (v2.7):** Refactored diagram generation to use a dedicated endpoint for improved reliability:
-  - New `diagram-generator` edge function with focused tools (fundamentals, sector peers, chat summary, grounded research)
+- **Dedicated Diagram Generator (v2.8):** Refactored diagram generation to use a dedicated endpoint for improved reliability:
+  - New `diagram-generator` edge function with focused tools (fundamentals, deep research, grounded research)
   - Separate Gemini session prevents MALFORMED_FUNCTION_CALL errors that occurred with multi-tool orchestration
-  - Uses Mermaid syntax as intermediate format, converted to Excalidraw on frontend
+  - Direct Excalidraw JSON generation (no intermediate Mermaid format)
   - Button-triggered from Studio panel (not via chat agent)
-  - Uses `gemini-3-pro-preview` model for diagram generation
+  - Uses `gemini-2.5-flash` model for diagram generation
+  - **v2.8 Improvements (January 24, 2026):**
+    - Beautiful Excalidraw pastel color palette (purple, green, blue, cyan, pink, yellow)
+    - Dynamic box sizing based on text content length
+    - Date-aware data fetching (uses current year context)
+    - Reinforced company context to prevent data confusion between companies
+    - Fixed database table references (`chat_diagrams` table, `diagram_id` column)
+    - Light background color (`#f8f9fa`) for better contrast with pastel colors
 
 ### 11.2 Planned Features
 
