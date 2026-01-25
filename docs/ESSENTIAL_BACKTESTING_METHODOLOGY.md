@@ -20,29 +20,21 @@ This document outlines the essential, streamlined methodology for identifying an
 
 ```mermaid
 graph TD
-    A[Phase 1: Define Setups] --> B[Phase 2: Optimize Exits];
-    B --> C[Phase 3: Validate];
-    C --> D[Phase 4: Rank & Analyze];
+    A[Phase 1: Define Setups] --> B[Phase 2: Optimize Exits]
+    B --> C[Phase 3: Validate]
+    C --> D[Phase 4: Rank and Analyze]
 
-    subgraph A [Phase 1]
-        A1[Define Entry Conditions]
-        A2[Categorize (Short/Medium-Term)]
-    end
+    A --> A1[Define Entry Conditions]
+    A --> A2[Categorize by Timeframe]
 
-    subgraph B [Phase 2]
-        B1[Grid Search Exit Parameters]
-        B2[Apply Friction & Regime Filter]
-    end
+    B --> B1[Grid Search Exit Parameters]
+    B --> B2[Apply Friction and Regime Filter]
 
-    subgraph C [Phase 3]
-        C1[Walk-Forward Test]
-        C2(Train 2020-2022, Test 2023-2024)
-    end
+    C --> C1[Walk-Forward Test]
+    C --> C2[Train 2020-2022 then Test 2023-2024]
 
-    subgraph D [Phase 4]
-        D1[Rank by Reliability Score]
-        D2[Identify Top 3-5 Setups]
-    end
+    D --> D1[Rank by Reliability Score]
+    D --> D2[Identify Top 3-5 Setups]
 ```
 
 ### Phase 1: Define Setups
