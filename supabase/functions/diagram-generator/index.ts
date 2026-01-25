@@ -142,6 +142,30 @@ Return ONLY this JSON structure:
 - Yellow: backgroundColor "#ffec99", strokeColor "#f08c00"
 - Red: backgroundColor "#ffc9c9", strokeColor "#e03131"
 
+## FORBIDDEN - HARD CONSTRAINTS
+
+These rules are ABSOLUTE and must NEVER be violated:
+
+1. ARROWS MUST NEVER PASS THROUGH ANY BOX
+   - Before drawing any arrow, mentally trace its path
+   - If the straight line from start to end would cross ANY box, you MUST add bend points
+   - Route arrows AROUND boxes, never through them
+   - This applies to ALL boxes, not just the source and target
+
+2. ARROWS MUST NEVER CROSS EACH OTHER
+   - If two arrow paths would intersect, route one of them differently
+   - Use different edges or add bend points to avoid crossings
+
+3. ARROWS MUST START AND END ON BOX EDGES
+   - Never start an arrow from inside a box
+   - Never end an arrow inside a box
+   - Calculate the exact edge point based on direction
+
+4. VERIFICATION STEP (do this mentally before outputting):
+   - For each arrow, trace its path from start to end
+   - Check: does this line cross any box? If yes, add a bend point
+   - Check: does this line cross any other arrow? If yes, reroute
+
 ## QUALITY RULES
 1. Maximum 4-6 main boxes
 2. Short labels (2-4 words per line)
