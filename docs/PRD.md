@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 24, 2026 (v4.0 - Teaching Mindset Diagram System)  
+**Last Updated: January 25, 2026 (v10.0 - Flow-First Diagram System)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -1029,16 +1029,26 @@ Both hooks subscribe to Supabase Realtime channels for live updates:
   - Direct Excalidraw JSON generation (no intermediate Mermaid format)
   - Button-triggered from Studio panel (not via chat agent)
   - Uses `gemini-2.5-flash` model for diagram generation
-  - **v4.0 Teaching Mindset Diagram System (January 24, 2026):**
-    - **Core Philosophy:** Diagrams should EXPLAIN and TEACH, not just visualize data
-    - **Thinking Framework:** AI asks "What is the user really trying to understand?" before creating
-    - **The 'So What?' Test:** Every piece of information must answer "why does this matter?"
-    - **Creative Freedom:** AI decides what's most important, can add sections like "Key Risks", "The Moat", "What to Watch"
-    - **Contextual Labels:** Labels include insight, not just names (e.g., "C-Corp (2024) → Can reinvest vs forced REIT payouts")
-    - **Hooks & Taglines:** Titles can include one-line insights that capture the essence
-    - **Semantic Colors:** Pink=Results, Green=Growth, Blue=Process, Yellow=Money, Gray=Context
-    - **Smart Layout:** Grid alignment, edge-connected arrows, proper spacing
-    - **Goal:** After seeing the diagram, viewer should understand something they didn't before
+  - **v10.0 Flow-First Diagram System (January 25, 2026):**
+    - **Core Philosophy:** FLOW-FIRST DESIGN - Determine the visual flow pattern BEFORE adding any content
+    - **6-Step Thinking Process:**
+      1. Identify the core pattern (cycle, hierarchy, comparison, process, timeline, or matrix)
+      2. Design the flow skeleton with arrow directions first
+      3. Position main boxes along the flow path
+      4. Add labels that explain WHY, not just WHAT
+      5. Place annotations on sides (not blocking flow)
+      6. Verify all arrows connect to box edges
+    - **Streamlined Prompt:** Reduced from ~900 lines to ~380 lines for faster, more consistent generation
+    - **Pattern Recognition:** AI identifies the best layout pattern based on query intent:
+      - CYCLE: For flywheels, feedback loops, virtuous circles
+      - HIERARCHY: For org charts, ownership structures, reporting lines
+      - COMPARISON: For vs diagrams, side-by-side analysis
+      - PROCESS: For workflows, pipelines, sequential steps
+      - TIMELINE: For evolution, history, roadmaps
+      - MATRIX: For 2x2 frameworks, quadrant analysis
+    - **Semantic Colors:** Blue=Core/Process, Green=Growth/Positive, Yellow=Money/Catalyst, Orange=Supporting, Pink=Results
+    - **Smart Layout:** Grid alignment (50px), edge-connected arrows, annotations on sides
+    - **Goal:** Diagrams that TEACH through visual flow, not just display information
 
 ### 11.2 Planned Features
 
