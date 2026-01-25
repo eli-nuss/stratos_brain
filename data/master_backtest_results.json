@@ -1,0 +1,333 @@
+{
+  "timestamp": "2026-01-25T15:38:13.881286",
+  "regime_filter": true,
+  "results": [
+    {
+      "setup_name": "golden_cross_momentum",
+      "category": "long_term",
+      "description": "50 MA crosses above 200 MA with strong momentum",
+      "metrics": {
+        "total_trades": 108,
+        "win_rate": 0.5277777777777778,
+        "profit_factor": 4.541920997700628,
+        "avg_return_pct": 0.20642898037744592,
+        "avg_holding_days": 139.83333333333334,
+        "exit_reasons": {
+          "breakdown_sma_200": 59,
+          "trailing_stop": 14,
+          "profit_target": 17,
+          "max_hold": 18
+        },
+        "bull_trades": 145,
+        "bear_skipped": 7628
+      },
+      "reliability_score": 92.61904761904762
+    },
+    {
+      "setup_name": "rs_acceleration",
+      "category": "long_term",
+      "description": "Relative strength accelerating (outperformance increasing)",
+      "metrics": {
+        "total_trades": 141,
+        "win_rate": 0.41134751773049644,
+        "profit_factor": 4.114962321795926,
+        "avg_return_pct": 0.21179015941673335,
+        "avg_holding_days": 117.2482269503546,
+        "exit_reasons": {
+          "breakdown_sma_200": 90,
+          "profit_target": 22,
+          "max_hold": 15,
+          "trailing_stop": 14
+        },
+        "bull_trades": 184,
+        "bear_skipped": 7494
+      },
+      "reliability_score": 87.62917933130699
+    },
+    {
+      "setup_name": "52w_low_reversal",
+      "category": "long_term",
+      "description": "Near 52-week low with reversal signals",
+      "metrics": {
+        "total_trades": 82,
+        "win_rate": 0.43902439024390244,
+        "profit_factor": 7.358866431322162,
+        "avg_return_pct": 0.33999698779950255,
+        "avg_holding_days": 131.6341463414634,
+        "exit_reasons": {
+          "trailing_stop": 13,
+          "stop_loss": 45,
+          "profit_target": 12,
+          "max_hold": 12
+        },
+        "bull_trades": 111,
+        "bear_skipped": 8350
+      },
+      "reliability_score": 86.11533101045296
+    },
+    {
+      "setup_name": "oversold_quality",
+      "category": "short_term",
+      "description": "RSI oversold + extended below 20 MA (mean reversion)",
+      "metrics": {
+        "total_trades": 152,
+        "win_rate": 0.743421052631579,
+        "profit_factor": 3.0704527531329595,
+        "avg_return_pct": 0.038426383071848695,
+        "avg_holding_days": 7.25,
+        "exit_reasons": {
+          "target_sma_20": 111,
+          "time_stop": 10,
+          "stop_loss": 31
+        },
+        "bull_trades": 154,
+        "bear_skipped": 10312
+      },
+      "reliability_score": 81.40439717864145
+    },
+    {
+      "setup_name": "stage2_entry",
+      "category": "long_term",
+      "description": "Stage 2 entry - price crosses above 200 MA with momentum",
+      "metrics": {
+        "total_trades": 102,
+        "win_rate": 0.39215686274509803,
+        "profit_factor": 1.9784678369225586,
+        "avg_return_pct": 0.051456909515745865,
+        "avg_holding_days": 103.49019607843137,
+        "exit_reasons": {
+          "trailing_stop": 20,
+          "breakdown_sma_200": 70,
+          "max_hold": 9,
+          "profit_target": 3
+        },
+        "bull_trades": 137,
+        "bear_skipped": 8450
+      },
+      "reliability_score": 64.12448831810399
+    },
+    {
+      "setup_name": "relative_strength_breakout",
+      "category": "medium_term",
+      "description": "RS line breaking out (outperforming market)",
+      "metrics": {
+        "total_trades": 159,
+        "win_rate": 0.3836477987421384,
+        "profit_factor": 1.7062736560399172,
+        "avg_return_pct": 0.0217216134304311,
+        "avg_holding_days": 38.36477987421384,
+        "exit_reasons": {
+          "breakdown_sma_50": 129,
+          "trailing_stop": 11,
+          "max_hold": 19
+        },
+        "bull_trades": 174,
+        "bear_skipped": 9795
+      },
+      "reliability_score": 55.537601295071084
+    },
+    {
+      "setup_name": "volatility_contraction_breakout",
+      "category": "short_term",
+      "description": "VCP - tight squeeze with breakout",
+      "metrics": {
+        "total_trades": 108,
+        "win_rate": 0.37037037037037035,
+        "profit_factor": 1.586123321147498,
+        "avg_return_pct": 0.014905145064761163,
+        "avg_holding_days": 19.51851851851852,
+        "exit_reasons": {
+          "breakdown_sma_20": 49,
+          "stop_loss": 52,
+          "trailing_stop": 7
+        },
+        "bull_trades": 118,
+        "bear_skipped": 10295
+      },
+      "reliability_score": 52.390686570912706
+    },
+    {
+      "setup_name": "acceleration_turn_up",
+      "category": "medium_term",
+      "description": "Momentum acceleration turning positive in uptrend",
+      "metrics": {
+        "total_trades": 1074,
+        "win_rate": 0.36685288640595903,
+        "profit_factor": 1.6062504532817177,
+        "avg_return_pct": 0.012464906545255106,
+        "avg_holding_days": 21.35661080074488,
+        "exit_reasons": {
+          "breakdown_sma_50": 952,
+          "trailing_stop": 56,
+          "max_hold": 66
+        },
+        "bull_trades": 1126,
+        "bear_skipped": 8069
+      },
+      "reliability_score": 52.07475642384518
+    },
+    {
+      "setup_name": "macd_bullish_cross",
+      "category": "medium_term",
+      "description": "MACD histogram turning positive with trend confirmation",
+      "metrics": {
+        "total_trades": 817,
+        "win_rate": 0.3329253365973072,
+        "profit_factor": 1.5598891353020237,
+        "avg_return_pct": 0.014335737343106704,
+        "avg_holding_days": 26.561811505507954,
+        "exit_reasons": {
+          "breakdown_sma_50": 704,
+          "trailing_stop": 55,
+          "max_hold": 58
+        },
+        "bull_trades": 873,
+        "bear_skipped": 8234
+      },
+      "reliability_score": 50.3761878921219
+    },
+    {
+      "setup_name": "gap_up_hold",
+      "category": "short_term",
+      "description": "Gap up with volume that holds",
+      "metrics": {
+        "total_trades": 325,
+        "win_rate": 0.4123076923076923,
+        "profit_factor": 1.2352329137789233,
+        "avg_return_pct": 0.005103115266409172,
+        "avg_holding_days": 19.74153846153846,
+        "exit_reasons": {
+          "breakdown_sma_20": 278,
+          "stop_loss": 40,
+          "max_hold": 5,
+          "trailing_stop": 2
+        },
+        "bull_trades": 325,
+        "bear_skipped": 10074
+      },
+      "reliability_score": 48.343643846744946
+    },
+    {
+      "setup_name": "holy_grail_20ema",
+      "category": "medium_term",
+      "description": "Pullback to rising 20 EMA in strong trend (Linda Raschke)",
+      "metrics": {
+        "total_trades": 364,
+        "win_rate": 0.34615384615384615,
+        "profit_factor": 1.2989840772870396,
+        "avg_return_pct": 0.007786838058158602,
+        "avg_holding_days": 23.664835164835164,
+        "exit_reasons": {
+          "breakdown_sma_20": 304,
+          "trailing_stop": 20,
+          "max_hold": 40
+        },
+        "bull_trades": 389,
+        "bear_skipped": 9886
+      },
+      "reliability_score": 46.72078010563574
+    },
+    {
+      "setup_name": "trend_pullback_50ma",
+      "category": "medium_term",
+      "description": "Pullback to 50 MA in established uptrend",
+      "metrics": {
+        "total_trades": 560,
+        "win_rate": 0.21964285714285714,
+        "profit_factor": 1.4624242946528672,
+        "avg_return_pct": 0.010011080797247392,
+        "avg_holding_days": 25.201785714285716,
+        "exit_reasons": {
+          "breakdown_sma_50": 521,
+          "trailing_stop": 15,
+          "max_hold": 24
+        },
+        "bull_trades": 593,
+        "bear_skipped": 8892
+      },
+      "reliability_score": 43.63087030816475
+    },
+    {
+      "setup_name": "confirmed_breakout",
+      "category": "long_term",
+      "description": "Confirmed breakout with follow-through",
+      "metrics": {
+        "total_trades": 59,
+        "win_rate": 0.3050847457627119,
+        "profit_factor": 1.5727359632067264,
+        "avg_return_pct": 0.01584213205359463,
+        "avg_holding_days": 27.135593220338983,
+        "exit_reasons": {
+          "stop_loss": 32,
+          "breakdown_sma_50": 19,
+          "trailing_stop": 7,
+          "max_hold": 1
+        },
+        "bull_trades": 68,
+        "bear_skipped": 10164
+      },
+      "reliability_score": 43.43824743343414
+    },
+    {
+      "setup_name": "deep_oversold_bounce",
+      "category": "short_term",
+      "description": "Extreme oversold with reversal signal",
+      "metrics": {
+        "total_trades": 14,
+        "win_rate": 0.5714285714285714,
+        "profit_factor": 1.1965162477611662,
+        "avg_return_pct": 0.004625899050715915,
+        "avg_holding_days": 9.0,
+        "exit_reasons": {
+          "stop_loss": 3,
+          "time_stop": 8,
+          "target_sma_20": 3
+        },
+        "bull_trades": 14,
+        "bear_skipped": 10423
+      },
+      "reliability_score": 41.71897406662066
+    },
+    {
+      "setup_name": "52w_high_breakout",
+      "category": "long_term",
+      "description": "Breaking to new 52-week high with volume",
+      "metrics": {
+        "total_trades": 51,
+        "win_rate": 0.29411764705882354,
+        "profit_factor": 1.333018824217022,
+        "avg_return_pct": 0.009162151786889483,
+        "avg_holding_days": 28.92156862745098,
+        "exit_reasons": {
+          "breakdown_sma_50": 17,
+          "stop_loss": 29,
+          "trailing_stop": 4,
+          "max_hold": 1
+        },
+        "bull_trades": 55,
+        "bear_skipped": 10274
+      },
+      "reliability_score": 37.7782932052259
+    },
+    {
+      "setup_name": "drawdown_recovery",
+      "category": "long_term",
+      "description": "Recovery from significant drawdown with trend confirmation",
+      "metrics": {
+        "total_trades": 22,
+        "win_rate": 0.2727272727272727,
+        "profit_factor": 1.2061268445196969,
+        "avg_return_pct": 0.013953027836801418,
+        "avg_holding_days": 56.63636363636363,
+        "exit_reasons": {
+          "trailing_stop": 3,
+          "stop_loss": 16,
+          "profit_target": 3
+        },
+        "bull_trades": 22,
+        "bear_skipped": 10195
+      },
+      "reliability_score": 31.787338462014954
+    }
+  ]
+}
