@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 24, 2026 (v3.0 - Professional Diagram Design System)  
+**Last Updated: January 24, 2026 (v4.0 - Teaching Mindset Diagram System)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -1029,21 +1029,16 @@ Both hooks subscribe to Supabase Realtime channels for live updates:
   - Direct Excalidraw JSON generation (no intermediate Mermaid format)
   - Button-triggered from Studio panel (not via chat agent)
   - Uses `gemini-2.5-flash` model for diagram generation
-  - **v3.0 Professional Diagram Design System (January 24, 2026):**
-    - **Layout Templates:** Hierarchy (top-down tree), Flow (left-to-right), Comparison (side-by-side), Timeline (chronological)
-    - **Semantic Color System:** Colors convey meaning consistently:
-      - Pink (#ffc9c9) = Totals/Results/KPIs
-      - Green (#b2f2bb) = Growth/Positive metrics
-      - Blue (#a5d8ff) = Neutral/Process/Activities
-      - Yellow (#ffec99) = Revenue/Money/Financial data
-      - Gray (#e9ecef) = Context/Notes/Supporting info
-    - **Strict Grid System:** Consistent box sizes within rows, proper spacing (40px horizontal, 70px vertical)
-    - **Smart Arrow Routing:** Arrows connect to box edges (not centers), never cross through boxes
-    - **Visual Hierarchy:** Size indicates importance, position indicates flow, color indicates meaning
-    - **Professional Number Formatting:** $XX.XB for billions, $XXXM for millions, XX% for percentages
-    - **Text Centering Fix:** Bound text elements properly centered in containers
-    - **Light Theme:** White background (#ffffff) with official Excalidraw pastel colors
-    - **5-Second Comprehension Goal:** Diagrams designed for busy executives to understand instantly
+  - **v4.0 Teaching Mindset Diagram System (January 24, 2026):**
+    - **Core Philosophy:** Diagrams should EXPLAIN and TEACH, not just visualize data
+    - **Thinking Framework:** AI asks "What is the user really trying to understand?" before creating
+    - **The 'So What?' Test:** Every piece of information must answer "why does this matter?"
+    - **Creative Freedom:** AI decides what's most important, can add sections like "Key Risks", "The Moat", "What to Watch"
+    - **Contextual Labels:** Labels include insight, not just names (e.g., "C-Corp (2024) → Can reinvest vs forced REIT payouts")
+    - **Hooks & Taglines:** Titles can include one-line insights that capture the essence
+    - **Semantic Colors:** Pink=Results, Green=Growth, Blue=Process, Yellow=Money, Gray=Context
+    - **Smart Layout:** Grid alignment, edge-connected arrows, proper spacing
+    - **Goal:** After seeing the diagram, viewer should understand something they didn't before
 
 ### 11.2 Planned Features
 
