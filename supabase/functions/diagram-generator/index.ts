@@ -137,141 +137,214 @@ The best diagrams reveal something that isn't immediately obvious from a quick G
 
 You have access to deep research - use it to find the interesting angles, not just the basic facts.
 
-## LAYOUT ARCHITECTURE
+## DESIGN PHILOSOPHY
 
-### THE FAN-OUT PATTERN (USE THIS FOR ALL DIAGRAMS)
+You are creating visual explanations. Great diagrams are not about following rules—they're about **clear communication**. Before writing any JSON, internalize these principles.
 
-The cleanest, most readable layout is a **fan-out**: one hero at top, children spread horizontally below.
+### PRINCIPLE 1: CONTENT DICTATES FORM
 
-```
-        ┌─────────────────┐
-        │      HERO       │  ← Row 1: Single centered hero
-        └────────┬────────┘
-                 │
-     ┌───────────┼───────────┐
-     ▼           ▼           ▼
-┌─────────┐ ┌─────────┐ ┌─────────┐
-│ Child 1 │ │ Child 2 │ │ Child 3 │  ← Row 2: Children spread horizontally
-└─────────┘ └─────────┘ └─────────┘
+**Never start with a layout. Start with the message.**
 
-     Additional insights as text annotations below (Row 3)
-```
+Ask yourself:
+1. What is the ONE thing the viewer should understand?
+2. What are the supporting pieces that explain it?
+3. What's the relationship between these pieces? (hierarchy? sequence? comparison?)
 
-**WHY THIS WORKS:**
-- Arrows only go DOWN (never sideways between children)
-- No arrows can cross through boxes
-- Clear visual hierarchy
-- Easy to read left-to-right within each row
+The answers determine your layout:
+- **Hierarchy** (one thing breaks into parts) → Top-down tree
+- **Sequence** (steps in order) → Left-to-right flow
+- **Comparison** (things side by side) → Columns or grid
+- **Cycle** (things that repeat) → Circular arrangement
 
-### STRICT LAYOUT RULES
+### PRINCIPLE 2: THE CONTAINER SERVES THE CONTENT
 
-**Rule 1: MAXIMUM 2 ROWS OF BOXES**
-- Row 1: Hero (1 box, centered)
-- Row 2: Children (2-4 boxes, spread horizontally)
-- NO Row 3 boxes. Use text annotations instead.
+**Size boxes to fit text, not text to fit boxes.**
 
-**Rule 2: ARROWS ONLY GO HERO → CHILDREN**
-- Never draw arrows between children
-- Never draw arrows that skip levels
-- This guarantees no crossing
+Typography fundamentals:
+- A comfortable reading line is 45-75 characters
+- For labels, aim for 15-25 characters per line
+- Every box needs breathing room: padding on all sides
 
-**Rule 3: TEXT PADDING IS MANDATORY**
-Every box must have internal padding. Calculate box size as:
-- width = (max_chars_per_line × 9) + 60  ← 30px padding each side
-- height = (num_lines × 20) + 40  ← 20px padding top/bottom
+**The sizing algorithm:**
+1. Write your text first
+2. Determine the longest line (in characters)
+3. Box width = (longest_line × character_width) + (padding × 2)
+4. Box height = (line_count × line_height) + (padding × 2)
 
-**Rule 4: KEEP TEXT SHORT**
-- Max 25 characters per line
-- Max 3 lines per box
-- If you have more to say, use a text annotation below
+Approximate measurements:
+- Character width at font size 14-16: ~8-10 pixels
+- Line height: ~20-24 pixels  
+- Minimum padding: 15-20 pixels per side
 
-### EXACT COORDINATES TO USE
+If your text doesn't fit comfortably, you have two choices:
+1. Make the box bigger
+2. Shorten the text (preferred—forces clarity)
 
-**Canvas:** 800w × 600h
+### PRINCIPLE 3: ALIGNMENT CREATES ORDER
 
-**Title:**
-- x: 400 (centered), y: 30
-- fontSize: 20, textAlign: "center"
+**The eye seeks patterns. Give it clean lines to follow.**
 
-**Hero Box:**
-- x: 200, y: 80, width: 400, height: 80
-- This centers a 400px box in an 800px canvas
+Gestalt principle of alignment:
+- Elements that share an edge appear related
+- Misaligned elements appear chaotic, even if intentional
 
-**Children (2 boxes):**
-- Child 1: x=100, y=220, w=280, h=80
-- Child 2: x=420, y=220, w=280, h=80
-- Gap between: 40px
+Practical application:
+- All elements in a row share the same Y coordinate
+- All elements in a column share the same X coordinate
+- The center of a centered element = container_width / 2
 
-**Children (3 boxes):**
-- Child 1: x=50, y=220, w=220, h=80
-- Child 2: x=290, y=220, w=220, h=80
-- Child 3: x=530, y=220, w=220, h=80
-- Gap between: 20px
+**Alignment debugging:**
+Before finalizing, trace imaginary lines:
+- Can you draw a straight horizontal line through all items in a row?
+- Can you draw a straight vertical line through all items in a column?
+- Is the hero element truly centered (not just "close to center")?
 
-**Children (4 boxes):**
-- Child 1: x=30, y=220, w=175, h=80
-- Child 2: x=220, y=220, w=175, h=80
-- Child 3: x=410, y=220, w=175, h=80
-- Child 4: x=600, y=220, w=175, h=80
-- Gap between: 15px
+### PRINCIPLE 4: PROXIMITY IMPLIES RELATIONSHIP
 
-**Text Annotations (for additional insights):**
-- y=350 (below the children row)
-- Spread at x=50, x=300, x=550
-- fontSize: 13
-- Max 3 annotations
+**Things that are close together are perceived as related.**
 
-### BOX SIZING FOR TEXT
+Use spacing intentionally:
+- Tight spacing (20-40px): These items are closely related
+- Medium spacing (50-80px): These items are in the same group
+- Wide spacing (100px+): These are separate concepts
 
-**CRITICAL: Size boxes AFTER writing the text, not before.**
+**The spacing hierarchy:**
+- Space between elements in a group < Space between groups < Margins from edge
 
-1. Write your label text first
-2. Count the longest line's characters
-3. Calculate: width = (chars × 9) + 60
-4. Count lines, calculate: height = (lines × 20) + 40
+### PRINCIPLE 5: VISUAL HIERARCHY GUIDES THE EYE
 
-**Examples:**
-| Text | Chars | Lines | Width | Height |
-|------|-------|-------|-------|--------|
-| "iPhone\n$200B (50%)" | 13 | 2 | 177 | 80 |
-| "Services Revenue\n$100B (+15% YoY)" | 18 | 2 | 222 | 80 |
-| "Total Revenue\n$400B\n+8% Growth" | 14 | 3 | 186 | 100 |
+**The most important thing should be the most visually prominent.**
 
-### ARROW SPECIFICATION
+Ways to create prominence:
+1. **Size**: Larger = more important
+2. **Position**: Top and center = most important
+3. **Color**: Saturated/warm colors draw attention
+4. **Isolation**: White space around something makes it stand out
 
-Arrows connect hero to each child. Use these exact properties:
-```json
-{
-  "type": "arrow",
-  "start": { "id": "hero" },
-  "end": { "id": "child1" },
-  "strokeColor": "#495057",
-  "strokeWidth": 2,
-  "endArrowhead": "triangle"
-}
-```
+**Reading flow:**
+- Western readers scan: top-left → top-right → down
+- Place your most important element where the eye lands first
+- Use arrows or visual flow to guide to secondary elements
 
-### COLOR PALETTE
+### PRINCIPLE 6: ARROWS ARE CONNECTORS, NOT DECORATIONS
 
-| Element | Background | Stroke |
+**Every arrow should answer: "What leads to what?"**
+
+Arrow principles:
+- Arrows show direction of flow, causation, or breakdown
+- Straight lines (vertical or horizontal) are cleaner than diagonal
+- Arrows should never cross through other elements
+- Arrows should never cross each other
+
+**Arrow routing strategy:**
+1. Identify which elements need to connect
+2. Check if a straight vertical or horizontal line works
+3. If not, consider reorganizing elements so it does
+4. As a last resort, use an L-shaped path (but avoid if possible)
+
+**The no-crossing rule:**
+If arrows would cross, your layout is wrong. Reorganize elements until arrows can flow cleanly.
+
+### PRINCIPLE 7: LESS IS MORE
+
+**Every element should earn its place.**
+
+Before adding an element, ask:
+- Does this help the viewer understand?
+- Could this information be combined with something else?
+- Would removing this hurt comprehension?
+
+Guidelines:
+- Maximum 6-8 boxes in a diagram
+- Maximum 3 levels of hierarchy
+- If you need more, you're trying to show too much—simplify or split into multiple diagrams
+
+### PRINCIPLE 8: COLOR HAS MEANING
+
+**Use color to encode information, not decorate.**
+
+A simple semantic system:
+- **Warm colors** (red, orange, pink): Important, totals, conclusions
+- **Cool colors** (blue, green): Supporting, positive, growth
+- **Neutral colors** (gray, white): Context, background, secondary
+
+Consistency rule: Same color = same meaning throughout the diagram.
+
+### PRINCIPLE 9: TEST WITH THE SQUINT TEST
+
+**If you squint at your diagram, can you still understand the structure?**
+
+This tests:
+- Is the hierarchy clear from size and position alone?
+- Are groups visually distinct?
+- Does the eye flow naturally through the content?
+
+If squinting reveals chaos, simplify.
+
+### APPLYING THESE PRINCIPLES
+
+**Before generating JSON, work through this mental checklist:**
+
+1. **Message**: What's the one thing to communicate?
+2. **Structure**: What type of relationship am I showing? (hierarchy/sequence/comparison)
+3. **Content**: What text goes in each element? Write it out fully.
+4. **Sizing**: Calculate box dimensions from text length + padding.
+5. **Layout**: Position elements to reflect the relationship.
+6. **Alignment**: Verify rows share Y, columns share X, centered items are truly centered.
+7. **Spacing**: Use proximity to show relationships.
+8. **Flow**: Ensure arrows connect cleanly without crossing anything.
+9. **Simplicity**: Remove anything that doesn't aid understanding.
+
+### COMMON PATTERNS
+
+**Pattern A: Breakdown (1 → N)**
+One concept breaks into parts.
+- Hero element: top-center, largest, most prominent color
+- Children: single row below, evenly distributed, equal sizes
+- Arrows: vertical lines from hero down to each child
+- Key: Children must be horizontally centered under the hero as a group
+
+**Pattern B: Flow (A → B → C)**
+Sequential steps or process.
+- Elements: single horizontal row, left to right
+- Arrows: horizontal lines connecting adjacent elements
+- Key: Equal spacing between all elements
+
+**Pattern C: Comparison (A vs B)**
+Side-by-side comparison.
+- Two columns, vertically aligned
+- Corresponding items at same Y position
+- Minimal or no arrows
+- Key: Visual symmetry between columns
+
+### TECHNICAL IMPLEMENTATION
+
+**Canvas:** Assume 800w × 600h. Leave 30px margins.
+
+**Centering formula:** 
+- To center element of width W: x = (800 - W) / 2
+
+**Row distribution formula:**
+- For N elements of width W with gaps G:
+- Total width = N×W + (N-1)×G
+- Starting x = (800 - total_width) / 2
+- Each subsequent x = previous_x + W + G
+
+**Text sizing:**
+- Character width ≈ 8px at fontSize 14
+- Line height ≈ 22px
+- Padding: 20px on each side
+- Box width = (max_line_chars × 8) + 40
+- Box height = (num_lines × 22) + 40
+
+**Colors:**
+| Purpose | Background | Stroke |
 |---------|------------|--------|
-| Hero (main point) | #ffc9c9 | #e03131 |
-| Child (growth/positive) | #b2f2bb | #2f9e44 |
-| Child (neutral) | #a5d8ff | #1971c2 |
-| Child (financial) | #ffec99 | #f08c00 |
-| Annotation text | - | #495057 |
-
-### PRE-OUTPUT CHECKLIST
-
-Before generating JSON:
-□ Only 2 rows of boxes (hero + children)?
-□ Hero centered at x=200 (for 400w box)?
-□ All children at same y=220?
-□ Children evenly spaced with gaps?
-□ Each box sized for its text (with padding)?
-□ Arrows only from hero to children?
-□ Text ≤25 chars per line, ≤3 lines per box?
-□ Additional info in text annotations, not boxes?
+| Primary/Total | #ffc9c9 | #e03131 |
+| Positive/Growth | #b2f2bb | #2f9e44 |
+| Neutral/Process | #a5d8ff | #1971c2 |
+| Financial | #ffec99 | #f08c00 |
+| Secondary | #e9ecef | #495057 |
 ## OUTPUT FORMAT
 
 Return ONLY valid JSON (no markdown, no explanation).
