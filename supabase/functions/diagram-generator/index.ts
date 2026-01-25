@@ -15,7 +15,8 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || ''
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || ''
-const GEMINI_MODEL = 'gemini-2.5-flash'
+const GEMINI_MODEL_FAST = 'gemini-3-flash-preview'
+const GEMINI_MODEL_SMART = 'gemini-3-pro-preview'
 
 // ============================================================================
 // Streaming Helper
@@ -136,6 +137,67 @@ If yes, you haven't gone deep enough. Push past the surface:
 The best diagrams reveal something that isn't immediately obvious from a quick Google search. They connect dots, surface tensions, or frame the situation in a way that creates an "aha" moment.
 
 You have access to deep research - use it to find the interesting angles, not just the basic facts.
+
+
+### THE VISUAL METAPHOR ENGINE
+
+Before generating a standard flowchart, consider which visual metaphor best explains the core insight. The right metaphor makes complex ideas instantly understandable.
+
+#### AVAILABLE METAPHORS
+
+**1. The Funnel (Conversion/Attrition)**
+Use for: User acquisition, sales cycles, processing pipelines, market sizing
+Layout: Trapezoid-like arrangement, wider at top, narrower at bottom
+Example: "Total Addressable Market → Serviceable Market → Current Customers → Profitable Customers"
+
+**2. The Flywheel (Self-Reinforcing Loops)**
+Use for: Network effects, platform dynamics, compounding advantages
+Layout: Circular arrangement with curved conceptual flow
+Example: "More Users → More Data → Better AI → Better Product → More Users"
+
+**3. The Quadrant Matrix (Comparison/Positioning)**
+Use for: Competitive analysis, risk/reward evaluation, strategic positioning
+Layout: 2x2 grid with labeled axes
+Example: "High Growth/Low Risk vs High Growth/High Risk vs Low Growth/Low Risk vs Low Growth/High Risk"
+
+**4. The Iceberg (Surface vs. Underlying)**
+Use for: Revealing hidden drivers, "what you see vs. what matters"
+Layout: Visible portion above a dividing line, larger hidden portion below
+Example: "Stated Strategy (visible) vs. Actual Drivers, Risks, Dependencies (below surface)"
+
+**5. The Bridge (Transition/Transformation)**
+Use for: Company pivots, turnaround stories, before/after analysis
+Layout: Left (Current State) → Center (Catalysts/Bridge) → Right (Future State)
+Example: "Legacy Business → Strategic Initiatives → Growth Business"
+
+**6. The Tree (Hierarchy/Breakdown)**
+Use for: Revenue breakdowns, organizational structure, cause-and-effect
+Layout: Single root at top, branches spreading below
+Example: "Total Revenue → Segment A, Segment B, Segment C"
+
+#### CHOOSING THE RIGHT METAPHOR
+
+Ask yourself:
+- Is this about **conversion or filtering**? → Funnel
+- Is this about **reinforcing cycles**? → Flywheel
+- Is this about **comparing options**? → Quadrant
+- Is this about **hidden vs. visible**? → Iceberg
+- Is this about **change over time**? → Bridge
+- Is this about **parts of a whole**? → Tree
+
+If none fit perfectly, default to Tree—it's the most versatile.
+
+#### SHAPE SEMANTICS
+
+Use distinct shapes to create additional meaning:
+
+| Shape | Use For | Semantic Meaning |
+|-------|---------|------------------|
+| `rectangle` | Standard entities, data blocks, segments | Concrete, measurable things |
+| `ellipse` | Core themes, central concepts, starting points | Abstract ideas, focal points |
+| `diamond` | Decision points, risks, catalysts, inflection points | Uncertainty, pivotal moments |
+
+Mixing shapes thoughtfully creates visual interest and communicates meaning beyond just the text.
 
 ## DESIGN PHILOSOPHY
 
@@ -656,6 +718,146 @@ Side-by-side comparison.
 | Neutral/Process | #a5d8ff | #1971c2 |
 | Financial | #ffec99 | #f08c00 |
 | Secondary | #e9ecef | #495057 |
+
+### SPATIAL REASONING: SHOW YOUR WORK
+
+Before generating JSON coordinates, you MUST calculate positions explicitly. This prevents overlapping boxes and misaligned elements.
+
+#### THE LAYOUT_MATH BLOCK
+
+Before your JSON output, include a `<layout_math>` block where you:
+1. List each element and its text content
+2. Estimate the required width based on text length
+3. Calculate X positions to center or distribute elements
+4. Calculate Y positions for each row
+5. Plan arrow connections
+
+**Example:**
+```
+<layout_math>
+Canvas: 1000w x 700h
+
+ROW 1 - Title:
+- "Company Name FY2025" centered at y=40
+
+ROW 2 - Hero:
+- Box "Total Revenue: $50B (+12% YoY)" 
+- Text ~25 chars, need ~280px width + 60px padding = 340px
+- Center X = (1000 - 340) / 2 = 330
+- Y = 100, Height = 90
+
+ROW 3 - Children (3 boxes):
+- Available width: 1000 - 60 (margins) = 940px
+- 3 boxes with 40px gaps = 940 - 80 = 860px for boxes
+- Each box width = 860 / 3 = ~280px
+- Starting X = 30
+- Box 1: x=30, Box 2: x=350, Box 3: x=670
+- Y = 250
+
+ROW 4 - Annotations:
+- Bull case (left half): x=50, y=400
+- Bear case (right half): x=520, y=400
+
+ARROWS:
+- hero → child1 (center-bottom to center-top)
+- hero → child2 (center-bottom to center-top)
+- hero → child3 (center-bottom to center-top)
+</layout_math>
+```
+
+#### WHY THIS MATTERS
+
+When you calculate positions explicitly:
+- Boxes won't overlap because you've done the math
+- Elements will be properly centered because you've calculated it
+- Rows will align because you've assigned consistent Y values
+- The layout will feel intentional, not random
+
+#### CALCULATION FORMULAS
+
+**Centering a single element:**
+```
+x = (canvas_width - element_width) / 2
+```
+
+**Distributing N elements with gaps:**
+```
+total_content_width = N × element_width + (N-1) × gap
+starting_x = (canvas_width - total_content_width) / 2
+element_2_x = starting_x + element_width + gap
+element_3_x = element_2_x + element_width + gap
+```
+
+**Text to width estimation:**
+```
+width = (character_count × 9) + 60  // 9px per char + 60px padding
+```
+
+**Always verify:**
+- No element extends past canvas edges
+- No two elements occupy the same space
+- Vertical spacing between rows is consistent
+
+
+### SEMANTIC COLOR SYSTEM
+
+Use semantic color names instead of hex codes. This creates consistency and meaning across all diagrams.
+
+#### COLOR VOCABULARY
+
+| Semantic Name | Use For | Meaning |
+|---------------|---------|---------|
+| `bg-hero` | Main/total boxes, primary focus | The central point of the diagram |
+| `bg-positive` | Growth, success, bull case, opportunities | Things going well |
+| `bg-negative` | Risks, decline, bear case, threats | Things to watch out for |
+| `bg-neutral` | Standard processes, balanced items | Neither good nor bad |
+| `bg-highlight` | Key insights, catalysts, important callouts | Pay attention to this |
+| `bg-secondary` | Supporting info, context, less important | Background information |
+
+#### USING SEMANTIC COLORS
+
+In your JSON, use the semantic name as the backgroundColor value:
+
+```json
+{
+  "type": "rectangle",
+  "backgroundColor": "bg-positive",
+  "strokeColor": "stroke-positive",
+  ...
+}
+```
+
+The frontend will map these to actual colors based on the current theme.
+
+#### STROKE COLORS
+
+Each background has a matching stroke:
+- `stroke-hero` - pairs with `bg-hero`
+- `stroke-positive` - pairs with `bg-positive`
+- `stroke-negative` - pairs with `bg-negative`
+- `stroke-neutral` - pairs with `bg-neutral`
+- `stroke-highlight` - pairs with `bg-highlight`
+- `stroke-secondary` - pairs with `bg-secondary`
+
+#### COLOR MEANING GUIDELINES
+
+**For financial diagrams:**
+- Revenue totals → `bg-hero`
+- Growing segments → `bg-positive`
+- Declining segments → `bg-negative`
+- Stable segments → `bg-neutral`
+- Key catalysts → `bg-highlight`
+
+**For comparison diagrams:**
+- Advantages → `bg-positive`
+- Disadvantages → `bg-negative`
+- Neutral factors → `bg-neutral`
+
+**For risk/opportunity diagrams:**
+- Opportunities, bull case → `bg-positive`
+- Risks, bear case → `bg-negative`
+- Catalysts, inflection points → `bg-highlight`
+
 ## OUTPUT FORMAT
 
 Return ONLY valid JSON (no markdown, no explanation).
@@ -800,7 +1002,7 @@ async function generateDiagramWithStreaming(
   userId: string | null
 ): Promise<void> {
   
-  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`
+  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL_SMART}:generateContent?key=${GEMINI_API_KEY}`
   
   // Get current date context
   const dateContext = getCurrentDateContext()
@@ -986,7 +1188,9 @@ Create an Excalidraw diagram that visualizes "${request}" for ${companyName} (${
     }
     
     const designData = await designResponse.json()
-    const responseText = designData.candidates?.[0]?.content?.parts?.[0]?.text || ''
+    // Strip layout_math block if present (CoT spatial reasoning)
+    let responseText = designData.candidates?.[0]?.content?.parts?.[0]?.text || ''
+    responseText = responseText.replace(/<layout_math>[\s\S]*?<\/layout_math>/g, '').trim()
     
     console.log('Raw response length:', responseText.length)
     

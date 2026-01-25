@@ -67,6 +67,89 @@ function generateId() {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
+// ============ SEMANTIC COLOR THEME ============
+// Maps semantic color names from AI to actual hex colors
+const SEMANTIC_THEME: Record<string, string> = {
+  // Background colors
+  'bg-hero': '#ffc9c9',
+  'bg-positive': '#b2f2bb',
+  'bg-negative': '#ffc9c9',
+  'bg-neutral': '#a5d8ff',
+  'bg-highlight': '#ffec99',
+  'bg-secondary': '#e9ecef',
+  
+  // Stroke colors
+  'stroke-hero': '#e03131',
+  'stroke-positive': '#2f9e44',
+  'stroke-negative': '#e03131',
+  'stroke-neutral': '#1971c2',
+  'stroke-highlight': '#f08c00',
+  'stroke-secondary': '#495057',
+};
+
+// Map semantic color to actual color
+function mapSemanticColor(color: string | undefined): string {
+  if (!color) return 'transparent';
+  // Check if it's a semantic color name
+  if (color in SEMANTIC_THEME) {
+    return SEMANTIC_THEME[color];
+  }
+  // Return as-is if it's already a hex color or other valid color
+  return color;
+}
+
+// ============ COLLISION DETECTION ============
+// Prevents overlapping boxes when AI generates bad coordinates
+function preventCollisions(elements: any[]): any[] {
+  const shapes = elements.filter(el => 
+    ['rectangle', 'ellipse', 'diamond'].includes(el.type)
+  );
+  
+  // Check each pair of shapes for collision
+  for (let i = 0; i < shapes.length; i++) {
+    for (let j = i + 1; j < shapes.length; j++) {
+      const a = shapes[i];
+      const b = shapes[j];
+      
+      // Get bounding boxes
+      const aLeft = a.x || 0;
+      const aRight = aLeft + (a.width || 100);
+      const aTop = a.y || 0;
+      const aBottom = aTop + (a.height || 100);
+      
+      const bLeft = b.x || 0;
+      const bRight = bLeft + (b.width || 100);
+      const bTop = b.y || 0;
+      const bBottom = bTop + (b.height || 100);
+      
+      // Check for overlap (with small tolerance)
+      const horizontalOverlap = aLeft < bRight - 10 && aRight > bLeft + 10;
+      const verticalOverlap = aTop < bBottom - 10 && aBottom > bTop + 10;
+      
+      if (horizontalOverlap && verticalOverlap) {
+        console.log('[preventCollisions] Collision detected between', a.id, 'and', b.id);
+        
+        // Determine best direction to shift
+        const overlapX = Math.min(aRight, bRight) - Math.max(aLeft, bLeft);
+        const overlapY = Math.min(aBottom, bBottom) - Math.max(aTop, bTop);
+        
+        if (overlapX < overlapY) {
+          // Shift horizontally - move the second element right
+          b.x = aRight + 50;
+        } else {
+          // Shift vertically - move the second element down
+          b.y = aBottom + 50;
+        }
+        
+        console.log('[preventCollisions] Shifted', b.id, 'to x:', b.x, 'y:', b.y);
+      }
+    }
+  }
+  
+  return elements;
+}
+
+
 // Process skeleton elements into proper Excalidraw format with text binding and arrow math
 function processSkeletonElements(elements: unknown[]): unknown[] {
   if (!Array.isArray(elements)) return [];
@@ -240,7 +323,8 @@ function processSkeletonElements(elements: unknown[]): unknown[] {
     result.push(processedArrow);
   });
   
-  return result;
+  // Apply collision detection as fallback safety
+  return preventCollisions(result);
 }
 
 // Enforce strict Excalidraw schema - add all required fields
@@ -259,8 +343,8 @@ function enforceExcalidrawSchema(elements: unknown[]): unknown[] {
       width: el.width ?? (el.type === 'text' ? undefined : 100),
       height: el.height ?? (el.type === 'text' ? undefined : 100),
       angle: el.angle ?? 0,
-      strokeColor: el.strokeColor || '#ced4da',
-      backgroundColor: el.backgroundColor || 'transparent',
+      strokeColor: mapSemanticColor(el.strokeColor) || '#ced4da',
+      backgroundColor: mapSemanticColor(el.backgroundColor) || 'transparent',
       fillStyle: el.fillStyle || 'solid',
       strokeWidth: el.strokeWidth ?? 2,
       strokeStyle: el.strokeStyle || 'solid',
