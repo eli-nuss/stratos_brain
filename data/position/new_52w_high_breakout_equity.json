@@ -1,0 +1,4457 @@
+{
+  "setup_name": "52w_high_breakout",
+  "universe": "equity",
+  "start_date": "2020-01-01",
+  "end_date": "2025-12-31",
+  "trailing_config": {
+    "initial_stop_pct": 0.15,
+    "profit_target": 0.5,
+    "trail_tiers": [
+      [
+        0.1,
+        0.12
+      ],
+      [
+        0.2,
+        0.15
+      ],
+      [
+        0.35,
+        0.18
+      ]
+    ],
+    "max_hold_days": 252
+  },
+  "metrics": {
+    "total_trades": 29,
+    "win_rate": 0.4482758620689655,
+    "loss_rate": 0.5517241379310345,
+    "profit_factor": 1.3399437374461807,
+    "avg_return_pct": 0.014436439881788611,
+    "median_return_pct": -0.007236614375119799,
+    "std_return_pct": 0.15462282342565348,
+    "sharpe_ratio": 0.41754328647723615,
+    "best_trade": 0.5,
+    "worst_trade": -0.14128374765471008,
+    "avg_winner": 0.1269387655648617,
+    "avg_loser": -0.07697169973570826,
+    "avg_holding_period": 71.13793103448276,
+    "median_holding_period": 64.0,
+    "exit_reasons": {
+      "trailing_stop": 27,
+      "profit_target": 2
+    },
+    "reliability_score": 58.172003939761595
+  },
+  "summary": {
+    "assets_processed": 96,
+    "assets_skipped": 0,
+    "signals_scanned": 17372,
+    "entries_triggered": 29
+  },
+  "trades": [
+    {
+      "trade_id": 1,
+      "asset_id": 1,
+      "asset_symbol": "AAPL",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-06-11",
+      "entry_price": 205.7692,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.0067,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 2.9424,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 237.23,
+      "highest_price_date": "2024-07-15",
+      "max_gain_pct": 0.1528936303392343,
+      "exit_date": "2024-08-05",
+      "exit_price": 208.76239999999999,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (196.00) breached trailing stop (208.76). Max gain was 15.3%",
+      "return_pct": 0.014546394698526255,
+      "holding_period": 37,
+      "is_winner": true,
+      "stop_adjustments": [
+        {
+          "date": "2024-06-12",
+          "old_stop": 174.90382,
+          "new_stop": 187.17,
+          "high": 220.2,
+          "gain_pct": 0.07013100114108406,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-02",
+          "old_stop": 187.17,
+          "new_stop": 187.32299999999998,
+          "high": 220.38,
+          "gain_pct": 0.07100576762703059,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-03",
+          "old_stop": 187.32299999999998,
+          "new_stop": 188.3175,
+          "high": 221.55,
+          "gain_pct": 0.07669174978568227,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-05",
+          "old_stop": 188.3175,
+          "new_stop": 199.27599999999998,
+          "high": 226.45,
+          "gain_pct": 0.10050483745866723,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-07-08",
+          "old_stop": 199.27599999999998,
+          "new_stop": 200.508,
+          "high": 227.85,
+          "gain_pct": 0.10730857679380579,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-07-09",
+          "old_stop": 200.508,
+          "new_stop": 201.872,
+          "high": 229.4,
+          "gain_pct": 0.1148412882005665,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-07-10",
+          "old_stop": 201.872,
+          "new_stop": 205.1104,
+          "high": 233.08,
+          "gain_pct": 0.13272540302435942,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-07-15",
+          "old_stop": 205.1104,
+          "new_stop": 208.76239999999999,
+          "high": 237.23,
+          "gain_pct": 0.1528936303392343,
+          "trail_pct": 0.12
+        }
+      ],
+      "created_at": "2026-01-25T14:56:04.880684"
+    },
+    {
+      "trade_id": 2,
+      "asset_id": 5,
+      "asset_symbol": "AMZN",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-06-21",
+      "entry_price": 189.08,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.0137,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 2.0499,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 201.2,
+      "highest_price_date": "2024-07-08",
+      "max_gain_pct": 0.06409985191453349,
+      "exit_date": "2024-08-02",
+      "exit_price": 171.01999999999998,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (160.55) breached trailing stop (171.02). Max gain was 6.4%",
+      "return_pct": -0.09551512587264666,
+      "holding_period": 29,
+      "is_winner": false,
+      "stop_adjustments": [
+        {
+          "date": "2024-06-24",
+          "old_stop": 160.71800000000002,
+          "new_stop": 162.35,
+          "high": 191.0,
+          "gain_pct": 0.0101544319864606,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-26",
+          "old_stop": 162.35,
+          "new_stop": 165.58,
+          "high": 194.8,
+          "gain_pct": 0.030251745292997567,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-27",
+          "old_stop": 165.58,
+          "new_stop": 169.864,
+          "high": 199.84,
+          "gain_pct": 0.056907129257457,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-02",
+          "old_stop": 169.864,
+          "new_stop": 170.3655,
+          "high": 200.43,
+          "gain_pct": 0.06002750158663006,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-05",
+          "old_stop": 170.3655,
+          "new_stop": 170.4675,
+          "high": 200.55,
+          "gain_pct": 0.06066215358578386,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-08",
+          "old_stop": 170.4675,
+          "new_stop": 171.01999999999998,
+          "high": 201.2,
+          "gain_pct": 0.06409985191453349,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:56:05.720331"
+    },
+    {
+      "trade_id": 3,
+      "asset_id": 5,
+      "asset_symbol": "AMZN",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-11-01",
+      "entry_price": 197.93,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.0163,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 2.8372,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 242.52,
+      "highest_price_date": "2025-02-04",
+      "max_gain_pct": 0.22528166523518411,
+      "exit_date": "2025-02-25",
+      "exit_price": 208.032,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (204.16) breached trailing stop (208.03). Max gain was 22.5%",
+      "return_pct": 0.05103824584449046,
+      "holding_period": 76,
+      "is_winner": true,
+      "stop_adjustments": [
+        {
+          "date": "2024-11-05",
+          "old_stop": 168.2405,
+          "new_stop": 169.84699999999998,
+          "high": 199.82,
+          "gain_pct": 0.009548830394583874,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-11-06",
+          "old_stop": 169.84699999999998,
+          "new_stop": 176.41750000000002,
+          "high": 207.55,
+          "gain_pct": 0.04860304147931083,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-11-07",
+          "old_stop": 176.41750000000002,
+          "new_stop": 180.4125,
+          "high": 212.25,
+          "gain_pct": 0.07234881018541905,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-11-13",
+          "old_stop": 180.4125,
+          "new_stop": 182.8265,
+          "high": 215.09,
+          "gain_pct": 0.08669731723336538,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-11-14",
+          "old_stop": 182.8265,
+          "new_stop": 183.515,
+          "high": 215.9,
+          "gain_pct": 0.09078967311675834,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-12-04",
+          "old_stop": 183.515,
+          "new_stop": 193.6,
+          "high": 220.0,
+          "gain_pct": 0.1115040670944274,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-12-05",
+          "old_stop": 193.6,
+          "new_stop": 195.49200000000002,
+          "high": 222.15,
+          "gain_pct": 0.12236649320466841,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-12-06",
+          "old_stop": 195.49200000000002,
+          "new_stop": 199.892,
+          "high": 227.15,
+          "gain_pct": 0.14762794927499612,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-12-09",
+          "old_stop": 199.892,
+          "new_stop": 202.4704,
+          "high": 230.08,
+          "gain_pct": 0.16243116253220835,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-12-11",
+          "old_stop": 202.4704,
+          "new_stop": 203.456,
+          "high": 231.2,
+          "gain_pct": 0.16808972869196181,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-12-16",
+          "old_stop": 203.456,
+          "new_stop": 205.04,
+          "high": 233.0,
+          "gain_pct": 0.17718385287727978,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2025-01-22",
+          "old_stop": 205.04,
+          "new_stop": 207.1872,
+          "high": 235.44,
+          "gain_pct": 0.1895114434395999,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2025-01-23",
+          "old_stop": 207.1872,
+          "new_stop": 207.2576,
+          "high": 235.52,
+          "gain_pct": 0.18991562673672502,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2025-01-24",
+          "old_stop": 207.2576,
+          "new_stop": 208.032,
+          "high": 236.4,
+          "gain_pct": 0.19436164300510272,
+          "trail_pct": 0.12
+        }
+      ],
+      "created_at": "2026-01-25T14:56:05.729562"
+    },
+    {
+      "trade_id": 4,
+      "asset_id": 4461,
+      "asset_symbol": "AON",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-10-08",
+      "entry_price": 350.4263,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.0133,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 1.5145,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 395.33,
+      "highest_price_date": "2024-11-27",
+      "max_gain_pct": 0.12814021093736394,
+      "exit_date": "2025-01-10",
+      "exit_price": 347.8904,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (346.07) breached trailing stop (347.89). Max gain was 12.8%",
+      "return_pct": -0.007236614375119799,
+      "holding_period": 64,
+      "is_winner": false,
+      "stop_adjustments": [
+        {
+          "date": "2024-10-09",
+          "old_stop": 297.86235500000004,
+          "new_stop": 306.136,
+          "high": 360.16,
+          "gain_pct": 0.027776739360031,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-10-10",
+          "old_stop": 306.136,
+          "new_stop": 306.8075,
+          "high": 360.95,
+          "gain_pct": 0.030031136361625688,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-10-15",
+          "old_stop": 306.8075,
+          "new_stop": 308.64775,
+          "high": 363.115,
+          "gain_pct": 0.03620932561283219,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-10-17",
+          "old_stop": 308.64775,
+          "new_stop": 308.941,
+          "high": 363.46,
+          "gain_pct": 0.03719384075909815,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-10-25",
+          "old_stop": 308.941,
+          "new_stop": 342.5048,
+          "high": 389.21,
+          "gain_pct": 0.11067576834272974,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-11-25",
+          "old_stop": 342.5048,
+          "new_stop": 343.8424,
+          "high": 390.73,
+          "gain_pct": 0.11501334232048221,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-11-26",
+          "old_stop": 343.8424,
+          "new_stop": 345.1888,
+          "high": 392.26,
+          "gain_pct": 0.11937945296914054,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-11-27",
+          "old_stop": 345.1888,
+          "new_stop": 347.8904,
+          "high": 395.33,
+          "gain_pct": 0.12814021093736394,
+          "trail_pct": 0.12
+        }
+      ],
+      "created_at": "2026-01-25T14:56:05.853738"
+    },
+    {
+      "trade_id": 5,
+      "asset_id": 92,
+      "asset_symbol": "AXP",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-04-19",
+      "entry_price": 227.283,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.019,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 2.6896,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 256.24,
+      "highest_price_date": "2024-07-31",
+      "max_gain_pct": 0.1274050412921337,
+      "exit_date": "2024-08-05",
+      "exit_price": 225.49120000000002,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (222.03) breached trailing stop (225.49). Max gain was 12.7%",
+      "return_pct": -0.00788356366292231,
+      "holding_period": 73,
+      "is_winner": false,
+      "stop_adjustments": [
+        {
+          "date": "2024-04-22",
+          "old_stop": 193.19054999999997,
+          "new_stop": 200.064415,
+          "high": 235.3699,
+          "gain_pct": 0.03558075175002107,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-04-23",
+          "old_stop": 200.064415,
+          "new_stop": 203.50699999999998,
+          "high": 239.42,
+          "gain_pct": 0.05340038630253918,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-04-24",
+          "old_stop": 203.50699999999998,
+          "new_stop": 204.4675,
+          "high": 240.55,
+          "gain_pct": 0.05837216157829683,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-05-10",
+          "old_stop": 204.4675,
+          "new_stop": 207.009,
+          "high": 243.54,
+          "gain_pct": 0.07152756695397366,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-05-20",
+          "old_stop": 207.009,
+          "new_stop": 207.75173,
+          "high": 244.4138,
+          "gain_pct": 0.07537211318048431,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-15",
+          "old_stop": 207.75173,
+          "new_stop": 207.96099999999998,
+          "high": 244.66,
+          "gain_pct": 0.07645534421844147,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-16",
+          "old_stop": 207.96099999999998,
+          "new_stop": 212.296,
+          "high": 249.76,
+          "gain_pct": 0.098894329976285,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-17",
+          "old_stop": 212.296,
+          "new_stop": 220.7392,
+          "high": 250.84,
+          "gain_pct": 0.10364611519559319,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-07-18",
+          "old_stop": 220.7392,
+          "new_stop": 223.2824,
+          "high": 253.73,
+          "gain_pct": 0.11636154045837133,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-07-31",
+          "old_stop": 223.2824,
+          "new_stop": 225.49120000000002,
+          "high": 256.24,
+          "gain_pct": 0.1274050412921337,
+          "trail_pct": 0.12
+        }
+      ],
+      "created_at": "2026-01-25T14:56:06.232581"
+    },
+    {
+      "trade_id": 6,
+      "asset_id": 92,
+      "asset_symbol": "AXP",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-11-06",
+      "entry_price": 291.9616,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.0164,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 1.901,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 326.275,
+      "highest_price_date": "2025-01-23",
+      "max_gain_pct": 0.11752709945417483,
+      "exit_date": "2025-03-04",
+      "exit_price": 287.12199999999996,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (277.58) breached trailing stop (287.12). Max gain was 11.8%",
+      "return_pct": -0.01657615248032629,
+      "holding_period": 78,
+      "is_winner": false,
+      "stop_adjustments": [
+        {
+          "date": "2024-11-07",
+          "old_stop": 248.16735999999997,
+          "new_stop": 249.07975000000002,
+          "high": 293.035,
+          "gain_pct": 0.0036765108836231963,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-11-11",
+          "old_stop": 249.07975000000002,
+          "new_stop": 250.053,
+          "high": 294.18,
+          "gain_pct": 0.007598259497139548,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-11-22",
+          "old_stop": 250.053,
+          "new_stop": 256.632,
+          "high": 301.92,
+          "gain_pct": 0.03410859510291786,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-11-25",
+          "old_stop": 256.632,
+          "new_stop": 259.93,
+          "high": 305.8,
+          "gain_pct": 0.04739801398540089,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-11-26",
+          "old_stop": 259.93,
+          "new_stop": 260.9245,
+          "high": 306.97,
+          "gain_pct": 0.051405390297902365,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-11-27",
+          "old_stop": 260.9245,
+          "new_stop": 261.647,
+          "high": 307.82,
+          "gain_pct": 0.0543167320633946,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-01-15",
+          "old_stop": 261.647,
+          "new_stop": 266.866,
+          "high": 313.96,
+          "gain_pct": 0.07534689493412827,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-01-16",
+          "old_stop": 266.866,
+          "new_stop": 266.9,
+          "high": 314.0,
+          "gain_pct": 0.07548389925250443,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-01-17",
+          "old_stop": 266.9,
+          "new_stop": 268.09,
+          "high": 315.4,
+          "gain_pct": 0.08027905039566852,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-01-21",
+          "old_stop": 268.09,
+          "new_stop": 271.745,
+          "high": 319.7,
+          "gain_pct": 0.09500701462110084,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-01-22",
+          "old_stop": 271.745,
+          "new_stop": 284.0816,
+          "high": 322.82,
+          "gain_pct": 0.10569335145443781,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2025-01-23",
+          "old_stop": 284.0816,
+          "new_stop": 287.12199999999996,
+          "high": 326.275,
+          "gain_pct": 0.11752709945417483,
+          "trail_pct": 0.12
+        }
+      ],
+      "created_at": "2026-01-25T14:56:06.248526"
+    },
+    {
+      "trade_id": 7,
+      "asset_id": 112,
+      "asset_symbol": "BKNG",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-06-21",
+      "entry_price": 3944.12,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.0151,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 2.3319,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 4144.32,
+      "highest_price_date": "2024-07-16",
+      "max_gain_pct": 0.050759104692554846,
+      "exit_date": "2024-08-02",
+      "exit_price": 3522.6719999999996,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (3291.05) breached trailing stop (3522.67). Max gain was 5.1%",
+      "return_pct": -0.10685476101132829,
+      "holding_period": 29,
+      "is_winner": false,
+      "stop_adjustments": [
+        {
+          "date": "2024-06-24",
+          "old_stop": 3352.502,
+          "new_stop": 3415.3765,
+          "high": 4018.09,
+          "gain_pct": 0.018754500370171456,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-25",
+          "old_stop": 3415.3765,
+          "new_stop": 3428.0499999999997,
+          "high": 4033.0,
+          "gain_pct": 0.022534811314057324,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-27",
+          "old_stop": 3428.0499999999997,
+          "new_stop": 3434.0,
+          "high": 4040.0,
+          "gain_pct": 0.024309605184426486,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-12",
+          "old_stop": 3434.0,
+          "new_stop": 3443.93225,
+          "high": 4051.685,
+          "gain_pct": 0.027272243238035454,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-15",
+          "old_stop": 3443.93225,
+          "new_stop": 3485.0,
+          "high": 4100.0,
+          "gain_pct": 0.03952212407330413,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-16",
+          "old_stop": 3485.0,
+          "new_stop": 3522.6719999999996,
+          "high": 4144.32,
+          "gain_pct": 0.050759104692554846,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:56:06.457273"
+    },
+    {
+      "trade_id": 8,
+      "asset_id": 112,
+      "asset_symbol": "BKNG",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-10-30",
+      "entry_price": 4423.9458,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.012,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 1.9674,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 5337.24,
+      "highest_price_date": "2024-12-12",
+      "max_gain_pct": 0.2064433519958584,
+      "exit_date": "2025-01-21",
+      "exit_price": 4627.215999999999,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (4615.00) breached trailing stop (4627.22). Max gain was 20.6%",
+      "return_pct": 0.045947714820556484,
+      "holding_period": 54,
+      "is_winner": true,
+      "stop_adjustments": [
+        {
+          "date": "2024-10-31",
+          "old_stop": 3760.35393,
+          "new_stop": 4128.110000000001,
+          "high": 4856.6,
+          "gain_pct": 0.09779825964413935,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-11-05",
+          "old_stop": 4128.110000000001,
+          "new_stop": 4326.0888,
+          "high": 4916.01,
+          "gain_pct": 0.11122744767804327,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-11-06",
+          "old_stop": 4326.0888,
+          "new_stop": 4453.24,
+          "high": 5060.5,
+          "gain_pct": 0.1438883360641534,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-11-11",
+          "old_stop": 4453.24,
+          "new_stop": 4461.1071999999995,
+          "high": 5069.44,
+          "gain_pct": 0.1459091564819801,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-11-21",
+          "old_stop": 4461.1071999999995,
+          "new_stop": 4586.2608,
+          "high": 5211.66,
+          "gain_pct": 0.17805692827430186,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-11-22",
+          "old_stop": 4586.2608,
+          "new_stop": 4590.08,
+          "high": 5216.0,
+          "gain_pct": 0.17903795295141256,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-11-25",
+          "old_stop": 4590.08,
+          "new_stop": 4608.56,
+          "high": 5237.0,
+          "gain_pct": 0.1837848465503351,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-12-03",
+          "old_stop": 4608.56,
+          "new_stop": 4627.215999999999,
+          "high": 5258.2,
+          "gain_pct": 0.18857694865972352,
+          "trail_pct": 0.12
+        }
+      ],
+      "created_at": "2026-01-25T14:56:06.469267"
+    },
+    {
+      "trade_id": 9,
+      "asset_id": 9,
+      "asset_symbol": "BRK-B",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-08-30",
+      "entry_price": 475.92,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.0022,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 1.9058,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 539.0,
+      "highest_price_date": "2025-04-02",
+      "max_gain_pct": 0.13254328458564468,
+      "exit_date": "2025-04-07",
+      "exit_price": 474.32,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (462.10) breached trailing stop (474.32). Max gain was 13.3%",
+      "return_pct": -0.0033619095646327812,
+      "holding_period": 149,
+      "is_winner": false,
+      "stop_adjustments": [
+        {
+          "date": "2024-09-03",
+          "old_stop": 404.532,
+          "new_stop": 410.4565,
+          "high": 482.89,
+          "gain_pct": 0.014645318540931207,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-09-04",
+          "old_stop": 410.4565,
+          "new_stop": 412.097,
+          "high": 484.82,
+          "gain_pct": 0.01870062195326949,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-11-27",
+          "old_stop": 412.097,
+          "new_stop": 417.9195,
+          "high": 491.67,
+          "gain_pct": 0.03309379727685324,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-02-24",
+          "old_stop": 417.9195,
+          "new_stop": 428.365915,
+          "high": 503.9599,
+          "gain_pct": 0.05891725500084055,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-02-25",
+          "old_stop": 428.365915,
+          "new_stop": 430.95,
+          "high": 507.0,
+          "gain_pct": 0.06530509329299039,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-02-28",
+          "old_stop": 430.95,
+          "new_stop": 438.0645,
+          "high": 515.37,
+          "gain_pct": 0.08289208270297532,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-03-03",
+          "old_stop": 438.0645,
+          "new_stop": 440.9545,
+          "high": 518.77,
+          "gain_pct": 0.09003614052781983,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-03-17",
+          "old_stop": 440.9545,
+          "new_stop": 461.74480000000005,
+          "high": 524.71,
+          "gain_pct": 0.1025172297865189,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2025-03-18",
+          "old_stop": 461.74480000000005,
+          "new_stop": 464.9744,
+          "high": 528.38,
+          "gain_pct": 0.11022860985039507,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2025-03-20",
+          "old_stop": 464.9744,
+          "new_stop": 466.936008,
+          "high": 530.6091,
+          "gain_pct": 0.11491238023197181,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2025-03-25",
+          "old_stop": 466.936008,
+          "new_stop": 469.29519999999997,
+          "high": 533.29,
+          "gain_pct": 0.12054546982686154,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2025-03-26",
+          "old_stop": 469.29519999999997,
+          "new_stop": 473.1144,
+          "high": 537.63,
+          "gain_pct": 0.12966464952092793,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2025-04-02",
+          "old_stop": 473.1144,
+          "new_stop": 474.32,
+          "high": 539.0,
+          "gain_pct": 0.13254328458564468,
+          "trail_pct": 0.12
+        }
+      ],
+      "created_at": "2026-01-25T14:56:06.822293"
+    },
+    {
+      "trade_id": 10,
+      "asset_id": 117,
+      "asset_symbol": "CAT",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-11-06",
+      "entry_price": 410.6787,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.0182,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 2.0586,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 418.5,
+      "highest_price_date": "2024-11-07",
+      "max_gain_pct": 0.019044815326433984,
+      "exit_date": "2025-01-10",
+      "exit_price": 355.72499999999997,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (349.80) breached trailing stop (355.72). Max gain was 1.9%",
+      "return_pct": -0.1338119069725312,
+      "holding_period": 43,
+      "is_winner": false,
+      "stop_adjustments": [
+        {
+          "date": "2024-11-07",
+          "old_stop": 349.076895,
+          "new_stop": 355.72499999999997,
+          "high": 418.5,
+          "gain_pct": 0.019044815326433984,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:56:06.934064"
+    },
+    {
+      "trade_id": 11,
+      "asset_id": 23,
+      "asset_symbol": "COST",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-05-31",
+      "entry_price": 803.495,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.0195,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 2.3734,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 1078.235,
+      "highest_price_date": "2025-02-13",
+      "max_gain_pct": 0.34193118812189227,
+      "exit_date": "2025-03-13",
+      "exit_price": 916.4997499999998,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (887.47) breached trailing stop (916.50). Max gain was 34.2%",
+      "return_pct": 0.14064150990360846,
+      "holding_period": 195,
+      "is_winner": true,
+      "stop_adjustments": [
+        {
+          "date": "2024-06-03",
+          "old_stop": 682.97075,
+          "new_stop": 703.7235,
+          "high": 827.91,
+          "gain_pct": 0.030386001157443276,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-04",
+          "old_stop": 703.7235,
+          "new_stop": 703.8085,
+          "high": 828.01,
+          "gain_pct": 0.03051045743906311,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-05",
+          "old_stop": 703.8085,
+          "new_stop": 709.2315,
+          "high": 834.39,
+          "gain_pct": 0.03845076820639837,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-06",
+          "old_stop": 709.2315,
+          "new_stop": 721.727265,
+          "high": 849.0909,
+          "gain_pct": 0.056746961711025,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-07",
+          "old_stop": 721.727265,
+          "new_stop": 722.823,
+          "high": 850.38,
+          "gain_pct": 0.058351327637384154,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-11",
+          "old_stop": 722.823,
+          "new_stop": 723.2947499999999,
+          "high": 850.935,
+          "gain_pct": 0.059042060000373375,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-12",
+          "old_stop": 723.2947499999999,
+          "new_stop": 727.379,
+          "high": 855.74,
+          "gain_pct": 0.06502218433219875,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-14",
+          "old_stop": 727.379,
+          "new_stop": 727.7529999999999,
+          "high": 856.18,
+          "gain_pct": 0.06556979197132518,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-17",
+          "old_stop": 727.7529999999999,
+          "new_stop": 739.9759999999999,
+          "high": 870.56,
+          "gain_pct": 0.08346660526823424,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-18",
+          "old_stop": 739.9759999999999,
+          "new_stop": 742.865915,
+          "high": 873.9599,
+          "gain_pct": 0.08769799438702153,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-05",
+          "old_stop": 742.865915,
+          "new_stop": 780.5072,
+          "high": 886.94,
+          "gain_pct": 0.10385254419753709,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-07-08",
+          "old_stop": 780.5072,
+          "new_stop": 781.3960000000001,
+          "high": 887.95,
+          "gain_pct": 0.1051095526418957,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-07-09",
+          "old_stop": 781.3960000000001,
+          "new_stop": 789.0695999999999,
+          "high": 896.67,
+          "gain_pct": 0.11596214039913133,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-08-27",
+          "old_stop": 789.0695999999999,
+          "new_stop": 808.65664,
+          "high": 918.928,
+          "gain_pct": 0.14366361956203844,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-09-13",
+          "old_stop": 808.65664,
+          "new_stop": 812.9703119999999,
+          "high": 923.8299,
+          "gain_pct": 0.14976434203075306,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-11-08",
+          "old_stop": 812.9703119999999,
+          "new_stop": 846.5600000000001,
+          "high": 962.0,
+          "gain_pct": 0.19726942918126444,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-12-06",
+          "old_stop": 846.5600000000001,
+          "new_stop": 848.05078,
+          "high": 997.7068,
+          "gain_pct": 0.24170878474663815,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-12-11",
+          "old_stop": 848.05078,
+          "new_stop": 856.63,
+          "high": 1007.8,
+          "gain_pct": 0.25427040616307495,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-12-16",
+          "old_stop": 856.63,
+          "new_stop": 857.0124999999999,
+          "high": 1008.25,
+          "gain_pct": 0.25483045943036364,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-02-03",
+          "old_stop": 857.0124999999999,
+          "new_stop": 858.168925,
+          "high": 1009.6105,
+          "gain_pct": 0.2565236871417993,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-02-04",
+          "old_stop": 858.168925,
+          "new_stop": 870.6974999999999,
+          "high": 1024.35,
+          "gain_pct": 0.2748679207711311,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-02-05",
+          "old_stop": 870.6974999999999,
+          "new_stop": 886.6264999999999,
+          "high": 1043.09,
+          "gain_pct": 0.29819102794665797,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-02-06",
+          "old_stop": 886.6264999999999,
+          "new_stop": 903.55,
+          "high": 1063.0,
+          "gain_pct": 0.32297027361713515,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-02-11",
+          "old_stop": 903.55,
+          "new_stop": 906.099915,
+          "high": 1065.9999,
+          "gain_pct": 0.32670383760944377,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-02-12",
+          "old_stop": 906.099915,
+          "new_stop": 906.9499999999999,
+          "high": 1067.0,
+          "gain_pct": 0.32794852488192205,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-02-13",
+          "old_stop": 906.9499999999999,
+          "new_stop": 916.4997499999998,
+          "high": 1078.235,
+          "gain_pct": 0.34193118812189227,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:56:07.612577"
+    },
+    {
+      "trade_id": 12,
+      "asset_id": 27,
+      "asset_symbol": "CRM",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-11-08",
+      "entry_price": 319.4663,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.0104,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 2.096,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 369.0,
+      "highest_price_date": "2024-12-04",
+      "max_gain_pct": 0.15505140917837035,
+      "exit_date": "2025-01-07",
+      "exit_price": 324.72,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (322.91) breached trailing stop (324.72). Max gain was 15.5%",
+      "return_pct": 0.016445240076965906,
+      "holding_period": 39,
+      "is_winner": true,
+      "stop_adjustments": [
+        {
+          "date": "2024-11-11",
+          "old_stop": 271.546355,
+          "new_stop": 293.14799999999997,
+          "high": 344.88,
+          "gain_pct": 0.0795504877979305,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-11-12",
+          "old_stop": 293.14799999999997,
+          "new_stop": 296.531,
+          "high": 348.86,
+          "gain_pct": 0.09200876586982742,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-12-04",
+          "old_stop": 296.531,
+          "new_stop": 324.72,
+          "high": 369.0,
+          "gain_pct": 0.15505140917837035,
+          "trail_pct": 0.12
+        }
+      ],
+      "created_at": "2026-01-25T14:56:07.752524"
+    },
+    {
+      "trade_id": 13,
+      "asset_id": 118,
+      "asset_symbol": "DE",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-11-22",
+      "entry_price": 440.4496,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.0158,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 1.6172,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 515.05,
+      "highest_price_date": "2025-02-19",
+      "max_gain_pct": 0.1693732949240958,
+      "exit_date": "2025-03-04",
+      "exit_price": 453.24399999999997,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (447.65) breached trailing stop (453.24). Max gain was 16.9%",
+      "return_pct": 0.02904849953320432,
+      "holding_period": 66,
+      "is_winner": true,
+      "stop_adjustments": [
+        {
+          "date": "2024-11-25",
+          "old_stop": 374.38215999999994,
+          "new_stop": 398.9815,
+          "high": 469.39,
+          "gain_pct": 0.06570649627108294,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-01-23",
+          "old_stop": 398.9815,
+          "new_stop": 404.532,
+          "high": 475.92,
+          "gain_pct": 0.080532256131008,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-01-24",
+          "old_stop": 404.532,
+          "new_stop": 407.558,
+          "high": 479.48,
+          "gain_pct": 0.08861490622309587,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-01-27",
+          "old_stop": 407.558,
+          "new_stop": 411.7315,
+          "high": 484.39,
+          "gain_pct": 0.09976260620965482,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-01-28",
+          "old_stop": 411.7315,
+          "new_stop": 427.5392,
+          "high": 485.84,
+          "gain_pct": 0.10305469683705004,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2025-02-18",
+          "old_stop": 427.5392,
+          "new_stop": 441.848,
+          "high": 502.1,
+          "gain_pct": 0.1399715200104621,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2025-02-19",
+          "old_stop": 441.848,
+          "new_stop": 453.24399999999997,
+          "high": 515.05,
+          "gain_pct": 0.1693732949240958,
+          "trail_pct": 0.12
+        }
+      ],
+      "created_at": "2026-01-25T14:56:08.038391"
+    },
+    {
+      "trade_id": 14,
+      "asset_id": 8877,
+      "asset_symbol": "ETN",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-11-25",
+      "entry_price": 371.87,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.0191,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 1.5735,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 379.99,
+      "highest_price_date": "2024-11-26",
+      "max_gain_pct": 0.021835587705380854,
+      "exit_date": "2025-01-27",
+      "exit_price": 322.9915,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (306.15) breached trailing stop (322.99). Max gain was 2.2%",
+      "return_pct": -0.13143975045042633,
+      "holding_period": 40,
+      "is_winner": false,
+      "stop_adjustments": [
+        {
+          "date": "2024-11-26",
+          "old_stop": 316.0895,
+          "new_stop": 322.9915,
+          "high": 379.99,
+          "gain_pct": 0.021835587705380854,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:56:08.544781"
+    },
+    {
+      "trade_id": 15,
+      "asset_id": 3,
+      "asset_symbol": "GOOGL",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-06-21",
+      "entry_price": 178.4757,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.0131,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 2.3724,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 191.75,
+      "highest_price_date": "2024-07-10",
+      "max_gain_pct": 0.07437595146005882,
+      "exit_date": "2024-08-05",
+      "exit_price": 162.98749999999998,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (154.93) breached trailing stop (162.99). Max gain was 7.4%",
+      "return_pct": -0.08678044125895013,
+      "holding_period": 30,
+      "is_winner": false,
+      "stop_adjustments": [
+        {
+          "date": "2024-06-24",
+          "old_stop": 151.704345,
+          "new_stop": 153.7565,
+          "high": 180.89,
+          "gain_pct": 0.01352733173199483,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-25",
+          "old_stop": 153.7565,
+          "new_stop": 156.6465,
+          "high": 184.29,
+          "gain_pct": 0.03257754416987857,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-26",
+          "old_stop": 156.6465,
+          "new_stop": 156.8335,
+          "high": 184.51,
+          "gain_pct": 0.0338102049746829,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-27",
+          "old_stop": 156.8335,
+          "new_stop": 158.1425,
+          "high": 186.05,
+          "gain_pct": 0.04243883060831255,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-03",
+          "old_stop": 158.1425,
+          "new_stop": 158.1765,
+          "high": 186.09,
+          "gain_pct": 0.04266295075464055,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-05",
+          "old_stop": 158.1765,
+          "new_stop": 162.231,
+          "high": 190.86,
+          "gain_pct": 0.06938927820425977,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-09",
+          "old_stop": 162.231,
+          "new_stop": 162.656,
+          "high": 191.36,
+          "gain_pct": 0.07219078003336032,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-10",
+          "old_stop": 162.656,
+          "new_stop": 162.98749999999998,
+          "high": 191.75,
+          "gain_pct": 0.07437595146005882,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:56:08.849216"
+    },
+    {
+      "trade_id": 16,
+      "asset_id": 3,
+      "asset_symbol": "GOOGL",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-12-11",
+      "entry_price": 194.6272,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.005,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 2.2504,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 207.05,
+      "highest_price_date": "2025-02-04",
+      "max_gain_pct": 0.0638286940365993,
+      "exit_date": "2025-02-25",
+      "exit_price": 175.9925,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (174.69) breached trailing stop (175.99). Max gain was 6.4%",
+      "return_pct": -0.0957456100688906,
+      "holding_period": 49,
+      "is_winner": false,
+      "stop_adjustments": [
+        {
+          "date": "2024-12-12",
+          "old_stop": 165.43311999999997,
+          "new_stop": 165.903,
+          "high": 195.18,
+          "gain_pct": 0.002840301869420303,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-12-16",
+          "old_stop": 165.903,
+          "new_stop": 169.15,
+          "high": 199.0,
+          "gain_pct": 0.022467568767366553,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-12-17",
+          "old_stop": 169.15,
+          "new_stop": 171.207,
+          "high": 201.42,
+          "gain_pct": 0.03490159648805502,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-01-21",
+          "old_stop": 171.207,
+          "new_stop": 171.9465,
+          "high": 202.29,
+          "gain_pct": 0.03937168083392262,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-01-31",
+          "old_stop": 171.9465,
+          "new_stop": 174.658,
+          "high": 205.48,
+          "gain_pct": 0.05576199010210292,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-02-04",
+          "old_stop": 174.658,
+          "new_stop": 175.9925,
+          "high": 207.05,
+          "gain_pct": 0.0638286940365993,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:56:08.870617"
+    },
+    {
+      "trade_id": 17,
+      "asset_id": 4881,
+      "asset_symbol": "ICE",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-10-24",
+      "entry_price": 164.5537,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.0179,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 1.9101,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 167.99,
+      "highest_price_date": "2024-10-30",
+      "max_gain_pct": 0.020882544725521424,
+      "exit_date": "2025-01-10",
+      "exit_price": 142.7915,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (142.45) breached trailing stop (142.79). Max gain was 2.1%",
+      "return_pct": -0.13224983698330683,
+      "holding_period": 52,
+      "is_winner": false,
+      "stop_adjustments": [
+        {
+          "date": "2024-10-25",
+          "old_stop": 139.870645,
+          "new_stop": 142.49399999999997,
+          "high": 167.64,
+          "gain_pct": 0.01875557948560247,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-10-30",
+          "old_stop": 142.49399999999997,
+          "new_stop": 142.7915,
+          "high": 167.99,
+          "gain_pct": 0.020882544725521424,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:56:09.299660"
+    },
+    {
+      "trade_id": 18,
+      "asset_id": 103,
+      "asset_symbol": "ISRG",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-03-15",
+      "entry_price": 396.28,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.0167,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 2.4543,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 597.68,
+      "highest_price_date": "2025-01-17",
+      "max_gain_pct": 0.508226506510548,
+      "exit_date": "2025-01-17",
+      "exit_price": 594.42,
+      "exit_reason": "profit_target",
+      "exit_details": "High (597.68) reached 50% profit target (594.42)",
+      "return_pct": 0.5,
+      "holding_period": 211,
+      "is_winner": true,
+      "stop_adjustments": [
+        {
+          "date": "2024-03-18",
+          "old_stop": 336.83799999999997,
+          "new_stop": 341.0795,
+          "high": 401.27,
+          "gain_pct": 0.012592106591299057,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-03-27",
+          "old_stop": 341.0795,
+          "new_stop": 343.19515,
+          "high": 403.759,
+          "gain_pct": 0.018873019077420006,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-05-22",
+          "old_stop": 343.19515,
+          "new_stop": 347.1655,
+          "high": 408.43,
+          "gain_pct": 0.030660139295447753,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-05-30",
+          "old_stop": 347.1655,
+          "new_stop": 350.4465,
+          "high": 412.29,
+          "gain_pct": 0.04040072675885753,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-05",
+          "old_stop": 350.4465,
+          "new_stop": 355.419,
+          "high": 418.14,
+          "gain_pct": 0.05516301604925822,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-06",
+          "old_stop": 355.419,
+          "new_stop": 356.2945,
+          "high": 419.17,
+          "gain_pct": 0.057762188351670574,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-07",
+          "old_stop": 356.2945,
+          "new_stop": 357.48449999999997,
+          "high": 420.57,
+          "gain_pct": 0.061295043908347724,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-12",
+          "old_stop": 357.48449999999997,
+          "new_stop": 364.531,
+          "high": 428.86,
+          "gain_pct": 0.0822145957403857,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-17",
+          "old_stop": 364.531,
+          "new_stop": 366.86,
+          "high": 431.6,
+          "gain_pct": 0.08912889875845376,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-18",
+          "old_stop": 366.86,
+          "new_stop": 384.5072,
+          "high": 436.94,
+          "gain_pct": 0.10260421923892205,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-06-20",
+          "old_stop": 384.5072,
+          "new_stop": 384.736,
+          "high": 437.2,
+          "gain_pct": 0.10326032098516214,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-06-25",
+          "old_stop": 384.736,
+          "new_stop": 390.5528,
+          "high": 443.81,
+          "gain_pct": 0.11994044614918753,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-06-26",
+          "old_stop": 390.5528,
+          "new_stop": 390.5704,
+          "high": 443.83,
+          "gain_pct": 0.11999091551428287,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-06-27",
+          "old_stop": 390.5704,
+          "new_stop": 392.2952,
+          "high": 445.79,
+          "gain_pct": 0.12493691329363088,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-06-28",
+          "old_stop": 392.2952,
+          "new_stop": 393.4568,
+          "high": 447.11,
+          "gain_pct": 0.12826789138992645,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-07-01",
+          "old_stop": 393.4568,
+          "new_stop": 394.32800000000003,
+          "high": 448.1,
+          "gain_pct": 0.13076612496214812,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-07-11",
+          "old_stop": 394.32800000000003,
+          "new_stop": 395.12,
+          "high": 449.0,
+          "gain_pct": 0.13303724639144043,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-07-19",
+          "old_stop": 395.12,
+          "new_stop": 401.9928,
+          "high": 456.81,
+          "gain_pct": 0.15274553346118913,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-07-22",
+          "old_stop": 401.9928,
+          "new_stop": 412.526312,
+          "high": 468.7799,
+          "gain_pct": 0.18295119612395294,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-08-13",
+          "old_stop": 412.526312,
+          "new_stop": 414.0312,
+          "high": 470.49,
+          "gain_pct": 0.18726657918643386,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-08-14",
+          "old_stop": 414.0312,
+          "new_stop": 416.9,
+          "high": 473.75,
+          "gain_pct": 0.1954930856969821,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-08-22",
+          "old_stop": 416.9,
+          "new_stop": 418.0555,
+          "high": 491.83,
+          "gain_pct": 0.2411173917432119,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-08-23",
+          "old_stop": 418.0555,
+          "new_stop": 419.8745,
+          "high": 493.97,
+          "gain_pct": 0.2465176138084184,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-09-12",
+          "old_stop": 419.8745,
+          "new_stop": 420.0275,
+          "high": 494.15,
+          "gain_pct": 0.2469718380942767,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-09-13",
+          "old_stop": 420.0275,
+          "new_stop": 421.753,
+          "high": 496.18,
+          "gain_pct": 0.25209447865145873,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-10-01",
+          "old_stop": 421.753,
+          "new_stop": 422.008,
+          "high": 496.48,
+          "gain_pct": 0.2528515191278895,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-10-18",
+          "old_stop": 422.008,
+          "new_stop": 444.839,
+          "high": 523.34,
+          "gain_pct": 0.32063187645099434,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-11-06",
+          "old_stop": 444.839,
+          "new_stop": 446.25,
+          "high": 525.0,
+          "gain_pct": 0.3248208337539116,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-11-14",
+          "old_stop": 446.25,
+          "new_stop": 446.39160000000004,
+          "high": 544.38,
+          "gain_pct": 0.3737256485313416,
+          "trail_pct": 0.18
+        },
+        {
+          "date": "2024-11-21",
+          "old_stop": 446.39160000000004,
+          "new_stop": 452.4596,
+          "high": 551.78,
+          "gain_pct": 0.3923993136166348,
+          "trail_pct": 0.18
+        },
+        {
+          "date": "2024-11-22",
+          "old_stop": 452.4596,
+          "new_stop": 452.64000000000004,
+          "high": 552.0,
+          "gain_pct": 0.392954476632684,
+          "trail_pct": 0.18
+        },
+        {
+          "date": "2024-12-04",
+          "old_stop": 452.64000000000004,
+          "new_stop": 452.70560000000006,
+          "high": 552.08,
+          "gain_pct": 0.3931563540930658,
+          "trail_pct": 0.18
+        },
+        {
+          "date": "2024-12-06",
+          "old_stop": 452.70560000000006,
+          "new_stop": 456.1086,
+          "high": 556.23,
+          "gain_pct": 0.4036287473503586,
+          "trail_pct": 0.18
+        },
+        {
+          "date": "2025-01-15",
+          "old_stop": 456.1086,
+          "new_stop": 479.37200000000007,
+          "high": 584.6,
+          "gain_pct": 0.47521954173816505,
+          "trail_pct": 0.18
+        },
+        {
+          "date": "2025-01-16",
+          "old_stop": 479.37200000000007,
+          "new_stop": 480.11,
+          "high": 585.5,
+          "gain_pct": 0.47749066316745736,
+          "trail_pct": 0.18
+        },
+        {
+          "date": "2025-01-17",
+          "old_stop": 480.11,
+          "new_stop": 490.0976,
+          "high": 597.68,
+          "gain_pct": 0.508226506510548,
+          "trail_pct": 0.18
+        }
+      ],
+      "created_at": "2026-01-25T14:56:09.563626"
+    },
+    {
+      "trade_id": 19,
+      "asset_id": 11,
+      "asset_symbol": "LLY",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-05-31",
+      "entry_price": 811.7816,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.0175,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 1.6941,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 966.1,
+      "highest_price_date": "2024-07-15",
+      "max_gain_pct": 0.19009842056040682,
+      "exit_date": "2024-07-18",
+      "exit_price": 850.168,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (836.66) breached trailing stop (850.17). Max gain was 19.0%",
+      "return_pct": 0.04728661009315793,
+      "holding_period": 32,
+      "is_winner": true,
+      "stop_adjustments": [
+        {
+          "date": "2024-06-03",
+          "old_stop": 690.01436,
+          "new_stop": 712.538,
+          "high": 838.28,
+          "gain_pct": 0.03264227718391255,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-05",
+          "old_stop": 712.538,
+          "new_stop": 712.6825,
+          "high": 838.45,
+          "gain_pct": 0.0328516931154883,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-06",
+          "old_stop": 712.6825,
+          "new_stop": 719.9280699999999,
+          "high": 846.9742,
+          "gain_pct": 0.043352300668061394,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-07",
+          "old_stop": 719.9280699999999,
+          "new_stop": 728.2884999999999,
+          "high": 856.81,
+          "gain_pct": 0.05546861372566214,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-10",
+          "old_stop": 728.2884999999999,
+          "new_stop": 740.8855,
+          "high": 871.63,
+          "gain_pct": 0.07372475552537772,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-11",
+          "old_stop": 740.8855,
+          "new_stop": 749.819,
+          "high": 882.14,
+          "gain_pct": 0.08667158753043913,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-13",
+          "old_stop": 749.819,
+          "new_stop": 752.3009999999999,
+          "high": 885.06,
+          "gain_pct": 0.09026861411985676,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-17",
+          "old_stop": 752.3009999999999,
+          "new_stop": 758.37,
+          "high": 892.2,
+          "gain_pct": 0.09906408324603566,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-18",
+          "old_stop": 758.37,
+          "new_stop": 787.4856,
+          "high": 894.87,
+          "gain_pct": 0.1023531452301949,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-06-20",
+          "old_stop": 787.4856,
+          "new_stop": 796.796,
+          "high": 905.45,
+          "gain_pct": 0.1153862073247287,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-06-25",
+          "old_stop": 796.796,
+          "new_stop": 800.2896,
+          "high": 909.42,
+          "gain_pct": 0.12027668525623136,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-06-27",
+          "old_stop": 800.2896,
+          "new_stop": 800.4216,
+          "high": 909.57,
+          "gain_pct": 0.12046146401938662,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-06-28",
+          "old_stop": 800.4216,
+          "new_stop": 805.6752,
+          "high": 915.54,
+          "gain_pct": 0.12781565879295598,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-07-01",
+          "old_stop": 805.6752,
+          "new_stop": 806.8104000000001,
+          "high": 916.83,
+          "gain_pct": 0.12940475615608937,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-07-03",
+          "old_stop": 806.8104000000001,
+          "new_stop": 808.28,
+          "high": 918.5,
+          "gain_pct": 0.13146195971921504,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-07-08",
+          "old_stop": 808.28,
+          "new_stop": 817.1724,
+          "high": 928.605,
+          "gain_pct": 0.143909889063758,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-07-09",
+          "old_stop": 817.1724,
+          "new_stop": 822.8,
+          "high": 935.0,
+          "gain_pct": 0.15178762366626675,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-07-10",
+          "old_stop": 822.8,
+          "new_stop": 832.2072000000001,
+          "high": 945.69,
+          "gain_pct": 0.16495619018711438,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-07-12",
+          "old_stop": 832.2072000000001,
+          "new_stop": 836.6952,
+          "high": 950.79,
+          "gain_pct": 0.17123866813438493,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-07-15",
+          "old_stop": 836.6952,
+          "new_stop": 850.168,
+          "high": 966.1,
+          "gain_pct": 0.19009842056040682,
+          "trail_pct": 0.12
+        }
+      ],
+      "created_at": "2026-01-25T14:56:10.037534"
+    },
+    {
+      "trade_id": 20,
+      "asset_id": 7,
+      "asset_symbol": "META",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-07-05",
+      "entry_price": 537.3003,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.0066,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 1.7921,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 542.81,
+      "highest_price_date": "2024-07-08",
+      "max_gain_pct": 0.010254414523870548,
+      "exit_date": "2024-07-17",
+      "exit_price": 461.38849999999996,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (459.12) breached trailing stop (461.39). Max gain was 1.0%",
+      "return_pct": -0.14128374765471008,
+      "holding_period": 8,
+      "is_winner": false,
+      "stop_adjustments": [
+        {
+          "date": "2024-07-08",
+          "old_stop": 456.70525499999997,
+          "new_stop": 461.38849999999996,
+          "high": 542.81,
+          "gain_pct": 0.010254414523870548,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:56:10.513287"
+    },
+    {
+      "trade_id": 21,
+      "asset_id": 7,
+      "asset_symbol": "META",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-09-20",
+      "entry_price": 559.1604,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.0095,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 1.9954,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 740.91,
+      "highest_price_date": "2025-02-14",
+      "max_gain_pct": 0.32504018524917,
+      "exit_date": "2025-03-04",
+      "exit_price": 629.7735,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (623.65) breached trailing stop (629.77). Max gain was 32.5%",
+      "return_pct": 0.12628415746179456,
+      "holding_period": 111,
+      "is_winner": true,
+      "stop_adjustments": [
+        {
+          "date": "2024-09-23",
+          "old_stop": 475.28634,
+          "new_stop": 487.882915,
+          "high": 573.9799,
+          "gain_pct": 0.026503128619265626,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-09-25",
+          "old_stop": 487.882915,
+          "new_stop": 490.34799999999996,
+          "high": 576.88,
+          "gain_pct": 0.03168965470373086,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-09-26",
+          "old_stop": 490.34799999999996,
+          "new_stop": 490.78999999999996,
+          "high": 577.4,
+          "gain_pct": 0.03261962041661026,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-10-01",
+          "old_stop": 490.78999999999996,
+          "new_stop": 495.58399999999995,
+          "high": 583.04,
+          "gain_pct": 0.04270617161014978,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-10-03",
+          "old_stop": 495.58399999999995,
+          "new_stop": 495.856,
+          "high": 583.36,
+          "gain_pct": 0.04327845820269105,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-10-04",
+          "old_stop": 495.856,
+          "new_stop": 507.3225,
+          "high": 596.85,
+          "gain_pct": 0.06740391486950803,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-10-07",
+          "old_stop": 507.3225,
+          "new_stop": 512.5075,
+          "high": 602.95,
+          "gain_pct": 0.07831312803982549,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-12-03",
+          "old_stop": 512.5075,
+          "new_stop": 522.07,
+          "high": 614.2,
+          "gain_pct": 0.09843257855885379,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-12-04",
+          "old_stop": 522.07,
+          "new_stop": 543.6464,
+          "high": 617.78,
+          "gain_pct": 0.10483503481290879,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-12-05",
+          "old_stop": 543.6464,
+          "new_stop": 545.512,
+          "high": 619.9,
+          "gain_pct": 0.10862643348849454,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-12-06",
+          "old_stop": 545.512,
+          "new_stop": 554.215112,
+          "high": 629.7899,
+          "gain_pct": 0.12631348714966228,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-12-11",
+          "old_stop": 554.215112,
+          "new_stop": 561.792,
+          "high": 638.4,
+          "gain_pct": 0.14171175211978526,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2025-01-24",
+          "old_stop": 561.792,
+          "new_stop": 573.76,
+          "high": 652.0,
+          "gain_pct": 0.1660339323027884,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2025-01-27",
+          "old_stop": 573.76,
+          "new_stop": 584.2056,
+          "high": 663.87,
+          "gain_pct": 0.18726218809486506,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2025-01-30",
+          "old_stop": 584.2056,
+          "new_stop": 604.1714999999999,
+          "high": 710.79,
+          "gain_pct": 0.27117370972622523,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-02-05",
+          "old_stop": 604.1714999999999,
+          "new_stop": 610.419,
+          "high": 718.14,
+          "gain_pct": 0.28431841739865704,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-02-06",
+          "old_stop": 610.419,
+          "new_stop": 611.0649999999999,
+          "high": 718.9,
+          "gain_pct": 0.2856775980559425,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-02-07",
+          "old_stop": 611.0649999999999,
+          "new_stop": 616.2585,
+          "high": 725.01,
+          "gain_pct": 0.29660469518227695,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-02-12",
+          "old_stop": 616.2585,
+          "new_stop": 618.035,
+          "high": 727.1,
+          "gain_pct": 0.30034244198981197,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-02-13",
+          "old_stop": 618.035,
+          "new_stop": 619.65,
+          "high": 729.0,
+          "gain_pct": 0.30374039363302563,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-02-14",
+          "old_stop": 619.65,
+          "new_stop": 629.7735,
+          "high": 740.91,
+          "gain_pct": 0.32504018524917,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:56:10.520462"
+    },
+    {
+      "trade_id": 22,
+      "asset_id": 2,
+      "asset_symbol": "MSFT",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-03-14",
+      "entry_price": 419.7587,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.0188,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 1.6308,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 468.35,
+      "highest_price_date": "2024-07-05",
+      "max_gain_pct": 0.11576007834977586,
+      "exit_date": "2024-08-02",
+      "exit_price": 412.148,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (404.34) breached trailing stop (412.15). Max gain was 11.6%",
+      "return_pct": -0.018131131052197214,
+      "holding_period": 97,
+      "is_winner": false,
+      "stop_adjustments": [
+        {
+          "date": "2024-03-15",
+          "old_stop": 356.794895,
+          "new_stop": 359.21000000000004,
+          "high": 422.6,
+          "gain_pct": 0.006768888887830116,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-03-20",
+          "old_stop": 359.21000000000004,
+          "new_stop": 362.066,
+          "high": 425.96,
+          "gain_pct": 0.014773487720445067,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-03-21",
+          "old_stop": 362.066,
+          "new_stop": 366.197,
+          "high": 430.82,
+          "gain_pct": 0.02635156817476325,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-05-21",
+          "old_stop": 366.197,
+          "new_stop": 368.0245,
+          "high": 432.97,
+          "gain_pct": 0.031473558499204524,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-05-23",
+          "old_stop": 368.0245,
+          "new_stop": 368.56,
+          "high": 433.6,
+          "gain_pct": 0.03297442078031976,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-12",
+          "old_stop": 368.56,
+          "new_stop": 376.89,
+          "high": 443.4,
+          "gain_pct": 0.0563211673754469,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-17",
+          "old_stop": 376.89,
+          "new_stop": 383.299,
+          "high": 450.94,
+          "gain_pct": 0.07428386832720801,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-24",
+          "old_stop": 383.299,
+          "new_stop": 384.8375,
+          "high": 452.75,
+          "gain_pct": 0.07859586948406316,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-26",
+          "old_stop": 384.8375,
+          "new_stop": 385.56,
+          "high": 453.6,
+          "gain_pct": 0.08062084240302836,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-27",
+          "old_stop": 385.56,
+          "new_stop": 387.7445,
+          "high": 456.17,
+          "gain_pct": 0.0867434075815463,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-01",
+          "old_stop": 387.7445,
+          "new_stop": 388.7645,
+          "high": 457.37,
+          "gain_pct": 0.0896021928789088,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-02",
+          "old_stop": 388.7645,
+          "new_stop": 390.65149999999994,
+          "high": 459.59,
+          "gain_pct": 0.09489094567902945,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-03",
+          "old_stop": 390.65149999999994,
+          "new_stop": 391.86699999999996,
+          "high": 461.02,
+          "gain_pct": 0.09829766482505309,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-05",
+          "old_stop": 391.86699999999996,
+          "new_stop": 412.148,
+          "high": 468.35,
+          "gain_pct": 0.11576007834977586,
+          "trail_pct": 0.12
+        }
+      ],
+      "created_at": "2026-01-25T14:56:10.982831"
+    },
+    {
+      "trade_id": 23,
+      "asset_id": 8508,
+      "asset_symbol": "PYPL",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-08-20",
+      "entry_price": 71.723,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.0115,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 1.546,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 93.66,
+      "highest_price_date": "2024-12-09",
+      "max_gain_pct": 0.30585725638916395,
+      "exit_date": "2025-02-04",
+      "exit_price": 79.61099999999999,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (77.38) breached trailing stop (79.61). Max gain was 30.6%",
+      "return_pct": 0.10997866793078925,
+      "holding_period": 114,
+      "is_winner": true,
+      "stop_adjustments": [
+        {
+          "date": "2024-08-21",
+          "old_stop": 60.964549999999996,
+          "new_stop": 61.854499999999994,
+          "high": 72.77,
+          "gain_pct": 0.014597827753997983,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-08-22",
+          "old_stop": 61.854499999999994,
+          "new_stop": 62.262499999999996,
+          "high": 73.25,
+          "gain_pct": 0.021290241624025708,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-08-29",
+          "old_stop": 62.262499999999996,
+          "new_stop": 62.840500000000006,
+          "high": 73.93,
+          "gain_pct": 0.030771161273231762,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-09-05",
+          "old_stop": 62.840500000000006,
+          "new_stop": 63.24,
+          "high": 74.4,
+          "gain_pct": 0.03732414985430066,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-09-19",
+          "old_stop": 63.24,
+          "new_stop": 66.50825,
+          "high": 78.245,
+          "gain_pct": 0.09093317345900198,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-09-23",
+          "old_stop": 66.50825,
+          "new_stop": 66.97999999999999,
+          "high": 78.8,
+          "gain_pct": 0.09867127699622147,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-09-24",
+          "old_stop": 66.97999999999999,
+          "new_stop": 67.0055,
+          "high": 78.83,
+          "gain_pct": 0.0990895528630984,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-09-25",
+          "old_stop": 67.0055,
+          "new_stop": 69.7488,
+          "high": 79.26,
+          "gain_pct": 0.10508484028833154,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-09-26",
+          "old_stop": 69.7488,
+          "new_stop": 70.7784,
+          "high": 80.43,
+          "gain_pct": 0.12139759909652414,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-09-27",
+          "old_stop": 70.7784,
+          "new_stop": 70.954312,
+          "high": 80.6299,
+          "gain_pct": 0.12418471062281289,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-10-08",
+          "old_stop": 70.954312,
+          "new_stop": 71.631912,
+          "high": 81.3999,
+          "gain_pct": 0.13492045787264906,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-10-09",
+          "old_stop": 71.631912,
+          "new_stop": 72.16,
+          "high": 82.0,
+          "gain_pct": 0.1432873694630732,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-10-23",
+          "old_stop": 72.16,
+          "new_stop": 72.3712,
+          "high": 82.24,
+          "gain_pct": 0.14663357639808705,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-10-24",
+          "old_stop": 72.3712,
+          "new_stop": 72.5824,
+          "high": 82.48,
+          "gain_pct": 0.14997978333310114,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-10-25",
+          "old_stop": 72.5824,
+          "new_stop": 72.864,
+          "high": 82.8,
+          "gain_pct": 0.15444139257978606,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-10-28",
+          "old_stop": 72.864,
+          "new_stop": 73.656,
+          "high": 83.7,
+          "gain_pct": 0.1669896685860881,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-11-11",
+          "old_stop": 73.656,
+          "new_stop": 74.34949999999999,
+          "high": 87.47,
+          "gain_pct": 0.21955300252359766,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-11-12",
+          "old_stop": 74.34949999999999,
+          "new_stop": 74.732,
+          "high": 87.92,
+          "gain_pct": 0.22582714052674868,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-11-25",
+          "old_stop": 74.732,
+          "new_stop": 75.42899999999999,
+          "high": 88.74,
+          "gain_pct": 0.23726001422137943,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-12-04",
+          "old_stop": 75.42899999999999,
+          "new_stop": 76.619,
+          "high": 90.14,
+          "gain_pct": 0.2567795546756271,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-12-05",
+          "old_stop": 76.619,
+          "new_stop": 76.7295,
+          "high": 90.27,
+          "gain_pct": 0.25859208343209295,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-12-09",
+          "old_stop": 76.7295,
+          "new_stop": 79.61099999999999,
+          "high": 93.66,
+          "gain_pct": 0.30585725638916395,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:56:12.261518"
+    },
+    {
+      "trade_id": 24,
+      "asset_id": 102,
+      "asset_symbol": "REGN",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-06-21",
+      "entry_price": 1047.4481,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.0117,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 2.8659,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 1211.1999,
+      "highest_price_date": "2024-08-27",
+      "max_gain_pct": 0.15633404652698313,
+      "exit_date": "2024-09-24",
+      "exit_price": 1065.855912,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (1022.22) breached trailing stop (1065.86). Max gain was 15.6%",
+      "return_pct": 0.01757396094374508,
+      "holding_period": 65,
+      "is_winner": true,
+      "stop_adjustments": [
+        {
+          "date": "2024-06-24",
+          "old_stop": 890.3308850000001,
+          "new_stop": 907.8,
+          "high": 1068.0,
+          "gain_pct": 0.01962092441620733,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-25",
+          "old_stop": 907.8,
+          "new_stop": 918.9945,
+          "high": 1081.17,
+          "gain_pct": 0.032194339748193634,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-11",
+          "old_stop": 918.9945,
+          "new_stop": 927.6899149999999,
+          "high": 1091.3999,
+          "gain_pct": 0.041960837964191144,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-12",
+          "old_stop": 927.6899149999999,
+          "new_stop": 940.2359150000001,
+          "high": 1106.1599,
+          "gain_pct": 0.056052228267921,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-08-02",
+          "old_stop": 940.2359150000001,
+          "new_stop": 947.75,
+          "high": 1115.0,
+          "gain_pct": 0.06449188270044104,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-08-09",
+          "old_stop": 947.75,
+          "new_stop": 963.0499149999999,
+          "high": 1132.9999,
+          "gain_pct": 0.08167640955193867,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-08-13",
+          "old_stop": 963.0499149999999,
+          "new_stop": 1021.2048000000001,
+          "high": 1160.46,
+          "gain_pct": 0.10789260107493637,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-08-14",
+          "old_stop": 1021.2048000000001,
+          "new_stop": 1021.8648000000001,
+          "high": 1161.21,
+          "gain_pct": 0.10860862700500373,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-08-15",
+          "old_stop": 1021.8648000000001,
+          "new_stop": 1036.596,
+          "high": 1177.95,
+          "gain_pct": 0.12459032576411189,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-08-16",
+          "old_stop": 1036.596,
+          "new_stop": 1042.8831599999999,
+          "high": 1185.0945,
+          "gain_pct": 0.13141118877393532,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-08-19",
+          "old_stop": 1042.8831599999999,
+          "new_stop": 1053.9672,
+          "high": 1197.69,
+          "gain_pct": 0.14343612824348995,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-08-20",
+          "old_stop": 1053.9672,
+          "new_stop": 1057.3991999999998,
+          "high": 1201.59,
+          "gain_pct": 0.14715946307984118,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-08-21",
+          "old_stop": 1057.3991999999998,
+          "new_stop": 1059.0712,
+          "high": 1203.49,
+          "gain_pct": 0.1489733954360124,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-08-26",
+          "old_stop": 1059.0712,
+          "new_stop": 1061.9922720000002,
+          "high": 1206.8094,
+          "gain_pct": 0.15214243073236755,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-08-27",
+          "old_stop": 1061.9922720000002,
+          "new_stop": 1065.855912,
+          "high": 1211.1999,
+          "gain_pct": 0.15633404652698313,
+          "trail_pct": 0.12
+        }
+      ],
+      "created_at": "2026-01-25T14:56:12.432819"
+    },
+    {
+      "trade_id": 25,
+      "asset_id": 105,
+      "asset_symbol": "SYK",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-11-15",
+      "entry_price": 386.5947,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.0155,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 2.0539,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 406.19,
+      "highest_price_date": "2025-01-28",
+      "max_gain_pct": 0.05068693388709167,
+      "exit_date": "2025-04-04",
+      "exit_price": 345.2615,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (344.81) breached trailing stop (345.26). Max gain was 5.1%",
+      "return_pct": -0.10691610619597214,
+      "holding_period": 94,
+      "is_winner": false,
+      "stop_adjustments": [
+        {
+          "date": "2024-11-18",
+          "old_stop": 328.60549499999996,
+          "new_stop": 338.46999999999997,
+          "high": 398.2,
+          "gain_pct": 0.030019294108274197,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-01-27",
+          "old_stop": 338.46999999999997,
+          "new_stop": 340.289,
+          "high": 400.34,
+          "gain_pct": 0.03555480714039794,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-01-28",
+          "old_stop": 340.289,
+          "new_stop": 345.2615,
+          "high": 406.19,
+          "gain_pct": 0.05068693388709167,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:56:12.949672"
+    },
+    {
+      "trade_id": 26,
+      "asset_id": 8,
+      "asset_symbol": "TSLA",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-10-25",
+      "entry_price": 269.19,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.0067,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 1.9204,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 404.8,
+      "highest_price_date": "2024-12-09",
+      "max_gain_pct": 0.5037705709721758,
+      "exit_date": "2024-12-09",
+      "exit_price": 403.78499999999997,
+      "exit_reason": "profit_target",
+      "exit_details": "High (404.80) reached 50% profit target (403.78)",
+      "return_pct": 0.5,
+      "holding_period": 30,
+      "is_winner": true,
+      "stop_adjustments": [
+        {
+          "date": "2024-10-28",
+          "old_stop": 228.8115,
+          "new_stop": 232.5056,
+          "high": 273.536,
+          "gain_pct": 0.01614473048775955,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-11-06",
+          "old_stop": 232.5056,
+          "new_stop": 246.15149999999997,
+          "high": 289.59,
+          "gain_pct": 0.07578290426836065,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-11-07",
+          "old_stop": 246.15149999999997,
+          "new_stop": 263.78000000000003,
+          "high": 299.75,
+          "gain_pct": 0.11352576247260293,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-11-08",
+          "old_stop": 263.78000000000003,
+          "new_stop": 279.40349999999995,
+          "high": 328.71,
+          "gain_pct": 0.22110776774768737,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-11-11",
+          "old_stop": 279.40349999999995,
+          "new_stop": 304.844,
+          "high": 358.64,
+          "gain_pct": 0.3322931758237675,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-11-22",
+          "old_stop": 304.844,
+          "new_stop": 307.30049999999994,
+          "high": 361.53,
+          "gain_pct": 0.34302908726178516,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-11-25",
+          "old_stop": 307.30049999999994,
+          "new_stop": 307.6405,
+          "high": 361.93,
+          "gain_pct": 0.34451502656116495,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-12-05",
+          "old_stop": 307.6405,
+          "new_stop": 307.85260000000005,
+          "high": 375.43,
+          "gain_pct": 0.3946654779152272,
+          "trail_pct": 0.18
+        },
+        {
+          "date": "2024-12-06",
+          "old_stop": 307.85260000000005,
+          "new_stop": 319.38180000000006,
+          "high": 389.49,
+          "gain_pct": 0.4468962442884208,
+          "trail_pct": 0.18
+        },
+        {
+          "date": "2024-12-09",
+          "old_stop": 319.38180000000006,
+          "new_stop": 331.93600000000004,
+          "high": 404.8,
+          "gain_pct": 0.5037705709721758,
+          "trail_pct": 0.18
+        }
+      ],
+      "created_at": "2026-01-25T14:56:13.350220"
+    },
+    {
+      "trade_id": 27,
+      "asset_id": 8,
+      "asset_symbol": "TSLA",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-12-17",
+      "entry_price": 479.86,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.0085,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 1.6143,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 488.5399,
+      "highest_price_date": "2024-12-18",
+      "max_gain_pct": 0.018088400783561775,
+      "exit_date": "2024-12-31",
+      "exit_price": 415.258915,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (402.54) breached trailing stop (415.26). Max gain was 1.8%",
+      "return_pct": -0.1346248593339724,
+      "holding_period": 9,
+      "is_winner": false,
+      "stop_adjustments": [
+        {
+          "date": "2024-12-18",
+          "old_stop": 407.88100000000003,
+          "new_stop": 415.258915,
+          "high": 488.5399,
+          "gain_pct": 0.018088400783561775,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:56:13.356820"
+    },
+    {
+      "trade_id": 28,
+      "asset_id": 12,
+      "asset_symbol": "V",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-11-06",
+      "entry_price": 304.6567,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.0141,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 1.6934,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 366.54,
+      "highest_price_date": "2025-03-03",
+      "max_gain_pct": 0.20312469740530914,
+      "exit_date": "2025-04-04",
+      "exit_price": 320.32,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (312.12) breached trailing stop (320.32). Max gain was 20.3%",
+      "return_pct": 0.05141295103636323,
+      "holding_period": 101,
+      "is_winner": true,
+      "stop_adjustments": [
+        {
+          "date": "2024-11-07",
+          "old_stop": 258.958195,
+          "new_stop": 261.4855,
+          "high": 307.63,
+          "gain_pct": 0.009759509638225472,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-11-08",
+          "old_stop": 261.4855,
+          "new_stop": 264.47749999999996,
+          "high": 311.15,
+          "gain_pct": 0.021313498111152684,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-11-11",
+          "old_stop": 264.47749999999996,
+          "new_stop": 265.574,
+          "high": 312.44,
+          "gain_pct": 0.02554777229583327,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-11-25",
+          "old_stop": 265.574,
+          "new_stop": 266.611,
+          "high": 313.66,
+          "gain_pct": 0.02955227966429108,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-11-26",
+          "old_stop": 266.611,
+          "new_stop": 267.325,
+          "high": 314.5,
+          "gain_pct": 0.03230948145896684,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-11-27",
+          "old_stop": 267.325,
+          "new_stop": 268.9145,
+          "high": 316.37,
+          "gain_pct": 0.03844753783520938,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-12-02",
+          "old_stop": 268.9145,
+          "new_stop": 269.807,
+          "high": 317.42,
+          "gain_pct": 0.04189404007855413,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-12-16",
+          "old_stop": 269.807,
+          "new_stop": 269.926,
+          "high": 317.56,
+          "gain_pct": 0.0423535737109999,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-12-17",
+          "old_stop": 269.926,
+          "new_stop": 271.01399999999995,
+          "high": 318.84,
+          "gain_pct": 0.04655502406479162,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-12-18",
+          "old_stop": 271.01399999999995,
+          "new_stop": 273.37275,
+          "high": 321.615,
+          "gain_pct": 0.055663637136488475,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-01-21",
+          "old_stop": 273.37275,
+          "new_stop": 275.893,
+          "high": 324.58,
+          "gain_pct": 0.06539590299507614,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-01-22",
+          "old_stop": 275.893,
+          "new_stop": 276.879,
+          "high": 325.74,
+          "gain_pct": 0.06920346737819982,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-01-23",
+          "old_stop": 276.879,
+          "new_stop": 279.2335,
+          "high": 328.51,
+          "gain_pct": 0.07829566853445202,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-01-24",
+          "old_stop": 279.2335,
+          "new_stop": 281.42224999999996,
+          "high": 331.085,
+          "gain_pct": 0.08674780498836876,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2025-01-27",
+          "old_stop": 281.42224999999996,
+          "new_stop": 295.2312,
+          "high": 335.49,
+          "gain_pct": 0.10120670249497232,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2025-01-28",
+          "old_stop": 295.2312,
+          "new_stop": 297.2904,
+          "high": 337.83,
+          "gain_pct": 0.10888747892299744,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2025-01-30",
+          "old_stop": 297.2904,
+          "new_stop": 303.1072,
+          "high": 344.44,
+          "gain_pct": 0.13058403114062478,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2025-01-31",
+          "old_stop": 303.1072,
+          "new_stop": 309.099912,
+          "high": 351.2499,
+          "gain_pct": 0.15293673173772326,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2025-02-10",
+          "old_stop": 309.099912,
+          "new_stop": 309.67199999999997,
+          "high": 351.9,
+          "gain_pct": 0.15507060898381675,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2025-02-11",
+          "old_stop": 309.67199999999997,
+          "new_stop": 309.86560000000003,
+          "high": 352.12,
+          "gain_pct": 0.15579273326337484,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2025-02-13",
+          "old_stop": 309.86560000000003,
+          "new_stop": 313.3504,
+          "high": 356.08,
+          "gain_pct": 0.16879097029541779,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2025-02-18",
+          "old_stop": 313.3504,
+          "new_stop": 313.9312,
+          "high": 356.74,
+          "gain_pct": 0.1709573431340916,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2025-02-19",
+          "old_stop": 313.9312,
+          "new_stop": 314.292,
+          "high": 357.15,
+          "gain_pct": 0.1723031202005405,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2025-02-27",
+          "old_stop": 314.292,
+          "new_stop": 317.07280000000003,
+          "high": 360.31,
+          "gain_pct": 0.18267545076146363,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2025-02-28",
+          "old_stop": 317.07280000000003,
+          "new_stop": 320.32,
+          "high": 364.0,
+          "gain_pct": 0.19478744435950368,
+          "trail_pct": 0.12
+        }
+      ],
+      "created_at": "2026-01-25T14:56:13.880447"
+    },
+    {
+      "trade_id": 29,
+      "asset_id": 101,
+      "asset_symbol": "VRTX",
+      "setup_name": "52w_high_breakout",
+      "entry_date": "2024-05-31",
+      "entry_price": 455.34,
+      "entry_conditions": [
+        {
+          "condition_name": "Near 52W High",
+          "expression": "dist_52w_high >= -0.02",
+          "actual_value": -0.0051,
+          "threshold": -0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "Volume Confirmation",
+          "expression": "rvol_20 > 1.5",
+          "actual_value": 1.9452,
+          "threshold": 1.5,
+          "passed": true
+        },
+        {
+          "condition_name": "Above 200 SMA",
+          "expression": "above_ma200 == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 510.635,
+      "highest_price_date": "2024-08-01",
+      "max_gain_pct": 0.12143672859840993,
+      "exit_date": "2024-10-07",
+      "exit_price": 449.3588,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (447.70) breached trailing stop (449.36). Max gain was 12.1%",
+      "return_pct": -0.013135678833399167,
+      "holding_period": 88,
+      "is_winner": false,
+      "stop_adjustments": [
+        {
+          "date": "2024-06-03",
+          "old_stop": 387.039,
+          "new_stop": 400.68149999999997,
+          "high": 471.39,
+          "gain_pct": 0.03524838582158396,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-04",
+          "old_stop": 400.68149999999997,
+          "new_stop": 405.7135,
+          "high": 477.31,
+          "gain_pct": 0.048249659595027916,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-05",
+          "old_stop": 405.7135,
+          "new_stop": 411.78249999999997,
+          "high": 484.45,
+          "gain_pct": 0.06393024992313445,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-06",
+          "old_stop": 411.78249999999997,
+          "new_stop": 412.9725,
+          "high": 485.85,
+          "gain_pct": 0.0670048754776651,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-06-07",
+          "old_stop": 412.9725,
+          "new_stop": 413.46125,
+          "high": 486.425,
+          "gain_pct": 0.06826766811613316,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-09",
+          "old_stop": 413.46125,
+          "new_stop": 414.7575,
+          "high": 487.95,
+          "gain_pct": 0.07161681380946106,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-10",
+          "old_stop": 414.7575,
+          "new_stop": 417.996,
+          "high": 491.76,
+          "gain_pct": 0.07998418764000537,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-11",
+          "old_stop": 417.996,
+          "new_stop": 420.9455,
+          "high": 495.23,
+          "gain_pct": 0.0876048666930207,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-12",
+          "old_stop": 420.9455,
+          "new_stop": 422.20349999999996,
+          "high": 496.71,
+          "gain_pct": 0.09085518513638169,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-16",
+          "old_stop": 422.20349999999996,
+          "new_stop": 422.3905,
+          "high": 496.93,
+          "gain_pct": 0.09133834058066514,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-22",
+          "old_stop": 422.3905,
+          "new_stop": 423.9545,
+          "high": 498.77,
+          "gain_pct": 0.09537927702376248,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-07-25",
+          "old_stop": 423.9545,
+          "new_stop": 443.51120000000003,
+          "high": 503.99,
+          "gain_pct": 0.10684323801994133,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-07-30",
+          "old_stop": 443.51120000000003,
+          "new_stop": 445.41191200000003,
+          "high": 506.1499,
+          "gain_pct": 0.11158672640224898,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-07-31",
+          "old_stop": 445.41191200000003,
+          "new_stop": 446.86400000000003,
+          "high": 507.8,
+          "gain_pct": 0.11521061185048542,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-08-01",
+          "old_stop": 446.86400000000003,
+          "new_stop": 449.3588,
+          "high": 510.635,
+          "gain_pct": 0.12143672859840993,
+          "trail_pct": 0.12
+        }
+      ],
+      "created_at": "2026-01-25T14:56:13.963760"
+    }
+  ]
+}

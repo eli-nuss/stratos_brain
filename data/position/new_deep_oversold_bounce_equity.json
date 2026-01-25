@@ -1,0 +1,551 @@
+{
+  "setup_name": "deep_oversold_bounce",
+  "universe": "equity",
+  "start_date": "2020-01-01",
+  "end_date": "2025-12-31",
+  "trailing_config": {
+    "initial_stop_pct": 0.15,
+    "profit_target": 0.5,
+    "trail_tiers": [
+      [
+        0.1,
+        0.12
+      ],
+      [
+        0.2,
+        0.15
+      ],
+      [
+        0.35,
+        0.18
+      ]
+    ],
+    "max_hold_days": 252
+  },
+  "metrics": {
+    "total_trades": 7,
+    "win_rate": 0.7142857142857143,
+    "loss_rate": 0.2857142857142857,
+    "profit_factor": 24.150695559643307,
+    "avg_return_pct": 0.08006277679547745,
+    "median_return_pct": 0.008699855002416657,
+    "std_return_pct": 0.1728335572402061,
+    "sharpe_ratio": 2.071655692803547,
+    "best_trade": 0.5,
+    "worst_trade": -0.013924969342042792,
+    "avg_winner": 0.11692955143797237,
+    "avg_loser": -0.012104159810759851,
+    "avg_holding_period": 1.0,
+    "median_holding_period": 1.0,
+    "exit_reasons": {
+      "technical_breakdown": 6,
+      "profit_target": 1
+    },
+    "reliability_score": 87.1
+  },
+  "summary": {
+    "assets_processed": 96,
+    "assets_skipped": 0,
+    "signals_scanned": 18799,
+    "entries_triggered": 7
+  },
+  "trades": [
+    {
+      "trade_id": 1,
+      "asset_id": 28,
+      "asset_symbol": "AMD",
+      "setup_name": "deep_oversold_bounce",
+      "entry_date": "2024-08-02",
+      "entry_price": 132.5,
+      "entry_conditions": [
+        {
+          "condition_name": "Very Oversold",
+          "expression": "rsi_14 < 25.0",
+          "actual_value": 16.8232,
+          "threshold": 25.0,
+          "passed": true
+        },
+        {
+          "condition_name": "Extended Below MA",
+          "expression": "ma_dist_20 < -0.15",
+          "actual_value": -0.1582,
+          "threshold": -0.15,
+          "passed": true
+        },
+        {
+          "condition_name": "Acceleration Turning",
+          "expression": "accel_turn_up == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 139.14,
+      "highest_price_date": "2024-08-05",
+      "max_gain_pct": 0.05011320754716975,
+      "exit_date": "2024-08-05",
+      "exit_price": 134.82,
+      "exit_reason": "technical_breakdown",
+      "exit_details": "Close (134.82) broke below 200 SMA (154.48)",
+      "return_pct": 0.01750943396226412,
+      "holding_period": 1,
+      "is_winner": true,
+      "stop_adjustments": [
+        {
+          "date": "2024-08-05",
+          "old_stop": 112.625,
+          "new_stop": 118.26899999999999,
+          "high": 139.14,
+          "gain_pct": 0.05011320754716975,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:56:33.715670"
+    },
+    {
+      "trade_id": 2,
+      "asset_id": 45,
+      "asset_symbol": "INTC",
+      "setup_name": "deep_oversold_bounce",
+      "entry_date": "2024-08-05",
+      "entry_price": 19.9785,
+      "entry_conditions": [
+        {
+          "condition_name": "Very Oversold",
+          "expression": "rsi_14 < 25.0",
+          "actual_value": 10.0063,
+          "threshold": 25.0,
+          "passed": true
+        },
+        {
+          "condition_name": "Extended Below MA",
+          "expression": "ma_dist_20 < -0.15",
+          "actual_value": -0.363,
+          "threshold": -0.15,
+          "passed": true
+        },
+        {
+          "condition_name": "Acceleration Turning",
+          "expression": "accel_turn_up == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 20.63,
+      "highest_price_date": "2024-08-06",
+      "max_gain_pct": 0.032610055809995764,
+      "exit_date": "2024-08-06",
+      "exit_price": 19.7003,
+      "exit_reason": "technical_breakdown",
+      "exit_details": "Close (19.70) broke below 200 SMA (37.99)",
+      "return_pct": -0.013924969342042792,
+      "holding_period": 1,
+      "is_winner": false,
+      "stop_adjustments": [
+        {
+          "date": "2024-08-06",
+          "old_stop": 16.981725,
+          "new_stop": 17.5355,
+          "high": 20.63,
+          "gain_pct": 0.032610055809995764,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:56:36.679135"
+    },
+    {
+      "trade_id": 3,
+      "asset_id": 45,
+      "asset_symbol": "INTC",
+      "setup_name": "deep_oversold_bounce",
+      "entry_date": "2024-08-12",
+      "entry_price": 19.36,
+      "entry_conditions": [
+        {
+          "condition_name": "Very Oversold",
+          "expression": "rsi_14 < 25.0",
+          "actual_value": 13.0197,
+          "threshold": 25.0,
+          "passed": true
+        },
+        {
+          "condition_name": "Extended Below MA",
+          "expression": "ma_dist_20 < -0.15",
+          "actual_value": -0.302,
+          "threshold": -0.15,
+          "passed": true
+        },
+        {
+          "condition_name": "Acceleration Turning",
+          "expression": "accel_turn_up == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 20.48,
+      "highest_price_date": "2024-08-13",
+      "max_gain_pct": 0.05785123966942152,
+      "exit_date": "2024-08-13",
+      "exit_price": 20.47,
+      "exit_reason": "technical_breakdown",
+      "exit_details": "Close (20.47) broke below 200 SMA (37.64)",
+      "return_pct": 0.05733471074380159,
+      "holding_period": 1,
+      "is_winner": true,
+      "stop_adjustments": [
+        {
+          "date": "2024-08-13",
+          "old_stop": 16.456,
+          "new_stop": 17.408,
+          "high": 20.48,
+          "gain_pct": 0.05785123966942152,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:56:36.679833"
+    },
+    {
+      "trade_id": 4,
+      "asset_id": 45,
+      "asset_symbol": "INTC",
+      "setup_name": "deep_oversold_bounce",
+      "entry_date": "2024-08-15",
+      "entry_price": 20.69,
+      "entry_conditions": [
+        {
+          "condition_name": "Very Oversold",
+          "expression": "rsi_14 < 25.0",
+          "actual_value": 21.6313,
+          "threshold": 25.0,
+          "passed": true
+        },
+        {
+          "condition_name": "Extended Below MA",
+          "expression": "ma_dist_20 < -0.15",
+          "actual_value": -0.193,
+          "threshold": -0.15,
+          "passed": true
+        },
+        {
+          "condition_name": "Acceleration Turning",
+          "expression": "accel_turn_up == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 20.895,
+      "highest_price_date": "2024-08-16",
+      "max_gain_pct": 0.009908168197196643,
+      "exit_date": "2024-08-16",
+      "exit_price": 20.87,
+      "exit_reason": "technical_breakdown",
+      "exit_details": "Close (20.87) broke below 200 SMA (37.44)",
+      "return_pct": 0.008699855002416657,
+      "holding_period": 1,
+      "is_winner": true,
+      "stop_adjustments": [
+        {
+          "date": "2024-08-16",
+          "old_stop": 17.5865,
+          "new_stop": 17.760749999999998,
+          "high": 20.895,
+          "gain_pct": 0.009908168197196643,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:56:36.680216"
+    },
+    {
+      "trade_id": 5,
+      "asset_id": 70,
+      "asset_symbol": "LRCX",
+      "setup_name": "deep_oversold_bounce",
+      "entry_date": "2024-08-05",
+      "entry_price": 75.8936,
+      "entry_conditions": [
+        {
+          "condition_name": "Very Oversold",
+          "expression": "rsi_14 < 25.0",
+          "actual_value": 24.2795,
+          "threshold": 25.0,
+          "passed": true
+        },
+        {
+          "condition_name": "Extended Below MA",
+          "expression": "ma_dist_20 < -0.15",
+          "actual_value": -0.1895,
+          "threshold": -0.15,
+          "passed": true
+        },
+        {
+          "condition_name": "Acceleration Turning",
+          "expression": "accel_turn_up == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 794.9799,
+      "highest_price_date": "2024-08-06",
+      "max_gain_pct": 9.474926739540619,
+      "exit_date": "2024-08-06",
+      "exit_price": 113.84040000000002,
+      "exit_reason": "profit_target",
+      "exit_details": "High (794.98) reached 50% profit target (113.84)",
+      "return_pct": 0.5,
+      "holding_period": 1,
+      "is_winner": true,
+      "stop_adjustments": [
+        {
+          "date": "2024-08-06",
+          "old_stop": 64.50956000000001,
+          "new_stop": 651.8835180000001,
+          "high": 794.9799,
+          "gain_pct": 9.474926739540619,
+          "trail_pct": 0.18
+        }
+      ],
+      "created_at": "2026-01-25T14:56:37.444159"
+    },
+    {
+      "trade_id": 6,
+      "asset_id": 107,
+      "asset_symbol": "NKE",
+      "setup_name": "deep_oversold_bounce",
+      "entry_date": "2024-07-01",
+      "entry_price": 74.3532,
+      "entry_conditions": [
+        {
+          "condition_name": "Very Oversold",
+          "expression": "rsi_14 < 25.0",
+          "actual_value": 19.4452,
+          "threshold": 25.0,
+          "passed": true
+        },
+        {
+          "condition_name": "Extended Below MA",
+          "expression": "ma_dist_20 < -0.15",
+          "actual_value": -0.1755,
+          "threshold": -0.15,
+          "passed": true
+        },
+        {
+          "condition_name": "Acceleration Turning",
+          "expression": "accel_turn_up == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 76.94,
+      "highest_price_date": "2024-07-02",
+      "max_gain_pct": 0.034790701677937186,
+      "exit_date": "2024-07-02",
+      "exit_price": 73.5886,
+      "exit_reason": "technical_breakdown",
+      "exit_details": "Close (73.59) broke below 200 SMA (96.15)",
+      "return_pct": -0.01028335027947691,
+      "holding_period": 1,
+      "is_winner": false,
+      "stop_adjustments": [
+        {
+          "date": "2024-07-02",
+          "old_stop": 63.20022,
+          "new_stop": 65.399,
+          "high": 76.94,
+          "gain_pct": 0.034790701677937186,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:56:38.459877"
+    },
+    {
+      "trade_id": 7,
+      "asset_id": 107,
+      "asset_symbol": "NKE",
+      "setup_name": "deep_oversold_bounce",
+      "entry_date": "2024-07-09",
+      "entry_price": 70.1241,
+      "entry_conditions": [
+        {
+          "condition_name": "Very Oversold",
+          "expression": "rsi_14 < 25.0",
+          "actual_value": 13.5277,
+          "threshold": 25.0,
+          "passed": true
+        },
+        {
+          "condition_name": "Extended Below MA",
+          "expression": "ma_dist_20 < -0.15",
+          "actual_value": -0.1767,
+          "threshold": -0.15,
+          "passed": true
+        },
+        {
+          "condition_name": "Acceleration Turning",
+          "expression": "accel_turn_up == 1.0",
+          "actual_value": 1.0,
+          "threshold": 1.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 72.64,
+      "highest_price_date": "2024-07-10",
+      "max_gain_pct": 0.035877822317862185,
+      "exit_date": "2024-07-10",
+      "exit_price": 70.2015,
+      "exit_reason": "technical_breakdown",
+      "exit_details": "Close (70.20) broke below 200 SMA (95.67)",
+      "return_pct": 0.0011037574813794748,
+      "holding_period": 1,
+      "is_winner": true,
+      "stop_adjustments": [
+        {
+          "date": "2024-07-10",
+          "old_stop": 59.605484999999994,
+          "new_stop": 61.744,
+          "high": 72.64,
+          "gain_pct": 0.035877822317862185,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:56:38.460525"
+    }
+  ]
+}

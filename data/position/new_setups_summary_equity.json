@@ -1,0 +1,128 @@
+{
+  "universe": "equity",
+  "start_date": "2020-01-01",
+  "end_date": "2025-12-31",
+  "timestamp": "2026-01-25T14:57:01.627773",
+  "results": {
+    "holy_grail_20ema": {
+      "total_trades": 252,
+      "win_rate": 0.6904761904761905,
+      "profit_factor": 12.089089201391364,
+      "avg_return_pct": 0.20550530758010907,
+      "avg_holding_period": 55.198412698412696,
+      "exit_reasons": {
+        "trailing_stop": 93,
+        "technical_breakdown": 55,
+        "profit_target": 99,
+        "max_hold": 5
+      },
+      "reliability_score": 100.0
+    },
+    "relative_strength_breakout": {
+      "total_trades": 150,
+      "win_rate": 0.62,
+      "profit_factor": 6.193501009749534,
+      "avg_return_pct": 0.12545948038544932,
+      "avg_holding_period": 67.73333333333333,
+      "exit_reasons": {
+        "trailing_stop": 76,
+        "technical_breakdown": 37,
+        "profit_target": 35,
+        "max_hold": 2
+      },
+      "reliability_score": 100.0
+    },
+    "acceleration_turn_up": {
+      "total_trades": 349,
+      "win_rate": 0.7392550143266475,
+      "profit_factor": 19.389290485606782,
+      "avg_return_pct": 0.25952272598664505,
+      "avg_holding_period": 43.467048710601716,
+      "exit_reasons": {
+        "trailing_stop": 108,
+        "technical_breakdown": 61,
+        "profit_target": 174,
+        "max_hold": 6
+      },
+      "reliability_score": 100.0
+    },
+    "52w_high_breakout": {
+      "total_trades": 29,
+      "win_rate": 0.4482758620689655,
+      "profit_factor": 1.3399437374461807,
+      "avg_return_pct": 0.014436439881788611,
+      "avg_holding_period": 71.13793103448276,
+      "exit_reasons": {
+        "trailing_stop": 27,
+        "profit_target": 2
+      },
+      "reliability_score": 58.172003939761595
+    },
+    "macd_bullish_cross": {
+      "total_trades": 290,
+      "win_rate": 0.6551724137931034,
+      "profit_factor": 12.722113494959412,
+      "avg_return_pct": 0.20471500110767177,
+      "avg_holding_period": 48.92758620689655,
+      "exit_reasons": {
+        "trailing_stop": 91,
+        "technical_breakdown": 82,
+        "profit_target": 113,
+        "max_hold": 4
+      },
+      "reliability_score": 100.0
+    },
+    "volatility_contraction_breakout": {
+      "total_trades": 199,
+      "win_rate": 0.6331658291457286,
+      "profit_factor": 7.654179228787525,
+      "avg_return_pct": 0.14572733834673254,
+      "avg_holding_period": 63.4321608040201,
+      "exit_reasons": {
+        "trailing_stop": 90,
+        "technical_breakdown": 49,
+        "profit_target": 54,
+        "max_hold": 6
+      },
+      "reliability_score": 100.0
+    },
+    "deep_oversold_bounce": {
+      "total_trades": 7,
+      "win_rate": 0.7142857142857143,
+      "profit_factor": 24.150695559643307,
+      "avg_return_pct": 0.08006277679547745,
+      "avg_holding_period": 1.0,
+      "exit_reasons": {
+        "technical_breakdown": 6,
+        "profit_target": 1
+      },
+      "reliability_score": 87.1
+    },
+    "confirmed_breakout": {
+      "total_trades": 29,
+      "win_rate": 0.4482758620689655,
+      "profit_factor": 1.0054131881072077,
+      "avg_return_pct": 0.00024892193400156157,
+      "avg_holding_period": 73.37931034482759,
+      "exit_reasons": {
+        "trailing_stop": 24,
+        "technical_breakdown": 4,
+        "profit_target": 1
+      },
+      "reliability_score": 46.336241317140335
+    },
+    "drawdown_recovery": {
+      "total_trades": 16,
+      "win_rate": 0.4375,
+      "profit_factor": 2.9519861492630657,
+      "avg_return_pct": 0.026028189834012,
+      "avg_holding_period": 2.9375,
+      "exit_reasons": {
+        "technical_breakdown": 14,
+        "trailing_stop": 1,
+        "profit_target": 1
+      },
+      "reliability_score": 71.75951807646724
+    }
+  }
+}

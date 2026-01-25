@@ -239,6 +239,113 @@ POSITION_SETUPS = {
             {"name": "Volume Surge", "field": "rvol_20", "operator": ">", "threshold_value": 2.0},
         ],
     },
+    
+    # =========================================================================
+    # NEW SETUPS - Ideas to test
+    # =========================================================================
+    
+    "holy_grail_20ema": {
+        "description": "Pullback to rising 20 EMA in strong uptrend (Linda Raschke style)",
+        "category": "trend_continuation",
+        "direction": "long",
+        "conditions": [
+            {"name": "Above 200 SMA", "field": "above_ma200", "operator": "==", "threshold_value": True},
+            {"name": "Near 20 SMA", "field": "ma_dist_20", "operator": ">=", "threshold_value": -0.02},
+            {"name": "Near 20 SMA", "field": "ma_dist_20", "operator": "<=", "threshold_value": 0.02},
+            {"name": "20 MA Slope Positive", "field": "ma_slope_20", "operator": ">", "threshold_value": 0},
+            {"name": "RSI Mid-Range", "field": "rsi_14", "operator": "<", "threshold_value": 60},
+        ],
+    },
+    
+    "relative_strength_breakout": {
+        "description": "Stock showing relative strength vs benchmark with breakout",
+        "category": "momentum",
+        "direction": "long",
+        "conditions": [
+            {"name": "RS Breakout", "field": "rs_breakout", "operator": "==", "threshold_value": True},
+            {"name": "Above 200 SMA", "field": "above_ma200", "operator": "==", "threshold_value": True},
+            {"name": "RS Positive", "field": "rs_vs_benchmark", "operator": ">", "threshold_value": 0},
+        ],
+    },
+    
+    "acceleration_turn_up": {
+        "description": "Momentum acceleration turning positive - early trend signal",
+        "category": "momentum",
+        "direction": "long",
+        "conditions": [
+            {"name": "Acceleration Turn Up", "field": "accel_turn_up", "operator": "==", "threshold_value": True},
+            {"name": "Above 200 SMA", "field": "above_ma200", "operator": "==", "threshold_value": True},
+            {"name": "Positive ROC", "field": "roc_20", "operator": ">", "threshold_value": 0},
+        ],
+    },
+    
+    "52w_high_breakout": {
+        "description": "Breaking to new 52-week high with volume",
+        "category": "momentum",
+        "direction": "long",
+        "conditions": [
+            {"name": "Near 52W High", "field": "dist_52w_high", "operator": ">=", "threshold_value": -0.02},
+            {"name": "Volume Confirmation", "field": "rvol_20", "operator": ">", "threshold_value": 1.5},
+            {"name": "Above 200 SMA", "field": "above_ma200", "operator": "==", "threshold_value": True},
+        ],
+    },
+    
+    "macd_bullish_cross": {
+        "description": "MACD histogram turning positive in uptrend",
+        "category": "momentum",
+        "direction": "long",
+        "conditions": [
+            {"name": "MACD Histogram Positive", "field": "macd_histogram", "operator": ">", "threshold_value": 0},
+            {"name": "MACD Hist Slope Up", "field": "macd_hist_slope", "operator": ">", "threshold_value": 0},
+            {"name": "Above 200 SMA", "field": "above_ma200", "operator": "==", "threshold_value": True},
+            {"name": "RSI Not Overbought", "field": "rsi_14", "operator": "<", "threshold_value": 70},
+        ],
+    },
+    
+    "volatility_contraction_breakout": {
+        "description": "Low volatility followed by expansion - VCP style",
+        "category": "momentum",
+        "direction": "long",
+        "conditions": [
+            {"name": "BB Width Expanding", "field": "bb_width_pctile_expanding", "operator": "==", "threshold_value": True},
+            {"name": "Was Tight", "field": "bb_width_pctile_prev", "operator": "<", "threshold_value": 30},
+            {"name": "Above 200 SMA", "field": "above_ma200", "operator": "==", "threshold_value": True},
+            {"name": "Positive ROC", "field": "roc_5", "operator": ">", "threshold_value": 0},
+        ],
+    },
+    
+    "deep_oversold_bounce": {
+        "description": "Extremely oversold with signs of reversal",
+        "category": "mean_reversion",
+        "direction": "long",
+        "conditions": [
+            {"name": "Very Oversold", "field": "rsi_14", "operator": "<", "threshold_value": 25},
+            {"name": "Extended Below MA", "field": "ma_dist_20", "operator": "<", "threshold_value": -0.15},
+            {"name": "Acceleration Turning", "field": "accel_turn_up", "operator": "==", "threshold_value": True},
+        ],
+    },
+    
+    "confirmed_breakout": {
+        "description": "Breakout that has been confirmed (not just a spike)",
+        "category": "momentum",
+        "direction": "long",
+        "conditions": [
+            {"name": "Confirmed Breakout", "field": "breakout_confirmed_up", "operator": "==", "threshold_value": True},
+            {"name": "Above 200 SMA", "field": "above_ma200", "operator": "==", "threshold_value": True},
+            {"name": "Volume Confirmation", "field": "rvol_20", "operator": ">", "threshold_value": 1.2},
+        ],
+    },
+    
+    "drawdown_recovery": {
+        "description": "Stock recovering from significant drawdown",
+        "category": "mean_reversion",
+        "direction": "long",
+        "conditions": [
+            {"name": "Significant Drawdown", "field": "drawdown_20d", "operator": "<", "threshold_value": -0.15},
+            {"name": "Starting to Recover", "field": "roc_5", "operator": ">", "threshold_value": 0.02},
+            {"name": "RSI Oversold", "field": "rsi_14", "operator": "<", "threshold_value": 40},
+        ],
+    },
 }
 
 
@@ -356,7 +463,24 @@ class PositionBacktester:
                 f.droc_20,
                 f.atr_14,
                 f.atr_pct,
-                f.realized_vol_20
+                f.realized_vol_20,
+                f.ma_slope_20,
+                f.ma_slope_50,
+                f.ma_slope_200,
+                f.bb_width_pctile_expanding,
+                f.bb_width_pctile_prev,
+                f.breakout_confirmed_up,
+                f.breakout_confirmed_down,
+                f.rs_breakout,
+                f.rs_vs_benchmark,
+                f.accel_turn_up,
+                f.accel_turn_down,
+                f.dist_52w_high,
+                f.dist_52w_low,
+                f.macd_histogram,
+                f.macd_hist_slope,
+                f.drawdown_20d,
+                f.drawdown_63d
             FROM daily_bars b
             JOIN daily_features f ON f.asset_id = b.asset_id AND f.date = b.date
             WHERE b.asset_id = %s
@@ -373,7 +497,10 @@ class PositionBacktester:
         # Convert Decimal columns to float
         numeric_cols = ['open', 'high', 'low', 'close', 'volume', 'rsi_14', 'sma_50', 'sma_200',
                         'ma_dist_20', 'ma_dist_50', 'ma_dist_200', 'bb_width_pctile', 'rvol_20',
-                        'gap_pct', 'roc_5', 'roc_20', 'droc_20', 'atr_14', 'atr_pct', 'realized_vol_20']
+                        'gap_pct', 'roc_5', 'roc_20', 'droc_20', 'atr_14', 'atr_pct', 'realized_vol_20',
+                        'ma_slope_20', 'ma_slope_50', 'ma_slope_200', 'bb_width_pctile_prev',
+                        'rs_vs_benchmark', 'dist_52w_high', 'dist_52w_low', 'macd_histogram',
+                        'macd_hist_slope', 'drawdown_20d', 'drawdown_63d']
         for col in numeric_cols:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')

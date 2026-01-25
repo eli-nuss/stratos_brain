@@ -1,0 +1,1715 @@
+{
+  "timestamp": "2026-01-25T15:19:21.747027",
+  "results": {
+    "acceleration_turn_up": {
+      "setup_name": "acceleration_turn_up",
+      "total_combinations": 27,
+      "results": [
+        {
+          "params": {
+            "roc_20_threshold": 0,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.4
+          },
+          "total_trades": 373,
+          "win_rate": 0.7050938337801609,
+          "profit_factor": 14.286154133739455,
+          "avg_return_pct": 0.2025088703985343,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "roc_20_threshold": 0,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.5
+          },
+          "total_trades": 359,
+          "win_rate": 0.724233983286908,
+          "profit_factor": 19.18048034826101,
+          "avg_return_pct": 0.25194945054194773,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "roc_20_threshold": 0,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.6
+          },
+          "total_trades": 358,
+          "win_rate": 0.7206703910614525,
+          "profit_factor": 22.579009795497235,
+          "avg_return_pct": 0.3003886900518714,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "roc_20_threshold": 0,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.4
+          },
+          "total_trades": 362,
+          "win_rate": 0.7237569060773481,
+          "profit_factor": 14.2675349691816,
+          "avg_return_pct": 0.20892296386959394,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "roc_20_threshold": 0,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.5
+          },
+          "total_trades": 349,
+          "win_rate": 0.7392550143266475,
+          "profit_factor": 19.389290485606782,
+          "avg_return_pct": 0.25952272598664505,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "roc_20_threshold": 0,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.6
+          },
+          "total_trades": 348,
+          "win_rate": 0.7327586206896551,
+          "profit_factor": 22.74779261180891,
+          "avg_return_pct": 0.3092318086067865,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "roc_20_threshold": 0,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.4
+          },
+          "total_trades": 357,
+          "win_rate": 0.7338935574229691,
+          "profit_factor": 12.651811092052343,
+          "avg_return_pct": 0.20948446027611656,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "roc_20_threshold": 0,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.5
+          },
+          "total_trades": 345,
+          "win_rate": 0.7478260869565218,
+          "profit_factor": 17.532820877481306,
+          "avg_return_pct": 0.26066733133630243,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "roc_20_threshold": 0,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.6
+          },
+          "total_trades": 344,
+          "win_rate": 0.7412790697674418,
+          "profit_factor": 20.582969060255387,
+          "avg_return_pct": 0.31095775388618296,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "roc_20_threshold": 0.02,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.4
+          },
+          "total_trades": 341,
+          "win_rate": 0.7067448680351907,
+          "profit_factor": 14.028458806108695,
+          "avg_return_pct": 0.19842018172642675,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "roc_20_threshold": 0.02,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.5
+          },
+          "total_trades": 330,
+          "win_rate": 0.7242424242424242,
+          "profit_factor": 18.3273657267041,
+          "avg_return_pct": 0.24572264706659272,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "roc_20_threshold": 0.02,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.6
+          },
+          "total_trades": 329,
+          "win_rate": 0.7203647416413373,
+          "profit_factor": 21.46272378614279,
+          "avg_return_pct": 0.2915901810664393,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "roc_20_threshold": 0.02,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.4
+          },
+          "total_trades": 333,
+          "win_rate": 0.7267267267267268,
+          "profit_factor": 13.875853540830272,
+          "avg_return_pct": 0.2032836813753644,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "roc_20_threshold": 0.02,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.5
+          },
+          "total_trades": 322,
+          "win_rate": 0.7422360248447205,
+          "profit_factor": 18.490694842785082,
+          "avg_return_pct": 0.2521341034597178,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "roc_20_threshold": 0.02,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.6
+          },
+          "total_trades": 321,
+          "win_rate": 0.735202492211838,
+          "profit_factor": 21.576596589566552,
+          "avg_return_pct": 0.299008775964872,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "roc_20_threshold": 0.02,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.4
+          },
+          "total_trades": 329,
+          "win_rate": 0.7386018237082067,
+          "profit_factor": 12.393661068677662,
+          "avg_return_pct": 0.20450434203702222,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "roc_20_threshold": 0.02,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.5
+          },
+          "total_trades": 318,
+          "win_rate": 0.7515723270440252,
+          "profit_factor": 16.780923598881746,
+          "avg_return_pct": 0.2538277684763649,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "roc_20_threshold": 0.02,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.6
+          },
+          "total_trades": 317,
+          "win_rate": 0.7444794952681388,
+          "profit_factor": 19.59026252183888,
+          "avg_return_pct": 0.30129926229078496,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "roc_20_threshold": 0.05,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.4
+          },
+          "total_trades": 279,
+          "win_rate": 0.7168458781362007,
+          "profit_factor": 14.01714932525461,
+          "avg_return_pct": 0.19083437348787036,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "roc_20_threshold": 0.05,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.5
+          },
+          "total_trades": 271,
+          "win_rate": 0.7269372693726938,
+          "profit_factor": 17.583041448170075,
+          "avg_return_pct": 0.23381415898162008,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "roc_20_threshold": 0.05,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.6
+          },
+          "total_trades": 271,
+          "win_rate": 0.7232472324723247,
+          "profit_factor": 20.443561725203228,
+          "avg_return_pct": 0.2747489591103226,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "roc_20_threshold": 0.05,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.4
+          },
+          "total_trades": 272,
+          "win_rate": 0.7389705882352942,
+          "profit_factor": 13.797596993758036,
+          "avg_return_pct": 0.1971981510329928,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "roc_20_threshold": 0.05,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.5
+          },
+          "total_trades": 264,
+          "win_rate": 0.7462121212121212,
+          "profit_factor": 17.45643430534343,
+          "avg_return_pct": 0.24025214865864156,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "roc_20_threshold": 0.05,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.6
+          },
+          "total_trades": 264,
+          "win_rate": 0.7424242424242424,
+          "profit_factor": 20.292627722337528,
+          "avg_return_pct": 0.28227234121499906,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "roc_20_threshold": 0.05,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.4
+          },
+          "total_trades": 271,
+          "win_rate": 0.7453874538745388,
+          "profit_factor": 11.89389173256155,
+          "avg_return_pct": 0.19545310804180438,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "roc_20_threshold": 0.05,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.5
+          },
+          "total_trades": 263,
+          "win_rate": 0.752851711026616,
+          "profit_factor": 15.633655892131289,
+          "avg_return_pct": 0.23945986254626458,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "roc_20_threshold": 0.05,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.6
+          },
+          "total_trades": 263,
+          "win_rate": 0.7490494296577946,
+          "profit_factor": 18.177794770070054,
+          "avg_return_pct": 0.28163982769789336,
+          "reliability_score": 100.0
+        }
+      ],
+      "best_result": {
+        "params": {
+          "roc_20_threshold": 0,
+          "initial_stop_pct": 0.12,
+          "profit_target": 0.4
+        },
+        "total_trades": 373,
+        "win_rate": 0.7050938337801609,
+        "profit_factor": 14.286154133739455,
+        "avg_return_pct": 0.2025088703985343,
+        "reliability_score": 100.0
+      }
+    },
+    "trend_pullback_50ma": {
+      "setup_name": "trend_pullback_50ma",
+      "total_combinations": 27,
+      "results": [
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.02,
+            "rsi_threshold": 45,
+            "initial_stop_pct": 0.12
+          },
+          "total_trades": 270,
+          "win_rate": 0.6555555555555556,
+          "profit_factor": 12.057848532249652,
+          "avg_return_pct": 0.19134515436462524,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.02,
+            "rsi_threshold": 45,
+            "initial_stop_pct": 0.15
+          },
+          "total_trades": 258,
+          "win_rate": 0.6782945736434108,
+          "profit_factor": 12.41358890197726,
+          "avg_return_pct": 0.20048129120674493,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.02,
+            "rsi_threshold": 45,
+            "initial_stop_pct": 0.2
+          },
+          "total_trades": 254,
+          "win_rate": 0.6889763779527559,
+          "profit_factor": 12.197580648549602,
+          "avg_return_pct": 0.20316508768754338,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.02,
+            "rsi_threshold": 50,
+            "initial_stop_pct": 0.12
+          },
+          "total_trades": 301,
+          "win_rate": 0.6677740863787376,
+          "profit_factor": 13.986879751165471,
+          "avg_return_pct": 0.20882760276199508,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.02,
+            "rsi_threshold": 50,
+            "initial_stop_pct": 0.15
+          },
+          "total_trades": 288,
+          "win_rate": 0.6875,
+          "profit_factor": 14.429583810852572,
+          "avg_return_pct": 0.21808990855646143,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.02,
+            "rsi_threshold": 50,
+            "initial_stop_pct": 0.2
+          },
+          "total_trades": 283,
+          "win_rate": 0.6996466431095406,
+          "profit_factor": 14.14825805945933,
+          "avg_return_pct": 0.22156570633555997,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.02,
+            "rsi_threshold": 55,
+            "initial_stop_pct": 0.12
+          },
+          "total_trades": 323,
+          "win_rate": 0.6656346749226006,
+          "profit_factor": 14.521051225036866,
+          "avg_return_pct": 0.21854564922760483,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.02,
+            "rsi_threshold": 55,
+            "initial_stop_pct": 0.15
+          },
+          "total_trades": 310,
+          "win_rate": 0.6838709677419355,
+          "profit_factor": 14.626158480664392,
+          "avg_return_pct": 0.22722167414500205,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.02,
+            "rsi_threshold": 55,
+            "initial_stop_pct": 0.2
+          },
+          "total_trades": 305,
+          "win_rate": 0.6950819672131148,
+          "profit_factor": 13.953290390323854,
+          "avg_return_pct": 0.22914948556333697,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.03,
+            "rsi_threshold": 45,
+            "initial_stop_pct": 0.12
+          },
+          "total_trades": 281,
+          "win_rate": 0.6548042704626335,
+          "profit_factor": 11.85549608954176,
+          "avg_return_pct": 0.19484184957144385,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.03,
+            "rsi_threshold": 45,
+            "initial_stop_pct": 0.15
+          },
+          "total_trades": 266,
+          "win_rate": 0.6766917293233082,
+          "profit_factor": 12.30858399075179,
+          "avg_return_pct": 0.2055724776276506,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.03,
+            "rsi_threshold": 45,
+            "initial_stop_pct": 0.2
+          },
+          "total_trades": 260,
+          "win_rate": 0.6884615384615385,
+          "profit_factor": 12.006307014114354,
+          "avg_return_pct": 0.20934451171046656,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.03,
+            "rsi_threshold": 50,
+            "initial_stop_pct": 0.12
+          },
+          "total_trades": 315,
+          "win_rate": 0.6634920634920635,
+          "profit_factor": 13.561125709244559,
+          "avg_return_pct": 0.20952208585924037,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.03,
+            "rsi_threshold": 50,
+            "initial_stop_pct": 0.15
+          },
+          "total_trades": 299,
+          "win_rate": 0.68561872909699,
+          "profit_factor": 14.144684949707019,
+          "avg_return_pct": 0.22085498278684515,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.03,
+            "rsi_threshold": 50,
+            "initial_stop_pct": 0.2
+          },
+          "total_trades": 291,
+          "win_rate": 0.7010309278350515,
+          "profit_factor": 13.953761946664198,
+          "avg_return_pct": 0.22605384730101932,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.03,
+            "rsi_threshold": 55,
+            "initial_stop_pct": 0.12
+          },
+          "total_trades": 342,
+          "win_rate": 0.6666666666666666,
+          "profit_factor": 14.11842821234555,
+          "avg_return_pct": 0.2209715728115305,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.03,
+            "rsi_threshold": 55,
+            "initial_stop_pct": 0.15
+          },
+          "total_trades": 326,
+          "win_rate": 0.6871165644171779,
+          "profit_factor": 14.38352605789118,
+          "avg_return_pct": 0.23156681733111217,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.03,
+            "rsi_threshold": 55,
+            "initial_stop_pct": 0.2
+          },
+          "total_trades": 318,
+          "win_rate": 0.7012578616352201,
+          "profit_factor": 13.824553705527725,
+          "avg_return_pct": 0.23524034770206864,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.05,
+            "rsi_threshold": 45,
+            "initial_stop_pct": 0.12
+          },
+          "total_trades": 290,
+          "win_rate": 0.6655172413793103,
+          "profit_factor": 12.604828473293752,
+          "avg_return_pct": 0.200270678457651,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.05,
+            "rsi_threshold": 45,
+            "initial_stop_pct": 0.15
+          },
+          "total_trades": 276,
+          "win_rate": 0.6847826086956522,
+          "profit_factor": 12.52230626340158,
+          "avg_return_pct": 0.20948763338845847,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.05,
+            "rsi_threshold": 45,
+            "initial_stop_pct": 0.2
+          },
+          "total_trades": 271,
+          "win_rate": 0.6974169741697417,
+          "profit_factor": 12.200586533377107,
+          "avg_return_pct": 0.21244129823375485,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.05,
+            "rsi_threshold": 50,
+            "initial_stop_pct": 0.12
+          },
+          "total_trades": 333,
+          "win_rate": 0.6816816816816816,
+          "profit_factor": 15.20113785617007,
+          "avg_return_pct": 0.2229445956188131,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.05,
+            "rsi_threshold": 50,
+            "initial_stop_pct": 0.15
+          },
+          "total_trades": 316,
+          "win_rate": 0.7056962025316456,
+          "profit_factor": 15.561886257194786,
+          "avg_return_pct": 0.2344908897209877,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.05,
+            "rsi_threshold": 50,
+            "initial_stop_pct": 0.2
+          },
+          "total_trades": 312,
+          "win_rate": 0.7147435897435898,
+          "profit_factor": 14.903206415725865,
+          "avg_return_pct": 0.2363148061892589,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.05,
+            "rsi_threshold": 55,
+            "initial_stop_pct": 0.12
+          },
+          "total_trades": 372,
+          "win_rate": 0.6881720430107527,
+          "profit_factor": 16.423501751157232,
+          "avg_return_pct": 0.23935940119513288,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.05,
+            "rsi_threshold": 55,
+            "initial_stop_pct": 0.15
+          },
+          "total_trades": 356,
+          "win_rate": 0.7078651685393258,
+          "profit_factor": 16.524166749208383,
+          "avg_return_pct": 0.24948727110067337,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_50_threshold": 0.05,
+            "rsi_threshold": 55,
+            "initial_stop_pct": 0.2
+          },
+          "total_trades": 350,
+          "win_rate": 0.72,
+          "profit_factor": 15.421894225950682,
+          "avg_return_pct": 0.2521908741934446,
+          "reliability_score": 100.0
+        }
+      ],
+      "best_result": {
+        "params": {
+          "ma_dist_50_threshold": 0.02,
+          "rsi_threshold": 45,
+          "initial_stop_pct": 0.12
+        },
+        "total_trades": 270,
+        "win_rate": 0.6555555555555556,
+        "profit_factor": 12.057848532249652,
+        "avg_return_pct": 0.19134515436462524,
+        "reliability_score": 100.0
+      }
+    },
+    "holy_grail_20ema": {
+      "setup_name": "holy_grail_20ema",
+      "total_combinations": 27,
+      "results": [
+        {
+          "params": {
+            "ma_dist_20_range": 0.01,
+            "rsi_threshold": 55,
+            "initial_stop_pct": 0.12
+          },
+          "total_trades": 191,
+          "win_rate": 0.6335078534031413,
+          "profit_factor": 9.481111860684866,
+          "avg_return_pct": 0.1548042246151317,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_20_range": 0.01,
+            "rsi_threshold": 55,
+            "initial_stop_pct": 0.15
+          },
+          "total_trades": 184,
+          "win_rate": 0.6630434782608695,
+          "profit_factor": 9.232194739907165,
+          "avg_return_pct": 0.1604793663803561,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_20_range": 0.01,
+            "rsi_threshold": 55,
+            "initial_stop_pct": 0.2
+          },
+          "total_trades": 181,
+          "win_rate": 0.6740331491712708,
+          "profit_factor": 8.254560412355996,
+          "avg_return_pct": 0.16043771403335938,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_20_range": 0.01,
+            "rsi_threshold": 60,
+            "initial_stop_pct": 0.12
+          },
+          "total_trades": 218,
+          "win_rate": 0.6284403669724771,
+          "profit_factor": 9.43408547169365,
+          "avg_return_pct": 0.15990230064117134,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_20_range": 0.01,
+            "rsi_threshold": 60,
+            "initial_stop_pct": 0.15
+          },
+          "total_trades": 208,
+          "win_rate": 0.6634615384615384,
+          "profit_factor": 9.339520545156887,
+          "avg_return_pct": 0.1679936225887914,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_20_range": 0.01,
+            "rsi_threshold": 60,
+            "initial_stop_pct": 0.2
+          },
+          "total_trades": 204,
+          "win_rate": 0.6764705882352942,
+          "profit_factor": 8.343943221955495,
+          "avg_return_pct": 0.16845169155502362,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_20_range": 0.01,
+            "rsi_threshold": 65,
+            "initial_stop_pct": 0.12
+          },
+          "total_trades": 226,
+          "win_rate": 0.6194690265486725,
+          "profit_factor": 9.408492149476142,
+          "avg_return_pct": 0.16089252987980165,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_20_range": 0.01,
+            "rsi_threshold": 65,
+            "initial_stop_pct": 0.15
+          },
+          "total_trades": 216,
+          "win_rate": 0.6527777777777778,
+          "profit_factor": 9.341512965971736,
+          "avg_return_pct": 0.16878022729476433,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_20_range": 0.01,
+            "rsi_threshold": 65,
+            "initial_stop_pct": 0.2
+          },
+          "total_trades": 210,
+          "win_rate": 0.6714285714285714,
+          "profit_factor": 9.034701596403728,
+          "avg_return_pct": 0.17250081481062757,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_20_range": 0.02,
+            "rsi_threshold": 55,
+            "initial_stop_pct": 0.12
+          },
+          "total_trades": 233,
+          "win_rate": 0.6523605150214592,
+          "profit_factor": 11.688858174203615,
+          "avg_return_pct": 0.1846267451371239,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_20_range": 0.02,
+            "rsi_threshold": 55,
+            "initial_stop_pct": 0.15
+          },
+          "total_trades": 225,
+          "win_rate": 0.68,
+          "profit_factor": 11.11502429161446,
+          "avg_return_pct": 0.1907689043771875,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_20_range": 0.02,
+            "rsi_threshold": 55,
+            "initial_stop_pct": 0.2
+          },
+          "total_trades": 222,
+          "win_rate": 0.6891891891891891,
+          "profit_factor": 10.066451788858153,
+          "avg_return_pct": 0.19106042167688725,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_20_range": 0.02,
+            "rsi_threshold": 60,
+            "initial_stop_pct": 0.12
+          },
+          "total_trades": 262,
+          "win_rate": 0.6564885496183206,
+          "profit_factor": 12.294696396782234,
+          "avg_return_pct": 0.19751135024782054,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_20_range": 0.02,
+            "rsi_threshold": 60,
+            "initial_stop_pct": 0.15
+          },
+          "total_trades": 252,
+          "win_rate": 0.6904761904761905,
+          "profit_factor": 12.089089201391364,
+          "avg_return_pct": 0.20550530758010907,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_20_range": 0.02,
+            "rsi_threshold": 60,
+            "initial_stop_pct": 0.2
+          },
+          "total_trades": 247,
+          "win_rate": 0.7044534412955465,
+          "profit_factor": 11.509994742934316,
+          "avg_return_pct": 0.20826794715540609,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_20_range": 0.02,
+            "rsi_threshold": 65,
+            "initial_stop_pct": 0.12
+          },
+          "total_trades": 273,
+          "win_rate": 0.6703296703296703,
+          "profit_factor": 13.876621291703904,
+          "avg_return_pct": 0.21288587464571035,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_20_range": 0.02,
+            "rsi_threshold": 65,
+            "initial_stop_pct": 0.15
+          },
+          "total_trades": 263,
+          "win_rate": 0.7034220532319392,
+          "profit_factor": 13.80751575880839,
+          "avg_return_pct": 0.2213156785373064,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_20_range": 0.02,
+            "rsi_threshold": 65,
+            "initial_stop_pct": 0.2
+          },
+          "total_trades": 257,
+          "win_rate": 0.7198443579766537,
+          "profit_factor": 13.575241859668209,
+          "avg_return_pct": 0.2258066331263668,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_20_range": 0.03,
+            "rsi_threshold": 55,
+            "initial_stop_pct": 0.12
+          },
+          "total_trades": 251,
+          "win_rate": 0.6533864541832669,
+          "profit_factor": 12.329781552772292,
+          "avg_return_pct": 0.1962265164566433,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_20_range": 0.03,
+            "rsi_threshold": 55,
+            "initial_stop_pct": 0.15
+          },
+          "total_trades": 241,
+          "win_rate": 0.6846473029045643,
+          "profit_factor": 12.160597857955654,
+          "avg_return_pct": 0.20454001610958333,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_20_range": 0.03,
+            "rsi_threshold": 55,
+            "initial_stop_pct": 0.2
+          },
+          "total_trades": 237,
+          "win_rate": 0.6962025316455697,
+          "profit_factor": 11.123614796311465,
+          "avg_return_pct": 0.20597527465986679,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_20_range": 0.03,
+            "rsi_threshold": 60,
+            "initial_stop_pct": 0.12
+          },
+          "total_trades": 289,
+          "win_rate": 0.671280276816609,
+          "profit_factor": 13.659867696099763,
+          "avg_return_pct": 0.21604898920315044,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_20_range": 0.03,
+            "rsi_threshold": 60,
+            "initial_stop_pct": 0.15
+          },
+          "total_trades": 278,
+          "win_rate": 0.7050359712230215,
+          "profit_factor": 13.650569856495794,
+          "avg_return_pct": 0.2250173998648262,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_20_range": 0.03,
+            "rsi_threshold": 60,
+            "initial_stop_pct": 0.2
+          },
+          "total_trades": 273,
+          "win_rate": 0.717948717948718,
+          "profit_factor": 13.02930441418064,
+          "avg_return_pct": 0.22780713072311687,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_20_range": 0.03,
+            "rsi_threshold": 65,
+            "initial_stop_pct": 0.12
+          },
+          "total_trades": 313,
+          "win_rate": 0.6900958466453674,
+          "profit_factor": 16.256295075257505,
+          "avg_return_pct": 0.2387902174656566,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_20_range": 0.03,
+            "rsi_threshold": 65,
+            "initial_stop_pct": 0.15
+          },
+          "total_trades": 305,
+          "win_rate": 0.7180327868852459,
+          "profit_factor": 16.2346023476826,
+          "avg_return_pct": 0.245483550710982,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "ma_dist_20_range": 0.03,
+            "rsi_threshold": 65,
+            "initial_stop_pct": 0.2
+          },
+          "total_trades": 297,
+          "win_rate": 0.7373737373737373,
+          "profit_factor": 15.965267395928521,
+          "avg_return_pct": 0.2513726824398164,
+          "reliability_score": 100.0
+        }
+      ],
+      "best_result": {
+        "params": {
+          "ma_dist_20_range": 0.01,
+          "rsi_threshold": 55,
+          "initial_stop_pct": 0.12
+        },
+        "total_trades": 191,
+        "win_rate": 0.6335078534031413,
+        "profit_factor": 9.481111860684866,
+        "avg_return_pct": 0.1548042246151317,
+        "reliability_score": 100.0
+      }
+    },
+    "macd_bullish_cross": {
+      "setup_name": "macd_bullish_cross",
+      "total_combinations": 27,
+      "results": [
+        {
+          "params": {
+            "rsi_threshold": 65,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.4
+          },
+          "total_trades": 276,
+          "win_rate": 0.6195652173913043,
+          "profit_factor": 9.255057694602156,
+          "avg_return_pct": 0.14888563525080076,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "rsi_threshold": 65,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.5
+          },
+          "total_trades": 270,
+          "win_rate": 0.6185185185185185,
+          "profit_factor": 10.88045810315173,
+          "avg_return_pct": 0.17820099328503036,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "rsi_threshold": 65,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.6
+          },
+          "total_trades": 269,
+          "win_rate": 0.620817843866171,
+          "profit_factor": 12.678536388487004,
+          "avg_return_pct": 0.20855792676415705,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "rsi_threshold": 65,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.4
+          },
+          "total_trades": 267,
+          "win_rate": 0.6329588014981273,
+          "profit_factor": 9.108281074904406,
+          "avg_return_pct": 0.15483564172336936,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "rsi_threshold": 65,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.5
+          },
+          "total_trades": 261,
+          "win_rate": 0.632183908045977,
+          "profit_factor": 10.81522251565794,
+          "avg_return_pct": 0.18683039438805446,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "rsi_threshold": 65,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.6
+          },
+          "total_trades": 260,
+          "win_rate": 0.6307692307692307,
+          "profit_factor": 12.386041141491758,
+          "avg_return_pct": 0.21756412727858332,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "rsi_threshold": 65,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.4
+          },
+          "total_trades": 262,
+          "win_rate": 0.6450381679389313,
+          "profit_factor": 8.57105385049017,
+          "avg_return_pct": 0.1556521679632806,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "rsi_threshold": 65,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.5
+          },
+          "total_trades": 257,
+          "win_rate": 0.6459143968871596,
+          "profit_factor": 10.310869753845429,
+          "avg_return_pct": 0.18850519732408574,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "rsi_threshold": 65,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.6
+          },
+          "total_trades": 256,
+          "win_rate": 0.64453125,
+          "profit_factor": 11.810719416911315,
+          "avg_return_pct": 0.21972568698999798,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "rsi_threshold": 70,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.4
+          },
+          "total_trades": 305,
+          "win_rate": 0.639344262295082,
+          "profit_factor": 10.621492410166917,
+          "avg_return_pct": 0.16175548770011522,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "rsi_threshold": 70,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.5
+          },
+          "total_trades": 299,
+          "win_rate": 0.6421404682274248,
+          "profit_factor": 12.732383506785602,
+          "avg_return_pct": 0.19626488043066873,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "rsi_threshold": 70,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.6
+          },
+          "total_trades": 297,
+          "win_rate": 0.6430976430976431,
+          "profit_factor": 14.882119324205581,
+          "avg_return_pct": 0.23071600679584076,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "rsi_threshold": 70,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.4
+          },
+          "total_trades": 296,
+          "win_rate": 0.652027027027027,
+          "profit_factor": 10.518982664802527,
+          "avg_return_pct": 0.16763442933643444,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "rsi_threshold": 70,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.5
+          },
+          "total_trades": 290,
+          "win_rate": 0.6551724137931034,
+          "profit_factor": 12.722113494959412,
+          "avg_return_pct": 0.20471500110767177,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "rsi_threshold": 70,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.6
+          },
+          "total_trades": 288,
+          "win_rate": 0.6527777777777778,
+          "profit_factor": 14.628612834255101,
+          "avg_return_pct": 0.23966295533114224,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "rsi_threshold": 70,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.4
+          },
+          "total_trades": 290,
+          "win_rate": 0.6655172413793103,
+          "profit_factor": 10.052858972808073,
+          "avg_return_pct": 0.16942322666718884,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "rsi_threshold": 70,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.5
+          },
+          "total_trades": 285,
+          "win_rate": 0.6701754385964912,
+          "profit_factor": 12.312405172244882,
+          "avg_return_pct": 0.20745138976102773,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "rsi_threshold": 70,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.6
+          },
+          "total_trades": 283,
+          "win_rate": 0.6678445229681979,
+          "profit_factor": 14.159852844732134,
+          "avg_return_pct": 0.243036137441827,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "rsi_threshold": 75,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.4
+          },
+          "total_trades": 331,
+          "win_rate": 0.6404833836858006,
+          "profit_factor": 11.05769159828784,
+          "avg_return_pct": 0.1668106380357743,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "rsi_threshold": 75,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.5
+          },
+          "total_trades": 324,
+          "win_rate": 0.6450617283950617,
+          "profit_factor": 13.514741496668945,
+          "avg_return_pct": 0.20391917695359857,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "rsi_threshold": 75,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.6
+          },
+          "total_trades": 321,
+          "win_rate": 0.6448598130841121,
+          "profit_factor": 15.83118530824346,
+          "avg_return_pct": 0.24088349338622178,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "rsi_threshold": 75,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.4
+          },
+          "total_trades": 322,
+          "win_rate": 0.65527950310559,
+          "profit_factor": 10.980034227929664,
+          "avg_return_pct": 0.17243429109189476,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "rsi_threshold": 75,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.5
+          },
+          "total_trades": 315,
+          "win_rate": 0.6603174603174603,
+          "profit_factor": 13.601209520607203,
+          "avg_return_pct": 0.21200180614599085,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "rsi_threshold": 75,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.6
+          },
+          "total_trades": 311,
+          "win_rate": 0.6559485530546624,
+          "profit_factor": 15.683340668214036,
+          "avg_return_pct": 0.25020867783917616,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "rsi_threshold": 75,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.4
+          },
+          "total_trades": 315,
+          "win_rate": 0.6666666666666666,
+          "profit_factor": 10.502589713260711,
+          "avg_return_pct": 0.17467632049398524,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "rsi_threshold": 75,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.5
+          },
+          "total_trades": 309,
+          "win_rate": 0.6731391585760518,
+          "profit_factor": 13.283532385577793,
+          "avg_return_pct": 0.21545879757513647,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "rsi_threshold": 75,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.6
+          },
+          "total_trades": 305,
+          "win_rate": 0.6688524590163935,
+          "profit_factor": 15.319385904604506,
+          "avg_return_pct": 0.25446261745152077,
+          "reliability_score": 100.0
+        }
+      ],
+      "best_result": {
+        "params": {
+          "rsi_threshold": 65,
+          "initial_stop_pct": 0.12,
+          "profit_target": 0.4
+        },
+        "total_trades": 276,
+        "win_rate": 0.6195652173913043,
+        "profit_factor": 9.255057694602156,
+        "avg_return_pct": 0.14888563525080076,
+        "reliability_score": 100.0
+      }
+    },
+    "volatility_contraction_breakout": {
+      "setup_name": "volatility_contraction_breakout",
+      "total_combinations": 27,
+      "results": [
+        {
+          "params": {
+            "bb_width_pctile_threshold": 25,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.4
+          },
+          "total_trades": 196,
+          "win_rate": 0.5969387755102041,
+          "profit_factor": 6.064231907132266,
+          "avg_return_pct": 0.10861871310863704,
+          "reliability_score": 99.84693877551021
+        },
+        {
+          "params": {
+            "bb_width_pctile_threshold": 25,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.5
+          },
+          "total_trades": 191,
+          "win_rate": 0.5916230366492147,
+          "profit_factor": 7.059546917137606,
+          "avg_return_pct": 0.13303394271451718,
+          "reliability_score": 99.58115183246073
+        },
+        {
+          "params": {
+            "bb_width_pctile_threshold": 25,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.6
+          },
+          "total_trades": 191,
+          "win_rate": 0.5916230366492147,
+          "profit_factor": 7.944173013057526,
+          "avg_return_pct": 0.15245541085028483,
+          "reliability_score": 99.58115183246073
+        },
+        {
+          "params": {
+            "bb_width_pctile_threshold": 25,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.4
+          },
+          "total_trades": 191,
+          "win_rate": 0.6178010471204188,
+          "profit_factor": 5.924651755811011,
+          "avg_return_pct": 0.11379975633457474,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "bb_width_pctile_threshold": 25,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.5
+          },
+          "total_trades": 186,
+          "win_rate": 0.6129032258064516,
+          "profit_factor": 6.774555335293165,
+          "avg_return_pct": 0.1366989764934189,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "bb_width_pctile_threshold": 25,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.6
+          },
+          "total_trades": 186,
+          "win_rate": 0.6129032258064516,
+          "profit_factor": 7.61702789469709,
+          "avg_return_pct": 0.15664252710595444,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "bb_width_pctile_threshold": 25,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.4
+          },
+          "total_trades": 187,
+          "win_rate": 0.6363636363636364,
+          "profit_factor": 5.817802299691448,
+          "avg_return_pct": 0.11452831307993006,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "bb_width_pctile_threshold": 25,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.5
+          },
+          "total_trades": 182,
+          "win_rate": 0.6318681318681318,
+          "profit_factor": 6.713867727832664,
+          "avg_return_pct": 0.13922979805996316,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "bb_width_pctile_threshold": 25,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.6
+          },
+          "total_trades": 182,
+          "win_rate": 0.6318681318681318,
+          "profit_factor": 7.550321656299896,
+          "avg_return_pct": 0.15961166846618083,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "bb_width_pctile_threshold": 30,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.4
+          },
+          "total_trades": 211,
+          "win_rate": 0.6113744075829384,
+          "profit_factor": 6.47820952674885,
+          "avg_return_pct": 0.11479833438634736,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "bb_width_pctile_threshold": 30,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.5
+          },
+          "total_trades": 206,
+          "win_rate": 0.6067961165048543,
+          "profit_factor": 7.511032841234641,
+          "avg_return_pct": 0.13941978938661773,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "bb_width_pctile_threshold": 30,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.6
+          },
+          "total_trades": 206,
+          "win_rate": 0.6067961165048543,
+          "profit_factor": 8.48801170902593,
+          "avg_return_pct": 0.1603396943086158,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "bb_width_pctile_threshold": 30,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.4
+          },
+          "total_trades": 205,
+          "win_rate": 0.6341463414634146,
+          "profit_factor": 6.549544277857577,
+          "avg_return_pct": 0.1211058572857243,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "bb_width_pctile_threshold": 30,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.5
+          },
+          "total_trades": 199,
+          "win_rate": 0.6331658291457286,
+          "profit_factor": 7.654179228787525,
+          "avg_return_pct": 0.14572733834673254,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "bb_width_pctile_threshold": 30,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.6
+          },
+          "total_trades": 199,
+          "win_rate": 0.6331658291457286,
+          "profit_factor": 8.643022156811313,
+          "avg_return_pct": 0.16738311932126332,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "bb_width_pctile_threshold": 30,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.4
+          },
+          "total_trades": 200,
+          "win_rate": 0.655,
+          "profit_factor": 6.439184958053652,
+          "avg_return_pct": 0.12253682665314107,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "bb_width_pctile_threshold": 30,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.5
+          },
+          "total_trades": 194,
+          "win_rate": 0.654639175257732,
+          "profit_factor": 7.677947576468983,
+          "avg_return_pct": 0.14930838266189167,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "bb_width_pctile_threshold": 30,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.6
+          },
+          "total_trades": 194,
+          "win_rate": 0.654639175257732,
+          "profit_factor": 8.671484498569116,
+          "avg_return_pct": 0.17152230232133298,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "bb_width_pctile_threshold": 35,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.4
+          },
+          "total_trades": 221,
+          "win_rate": 0.6108597285067874,
+          "profit_factor": 6.655176910400152,
+          "avg_return_pct": 0.11982413931540552,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "bb_width_pctile_threshold": 35,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.5
+          },
+          "total_trades": 216,
+          "win_rate": 0.6064814814814815,
+          "profit_factor": 7.758933334724024,
+          "avg_return_pct": 0.14619585890389541,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "bb_width_pctile_threshold": 35,
+            "initial_stop_pct": 0.12,
+            "profit_target": 0.6
+          },
+          "total_trades": 216,
+          "win_rate": 0.6064814814814815,
+          "profit_factor": 8.80974924947099,
+          "avg_return_pct": 0.16892502748691218,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "bb_width_pctile_threshold": 35,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.4
+          },
+          "total_trades": 215,
+          "win_rate": 0.6325581395348837,
+          "profit_factor": 6.670108439816674,
+          "avg_return_pct": 0.1256879408357109,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "bb_width_pctile_threshold": 35,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.5
+          },
+          "total_trades": 209,
+          "win_rate": 0.631578947368421,
+          "profit_factor": 7.8371665862041135,
+          "avg_return_pct": 0.1521296150407511,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "bb_width_pctile_threshold": 35,
+            "initial_stop_pct": 0.15,
+            "profit_target": 0.6
+          },
+          "total_trades": 209,
+          "win_rate": 0.631578947368421,
+          "profit_factor": 8.892897916639484,
+          "avg_return_pct": 0.1756200476432947,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "bb_width_pctile_threshold": 35,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.4
+          },
+          "total_trades": 210,
+          "win_rate": 0.6523809523809524,
+          "profit_factor": 6.5564034976735215,
+          "avg_return_pct": 0.1271275932338666,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "bb_width_pctile_threshold": 35,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.5
+          },
+          "total_trades": 204,
+          "win_rate": 0.6519607843137255,
+          "profit_factor": 7.848759123866216,
+          "avg_return_pct": 0.15565881451619407,
+          "reliability_score": 100.0
+        },
+        {
+          "params": {
+            "bb_width_pctile_threshold": 35,
+            "initial_stop_pct": 0.2,
+            "profit_target": 0.6
+          },
+          "total_trades": 204,
+          "win_rate": 0.6519607843137255,
+          "profit_factor": 8.90763561658823,
+          "avg_return_pct": 0.17972499301585887,
+          "reliability_score": 100.0
+        }
+      ],
+      "best_result": {
+        "params": {
+          "bb_width_pctile_threshold": 25,
+          "initial_stop_pct": 0.15,
+          "profit_target": 0.4
+        },
+        "total_trades": 191,
+        "win_rate": 0.6178010471204188,
+        "profit_factor": 5.924651755811011,
+        "avg_return_pct": 0.11379975633457474,
+        "reliability_score": 100.0
+      }
+    }
+  }
+}

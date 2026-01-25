@@ -1,0 +1,1245 @@
+{
+  "setup_name": "drawdown_recovery",
+  "universe": "equity",
+  "start_date": "2020-01-01",
+  "end_date": "2025-12-31",
+  "trailing_config": {
+    "initial_stop_pct": 0.15,
+    "profit_target": 0.5,
+    "trail_tiers": [
+      [
+        0.1,
+        0.12
+      ],
+      [
+        0.2,
+        0.15
+      ],
+      [
+        0.35,
+        0.18
+      ]
+    ],
+    "max_hold_days": 252
+  },
+  "metrics": {
+    "total_trades": 16,
+    "win_rate": 0.4375,
+    "loss_rate": 0.5625,
+    "profit_factor": 2.9519861492630657,
+    "avg_return_pct": 0.026028189834012,
+    "median_return_pct": -0.00231940294095212,
+    "std_return_pct": 0.1286104545624973,
+    "sharpe_ratio": 0.9050710845880348,
+    "best_trade": 0.5,
+    "worst_trade": -0.14321405641132767,
+    "avg_winner": 0.08997119564240544,
+    "avg_loser": -0.023705259128071792,
+    "avg_holding_period": 2.9375,
+    "median_holding_period": 1.0,
+    "exit_reasons": {
+      "technical_breakdown": 14,
+      "trailing_stop": 1,
+      "profit_target": 1
+    },
+    "reliability_score": 71.75951807646724
+  },
+  "summary": {
+    "assets_processed": 96,
+    "assets_skipped": 0,
+    "signals_scanned": 18759,
+    "entries_triggered": 16
+  },
+  "trades": [
+    {
+      "trade_id": 1,
+      "asset_id": 69,
+      "asset_symbol": "AMAT",
+      "setup_name": "drawdown_recovery",
+      "entry_date": "2024-07-31",
+      "entry_price": 209.1743,
+      "entry_conditions": [
+        {
+          "condition_name": "Significant Drawdown",
+          "expression": "drawdown_20d < -0.15",
+          "actual_value": -0.1677,
+          "threshold": -0.15,
+          "passed": true
+        },
+        {
+          "condition_name": "Starting to Recover",
+          "expression": "roc_5 > 0.02",
+          "actual_value": 0.0275,
+          "threshold": 0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "RSI Oversold",
+          "expression": "rsi_14 < 40.0",
+          "actual_value": 36.01,
+          "threshold": 40.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 209.1743,
+      "highest_price_date": "2024-07-31",
+      "max_gain_pct": 0.0,
+      "exit_date": "2024-08-02",
+      "exit_price": 179.2176,
+      "exit_reason": "technical_breakdown",
+      "exit_details": "Close (179.22) broke below 200 SMA (186.00)",
+      "return_pct": -0.14321405641132767,
+      "holding_period": 2,
+      "is_winner": false,
+      "stop_adjustments": [],
+      "created_at": "2026-01-25T14:56:51.695747"
+    },
+    {
+      "trade_id": 2,
+      "asset_id": 69,
+      "asset_symbol": "AMAT",
+      "setup_name": "drawdown_recovery",
+      "entry_date": "2024-08-09",
+      "entry_price": 188.454,
+      "entry_conditions": [
+        {
+          "condition_name": "Significant Drawdown",
+          "expression": "drawdown_20d < -0.15",
+          "actual_value": -0.2223,
+          "threshold": -0.15,
+          "passed": true
+        },
+        {
+          "condition_name": "Starting to Recover",
+          "expression": "roc_5 > 0.02",
+          "actual_value": 0.0515,
+          "threshold": 0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "RSI Oversold",
+          "expression": "rsi_14 < 40.0",
+          "actual_value": 33.8307,
+          "threshold": 40.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 213.0,
+      "highest_price_date": "2024-08-15",
+      "max_gain_pct": 0.1302492916043172,
+      "exit_date": "2024-09-03",
+      "exit_price": 187.44,
+      "exit_reason": "trailing_stop",
+      "exit_details": "Low (182.50) breached trailing stop (187.44). Max gain was 13.0%",
+      "return_pct": -0.005380623388200889,
+      "holding_period": 16,
+      "is_winner": false,
+      "stop_adjustments": [
+        {
+          "date": "2024-08-12",
+          "old_stop": 160.1859,
+          "new_stop": 166.94,
+          "high": 196.4,
+          "gain_pct": 0.042164135545013526,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-08-13",
+          "old_stop": 166.94,
+          "new_stop": 171.55907,
+          "high": 201.8342,
+          "gain_pct": 0.0709998195846202,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-08-14",
+          "old_stop": 171.55907,
+          "new_stop": 174.0885,
+          "high": 204.81,
+          "gain_pct": 0.08679041039192592,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-08-15",
+          "old_stop": 174.0885,
+          "new_stop": 187.44,
+          "high": 213.0,
+          "gain_pct": 0.1302492916043172,
+          "trail_pct": 0.12
+        }
+      ],
+      "created_at": "2026-01-25T14:56:51.696522"
+    },
+    {
+      "trade_id": 3,
+      "asset_id": 28,
+      "asset_symbol": "AMD",
+      "setup_name": "drawdown_recovery",
+      "entry_date": "2024-08-08",
+      "entry_price": 136.32,
+      "entry_conditions": [
+        {
+          "condition_name": "Significant Drawdown",
+          "expression": "drawdown_20d < -0.15",
+          "actual_value": -0.2494,
+          "threshold": -0.15,
+          "passed": true
+        },
+        {
+          "condition_name": "Starting to Recover",
+          "expression": "roc_5 > 0.02",
+          "actual_value": 0.0285,
+          "threshold": 0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "RSI Oversold",
+          "expression": "rsi_14 < 40.0",
+          "actual_value": 37.1115,
+          "threshold": 40.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 136.32,
+      "highest_price_date": "2024-08-08",
+      "max_gain_pct": 0.0,
+      "exit_date": "2024-08-09",
+      "exit_price": 134.27,
+      "exit_reason": "technical_breakdown",
+      "exit_details": "Close (134.27) broke below 200 SMA (155.10)",
+      "return_pct": -0.015038145539906012,
+      "holding_period": 1,
+      "is_winner": false,
+      "stop_adjustments": [],
+      "created_at": "2026-01-25T14:56:51.775345"
+    },
+    {
+      "trade_id": 4,
+      "asset_id": 112,
+      "asset_symbol": "BKNG",
+      "setup_name": "drawdown_recovery",
+      "entry_date": "2024-08-09",
+      "entry_price": 3404.2271,
+      "entry_conditions": [
+        {
+          "condition_name": "Significant Drawdown",
+          "expression": "drawdown_20d < -0.15",
+          "actual_value": -0.1641,
+          "threshold": -0.15,
+          "passed": true
+        },
+        {
+          "condition_name": "Starting to Recover",
+          "expression": "roc_5 > 0.02",
+          "actual_value": 0.0345,
+          "threshold": 0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "RSI Oversold",
+          "expression": "rsi_14 < 40.0",
+          "actual_value": 29.3506,
+          "threshold": 40.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 3471.47,
+      "highest_price_date": "2024-08-12",
+      "max_gain_pct": 0.01975276561308137,
+      "exit_date": "2024-08-12",
+      "exit_price": 3400.4008,
+      "exit_reason": "technical_breakdown",
+      "exit_details": "Close (3400.40) broke below 200 SMA (3499.88)",
+      "return_pct": -0.0011239849421327275,
+      "holding_period": 1,
+      "is_winner": false,
+      "stop_adjustments": [
+        {
+          "date": "2024-08-12",
+          "old_stop": 2893.593035,
+          "new_stop": 2950.7495,
+          "high": 3471.47,
+          "gain_pct": 0.01975276561308137,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:56:52.429491"
+    },
+    {
+      "trade_id": 5,
+      "asset_id": 27,
+      "asset_symbol": "CRM",
+      "setup_name": "drawdown_recovery",
+      "entry_date": "2024-06-06",
+      "entry_price": 240.1256,
+      "entry_conditions": [
+        {
+          "condition_name": "Significant Drawdown",
+          "expression": "drawdown_20d < -0.15",
+          "actual_value": -0.1557,
+          "threshold": -0.15,
+          "passed": true
+        },
+        {
+          "condition_name": "Starting to Recover",
+          "expression": "roc_5 > 0.02",
+          "actual_value": 0.1135,
+          "threshold": 0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "RSI Oversold",
+          "expression": "rsi_14 < 40.0",
+          "actual_value": 29.7331,
+          "threshold": 40.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 243.9299,
+      "highest_price_date": "2024-06-07",
+      "max_gain_pct": 0.015842958851534306,
+      "exit_date": "2024-06-07",
+      "exit_price": 239.2255,
+      "exit_reason": "technical_breakdown",
+      "exit_details": "Close (239.23) broke below 200 SMA (252.61)",
+      "return_pct": -0.003748454975229576,
+      "holding_period": 1,
+      "is_winner": false,
+      "stop_adjustments": [
+        {
+          "date": "2024-06-07",
+          "old_stop": 204.10675999999998,
+          "new_stop": 207.340415,
+          "high": 243.9299,
+          "gain_pct": 0.015842958851534306,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:56:53.457635"
+    },
+    {
+      "trade_id": 6,
+      "asset_id": 27,
+      "asset_symbol": "CRM",
+      "setup_name": "drawdown_recovery",
+      "entry_date": "2024-06-10",
+      "entry_price": 239.2156,
+      "entry_conditions": [
+        {
+          "condition_name": "Significant Drawdown",
+          "expression": "drawdown_20d < -0.15",
+          "actual_value": -0.1589,
+          "threshold": -0.15,
+          "passed": true
+        },
+        {
+          "condition_name": "Starting to Recover",
+          "expression": "roc_5 > 0.02",
+          "actual_value": 0.0221,
+          "threshold": 0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "RSI Oversold",
+          "expression": "rsi_14 < 40.0",
+          "actual_value": 27.8176,
+          "threshold": 40.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 243.75,
+      "highest_price_date": "2024-06-11",
+      "max_gain_pct": 0.018955285524857146,
+      "exit_date": "2024-06-11",
+      "exit_price": 238.3748,
+      "exit_reason": "technical_breakdown",
+      "exit_details": "Close (238.37) broke below 200 SMA (252.95)",
+      "return_pct": -0.0035148209397715124,
+      "holding_period": 1,
+      "is_winner": false,
+      "stop_adjustments": [
+        {
+          "date": "2024-06-11",
+          "old_stop": 203.33326,
+          "new_stop": 207.1875,
+          "high": 243.75,
+          "gain_pct": 0.018955285524857146,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:56:53.457936"
+    },
+    {
+      "trade_id": 7,
+      "asset_id": 45,
+      "asset_symbol": "INTC",
+      "setup_name": "drawdown_recovery",
+      "entry_date": "2024-08-13",
+      "entry_price": 20.47,
+      "entry_conditions": [
+        {
+          "condition_name": "Significant Drawdown",
+          "expression": "drawdown_20d < -0.15",
+          "actual_value": -0.4091,
+          "threshold": -0.15,
+          "passed": true
+        },
+        {
+          "condition_name": "Starting to Recover",
+          "expression": "roc_5 > 0.02",
+          "actual_value": 0.0391,
+          "threshold": 0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "RSI Oversold",
+          "expression": "rsi_14 < 40.0",
+          "actual_value": 19.2987,
+          "threshold": 40.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 20.5,
+      "highest_price_date": "2024-08-14",
+      "max_gain_pct": 0.0014655593551540225,
+      "exit_date": "2024-08-14",
+      "exit_price": 19.92,
+      "exit_reason": "technical_breakdown",
+      "exit_details": "Close (19.92) broke below 200 SMA (37.58)",
+      "return_pct": -0.026868588177821118,
+      "holding_period": 1,
+      "is_winner": false,
+      "stop_adjustments": [
+        {
+          "date": "2024-08-14",
+          "old_stop": 17.3995,
+          "new_stop": 17.425,
+          "high": 20.5,
+          "gain_pct": 0.0014655593551540225,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:56:55.245415"
+    },
+    {
+      "trade_id": 8,
+      "asset_id": 45,
+      "asset_symbol": "INTC",
+      "setup_name": "drawdown_recovery",
+      "entry_date": "2024-08-16",
+      "entry_price": 20.87,
+      "entry_conditions": [
+        {
+          "condition_name": "Significant Drawdown",
+          "expression": "drawdown_20d < -0.15",
+          "actual_value": -0.3705,
+          "threshold": -0.15,
+          "passed": true
+        },
+        {
+          "condition_name": "Starting to Recover",
+          "expression": "roc_5 > 0.02",
+          "actual_value": 0.0589,
+          "threshold": 0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "RSI Oversold",
+          "expression": "rsi_14 < 40.0",
+          "actual_value": 23.0288,
+          "threshold": 40.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 21.86,
+      "highest_price_date": "2024-08-19",
+      "max_gain_pct": 0.047436511739338716,
+      "exit_date": "2024-08-19",
+      "exit_price": 21.52,
+      "exit_reason": "technical_breakdown",
+      "exit_details": "Close (21.52) broke below 200 SMA (37.37)",
+      "return_pct": 0.03114518447532344,
+      "holding_period": 1,
+      "is_winner": true,
+      "stop_adjustments": [
+        {
+          "date": "2024-08-19",
+          "old_stop": 17.7395,
+          "new_stop": 18.581,
+          "high": 21.86,
+          "gain_pct": 0.047436511739338716,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:56:55.245958"
+    },
+    {
+      "trade_id": 9,
+      "asset_id": 45,
+      "asset_symbol": "INTC",
+      "setup_name": "drawdown_recovery",
+      "entry_date": "2024-08-20",
+      "entry_price": 20.99,
+      "entry_conditions": [
+        {
+          "condition_name": "Significant Drawdown",
+          "expression": "drawdown_20d < -0.15",
+          "actual_value": -0.3335,
+          "threshold": -0.15,
+          "passed": true
+        },
+        {
+          "condition_name": "Starting to Recover",
+          "expression": "roc_5 > 0.02",
+          "actual_value": 0.0254,
+          "threshold": 0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "RSI Oversold",
+          "expression": "rsi_14 < 40.0",
+          "actual_value": 23.4292,
+          "threshold": 40.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 21.44,
+      "highest_price_date": "2024-08-21",
+      "max_gain_pct": 0.021438780371605626,
+      "exit_date": "2024-08-21",
+      "exit_price": 21.41,
+      "exit_reason": "technical_breakdown",
+      "exit_details": "Close (21.41) broke below 200 SMA (37.21)",
+      "return_pct": 0.020009528346832006,
+      "holding_period": 1,
+      "is_winner": true,
+      "stop_adjustments": [
+        {
+          "date": "2024-08-21",
+          "old_stop": 17.8415,
+          "new_stop": 18.224,
+          "high": 21.44,
+          "gain_pct": 0.021438780371605626,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:56:55.246246"
+    },
+    {
+      "trade_id": 10,
+      "asset_id": 11,
+      "asset_symbol": "LLY",
+      "setup_name": "drawdown_recovery",
+      "entry_date": "2024-11-25",
+      "entry_price": 749.4693,
+      "entry_conditions": [
+        {
+          "condition_name": "Significant Drawdown",
+          "expression": "drawdown_20d < -0.15",
+          "actual_value": -0.163,
+          "threshold": -0.15,
+          "passed": true
+        },
+        {
+          "condition_name": "Starting to Recover",
+          "expression": "roc_5 > 0.02",
+          "actual_value": 0.0382,
+          "threshold": 0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "RSI Oversold",
+          "expression": "rsi_14 < 40.0",
+          "actual_value": 39.1093,
+          "threshold": 40.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 807.0,
+      "highest_price_date": "2024-11-26",
+      "max_gain_pct": 0.07676191673227972,
+      "exit_date": "2024-11-26",
+      "exit_price": 783.5379,
+      "exit_reason": "technical_breakdown",
+      "exit_details": "Close (783.54) broke below 200 SMA (827.53)",
+      "return_pct": 0.04545696534868071,
+      "holding_period": 1,
+      "is_winner": true,
+      "stop_adjustments": [
+        {
+          "date": "2024-11-26",
+          "old_stop": 637.048905,
+          "new_stop": 685.9499999999999,
+          "high": 807.0,
+          "gain_pct": 0.07676191673227972,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:56:56.004413"
+    },
+    {
+      "trade_id": 11,
+      "asset_id": 70,
+      "asset_symbol": "LRCX",
+      "setup_name": "drawdown_recovery",
+      "entry_date": "2024-08-09",
+      "entry_price": 79.5888,
+      "entry_conditions": [
+        {
+          "condition_name": "Significant Drawdown",
+          "expression": "drawdown_20d < -0.15",
+          "actual_value": -0.2492,
+          "threshold": -0.15,
+          "passed": true
+        },
+        {
+          "condition_name": "Starting to Recover",
+          "expression": "roc_5 > 0.02",
+          "actual_value": 0.0588,
+          "threshold": 0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "RSI Oversold",
+          "expression": "rsi_14 < 40.0",
+          "actual_value": 31.5101,
+          "threshold": 40.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 822.51,
+      "highest_price_date": "2024-08-12",
+      "max_gain_pct": 9.334494300705625,
+      "exit_date": "2024-08-12",
+      "exit_price": 119.38320000000002,
+      "exit_reason": "profit_target",
+      "exit_details": "High (822.51) reached 50% profit target (119.38)",
+      "return_pct": 0.5,
+      "holding_period": 1,
+      "is_winner": true,
+      "stop_adjustments": [
+        {
+          "date": "2024-08-12",
+          "old_stop": 67.65048,
+          "new_stop": 674.4582,
+          "high": 822.51,
+          "gain_pct": 9.334494300705625,
+          "trail_pct": 0.18
+        }
+      ],
+      "created_at": "2026-01-25T14:56:56.253180"
+    },
+    {
+      "trade_id": 12,
+      "asset_id": 47,
+      "asset_symbol": "QCOM",
+      "setup_name": "drawdown_recovery",
+      "entry_date": "2024-08-09",
+      "entry_price": 159.2109,
+      "entry_conditions": [
+        {
+          "condition_name": "Significant Drawdown",
+          "expression": "drawdown_20d < -0.15",
+          "actual_value": -0.2154,
+          "threshold": -0.15,
+          "passed": true
+        },
+        {
+          "condition_name": "Starting to Recover",
+          "expression": "roc_5 > 0.02",
+          "actual_value": 0.0325,
+          "threshold": 0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "RSI Oversold",
+          "expression": "rsi_14 < 40.0",
+          "actual_value": 32.483,
+          "threshold": 40.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 176.3599,
+      "highest_price_date": "2024-08-29",
+      "max_gain_pct": 0.10771247445997734,
+      "exit_date": "2024-09-03",
+      "exit_price": 158.0106,
+      "exit_reason": "technical_breakdown",
+      "exit_details": "Close (158.01) broke below 200 SMA (162.13)",
+      "return_pct": -0.007539056685189283,
+      "holding_period": 16,
+      "is_winner": false,
+      "stop_adjustments": [
+        {
+          "date": "2024-08-12",
+          "old_stop": 135.329265,
+          "new_stop": 138.8815,
+          "high": 163.39,
+          "gain_pct": 0.026248830953157,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-08-13",
+          "old_stop": 138.8815,
+          "new_stop": 144.126,
+          "high": 169.56,
+          "gain_pct": 0.06500245900249291,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-08-14",
+          "old_stop": 144.126,
+          "new_stop": 145.569895,
+          "high": 171.2587,
+          "gain_pct": 0.07567195462119747,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-08-15",
+          "old_stop": 145.569895,
+          "new_stop": 148.444,
+          "high": 174.64,
+          "gain_pct": 0.09690982212901234,
+          "trail_pct": 0.15
+        },
+        {
+          "date": "2024-08-20",
+          "old_stop": 148.444,
+          "new_stop": 154.3784,
+          "high": 175.43,
+          "gain_pct": 0.10187179395380586,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-08-28",
+          "old_stop": 154.3784,
+          "new_stop": 154.6336,
+          "high": 175.72,
+          "gain_pct": 0.10369327728189459,
+          "trail_pct": 0.12
+        },
+        {
+          "date": "2024-08-29",
+          "old_stop": 154.6336,
+          "new_stop": 155.19671200000002,
+          "high": 176.3599,
+          "gain_pct": 0.10771247445997734,
+          "trail_pct": 0.12
+        }
+      ],
+      "created_at": "2026-01-25T14:56:59.210791"
+    },
+    {
+      "trade_id": 13,
+      "asset_id": 109,
+      "asset_symbol": "TGT",
+      "setup_name": "drawdown_recovery",
+      "entry_date": "2024-11-27",
+      "entry_price": 124.5494,
+      "entry_conditions": [
+        {
+          "condition_name": "Significant Drawdown",
+          "expression": "drawdown_20d < -0.15",
+          "actual_value": -0.1614,
+          "threshold": -0.15,
+          "passed": true
+        },
+        {
+          "condition_name": "Starting to Recover",
+          "expression": "roc_5 > 0.02",
+          "actual_value": 0.0688,
+          "threshold": 0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "RSI Oversold",
+          "expression": "rsi_14 < 40.0",
+          "actual_value": 35.0005,
+          "threshold": 40.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 132.85,
+      "highest_price_date": "2024-11-29",
+      "max_gain_pct": 0.06664504204757304,
+      "exit_date": "2024-11-29",
+      "exit_price": 126.6749,
+      "exit_reason": "technical_breakdown",
+      "exit_details": "Close (126.67) broke below 200 SMA (144.61)",
+      "return_pct": 0.01706551777848775,
+      "holding_period": 1,
+      "is_winner": true,
+      "stop_adjustments": [
+        {
+          "date": "2024-11-29",
+          "old_stop": 105.86699,
+          "new_stop": 112.92249999999999,
+          "high": 132.85,
+          "gain_pct": 0.06664504204757304,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:57:00.179849"
+    },
+    {
+      "trade_id": 14,
+      "asset_id": 109,
+      "asset_symbol": "TGT",
+      "setup_name": "drawdown_recovery",
+      "entry_date": "2024-12-02",
+      "entry_price": 125.1526,
+      "entry_conditions": [
+        {
+          "condition_name": "Significant Drawdown",
+          "expression": "drawdown_20d < -0.15",
+          "actual_value": -0.1574,
+          "threshold": -0.15,
+          "passed": true
+        },
+        {
+          "condition_name": "Starting to Recover",
+          "expression": "roc_5 > 0.02",
+          "actual_value": 0.0457,
+          "threshold": 0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "RSI Oversold",
+          "expression": "rsi_14 < 40.0",
+          "actual_value": 33.4766,
+          "threshold": 40.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 131.77,
+      "highest_price_date": "2024-12-03",
+      "max_gain_pct": 0.052874650626515196,
+      "exit_date": "2024-12-03",
+      "exit_price": 125.8515,
+      "exit_reason": "technical_breakdown",
+      "exit_details": "Close (125.85) broke below 200 SMA (144.49)",
+      "return_pct": 0.005584382585739345,
+      "holding_period": 1,
+      "is_winner": true,
+      "stop_adjustments": [
+        {
+          "date": "2024-12-03",
+          "old_stop": 106.37971,
+          "new_stop": 112.00450000000001,
+          "high": 131.77,
+          "gain_pct": 0.052874650626515196,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:57:00.180155"
+    },
+    {
+      "trade_id": 15,
+      "asset_id": 109,
+      "asset_symbol": "TGT",
+      "setup_name": "drawdown_recovery",
+      "entry_date": "2024-12-04",
+      "entry_price": 124.5303,
+      "entry_conditions": [
+        {
+          "condition_name": "Significant Drawdown",
+          "expression": "drawdown_20d < -0.15",
+          "actual_value": -0.1616,
+          "threshold": -0.15,
+          "passed": true
+        },
+        {
+          "condition_name": "Starting to Recover",
+          "expression": "roc_5 > 0.02",
+          "actual_value": 0.0278,
+          "threshold": 0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "RSI Oversold",
+          "expression": "rsi_14 < 40.0",
+          "actual_value": 31.3869,
+          "threshold": 40.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 130.5,
+      "highest_price_date": "2024-12-05",
+      "max_gain_pct": 0.047937730817319224,
+      "exit_date": "2024-12-05",
+      "exit_price": 123.6686,
+      "exit_reason": "technical_breakdown",
+      "exit_details": "Close (123.67) broke below 200 SMA (144.33)",
+      "return_pct": -0.006919601093067329,
+      "holding_period": 1,
+      "is_winner": false,
+      "stop_adjustments": [
+        {
+          "date": "2024-12-05",
+          "old_stop": 105.85075499999999,
+          "new_stop": 110.925,
+          "high": 130.5,
+          "gain_pct": 0.047937730817319224,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:57:00.180420"
+    },
+    {
+      "trade_id": 16,
+      "asset_id": 8,
+      "asset_symbol": "TSLA",
+      "setup_name": "drawdown_recovery",
+      "entry_date": "2024-03-22",
+      "entry_price": 170.83,
+      "entry_conditions": [
+        {
+          "condition_name": "Significant Drawdown",
+          "expression": "drawdown_20d < -0.15",
+          "actual_value": -0.157,
+          "threshold": -0.15,
+          "passed": true
+        },
+        {
+          "condition_name": "Starting to Recover",
+          "expression": "roc_5 > 0.02",
+          "actual_value": 0.0444,
+          "threshold": 0.02,
+          "passed": true
+        },
+        {
+          "condition_name": "RSI Oversold",
+          "expression": "rsi_14 < 40.0",
+          "actual_value": 34.9922,
+          "threshold": 40.0,
+          "passed": true
+        }
+      ],
+      "entry_parameters": {
+        "initial_stop_pct": 0.15,
+        "profit_target": 0.5,
+        "trail_tiers": [
+          [
+            0.1,
+            0.12
+          ],
+          [
+            0.2,
+            0.15
+          ],
+          [
+            0.35,
+            0.18
+          ]
+        ],
+        "max_hold_days": 252
+      },
+      "highest_price": 175.24,
+      "highest_price_date": "2024-03-25",
+      "max_gain_pct": 0.02581513785634848,
+      "exit_date": "2024-03-25",
+      "exit_price": 172.63,
+      "exit_reason": "technical_breakdown",
+      "exit_details": "Close (172.63) broke below 200 SMA (233.12)",
+      "return_pct": 0.010536790961774845,
+      "holding_period": 1,
+      "is_winner": true,
+      "stop_adjustments": [
+        {
+          "date": "2024-03-25",
+          "old_stop": 145.2055,
+          "new_stop": 148.954,
+          "high": 175.24,
+          "gain_pct": 0.02581513785634848,
+          "trail_pct": 0.15
+        }
+      ],
+      "created_at": "2026-01-25T14:57:00.330040"
+    }
+  ]
+}
