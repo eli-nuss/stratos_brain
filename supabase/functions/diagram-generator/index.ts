@@ -239,7 +239,7 @@ Create the diagram now. Output ONLY valid JSON.\`
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: designPrompt }] }],
         generationConfig: { 
-          temperature: 0.2,
+          temperature: 1.0,
           maxOutputTokens: 16384,
           responseMimeType: 'application/json'
         }
