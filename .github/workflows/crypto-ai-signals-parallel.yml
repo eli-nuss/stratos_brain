@@ -35,6 +35,11 @@ on:
         required: false
         default: '10'
         type: string
+      stagger_delay:
+        description: 'Seconds between launching each sandbox'
+        required: false
+        default: '2'
+        type: string
       model:
         description: 'Gemini model to use'
         required: false
@@ -71,7 +76,6 @@ jobs:
           if [ -n "${{ github.event.inputs.target_date }}" ]; then
             echo "date=${{ github.event.inputs.target_date }}" >> $GITHUB_OUTPUT
           else
-            # Default to today (UTC)
             echo "date=$(date -u +%Y-%m-%d)" >> $GITHUB_OUTPUT
           fi
       
@@ -84,6 +88,7 @@ jobs:
           echo "🚀 Starting parallel E2B orchestration for Crypto"
           echo "📅 Date: ${{ steps.date.outputs.date }}"
           echo "🔢 Sandboxes: ${{ github.event.inputs.sandboxes || '10' }}"
+          echo "⏱️ Stagger Delay: ${{ github.event.inputs.stagger_delay || '2' }}s"
           echo ""
           
           python scripts/e2b_parallel_orchestrator.py \
@@ -91,7 +96,8 @@ jobs:
             --asset-type crypto \
             --model ${{ github.event.inputs.model || 'gemini-3-flash-preview' }} \
             --sandboxes ${{ github.event.inputs.sandboxes || '10' }} \
-            --max-concurrent ${{ github.event.inputs.max_concurrent || '10' }}
+            --max-concurrent ${{ github.event.inputs.max_concurrent || '10' }} \
+            --stagger-delay ${{ github.event.inputs.stagger_delay || '2' }}
       
       - name: Report completion
         if: success()
