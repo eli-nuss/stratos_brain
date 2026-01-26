@@ -1,8 +1,0 @@
-trade_id,asset,setup,entry_date,entry_price,exit_date,exit_price,exit_reason,return_pct,holding_period,max_gain_pct,is_winner
-1,AMD,deep_oversold_bounce,2024-08-02,132.5,2024-08-05,134.82,technical_breakdown,0.01750943396226412,1,0.05011320754716975,True
-2,INTC,deep_oversold_bounce,2024-08-05,19.9785,2024-08-06,19.7003,technical_breakdown,-0.013924969342042792,1,0.032610055809995764,False
-3,INTC,deep_oversold_bounce,2024-08-12,19.36,2024-08-13,20.47,technical_breakdown,0.05733471074380159,1,0.05785123966942152,True
-4,INTC,deep_oversold_bounce,2024-08-15,20.69,2024-08-16,20.87,technical_breakdown,0.008699855002416657,1,0.009908168197196643,True
-5,LRCX,deep_oversold_bounce,2024-08-05,75.8936,2024-08-06,113.84040000000002,profit_target,0.5,1,9.474926739540619,True
-6,NKE,deep_oversold_bounce,2024-07-01,74.3532,2024-07-02,73.5886,technical_breakdown,-0.01028335027947691,1,0.034790701677937186,False
-7,NKE,deep_oversold_bounce,2024-07-09,70.1241,2024-07-10,70.2015,technical_breakdown,0.0011037574813794748,1,0.035877822317862185,True

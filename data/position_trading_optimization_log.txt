@@ -1,0 +1,119 @@
+============================================================
+POSITION TRADING PARAMETER OPTIMIZER
+============================================================
+CPUs available: 6
+Using 4 worker processes
+Loading data from database...
+Got 1000 assets in universe
+Got 497490 feature rows
+Calculating additional indicators...
+  Calculating rolling statistics...
+  Calculating ADX...
+Data loaded: 497490 rows, 1000 assets
+  donchian_55_breakout: 27 combinations
+  weinstein_stage2: 648 combinations
+  adx_holy_grail: 216 combinations
+  wyckoff_spring: 486 combinations
+  tsm_acceleration: 192 combinations
+  TOTAL: 1569 combinations
+============================================================
+
+==================================================
+Optimizing: donchian_55_breakout
+==================================================
+Total combinations: 27
+[donchian_55_breakout] Completed in 18.8s
+[donchian_55_breakout] BEST BY SCORE: PF=1.99, WR=50.8%, AvgRet=5.321%, Trades=122
+  Entry: {'lookback_days': 55, 'ma_slope_threshold': 0}
+  Exit: {'trailing_low_days': 20, 'max_hold_days': 120}
+[donchian_55_breakout] BEST BY PF: PF=1.99, WR=50.8%, AvgRet=5.321%, Trades=122
+Saved to /home/ubuntu/stratos_brain/data/optimization_results/donchian_55_breakout_optimized.json
+Progress: 1/5 setups | Elapsed: 0.3min | ETA: 1.3min
+
+==================================================
+Optimizing: weinstein_stage2
+==================================================
+Total combinations: 648
+[weinstein_stage2] Completed in 632.0s
+[weinstein_stage2] BEST BY SCORE: PF=4.086, WR=61.0%, AvgRet=8.453%, Trades=77
+  Entry: {'base_days': 100, 'base_range_pct': 0.15, 'volume_mult': 1.5}
+  Exit: {'breakdown_ma_dist_200': -0.03, 'trailing_activation_pct': 0.2, 'trailing_atr_mult': 3.5, 'max_hold_days': 252}
+[weinstein_stage2] BEST BY PF: PF=4.245, WR=71.6%, AvgRet=7.283%, Trades=81
+Saved to /home/ubuntu/stratos_brain/data/optimization_results/weinstein_stage2_optimized.json
+Progress: 2/5 setups | Elapsed: 10.8min | ETA: 16.3min
+
+==================================================
+Optimizing: adx_holy_grail
+==================================================
+Total combinations: 216
+[adx_holy_grail] Completed in 1047.2s
+[adx_holy_grail] BEST BY SCORE: PF=1.713, WR=49.8%, AvgRet=2.785%, Trades=6155
+  Entry: {'adx_threshold': 25, 'ma_touch_dist': 0.03}
+  Exit: {'breakdown_ma_dist_50': -0.05, 'trailing_activation_pct': 0.1, 'trailing_atr_mult': 3.0, 'max_hold_days': 90}
+[adx_holy_grail] BEST BY PF: PF=1.736, WR=54.1%, AvgRet=2.848%, Trades=2351
+Saved to /home/ubuntu/stratos_brain/data/optimization_results/adx_holy_grail_optimized.json
+Progress: 3/5 setups | Elapsed: 28.3min | ETA: 18.9min
+
+==================================================
+Optimizing: wyckoff_spring
+==================================================
+Total combinations: 486
+[wyckoff_spring] No valid results found!
+Progress: 4/5 setups | Elapsed: 28.5min | ETA: 7.1min
+
+==================================================
+Optimizing: tsm_acceleration
+==================================================
+Total combinations: 192
+[tsm_acceleration] No valid results found!
+Progress: 5/5 setups | Elapsed: 28.6min | ETA: 0.0min
+
+============================================================
+OPTIMIZATION COMPLETE
+============================================================
+Total time: 1717.5s (28.6 min)
+
+BEST PARAMETERS BY SETUP (ranked by Profit Factor):
+------------------------------------------------------------
+1. weinstein_stage2
+   PF=4.086, WR=61.0%, AvgRet=8.453%, Trades=77
+   Entry: {'base_days': 100, 'base_range_pct': 0.15, 'volume_mult': 1.5}
+   Exit: {'breakdown_ma_dist_200': -0.03, 'trailing_activation_pct': 0.2, 'trailing_atr_mult': 3.5, 'max_hold_days': 252}
+2. donchian_55_breakout
+   PF=1.99, WR=50.8%, AvgRet=5.321%, Trades=122
+   Entry: {'lookback_days': 55, 'ma_slope_threshold': 0}
+   Exit: {'trailing_low_days': 20, 'max_hold_days': 120}
+3. adx_holy_grail
+   PF=1.713, WR=49.8%, AvgRet=2.785%, Trades=6155
+   Entry: {'adx_threshold': 25, 'ma_touch_dist': 0.03}
+   Exit: {'breakdown_ma_dist_50': -0.05, 'trailing_activation_pct': 0.1, 'trailing_atr_mult': 3.0, 'max_hold_days': 90}
+
+Results saved to /home/ubuntu/stratos_brain/data/optimization_results/position_trading_setups_optimized.json
+====
+[2026-01-25 23:19:50] Optimizing: tsm_acceleration
+[2026-01-25 23:19:50] ==================================================
+[2026-01-25 23:19:50] Total combinations: 192
+[2026-01-25 23:20:00] [tsm_acceleration] No valid results found!
+[2026-01-25 23:20:00] Progress: 5/5 setups | Elapsed: 28.6min | ETA: 0.0min
+[2026-01-25 23:20:00] 
+============================================================
+[2026-01-25 23:20:00] OPTIMIZATION COMPLETE
+[2026-01-25 23:20:00] ============================================================
+[2026-01-25 23:20:00] Total time: 1717.5s (28.6 min)
+[2026-01-25 23:20:00] 
+BEST PARAMETERS BY SETUP (ranked by Profit Factor):
+[2026-01-25 23:20:00] ------------------------------------------------------------
+[2026-01-25 23:20:00] 1. weinstein_stage2
+[2026-01-25 23:20:00]    PF=4.086, WR=61.0%, AvgRet=8.453%, Trades=77
+[2026-01-25 23:20:00]    Entry: {'base_days': 100, 'base_range_pct': 0.15, 'volume_mult': 1.5}
+[2026-01-25 23:20:00]    Exit: {'breakdown_ma_dist_200': -0.03, 'trailing_activation_pct': 0.2, 'trailing_atr_mult': 3.5, 'max_hold_days': 252}
+[2026-01-25 23:20:00] 2. donchian_55_breakout
+[2026-01-25 23:20:00]    PF=1.99, WR=50.8%, AvgRet=5.321%, Trades=122
+[2026-01-25 23:20:00]    Entry: {'lookback_days': 55, 'ma_slope_threshold': 0}
+[2026-01-25 23:20:00]    Exit: {'trailing_low_days': 20, 'max_hold_days': 120}
+[2026-01-25 23:20:00] 3. adx_holy_grail
+[2026-01-25 23:20:00]    PF=1.713, WR=49.8%, AvgRet=2.785%, Trades=6155
+[2026-01-25 23:20:00]    Entry: {'adx_threshold': 25, 'ma_touch_dist': 0.03}
+[2026-01-25 23:20:00]    Exit: {'breakdown_ma_dist_50': -0.05, 'trailing_activation_pct': 0.1, 'trailing_atr_mult': 3.0, 'max_hold_days': 90}
+[2026-01-25 23:20:00] 
+Results saved to /home/ubuntu/stratos_brain/data/optimization_results/position_trading_setups_optimized.json

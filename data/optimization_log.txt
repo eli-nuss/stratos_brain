@@ -1,0 +1,165 @@
+============================================================
+LOCAL MULTIPROCESSING PARAMETER OPTIMIZER
+============================================================
+CPUs available: 6
+Using 4 worker processes
+Loading data from database...
+Got 1000 assets in universe
+Got 497490 feature rows
+Data loaded: 497490 rows, 1000 assets
+  oversold_bounce: 243 combinations
+  vcp_squeeze: 144 combinations
+  gap_up_momentum: 54 combinations
+  acceleration_turn: 162 combinations
+  trend_pullback_50ma: 648 combinations
+  golden_cross: 256 combinations
+  rs_breakout: 144 combinations
+  breakout_confirmed: 192 combinations
+  TOTAL: 1843 combinations
+============================================================
+
+==================================================
+Optimizing: oversold_bounce
+==================================================
+Total combinations: 243
+[oversold_bounce] Completed in 311.9s
+[oversold_bounce] BEST: PF=1.521, WR=65.6%, Trades=2720
+  Entry: {'rsi_threshold': 35, 'ma_dist_20_threshold': -0.06}
+  Exit: {'target_ma_dist': 0.01, 'stop_atr_mult': 2.5, 'time_stop_days': 20}
+Saved to /home/ubuntu/stratos_brain/data/optimization_results/oversold_bounce_optimized.json
+
+Progress: 1/8 setups | Elapsed: 5.2min | ETA: 36.4min
+
+==================================================
+Optimizing: vcp_squeeze
+==================================================
+Total combinations: 144
+[vcp_squeeze] Completed in 673.8s
+[vcp_squeeze] BEST: PF=1.691, WR=55.3%, Trades=11500
+  Entry: {'bb_width_pctile_threshold': 25, 'rsi_min': 35, 'rsi_max': 75}
+  Exit: {'target_pct': 0.12, 'stop_atr_mult': 2.0, 'time_stop_days': 15}
+Saved to /home/ubuntu/stratos_brain/data/optimization_results/vcp_squeeze_optimized.json
+
+Progress: 2/8 setups | Elapsed: 16.4min | ETA: 49.3min
+
+==================================================
+Optimizing: gap_up_momentum
+==================================================
+Total combinations: 54
+[gap_up_momentum] Completed in 122.3s
+[gap_up_momentum] BEST: PF=1.583, WR=51.6%, Trades=7745
+  Entry: {'gap_pct_threshold': 0.02, 'rvol_threshold': 1.5}
+  Exit: {'breakdown_ma_dist': -0.03, 'time_stop_days': 15}
+Saved to /home/ubuntu/stratos_brain/data/optimization_results/gap_up_momentum_optimized.json
+
+Progress: 3/8 setups | Elapsed: 18.5min | ETA: 30.8min
+
+==================================================
+Optimizing: acceleration_turn
+==================================================
+Total combinations: 162
+[acceleration_turn] Completed in 1022.4s
+[acceleration_turn] BEST: PF=1.482, WR=62.9%, Trades=26290
+  Entry: {'rsi_min': 25, 'rsi_max': 65}
+  Exit: {'target_pct': 0.06, 'stop_atr_mult': 2.5, 'time_stop_days': 10}
+Saved to /home/ubuntu/stratos_brain/data/optimization_results/acceleration_turn_optimized.json
+
+Progress: 4/8 setups | Elapsed: 35.5min | ETA: 35.5min
+
+==================================================
+Optimizing: trend_pullback_50ma
+==================================================
+Total combinations: 648
+[trend_pullback_50ma] Completed in 4054.5s
+[trend_pullback_50ma] BEST: PF=1.97, WR=50.9%, Trades=4446
+  Entry: {'ma_dist_50_min': -0.04, 'ma_dist_50_max': 0.03, 'rsi_threshold': 55}
+  Exit: {'breakdown_ma_dist_200': -0.02, 'trailing_activation_pct': 0.12, 'trailing_atr_mult': 3.5, 'max_hold_days': 120}
+Saved to /home/ubuntu/stratos_brain/data/optimization_results/trend_pullback_50ma_optimized.json
+
+Progress: 5/8 setups | Elapsed: 103.1min | ETA: 61.8min
+
+==================================================
+Optimizing: golden_cross
+==================================================
+Total combinations: 256
+[golden_cross] Completed in 1473.7s
+[golden_cross] BEST: PF=1.528, WR=35.9%, Trades=5940
+  Entry: {'ma_dist_50_min': -0.02, 'ma_dist_50_max': 0.07, 'rsi_min': 45, 'rsi_max': 70}
+  Exit: {'breakdown_ma_dist_50': -0.03, 'trailing_activation_pct': 0.15, 'trailing_atr_mult': 3.5, 'max_hold_days': 120}
+Saved to /home/ubuntu/stratos_brain/data/optimization_results/golden_cross_optimized.json
+
+Progress: 6/8 setups | Elapsed: 127.6min | ETA: 42.5min
+
+==================================================
+Optimizing: rs_breakout
+==================================================
+Total combinations: 144
+[rs_breakout] Completed in 154.3s
+[rs_breakout] BEST: PF=2.026, WR=49.3%, Trades=850
+  Entry: {'rsi_min': 50, 'rsi_max': 75}
+  Exit: {'breakdown_ma_dist_50': -0.04, 'trailing_activation_pct': 0.15, 'trailing_atr_mult': 3.0, 'max_hold_days': 90}
+Saved to /home/ubuntu/stratos_brain/data/optimization_results/rs_breakout_optimized.json
+
+Progress: 7/8 setups | Elapsed: 130.2min | ETA: 18.6min
+
+==================================================
+Optimizing: breakout_confirmed
+==================================================
+Total combinations: 192
+[breakout_confirmed] Completed in 275.1s
+[breakout_confirmed] BEST: PF=1.447, WR=48.9%, Trades=2235
+  Entry: {'rvol_threshold': 1.2, 'rsi_min': 50, 'rsi_max': 75}
+  Exit: {'breakdown_ma_dist_20': -0.04, 'trailing_activation_pct': 0.12, 'trailing_atr_mult': 2.5, 'max_hold_days': 90}
+Saved to /home/ubuntu/stratos_brain/data/optimization_results/breakout_confirmed_optimized.json
+
+Progress: 8/8 setups | Elapsed: 134.8min | ETA: 0.0min
+
+============================================================
+OPTIMIZATION COMPLETE
+============================================================
+Total time: 8088.0s (134.8 min)
+
+BEST PARAMETERS BY SETUP (ranked by score):
+------------------------------------------------------------
+
+1. acceleration_turn
+   PF=1.482, WR=62.9%, AvgRet=0.969%, Trades=26290, Score=242.64
+   Entry: {'rsi_min': 25, 'rsi_max': 65}
+   Exit: {'target_pct': 0.06, 'stop_atr_mult': 2.5, 'time_stop_days': 10}
+
+2. vcp_squeeze
+   PF=1.691, WR=55.3%, AvgRet=1.685%, Trades=11500, Score=184.341
+   Entry: {'bb_width_pctile_threshold': 25, 'rsi_min': 35, 'rsi_max': 75}
+   Exit: {'target_pct': 0.12, 'stop_atr_mult': 2.0, 'time_stop_days': 15}
+
+3. gap_up_momentum
+   PF=1.583, WR=51.6%, AvgRet=1.866%, Trades=7745, Score=141.89
+   Entry: {'gap_pct_threshold': 0.02, 'rvol_threshold': 1.5}
+   Exit: {'breakdown_ma_dist': -0.03, 'time_stop_days': 15}
+
+4. trend_pullback_50ma
+   PF=1.97, WR=50.9%, AvgRet=4.443%, Trades=4446, Score=137.18
+   Entry: {'ma_dist_50_min': -0.04, 'ma_dist_50_max': 0.03, 'rsi_threshold': 55}
+   Exit: {'breakdown_ma_dist_200': -0.02, 'trailing_activation_pct': 0.12, 'trailing_atr_mult': 3.5, 'max_hold_days': 120}
+
+5. golden_cross
+   PF=1.528, WR=35.9%, AvgRet=2.022%, Trades=5940, Score=120.161
+   Entry: {'ma_dist_50_min': -0.02, 'ma_dist_50_max': 0.07, 'rsi_min': 45, 'rsi_max': 70}
+   Exit: {'breakdown_ma_dist_50': -0.03, 'trailing_activation_pct': 0.15, 'trailing_atr_mult': 3.5, 'max_hold_days': 120}
+
+6. oversold_bounce
+   PF=1.521, WR=65.6%, AvgRet=1.825%, Trades=2720, Score=80.79
+   Entry: {'rsi_threshold': 35, 'ma_dist_20_threshold': -0.06}
+   Exit: {'target_ma_dist': 0.01, 'stop_atr_mult': 2.5, 'time_stop_days': 20}
+
+7. breakout_confirmed
+   PF=1.447, WR=48.9%, AvgRet=2.221%, Trades=2235, Score=69.943
+   Entry: {'rvol_threshold': 1.2, 'rsi_min': 50, 'rsi_max': 75}
+   Exit: {'breakdown_ma_dist_20': -0.04, 'trailing_activation_pct': 0.12, 'trailing_atr_mult': 2.5, 'max_hold_days': 90}
+
+8. rs_breakout
+   PF=2.026, WR=49.3%, AvgRet=3.808%, Trades=850, Score=61.309
+   Entry: {'rsi_min': 50, 'rsi_max': 75}
+   Exit: {'breakdown_ma_dist_50': -0.04, 'trailing_activation_pct': 0.15, 'trailing_atr_mult': 3.0, 'max_hold_days': 90}
+
+Results saved to /home/ubuntu/stratos_brain/data/optimization_results/all_setups_optimized.json
