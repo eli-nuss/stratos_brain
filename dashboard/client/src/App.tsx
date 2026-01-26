@@ -31,6 +31,7 @@ const StratosBrain = lazy(() => import("./pages/StratosBrain"));
 const InvestorWatchlist = lazy(() => import("./pages/InvestorWatchlist"));
 const ResearchNotes = lazy(() => import("./pages/ResearchNotes"));
 const DailyBrief = lazy(() => import("./pages/DailyBrief"));
+const SetupGuide = lazy(() => import("./pages/SetupGuide"));
 
 // Wrapper component for lazy-loaded pages with error boundary
 function LazyPage({ component: Component }: { component: React.ComponentType }) {
@@ -107,6 +108,9 @@ function Router() {
       </Route>
       <Route path={"/daily-brief"}>
         <LazyPage component={DailyBrief} />
+      </Route>
+      <Route path={"/setup-guide"}>
+        <LazyPage component={SetupGuide} />
       </Route>
       
       {/* 404 routes */}

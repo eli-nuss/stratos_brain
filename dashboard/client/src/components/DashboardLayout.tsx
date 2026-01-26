@@ -14,7 +14,8 @@ import {
   Home,
   ChevronDown,
   Settings,
-  Sparkles
+  Sparkles,
+  Target
 } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
 import { MobileNav } from "@/components/MobileNav";
@@ -54,6 +55,7 @@ const navGroups = [
     items: [
       { href: '/notes', label: 'Notes', icon: StickyNote },
       { href: '/memos', label: 'Memos', icon: FileText },
+      { href: '/setup-guide', label: 'Setup Guide', icon: Target },
       { href: '/docs', label: 'Docs', icon: BookOpen },
     ]
   },
