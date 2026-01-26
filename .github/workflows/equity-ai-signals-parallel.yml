@@ -1,4 +1,22 @@
-name: Equity AI Signals (Parallel E2B )
+# Equity AI Signals - Parallel E2B Processing
+# ============================================
+# Processes ALL equities using parallel E2B sandboxes.
+# Each sandbox handles a batch of assets, running concurrently.
+#
+# With 100 sandboxes and 4,500 equities:
+# - ~45 assets per sandbox
+# - ~11 minutes per sandbox (45 × 15 sec)
+# - Total wall-clock time: ~15 minutes
+#
+# TRIGGERS:
+# - Manual dispatch only (due to cost/resource usage)
+#
+# REQUIREMENTS:
+# - E2B_API_KEY secret
+# - DATABASE_URL secret
+# - GEMINI_API_KEY secret
+
+name: Equity AI Signals (Parallel E2B)
 
 on:
   workflow_dispatch:
@@ -23,11 +41,14 @@ on:
         default: 'gemini-3-flash-preview'
         type: string
 
+env:
+  PYTHON_VERSION: '3.11'
+
 jobs:
   parallel-ai-analysis:
     name: Parallel E2B AI Analysis
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 60  # Orchestrator should complete within this time
     
     steps:
       - name: Checkout repository
@@ -36,10 +57,12 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
       
-      - name: Install dependencies
+      - name: Install orchestrator dependencies
         run: |
+          python -m pip install --upgrade pip
           pip install e2b-code-interpreter psycopg2-binary
       
       - name: Determine target date
@@ -48,6 +71,7 @@ jobs:
           if [ -n "${{ github.event.inputs.target_date }}" ]; then
             echo "date=${{ github.event.inputs.target_date }}" >> $GITHUB_OUTPUT
           else
+            # Default to today (UTC)
             echo "date=$(date -u +%Y-%m-%d)" >> $GITHUB_OUTPUT
           fi
       
@@ -57,9 +81,29 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
+          echo "🚀 Starting parallel E2B orchestration"
+          echo "📅 Date: ${{ steps.date.outputs.date }}"
+          echo "🔢 Sandboxes: ${{ github.event.inputs.sandboxes || '50' }}"
+          echo "⚡ Max Concurrent: ${{ github.event.inputs.max_concurrent || '50' }}"
+          echo ""
+          
           python scripts/e2b_parallel_orchestrator.py \
             --date ${{ steps.date.outputs.date }} \
             --asset-type equity \
             --model ${{ github.event.inputs.model || 'gemini-3-flash-preview' }} \
             --sandboxes ${{ github.event.inputs.sandboxes || '50' }} \
             --max-concurrent ${{ github.event.inputs.max_concurrent || '50' }}
+      
+      - name: Report completion
+        if: success()
+        run: |
+          echo "✅ Parallel E2B processing completed successfully"
+          echo ""
+          echo "All equity assets have been processed across multiple sandboxes."
+          echo "Results are stored in the asset_ai_reviews table."
+      
+      - name: Report failure
+        if: failure()
+        run: |
+          echo "❌ Parallel E2B processing failed"
+          echo "Check the logs above for details on which sandboxes failed."
