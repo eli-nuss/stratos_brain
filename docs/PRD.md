@@ -397,6 +397,7 @@ The Daily Brief is an AI-generated market summary that highlights the most promi
 | `backtest_summary_metrics` | Aggregate performance metrics | `run_id`, `total_trades`, `win_rate`, `profit_factor`, `sharpe_ratio`, `reliability_score` |
 | `setup_optimal_params` | Best parameters per setup | `setup_name`, `asset_universe`, `optimal_params`, `win_rate`, `reliability_score` |
 | `setup_performance_rankings` | Cross-setup comparison | `ranking_date`, `asset_universe`, `rankings`, `best_setup`, `best_reliability_score` |
+| `setup_signals` | Daily setup signal detection | `asset_id`, `setup_name`, `signal_date`, `entry_price`, `stop_loss`, `target_price`, `risk_reward`, `setup_strength`, `entry_params`, `exit_params`, `context` |
 
 **Key Views:**
 | View | Purpose |
@@ -485,20 +486,40 @@ The Daily Brief is an AI-generated market summary that highlights the most promi
                                                                                             ### 7.1 GitHub Actions Pipelines
 
                                                                                             #### Crypto Pipeline
-                                                                                            ```yaml
-                                                                                            Schedule: Daily after market close
-                                                                                            1. crypto-daily-ohlcv.yml      # Fetch OHLCV from CoinGecko
-                                                                                            2. crypto-daily-features.yml   # Calculate technical indicators
-                                                                                            3. crypto-daily-ai-signals.yml # Run AI analysis
-                                                                                            ```
+```yaml
+Schedule: Daily after market close
+1. crypto-daily-ohlcv.yml      # Fetch OHLCV from CoinGecko
+2. crypto-daily-features.yml   # Calculate technical indicators
+3. daily-setup-scanner.yml     # Scan for setup signals
+4. crypto-daily-ai-signals.yml # Run AI analysis
+```
 
-                                                                                            #### Equity Pipeline
-                                                                                            ```yaml
-                                                                                            Schedule: Daily after market close
-                                                                                            1. equity-daily-ohlcv.yml      # Fetch OHLCV from Alpha Vantage
-                                                                                            2. equity-daily-features.yml   # Calculate technical indicators
-                                                                                            3. equity-daily-ai-signals.yml # Run AI analysis
-                                                                                            ```
+#### Equity Pipeline
+```yaml
+Schedule: Daily after market close
+1. equity-daily-ohlcv.yml      # Fetch OHLCV from Alpha Vantage
+2. equity-daily-features.yml   # Calculate technical indicators
+3. daily-setup-scanner.yml     # Scan for setup signals
+4. equity-daily-ai-signals.yml # Run AI analysis
+```
+
+#### Setup Scanner
+The `daily_setup_scanner.py` script runs after features are calculated and detects assets meeting optimized setup criteria:
+
+**Position Trading Setups (60-252 day holds):**
+- `weinstein_stage2` - Breakout from long base (PF: 4.09, Avg Return: 8.45%)
+- `donchian_55_breakout` - Turtle Traders 55-day breakout (PF: 1.99)
+- `rs_breakout` - Relative strength breakout (PF: 2.03)
+- `trend_pullback_50ma` - Pullback to 50MA in uptrend (PF: 1.97)
+- `adx_holy_grail` - ADX pullback to EMA (PF: 1.71)
+- `golden_cross` - 50MA crosses above 200MA (PF: 1.53)
+- `breakout_confirmed` - Volume-confirmed breakout (PF: 1.45)
+
+**Swing Trading Setups (10-20 day holds):**
+- `vcp_squeeze` - Volatility contraction pattern (PF: 1.69)
+- `gap_up_momentum` - Gap up with volume (PF: 1.58)
+- `oversold_bounce` - RSI oversold bounce (PF: 1.52)
+- `acceleration_turn` - Momentum acceleration (PF: 1.48)
 
                                                                                             #### Fundamentals Pipeline
                                                                                             ```yaml
