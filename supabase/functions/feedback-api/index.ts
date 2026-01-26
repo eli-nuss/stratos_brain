@@ -1,5 +1,6 @@
 // Supabase Edge Function: Feedback API
 // Handles bug reports, feature requests, and improvements tracking
+// v1.1 - Added x-stratos-key to CORS headers
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0"
