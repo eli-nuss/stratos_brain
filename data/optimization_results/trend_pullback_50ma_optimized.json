@@ -1,0 +1,205 @@
+{
+  "setup": "trend_pullback_50ma",
+  "total_combinations": 648,
+  "elapsed_seconds": 4054.5,
+  "best_result": {
+    "entry_params": {
+      "ma_dist_50_min": -0.04,
+      "ma_dist_50_max": 0.03,
+      "rsi_threshold": 55
+    },
+    "exit_params": {
+      "breakdown_ma_dist_200": -0.02,
+      "trailing_activation_pct": 0.12,
+      "trailing_atr_mult": 3.5,
+      "max_hold_days": 120
+    },
+    "trades": 4446,
+    "win_rate": 50.9,
+    "profit_factor": 1.97,
+    "avg_return": 4.443,
+    "score": 137.18
+  },
+  "top_10": [
+    {
+      "entry_params": {
+        "ma_dist_50_min": -0.04,
+        "ma_dist_50_max": 0.03,
+        "rsi_threshold": 55
+      },
+      "exit_params": {
+        "breakdown_ma_dist_200": -0.02,
+        "trailing_activation_pct": 0.12,
+        "trailing_atr_mult": 3.5,
+        "max_hold_days": 120
+      },
+      "trades": 4446,
+      "win_rate": 50.9,
+      "profit_factor": 1.97,
+      "avg_return": 4.443,
+      "score": 137.18
+    },
+    {
+      "entry_params": {
+        "ma_dist_50_min": -0.04,
+        "ma_dist_50_max": 0.03,
+        "rsi_threshold": 50
+      },
+      "exit_params": {
+        "breakdown_ma_dist_200": -0.02,
+        "trailing_activation_pct": 0.12,
+        "trailing_atr_mult": 3.5,
+        "max_hold_days": 120
+      },
+      "trades": 4225,
+      "win_rate": 51.7,
+      "profit_factor": 2.013,
+      "avg_return": 4.608,
+      "score": 136.852
+    },
+    {
+      "entry_params": {
+        "ma_dist_50_min": -0.03,
+        "ma_dist_50_max": 0.03,
+        "rsi_threshold": 55
+      },
+      "exit_params": {
+        "breakdown_ma_dist_200": -0.02,
+        "trailing_activation_pct": 0.12,
+        "trailing_atr_mult": 3.5,
+        "max_hold_days": 120
+      },
+      "trades": 4378,
+      "win_rate": 50.9,
+      "profit_factor": 1.974,
+      "avg_return": 4.479,
+      "score": 136.446
+    },
+    {
+      "entry_params": {
+        "ma_dist_50_min": -0.03,
+        "ma_dist_50_max": 0.03,
+        "rsi_threshold": 50
+      },
+      "exit_params": {
+        "breakdown_ma_dist_200": -0.02,
+        "trailing_activation_pct": 0.12,
+        "trailing_atr_mult": 3.5,
+        "max_hold_days": 120
+      },
+      "trades": 4155,
+      "win_rate": 51.9,
+      "profit_factor": 2.022,
+      "avg_return": 4.647,
+      "score": 136.389
+    },
+    {
+      "entry_params": {
+        "ma_dist_50_min": -0.02,
+        "ma_dist_50_max": 0.03,
+        "rsi_threshold": 55
+      },
+      "exit_params": {
+        "breakdown_ma_dist_200": -0.02,
+        "trailing_activation_pct": 0.12,
+        "trailing_atr_mult": 3.5,
+        "max_hold_days": 90
+      },
+      "trades": 4478,
+      "win_rate": 52.2,
+      "profit_factor": 1.953,
+      "avg_return": 4.234,
+      "score": 136.221
+    },
+    {
+      "entry_params": {
+        "ma_dist_50_min": -0.04,
+        "ma_dist_50_max": 0.03,
+        "rsi_threshold": 55
+      },
+      "exit_params": {
+        "breakdown_ma_dist_200": -0.02,
+        "trailing_activation_pct": 0.12,
+        "trailing_atr_mult": 3.5,
+        "max_hold_days": 90
+      },
+      "trades": 4660,
+      "win_rate": 51.4,
+      "profit_factor": 1.917,
+      "avg_return": 4.091,
+      "score": 136.203
+    },
+    {
+      "entry_params": {
+        "ma_dist_50_min": -0.03,
+        "ma_dist_50_max": 0.03,
+        "rsi_threshold": 50
+      },
+      "exit_params": {
+        "breakdown_ma_dist_200": -0.02,
+        "trailing_activation_pct": 0.15,
+        "trailing_atr_mult": 3.5,
+        "max_hold_days": 120
+      },
+      "trades": 3998,
+      "win_rate": 50.6,
+      "profit_factor": 2.051,
+      "avg_return": 4.998,
+      "score": 136.161
+    },
+    {
+      "entry_params": {
+        "ma_dist_50_min": -0.02,
+        "ma_dist_50_max": 0.03,
+        "rsi_threshold": 55
+      },
+      "exit_params": {
+        "breakdown_ma_dist_200": -0.02,
+        "trailing_activation_pct": 0.12,
+        "trailing_atr_mult": 3.5,
+        "max_hold_days": 120
+      },
+      "trades": 4264,
+      "win_rate": 51.5,
+      "profit_factor": 1.993,
+      "avg_return": 4.541,
+      "score": 136.063
+    },
+    {
+      "entry_params": {
+        "ma_dist_50_min": -0.03,
+        "ma_dist_50_max": 0.03,
+        "rsi_threshold": 55
+      },
+      "exit_params": {
+        "breakdown_ma_dist_200": -0.02,
+        "trailing_activation_pct": 0.12,
+        "trailing_atr_mult": 3.5,
+        "max_hold_days": 90
+      },
+      "trades": 4589,
+      "win_rate": 51.5,
+      "profit_factor": 1.927,
+      "avg_return": 4.152,
+      "score": 135.984
+    },
+    {
+      "entry_params": {
+        "ma_dist_50_min": -0.03,
+        "ma_dist_50_max": 0.03,
+        "rsi_threshold": 55
+      },
+      "exit_params": {
+        "breakdown_ma_dist_200": -0.02,
+        "trailing_activation_pct": 0.15,
+        "trailing_atr_mult": 3.5,
+        "max_hold_days": 120
+      },
+      "trades": 4209,
+      "win_rate": 49.8,
+      "profit_factor": 1.999,
+      "avg_return": 4.798,
+      "score": 135.943
+    }
+  ]
+}

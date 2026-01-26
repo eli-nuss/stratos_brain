@@ -1,0 +1,194 @@
+{
+  "setup": "vcp_squeeze",
+  "total_combinations": 144,
+  "elapsed_seconds": 673.8,
+  "best_result": {
+    "entry_params": {
+      "bb_width_pctile_threshold": 25,
+      "rsi_min": 35,
+      "rsi_max": 75
+    },
+    "exit_params": {
+      "target_pct": 0.12,
+      "stop_atr_mult": 2.0,
+      "time_stop_days": 15
+    },
+    "trades": 11500,
+    "win_rate": 55.3,
+    "profit_factor": 1.691,
+    "avg_return": 1.685,
+    "score": 184.341
+  },
+  "top_10": [
+    {
+      "entry_params": {
+        "bb_width_pctile_threshold": 25,
+        "rsi_min": 35,
+        "rsi_max": 75
+      },
+      "exit_params": {
+        "target_pct": 0.12,
+        "stop_atr_mult": 2.0,
+        "time_stop_days": 15
+      },
+      "trades": 11500,
+      "win_rate": 55.3,
+      "profit_factor": 1.691,
+      "avg_return": 1.685,
+      "score": 184.341
+    },
+    {
+      "entry_params": {
+        "bb_width_pctile_threshold": 25,
+        "rsi_min": 35,
+        "rsi_max": 70
+      },
+      "exit_params": {
+        "target_pct": 0.12,
+        "stop_atr_mult": 2.0,
+        "time_stop_days": 15
+      },
+      "trades": 11272,
+      "win_rate": 55.4,
+      "profit_factor": 1.702,
+      "avg_return": 1.699,
+      "score": 183.718
+    },
+    {
+      "entry_params": {
+        "bb_width_pctile_threshold": 25,
+        "rsi_min": 40,
+        "rsi_max": 75
+      },
+      "exit_params": {
+        "target_pct": 0.12,
+        "stop_atr_mult": 2.0,
+        "time_stop_days": 15
+      },
+      "trades": 11297,
+      "win_rate": 55.2,
+      "profit_factor": 1.684,
+      "avg_return": 1.666,
+      "score": 181.978
+    },
+    {
+      "entry_params": {
+        "bb_width_pctile_threshold": 25,
+        "rsi_min": 35,
+        "rsi_max": 75
+      },
+      "exit_params": {
+        "target_pct": 0.1,
+        "stop_atr_mult": 2.0,
+        "time_stop_days": 15
+      },
+      "trades": 11788,
+      "win_rate": 56.6,
+      "profit_factor": 1.646,
+      "avg_return": 1.534,
+      "score": 181.493
+    },
+    {
+      "entry_params": {
+        "bb_width_pctile_threshold": 25,
+        "rsi_min": 40,
+        "rsi_max": 70
+      },
+      "exit_params": {
+        "target_pct": 0.12,
+        "stop_atr_mult": 2.0,
+        "time_stop_days": 15
+      },
+      "trades": 11069,
+      "win_rate": 55.2,
+      "profit_factor": 1.693,
+      "avg_return": 1.675,
+      "score": 181.072
+    },
+    {
+      "entry_params": {
+        "bb_width_pctile_threshold": 25,
+        "rsi_min": 35,
+        "rsi_max": 75
+      },
+      "exit_params": {
+        "target_pct": 0.12,
+        "stop_atr_mult": 1.5,
+        "time_stop_days": 15
+      },
+      "trades": 12366,
+      "win_rate": 50.5,
+      "profit_factor": 1.604,
+      "avg_return": 1.449,
+      "score": 180.934
+    },
+    {
+      "entry_params": {
+        "bb_width_pctile_threshold": 25,
+        "rsi_min": 35,
+        "rsi_max": 75
+      },
+      "exit_params": {
+        "target_pct": 0.12,
+        "stop_atr_mult": 2.0,
+        "time_stop_days": 20
+      },
+      "trades": 10489,
+      "win_rate": 55.4,
+      "profit_factor": 1.733,
+      "avg_return": 1.935,
+      "score": 180.924
+    },
+    {
+      "entry_params": {
+        "bb_width_pctile_threshold": 25,
+        "rsi_min": 35,
+        "rsi_max": 70
+      },
+      "exit_params": {
+        "target_pct": 0.12,
+        "stop_atr_mult": 2.0,
+        "time_stop_days": 20
+      },
+      "trades": 10281,
+      "win_rate": 55.4,
+      "profit_factor": 1.744,
+      "avg_return": 1.953,
+      "score": 180.294
+    },
+    {
+      "entry_params": {
+        "bb_width_pctile_threshold": 25,
+        "rsi_min": 35,
+        "rsi_max": 70
+      },
+      "exit_params": {
+        "target_pct": 0.12,
+        "stop_atr_mult": 1.5,
+        "time_stop_days": 15
+      },
+      "trades": 12117,
+      "win_rate": 50.5,
+      "profit_factor": 1.609,
+      "avg_return": 1.456,
+      "score": 179.721
+    },
+    {
+      "entry_params": {
+        "bb_width_pctile_threshold": 25,
+        "rsi_min": 35,
+        "rsi_max": 75
+      },
+      "exit_params": {
+        "target_pct": 0.08,
+        "stop_atr_mult": 2.0,
+        "time_stop_days": 15
+      },
+      "trades": 12375,
+      "win_rate": 58.8,
+      "profit_factor": 1.592,
+      "avg_return": 1.348,
+      "score": 179.522
+    }
+  ]
+}

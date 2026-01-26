@@ -1,0 +1,183 @@
+{
+  "setup": "acceleration_turn",
+  "total_combinations": 162,
+  "elapsed_seconds": 1022.4,
+  "best_result": {
+    "entry_params": {
+      "rsi_min": 25,
+      "rsi_max": 65
+    },
+    "exit_params": {
+      "target_pct": 0.06,
+      "stop_atr_mult": 2.5,
+      "time_stop_days": 10
+    },
+    "trades": 26290,
+    "win_rate": 62.9,
+    "profit_factor": 1.482,
+    "avg_return": 0.969,
+    "score": 242.64
+  },
+  "top_10": [
+    {
+      "entry_params": {
+        "rsi_min": 25,
+        "rsi_max": 65
+      },
+      "exit_params": {
+        "target_pct": 0.06,
+        "stop_atr_mult": 2.5,
+        "time_stop_days": 10
+      },
+      "trades": 26290,
+      "win_rate": 62.9,
+      "profit_factor": 1.482,
+      "avg_return": 0.969,
+      "score": 242.64
+    },
+    {
+      "entry_params": {
+        "rsi_min": 25,
+        "rsi_max": 65
+      },
+      "exit_params": {
+        "target_pct": 0.06,
+        "stop_atr_mult": 2.0,
+        "time_stop_days": 10
+      },
+      "trades": 27322,
+      "win_rate": 61.5,
+      "profit_factor": 1.444,
+      "avg_return": 0.9,
+      "score": 240.846
+    },
+    {
+      "entry_params": {
+        "rsi_min": 25,
+        "rsi_max": 65
+      },
+      "exit_params": {
+        "target_pct": 0.06,
+        "stop_atr_mult": 1.5,
+        "time_stop_days": 10
+      },
+      "trades": 29451,
+      "win_rate": 58.2,
+      "profit_factor": 1.384,
+      "avg_return": 0.779,
+      "score": 239.326
+    },
+    {
+      "entry_params": {
+        "rsi_min": 30,
+        "rsi_max": 65
+      },
+      "exit_params": {
+        "target_pct": 0.06,
+        "stop_atr_mult": 2.5,
+        "time_stop_days": 10
+      },
+      "trades": 25598,
+      "win_rate": 62.8,
+      "profit_factor": 1.474,
+      "avg_return": 0.954,
+      "score": 238.044
+    },
+    {
+      "entry_params": {
+        "rsi_min": 30,
+        "rsi_max": 65
+      },
+      "exit_params": {
+        "target_pct": 0.06,
+        "stop_atr_mult": 2.0,
+        "time_stop_days": 10
+      },
+      "trades": 26588,
+      "win_rate": 61.3,
+      "profit_factor": 1.436,
+      "avg_return": 0.885,
+      "score": 236.22
+    },
+    {
+      "entry_params": {
+        "rsi_min": 25,
+        "rsi_max": 65
+      },
+      "exit_params": {
+        "target_pct": 0.08,
+        "stop_atr_mult": 2.5,
+        "time_stop_days": 10
+      },
+      "trades": 24677,
+      "win_rate": 59.2,
+      "profit_factor": 1.475,
+      "avg_return": 1.045,
+      "score": 234.113
+    },
+    {
+      "entry_params": {
+        "rsi_min": 30,
+        "rsi_max": 65
+      },
+      "exit_params": {
+        "target_pct": 0.06,
+        "stop_atr_mult": 1.5,
+        "time_stop_days": 10
+      },
+      "trades": 28568,
+      "win_rate": 58.0,
+      "profit_factor": 1.374,
+      "avg_return": 0.76,
+      "score": 233.969
+    },
+    {
+      "entry_params": {
+        "rsi_min": 25,
+        "rsi_max": 65
+      },
+      "exit_params": {
+        "target_pct": 0.08,
+        "stop_atr_mult": 2.0,
+        "time_stop_days": 10
+      },
+      "trades": 25595,
+      "win_rate": 57.7,
+      "profit_factor": 1.444,
+      "avg_return": 0.98,
+      "score": 233.299
+    },
+    {
+      "entry_params": {
+        "rsi_min": 25,
+        "rsi_max": 65
+      },
+      "exit_params": {
+        "target_pct": 0.06,
+        "stop_atr_mult": 2.5,
+        "time_stop_days": 15
+      },
+      "trades": 22962,
+      "win_rate": 66.3,
+      "profit_factor": 1.516,
+      "avg_return": 1.152,
+      "score": 232.341
+    },
+    {
+      "entry_params": {
+        "rsi_min": 25,
+        "rsi_max": 65
+      },
+      "exit_params": {
+        "target_pct": 0.08,
+        "stop_atr_mult": 1.5,
+        "time_stop_days": 10
+      },
+      "trades": 27508,
+      "win_rate": 54.5,
+      "profit_factor": 1.389,
+      "avg_return": 0.859,
+      "score": 232.336
+    }
+  ]
+}
