@@ -1,5 +1,5 @@
 # Crypto Daily AI Signals Generation
-# Uses v3.0 prompt with gemini-3-pro-preview model
+# Uses v3.0 Constrained Autonomy with quant setup integration
 # Runs after crypto features calculation to generate AI trading signals
 
 name: Crypto Daily AI Signals
@@ -32,7 +32,7 @@ jobs:
     name: Generate Crypto AI Signals
     runs-on: ubuntu-latest
 
-    timeout-minutes: 120
+    timeout-minutes: 180
     
     steps:
       - name: Checkout repository
@@ -47,6 +47,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
+          pip install google-genai
       
       - name: Determine target date
         id: date
@@ -76,9 +77,9 @@ jobs:
             echo "limit=500" >> $GITHUB_OUTPUT
           fi
       
-      - name: Run crypto AI signals generation (v3.0)
+      - name: Run crypto AI signals generation (v3.0 Constrained Autonomy)
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          python run_all_crypto.py --date ${{ steps.date.outputs.date }} --model ${{ steps.model.outputs.model }} --limit ${{ steps.limit.outputs.limit }}
+          python scripts/run_ai_analysis_v3.py --date ${{ steps.date.outputs.date }} --model ${{ steps.model.outputs.model }} --limit ${{ steps.limit.outputs.limit }} --asset-type crypto
