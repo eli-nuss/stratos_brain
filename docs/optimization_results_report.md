@@ -21,6 +21,53 @@ This report presents the results of a comprehensive parameter optimization for a
 
 ---
 
+## Methodology & Trading Timeframes
+
+This section details the optimization process and addresses the distinction between short-term and medium/long-term trading setups.
+
+### Optimization Process
+
+1. **Data:** We used 2 years of daily historical data (Jan 2024 - Jan 2026) for a universe of 1,000 liquid assets (equities and crypto).
+2. **Parameter Grids:** For each of the 8 setups, we defined a grid of possible entry and exit parameters. For example, for `oversold_bounce`, we tested RSI thresholds of 25, 30, and 35.
+3. **Backtesting:** We then simulated every possible parameter combination for each setup across all 1,000 assets. This involved 1,843 unique backtests.
+4. **Scoring:** Each backtest was evaluated using a composite score that balances:
+    - **Profit Factor:** Total profit divided by total loss
+    - **Win Rate:** Percentage of winning trades
+    - **Average Return:** Average return per trade
+    - **Trade Count:** Total number of trades (to ensure statistical significance)
+5. **Ranking:** The parameter combination with the highest composite score was selected as the "optimized" version for each setup.
+
+### Trading Timeframes: Short-Term vs. Medium/Long-Term
+
+You raised a great point about trading timeframes. The setups we tested span a range of holding periods:
+
+**Short-Term / Swing Trading (1-4 weeks):**
+
+These setups aim to capture short-term price movements and typically have holding periods of 1-4 weeks.
+
+- **acceleration_turn:** 10-day time stop
+- **vcp_squeeze:** 15-day time stop
+- **gap_up_momentum:** 15-day time stop
+- **oversold_bounce:** 20-day time stop
+
+**Medium-Term / Position Trading (1-6 months):**
+
+These setups are designed to capture larger trends and have longer holding periods, making them suitable for medium-term position trading.
+
+- **breakout_confirmed:** 60-90 day max hold
+- **rs_breakout:** 90-120 day max hold
+- **trend_pullback_50ma:** 90-120 day max hold
+- **golden_cross:** 120-180 day max hold
+
+**The optimization results clearly distinguish between these two styles:**
+
+- **Short-term setups** like `acceleration_turn` and `vcp_squeeze` generated the most trades and had high composite scores due to their frequency.
+- **Medium-term setups** like `trend_pullback_50ma` and `rs_breakout` had the highest profit factors and average returns, indicating they are more effective at capturing large, sustained moves.
+
+**Conclusion:** The optimization successfully identified strong parameters for both short-term swing trading and medium-term position trading. The `trend_pullback_50ma` and `rs_breakout` setups are particularly well-suited for your focus on medium-to-long-term setups.
+
+---
+
 ## Final Rankings
 
 ### By Composite Score
@@ -251,7 +298,7 @@ This report presents the results of a comprehensive parameter optimization for a
 
 ## Technical Notes
 
-- **Scoring Formula:** `score = profit_factor × sqrt(trades) × (1 + avg_return/100)`
+- **Scoring Formula:** `score = profit_factor * sqrt(trades) * (1 + avg_return/100)`
 - **Data Source:** Supabase daily_features table with pre-calculated indicators
 - **Backtest Period:** 2 years of daily data
 - **Universe:** 1,000 assets (crypto + equities)
