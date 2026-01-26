@@ -1,20 +1,19 @@
 # Equity Daily AI Signals Generation
+# Uses v3.0 Constrained Autonomy with quant setup integration
 # Runs after equity features calculation to generate AI trading signals
-# Uses v3.1 prompt with gemini-3-pro-preview model
-# Filters: $100M+ market cap, $1M+ daily volume, operating companies only (no ETFs/Funds/REITs)
 
 name: Equity Daily AI Signals
 
 on:
-  # Run on Monday, Wednesday, Friday at 10:00 PM UTC (1h after US market close)
+  # Run Mon-Fri at 22:30 UTC (5:30 PM ET, 1h after features)
   schedule:
-    - cron: '0 22 * * 1,3,5'
+    - cron: '30 22 * * 1-5'
   
   # Allow manual trigger
   workflow_dispatch:
     inputs:
       target_date:
-        description: 'Target date (YYYY-MM-DD). Leave empty to auto-detect from database.'
+        description: 'Target date (YYYY-MM-DD). Leave empty for yesterday.'
         required: false
         type: string
       model:
@@ -22,15 +21,10 @@ on:
         required: false
         default: 'gemini-3-flash-preview'
         type: string
-      min_market_cap:
-        description: 'Minimum market cap in dollars (default: 100000000 = $100M)'
+      limit:
+        description: 'Number of top equities to process'
         required: false
-        default: '100000000'
-        type: string
-      min_daily_volume:
-        description: 'Minimum daily dollar volume (default: 1000000 = $1M)'
-        required: false
-        default: '1000000'
+        default: '500'
         type: string
 
 jobs:
@@ -38,7 +32,7 @@ jobs:
     name: Generate Equity AI Signals
     runs-on: ubuntu-latest
 
-    timeout-minutes: 120  # Longer timeout for ~2900 equities with parallel processing
+    timeout-minutes: 180
     
     steps:
       - name: Checkout repository
@@ -53,16 +47,16 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
+          pip install google-genai
       
       - name: Determine target date
         id: date
         run: |
           if [ -n "${{ github.event.inputs.target_date }}" ]; then
             echo "date=${{ github.event.inputs.target_date }}" >> $GITHUB_OUTPUT
-            echo "use_date=true" >> $GITHUB_OUTPUT
           else
-            # Let Python script auto-detect from database
-            echo "use_date=false" >> $GITHUB_OUTPUT
+            # Default to yesterday (UTC)
+            echo "date=$(date -u -d 'yesterday' +%Y-%m-%d)" >> $GITHUB_OUTPUT
           fi
       
       - name: Determine model
@@ -74,31 +68,18 @@ jobs:
             echo "model=gemini-3-flash-preview" >> $GITHUB_OUTPUT
           fi
       
-      - name: Determine min market cap
-        id: min_market_cap
+      - name: Determine limit
+        id: limit
         run: |
-          if [ -n "${{ github.event.inputs.min_market_cap }}" ]; then
-            echo "min_market_cap=${{ github.event.inputs.min_market_cap }}" >> $GITHUB_OUTPUT
+          if [ -n "${{ github.event.inputs.limit }}" ]; then
+            echo "limit=${{ github.event.inputs.limit }}" >> $GITHUB_OUTPUT
           else
-            echo "min_market_cap=100000000" >> $GITHUB_OUTPUT
+            echo "limit=500" >> $GITHUB_OUTPUT
           fi
       
-      - name: Determine min daily volume
-        id: min_daily_volume
-        run: |
-          if [ -n "${{ github.event.inputs.min_daily_volume }}" ]; then
-            echo "min_daily_volume=${{ github.event.inputs.min_daily_volume }}" >> $GITHUB_OUTPUT
-          else
-            echo "min_daily_volume=1000000" >> $GITHUB_OUTPUT
-          fi
-      
-      - name: Run equity AI signals generation (v3.3)
+      - name: Run equity AI signals generation (v3.0 Constrained Autonomy)
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          if [ "${{ steps.date.outputs.use_date }}" = "true" ]; then
-            python run_all_equities.py --date ${{ steps.date.outputs.date }} --model ${{ steps.model.outputs.model }} --min-market-cap ${{ steps.min_market_cap.outputs.min_market_cap }} --min-daily-volume ${{ steps.min_daily_volume.outputs.min_daily_volume }}
-          else
-            python run_all_equities.py --model ${{ steps.model.outputs.model }} --min-market-cap ${{ steps.min_market_cap.outputs.min_market_cap }} --min-daily-volume ${{ steps.min_daily_volume.outputs.min_daily_volume }}
-          fi
+          python scripts/run_ai_analysis_v3.py --date ${{ steps.date.outputs.date }} --model ${{ steps.model.outputs.model }} --limit ${{ steps.limit.outputs.limit }} --asset-type equity
