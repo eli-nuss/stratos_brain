@@ -34,7 +34,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Database URL
-DATABASE_URL = "postgresql://postgres:stratosbrainpostgresdbpw@db.wfogbaipiqootjrsprde.supabase.co:5432/postgres"
+DATABASE_URL = os.environ.get(
+    "DATABASE_URL",
+    "postgresql://postgres:stratosbrainpostgresdbpw@db.wfogbaipiqootjrsprde.supabase.co:5432/postgres"
+)
 
 # Thread-local storage for connections
 thread_local = threading.local()
@@ -52,12 +55,16 @@ def get_connection():
 # OPTIMIZED SETUP DEFINITIONS
 # =============================================================================
 # These are the optimized parameters from our backtesting
+# historical_profit_factor comes from our optimization results
 
 SETUPS = {
     # Position Trading Setups (60-252 day holds)
     'weinstein_stage2': {
         'description': 'Weinstein Stage 2 Transition - breakout from long base',
         'style': 'position',
+        'historical_profit_factor': 4.09,
+        'historical_win_rate': 0.61,
+        'historical_avg_return': 0.0845,
         'entry': {
             'base_days': 100,
             'base_range_pct': 0.15,
@@ -73,6 +80,9 @@ SETUPS = {
     'donchian_55_breakout': {
         'description': 'Donchian 55-Day Breakout (Turtle Traders)',
         'style': 'position',
+        'historical_profit_factor': 1.99,
+        'historical_win_rate': 0.508,
+        'historical_avg_return': 0.0532,
         'entry': {
             'lookback_days': 55,
             'ma_slope_threshold': 0
@@ -85,6 +95,9 @@ SETUPS = {
     'rs_breakout': {
         'description': 'Relative Strength Breakout',
         'style': 'position',
+        'historical_profit_factor': 2.03,
+        'historical_win_rate': 0.493,
+        'historical_avg_return': 0.0381,
         'entry': {
             'rsi_min': 50,
             'rsi_max': 75
@@ -99,6 +112,9 @@ SETUPS = {
     'trend_pullback_50ma': {
         'description': 'Trend Pullback to 50MA',
         'style': 'position',
+        'historical_profit_factor': 1.97,
+        'historical_win_rate': 0.509,
+        'historical_avg_return': 0.0444,
         'entry': {
             'ma_dist_50_min': -0.04,
             'ma_dist_50_max': 0.03,
@@ -114,6 +130,9 @@ SETUPS = {
     'adx_holy_grail': {
         'description': 'ADX Holy Grail Pullback',
         'style': 'position',
+        'historical_profit_factor': 1.71,
+        'historical_win_rate': 0.498,
+        'historical_avg_return': 0.0279,
         'entry': {
             'adx_threshold': 25,
             'ma_touch_dist': 0.03
@@ -130,6 +149,9 @@ SETUPS = {
     'vcp_squeeze': {
         'description': 'Volatility Contraction Pattern (VCP)',
         'style': 'swing',
+        'historical_profit_factor': 1.69,
+        'historical_win_rate': 0.553,
+        'historical_avg_return': 0.0169,
         'entry': {
             'bb_width_pctile_max': 25,
             'rsi_min': 35,
@@ -144,6 +166,9 @@ SETUPS = {
     'gap_up_momentum': {
         'description': 'Gap Up Momentum',
         'style': 'swing',
+        'historical_profit_factor': 1.58,
+        'historical_win_rate': 0.516,
+        'historical_avg_return': 0.0187,
         'entry': {
             'gap_pct_min': 0.02,
             'rvol_min': 1.5
@@ -156,6 +181,9 @@ SETUPS = {
     'oversold_bounce': {
         'description': 'Oversold Bounce',
         'style': 'swing',
+        'historical_profit_factor': 1.52,
+        'historical_win_rate': 0.656,
+        'historical_avg_return': 0.0183,
         'entry': {
             'rsi_max': 35,
             'ma_dist_20_max': -0.06
@@ -169,6 +197,9 @@ SETUPS = {
     'acceleration_turn': {
         'description': 'Acceleration Turn Up',
         'style': 'swing',
+        'historical_profit_factor': 1.48,
+        'historical_win_rate': 0.629,
+        'historical_avg_return': 0.0097,
         'entry': {
             'rsi_min': 25,
             'rsi_max': 65
@@ -182,6 +213,9 @@ SETUPS = {
     'golden_cross': {
         'description': 'Golden Cross (50MA > 200MA)',
         'style': 'position',
+        'historical_profit_factor': 1.53,
+        'historical_win_rate': 0.359,
+        'historical_avg_return': 0.0202,
         'entry': {
             'ma_dist_50_min': -0.02,
             'ma_dist_50_max': 0.07,
@@ -198,6 +232,9 @@ SETUPS = {
     'breakout_confirmed': {
         'description': 'Confirmed Breakout',
         'style': 'position',
+        'historical_profit_factor': 1.45,
+        'historical_win_rate': 0.489,
+        'historical_avg_return': 0.0222,
         'entry': {
             'rvol_threshold': 1.2,
             'rsi_min': 50,
@@ -220,28 +257,21 @@ def get_latest_feature_date() -> str:
         cur.execute("""
             SELECT MAX(date) FROM daily_features
         """)
-        result = cur.fetchone()[0]
-        return result.strftime('%Y-%m-%d') if result else None
+        result = cur.fetchone()
+        return result[0].strftime('%Y-%m-%d') if result and result[0] else None
 
 
 def get_features_for_date(target_date: str) -> pd.DataFrame:
-    """Load all features for a given date."""
+    """Fetch all features for a given date."""
     conn = get_connection()
     
-    query = """
-        SELECT 
-            df.*,
-            a.symbol,
-            a.asset_type,
-            a.name
-        FROM daily_features df
-        JOIN assets a ON a.asset_id = df.asset_id
-        WHERE df.date = %s
-          AND a.is_active = true
-    """
-    
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
-        cur.execute(query, (target_date,))
+        cur.execute("""
+            SELECT df.*, a.symbol, a.asset_type
+            FROM daily_features df
+            JOIN assets a ON a.asset_id = df.asset_id
+            WHERE df.date = %s
+        """, (target_date,))
         rows = cur.fetchall()
     
     if not rows:
@@ -333,6 +363,11 @@ def calculate_base_range(bars: pd.DataFrame, base_days: int) -> float:
     return (high - low) / low
 
 
+# =============================================================================
+# SETUP CHECKER FUNCTIONS
+# =============================================================================
+# Each function returns a dict with 'context' if the setup is detected, or None
+
 def check_weinstein_stage2(row: pd.Series, bars: pd.DataFrame, params: dict) -> dict:
     """Check if asset meets Weinstein Stage 2 criteria."""
     entry = params['entry']
@@ -362,14 +397,7 @@ def check_weinstein_stage2(row: pd.Series, bars: pd.DataFrame, params: dict) -> 
     if ma_slope_200 < -0.5:  # Allow slightly negative
         return None
     
-    # Calculate setup strength (0-100)
-    strength = 50
-    strength += min(20, (entry['base_days'] / 100) * 20)  # Longer base = stronger
-    strength += min(15, (rvol - entry['volume_mult']) * 10)  # Higher volume = stronger
-    strength += min(15, max(0, ma_slope_200) * 5)  # Rising MA200 = stronger
-    
     return {
-        'setup_strength': min(100, strength),
         'context': {
             'base_days': entry['base_days'],
             'base_range_pct': round(base_range * 100, 2),
@@ -393,29 +421,17 @@ def check_donchian_55_breakout(row: pd.Series, bars: pd.DataFrame, params: dict)
     if current_close < donchian_high_55 * 0.995:  # Allow 0.5% tolerance
         return None
     
-    # Calculate setup strength
-    strength = 60
-    
-    # Higher volume = stronger
+    # Get context values
     rvol = float(row['rvol_20']) if row['rvol_20'] else 1
-    strength += min(20, (rvol - 1) * 10)
-    
-    # RSI in good range (not overbought)
     rsi = float(row['rsi_14']) if row['rsi_14'] else 50
-    if 40 < rsi < 70:
-        strength += 10
-    
-    # MA200 trending up
     ma_slope_200 = float(row['ma_slope_200']) if row['ma_slope_200'] else 0
-    if ma_slope_200 > 0:
-        strength += 10
     
     return {
-        'setup_strength': min(100, strength),
         'context': {
             'donchian_high_55': round(donchian_high_55, 2),
             'rvol': round(rvol, 2),
-            'rsi': round(rsi, 1)
+            'rsi': round(rsi, 1),
+            'ma_slope_200': round(ma_slope_200, 2)
         }
     }
 
@@ -439,20 +455,11 @@ def check_rs_breakout(row: pd.Series, bars: pd.DataFrame, params: dict) -> dict:
     if not above_ma200:
         return None
     
-    # Calculate strength
-    strength = 60
-    
-    # RS velocity
+    # Get context values
     rs_velocity = float(row.get('rs_velocity', 0)) if row.get('rs_velocity') else 0
-    strength += min(20, rs_velocity * 10)
-    
-    # Volume confirmation
     rvol = float(row['rvol_20']) if row['rvol_20'] else 1
-    if rvol > 1.2:
-        strength += 10
     
     return {
-        'setup_strength': min(100, strength),
         'context': {
             'rsi': round(rsi, 1),
             'rs_velocity': round(rs_velocity, 2),
@@ -489,22 +496,10 @@ def check_trend_pullback_50ma(row: pd.Series, bars: pd.DataFrame, params: dict) 
     if not ma50_above_ma200:
         return None
     
-    # Calculate strength
-    strength = 55
-    
-    # Closer to MA50 = stronger
-    strength += min(20, (1 - abs(ma_dist_50_pct) / 0.04) * 20)
-    
-    # Lower RSI = stronger (more oversold)
-    strength += min(15, (entry['rsi_max'] - rsi) / 2)
-    
-    # Rising MA slopes = stronger
+    # Get context values
     ma_slope_50 = float(row['ma_slope_50']) if row['ma_slope_50'] else 0
-    if ma_slope_50 > 0:
-        strength += 10
     
     return {
-        'setup_strength': min(100, strength),
         'context': {
             'ma_dist_50': round(ma_dist_50, 2),
             'rsi': round(rsi, 1),
@@ -536,22 +531,10 @@ def check_adx_holy_grail(row: pd.Series, bars: pd.DataFrame, params: dict) -> di
     if not above_ma200:
         return None
     
-    # Calculate strength
-    strength = 55
-    
-    # Higher ADX = stronger trend
-    strength += min(20, (adx - entry['adx_threshold']) / 2)
-    
-    # Closer to MA = stronger
-    strength += min(15, (1 - ma_dist_20_pct / entry['ma_touch_dist']) * 15)
-    
-    # Volume confirmation
+    # Get context values
     rvol = float(row['rvol_20']) if row['rvol_20'] else 1
-    if rvol > 1.0:
-        strength += 10
     
     return {
-        'setup_strength': min(100, strength),
         'context': {
             'adx': round(adx, 1),
             'ma_dist_20': round(ma_dist_20, 2),
@@ -579,27 +562,13 @@ def check_vcp_squeeze(row: pd.Series, bars: pd.DataFrame, params: dict) -> dict:
     if not squeeze_flag:
         return None
     
-    # Calculate strength
-    strength = 55
-    
-    # Tighter squeeze = stronger
-    strength += min(20, (entry['bb_width_pctile_max'] - bb_width_pctile) / 2)
-    
-    # RSI in middle range = stronger
-    if 45 < rsi < 65:
-        strength += 15
-    
-    # Volume declining (coiling) = stronger
+    # Get context values
     rvol = float(row['rvol_20']) if row['rvol_20'] else 1
-    if rvol < 1.0:
-        strength += 10
     
     return {
-        'setup_strength': min(100, strength),
         'context': {
             'bb_width_pctile': round(bb_width_pctile, 1),
             'rsi': round(rsi, 1),
-            'squeeze_flag': True,
             'rvol': round(rvol, 2)
         }
     }
@@ -611,37 +580,22 @@ def check_gap_up_momentum(row: pd.Series, bars: pd.DataFrame, params: dict) -> d
     
     # Check gap percentage
     gap_pct = float(row['gap_pct']) if row['gap_pct'] else None
-    if gap_pct is None:
+    if gap_pct is None or gap_pct < entry['gap_pct_min']:
         return None
     
-    gap_pct_decimal = gap_pct / 100 if gap_pct > 1 else gap_pct  # Handle both formats
-    if gap_pct_decimal < entry['gap_pct_min']:
-        return None
-    
-    # Check volume
+    # Check relative volume
     rvol = float(row['rvol_20']) if row['rvol_20'] else None
     if rvol is None or rvol < entry['rvol_min']:
         return None
     
-    # Calculate strength
-    strength = 55
-    
-    # Larger gap = stronger
-    strength += min(20, (gap_pct_decimal - entry['gap_pct_min']) * 200)
-    
-    # Higher volume = stronger
-    strength += min(15, (rvol - entry['rvol_min']) * 10)
-    
-    # Above MA200 = stronger
-    above_ma200 = row.get('above_ma200', False)
-    if above_ma200:
-        strength += 10
+    # Get context values
+    rsi = float(row['rsi_14']) if row['rsi_14'] else 50
     
     return {
-        'setup_strength': min(100, strength),
         'context': {
-            'gap_pct': round(gap_pct, 2),
-            'rvol': round(rvol, 2)
+            'gap_pct': round(gap_pct * 100, 2),
+            'rvol': round(rvol, 2),
+            'rsi': round(rsi, 1)
         }
     }
 
@@ -650,12 +604,12 @@ def check_oversold_bounce(row: pd.Series, bars: pd.DataFrame, params: dict) -> d
     """Check if asset meets Oversold Bounce criteria."""
     entry = params['entry']
     
-    # Check RSI
+    # Check RSI is oversold
     rsi = float(row['rsi_14']) if row['rsi_14'] else None
     if rsi is None or rsi > entry['rsi_max']:
         return None
     
-    # Check MA distance
+    # Check MA distance (below 20 MA)
     ma_dist_20 = float(row['ma_dist_20']) if row['ma_dist_20'] else None
     if ma_dist_20 is None:
         return None
@@ -664,34 +618,23 @@ def check_oversold_bounce(row: pd.Series, bars: pd.DataFrame, params: dict) -> d
     if ma_dist_20_pct > entry['ma_dist_20_max']:
         return None
     
-    # Calculate strength
-    strength = 55
-    
-    # Lower RSI = more oversold = stronger
-    strength += min(20, (entry['rsi_max'] - rsi) / 2)
-    
-    # Further below MA = more oversold = stronger
-    strength += min(15, abs(ma_dist_20_pct - entry['ma_dist_20_max']) * 100)
-    
-    # Still above MA200 = stronger (not broken trend)
-    above_ma200 = row.get('above_ma200', False)
-    if above_ma200:
-        strength += 10
+    # Get context values
+    rvol = float(row['rvol_20']) if row['rvol_20'] else 1
     
     return {
-        'setup_strength': min(100, strength),
         'context': {
             'rsi': round(rsi, 1),
-            'ma_dist_20': round(ma_dist_20, 2)
+            'ma_dist_20': round(ma_dist_20, 2),
+            'rvol': round(rvol, 2)
         }
     }
 
 
 def check_acceleration_turn(row: pd.Series, bars: pd.DataFrame, params: dict) -> dict:
-    """Check if asset meets Acceleration Turn Up criteria."""
+    """Check if asset meets Acceleration Turn criteria."""
     entry = params['entry']
     
-    # Check for acceleration turn up signal
+    # Check for acceleration turn up flag
     accel_turn_up = row.get('accel_turn_up', False)
     if not accel_turn_up:
         return None
@@ -701,24 +644,11 @@ def check_acceleration_turn(row: pd.Series, bars: pd.DataFrame, params: dict) ->
     if rsi is None or rsi < entry['rsi_min'] or rsi > entry['rsi_max']:
         return None
     
-    # Calculate strength
-    strength = 55
-    
-    # Acceleration z-score
+    # Get context values
     accel_z = float(row.get('accel_z_20', 0)) if row.get('accel_z_20') else 0
-    strength += min(20, accel_z * 5)
-    
-    # RSI in middle range = stronger
-    if 35 < rsi < 55:
-        strength += 15
-    
-    # Volume confirmation
     rvol = float(row['rvol_20']) if row['rvol_20'] else 1
-    if rvol > 1.0:
-        strength += 10
     
     return {
-        'setup_strength': min(100, strength),
         'context': {
             'accel_z_20': round(accel_z, 2),
             'rsi': round(rsi, 1),
@@ -750,23 +680,11 @@ def check_golden_cross(row: pd.Series, bars: pd.DataFrame, params: dict) -> dict
     if rsi is None or rsi < entry['rsi_min'] or rsi > entry['rsi_max']:
         return None
     
-    # Calculate strength
-    strength = 55
-    
-    # MA slopes rising = stronger
+    # Get context values
     ma_slope_50 = float(row['ma_slope_50']) if row['ma_slope_50'] else 0
     ma_slope_200 = float(row['ma_slope_200']) if row['ma_slope_200'] else 0
-    if ma_slope_50 > 0 and ma_slope_200 > 0:
-        strength += 20
-    elif ma_slope_50 > 0:
-        strength += 10
-    
-    # RSI in middle range = stronger
-    if 50 < rsi < 65:
-        strength += 15
     
     return {
-        'setup_strength': min(100, strength),
         'context': {
             'ma_dist_50': round(ma_dist_50, 2),
             'rsi': round(rsi, 1),
@@ -795,26 +713,14 @@ def check_breakout_confirmed(row: pd.Series, bars: pd.DataFrame, params: dict) -
     if rsi is None or rsi < entry['rsi_min'] or rsi > entry['rsi_max']:
         return None
     
-    # Calculate strength
-    strength = 55
-    
-    # Higher volume = stronger
-    strength += min(20, (rvol - entry['rvol_threshold']) * 15)
-    
-    # RSI in good range
-    if 55 < rsi < 70:
-        strength += 15
-    
-    # Above MA200 = stronger
+    # Get context values
     above_ma200 = row.get('above_ma200', False)
-    if above_ma200:
-        strength += 10
     
     return {
-        'setup_strength': min(100, strength),
         'context': {
             'rvol': round(rvol, 2),
-            'rsi': round(rsi, 1)
+            'rsi': round(rsi, 1),
+            'above_ma200': above_ma200
         }
     }
 
@@ -933,7 +839,7 @@ def scan_asset_for_setups(row: pd.Series, bars: pd.DataFrame, target_date: str) 
                     'stop_loss': to_python(stop_loss),
                     'target_price': to_python(target),
                     'risk_reward': to_python(risk_reward),
-                    'setup_strength': to_python(result['setup_strength']),
+                    'historical_profit_factor': setup_params.get('historical_profit_factor'),
                     'entry_params': json.dumps(clean_for_json(setup_params['entry'])),
                     'exit_params': json.dumps(clean_for_json(setup_params['exit'])),
                     'context': json.dumps(clean_for_json(result['context']))
@@ -956,7 +862,7 @@ def write_signals_batch(signals: list) -> int:
     query = """
         INSERT INTO setup_signals 
         (asset_id, setup_name, signal_date, entry_price, stop_loss, target_price, 
-         risk_reward, setup_strength, entry_params, exit_params, context)
+         risk_reward, historical_profit_factor, entry_params, exit_params, context)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (asset_id, setup_name, signal_date) 
         DO UPDATE SET
@@ -964,7 +870,7 @@ def write_signals_batch(signals: list) -> int:
             stop_loss = EXCLUDED.stop_loss,
             target_price = EXCLUDED.target_price,
             risk_reward = EXCLUDED.risk_reward,
-            setup_strength = EXCLUDED.setup_strength,
+            historical_profit_factor = EXCLUDED.historical_profit_factor,
             entry_params = EXCLUDED.entry_params,
             exit_params = EXCLUDED.exit_params,
             context = EXCLUDED.context
@@ -980,7 +886,7 @@ def write_signals_batch(signals: list) -> int:
                 signal['stop_loss'],
                 signal['target_price'],
                 signal['risk_reward'],
-                signal['setup_strength'],
+                signal['historical_profit_factor'],
                 signal['entry_params'],
                 signal['exit_params'],
                 signal['context']
@@ -999,70 +905,79 @@ def main():
     logger.info("DAILY SETUP SCANNER")
     logger.info("=" * 60)
     
-    # Get target date
+    # Determine target date
     if args.date:
         target_date = args.date
     else:
         target_date = get_latest_feature_date()
         if not target_date:
             logger.error("No features found in database")
-            return
+            sys.exit(1)
     
-    logger.info(f"Scanning for date: {target_date}")
-    logger.info(f"Setups to check: {len(SETUPS)}")
+    logger.info(f"Target date: {target_date}")
     
-    # Load all features for the date
+    # Get features for all assets
     logger.info("Loading features...")
     features_df = get_features_for_date(target_date)
     
     if features_df.empty:
-        logger.error(f"No features found for {target_date}")
-        return
+        logger.error(f"No features found for date {target_date}")
+        sys.exit(1)
     
     logger.info(f"Loaded features for {len(features_df)} assets")
     
-    # Scan each asset
+    # Scan each asset for setups
     all_signals = []
     processed = 0
     
-    for idx, row in features_df.iterrows():
-        asset_id = row['asset_id']
-        
-        # Get historical bars for this asset (needed for some setups)
+    def process_asset(row):
+        asset_id = int(row['asset_id'])
         bars = get_historical_bars(asset_id, target_date)
+        return scan_asset_for_setups(row, bars, target_date)
+    
+    logger.info(f"Scanning assets with {args.workers} workers...")
+    
+    with ThreadPoolExecutor(max_workers=args.workers) as executor:
+        futures = {executor.submit(process_asset, row): idx 
+                   for idx, row in features_df.iterrows()}
         
-        # Scan for setups
-        signals = scan_asset_for_setups(row, bars, target_date)
-        all_signals.extend(signals)
-        
-        processed += 1
-        if processed % 100 == 0:
-            logger.info(f"  Processed {processed}/{len(features_df)} assets, {len(all_signals)} signals found")
+        for future in as_completed(futures):
+            try:
+                signals = future.result()
+                if signals:
+                    all_signals.extend(signals)
+            except Exception as e:
+                logger.warning(f"Error processing asset: {e}")
+            
+            processed += 1
+            if processed % 100 == 0:
+                logger.info(f"Processed {processed}/{len(features_df)} assets, found {len(all_signals)} signals")
+    
+    logger.info(f"Scan complete. Found {len(all_signals)} total signals")
     
     # Write signals to database
     if all_signals:
-        logger.info(f"Writing {len(all_signals)} signals to database...")
+        logger.info("Writing signals to database...")
         written = write_signals_batch(all_signals)
-        logger.info(f"Wrote {written} signals")
+        logger.info(f"Wrote {written} signals to database")
     
     # Summary by setup
-    logger.info("\n" + "=" * 60)
-    logger.info("SIGNAL SUMMARY")
-    logger.info("=" * 60)
-    
+    logger.info("")
+    logger.info("Signal counts by setup:")
     setup_counts = {}
     for signal in all_signals:
         setup_name = signal['setup_name']
         setup_counts[setup_name] = setup_counts.get(setup_name, 0) + 1
     
-    for setup_name in sorted(setup_counts.keys(), key=lambda x: setup_counts[x], reverse=True):
-        count = setup_counts[setup_name]
-        style = SETUPS[setup_name]['style']
-        logger.info(f"  {setup_name}: {count} signals ({style})")
+    for setup_name, count in sorted(setup_counts.items(), key=lambda x: -x[1]):
+        pf = SETUPS[setup_name].get('historical_profit_factor', 0)
+        logger.info(f"  {setup_name}: {count} signals (Historical PF: {pf})")
     
-    logger.info(f"\nTotal signals: {len(all_signals)}")
+    logger.info("")
+    logger.info("=" * 60)
+    logger.info("SCAN COMPLETE")
     logger.info("=" * 60)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
