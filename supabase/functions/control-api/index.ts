@@ -1276,6 +1276,17 @@ ${markdownToHtml(markdown)}
           why_now: rawReview.ai_why_now,
           risks: rawReview.ai_risks,
           what_to_watch_next: rawReview.ai_what_to_watch_next,
+          // V3 fields - quant setup integration
+          primary_setup: rawReview.primary_setup,
+          setup_purity_score: rawReview.setup_purity_score,
+          historical_profit_factor: rawReview.historical_profit_factor,
+          active_quant_setups: rawReview.active_quant_setups,
+          quant_entry_price: rawReview.quant_entry_price,
+          quant_stop_loss: rawReview.quant_stop_loss,
+          quant_target_price: rawReview.quant_target_price,
+          ai_adjusted_entry: rawReview.ai_adjusted_entry,
+          ai_adjusted_stop: rawReview.ai_adjusted_stop,
+          ai_adjusted_target: rawReview.ai_adjusted_target,
         } : null
         
         return new Response(JSON.stringify({
