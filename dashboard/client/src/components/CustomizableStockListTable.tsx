@@ -375,31 +375,66 @@ export default function CustomizableStockListTable({ list, onAssetClick }: Custo
           </div>
         );
       case "primary_setup": {
-        if (!row.primary_setup) return <span className="text-muted-foreground">-</span>;
         const setupDef = getSetupDefinition(row.primary_setup);
+        if (!setupDef) {
+          return <span className="text-xs text-muted-foreground">-</span>;
+        }
         return (
           <Tooltip>
-            <TooltipTrigger className={`text-xs font-medium px-1.5 py-0.5 rounded ${setupDef.colorClass}`}>
-              {setupDef.shortName}
+            <TooltipTrigger className="cursor-help">
+              <span 
+                className="text-xs font-medium"
+                style={{ color: setupDef.color }}
+              >
+                {setupDef.shortName}
+              </span>
             </TooltipTrigger>
-            <TooltipContent className="max-w-xs text-left">
-              <p className="font-medium">{setupDef.displayName}</p>
-              <p className="text-xs text-muted-foreground mt-1">{setupDef.description}</p>
+            <TooltipContent side="top" className="max-w-xs">
+              <div className="space-y-1.5">
+                <div className="font-semibold text-sm" style={{ color: setupDef.color }}>
+                  {setupDef.fullName}
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {setupDef.description}
+                </p>
+              </div>
             </TooltipContent>
           </Tooltip>
         );
       }
       case "setup_purity_score": {
-        if (row.setup_purity_score == null) return <span className="text-muted-foreground">-</span>;
         const purity = getPurityLabel(row.setup_purity_score);
+        if (row.setup_purity_score == null) {
+          return <span className="text-xs text-muted-foreground">-</span>;
+        }
         return (
           <Tooltip>
-            <TooltipTrigger className={`font-mono text-xs ${purity.colorClass}`}>
-              {row.setup_purity_score}
+            <TooltipTrigger className="flex items-center gap-1.5 cursor-help">
+              <span 
+                className="font-mono text-xs font-medium"
+                style={{ color: purity.color }}
+              >
+                {row.setup_purity_score.toFixed(0)}
+              </span>
+              <span 
+                className="text-[10px] px-1 py-0.5 rounded"
+                style={{ 
+                  backgroundColor: `${purity.color}20`,
+                  color: purity.color 
+                }}
+              >
+                {purity.label}
+              </span>
             </TooltipTrigger>
-            <TooltipContent className="max-w-xs text-left">
-              <p className="font-medium">{purity.label}</p>
-              <p className="text-xs text-muted-foreground mt-1">{purity.description}</p>
+            <TooltipContent side="top" className="max-w-xs">
+              <div className="space-y-1">
+                <div className="font-semibold text-sm" style={{ color: purity.color }}>
+                  {purity.label} Setup ({row.setup_purity_score}%)
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {purity.description}
+                </p>
+              </div>
             </TooltipContent>
           </Tooltip>
         );
