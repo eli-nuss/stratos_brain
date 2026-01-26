@@ -73,7 +73,7 @@ async def run_sandbox_batch(
         
         try:
             # Create sandbox with longer timeout
-            sandbox = await AsyncSandbox.create(timeout=1800)  # 30 min timeout
+            sandbox = await AsyncSandbox.create(timeout=21600)  # 6 hour timeout
             
             try:
                 # Install dependencies
