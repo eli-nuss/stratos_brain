@@ -1366,7 +1366,8 @@ ${markdownToHtml(markdown)}
             case 'score_delta': return q.order('score_delta', { ascending })
             case 'inflection_score': return q.order('inflection_score', { ascending })
             case 'ai_confidence': return q.order('ai_confidence', { ascending, nullsFirst: false })
-            case 'ai_setup_quality_score': return q.order('ai_setup_quality_score', { ascending, nullsFirst: false })
+            case 'setup_purity_score': return q.order('setup_purity_score', { ascending, nullsFirst: false })
+            case 'primary_setup': return q.order('primary_setup', { ascending, nullsFirst: false })
             case 'ai_direction_score': return q.order('ai_direction_score', { ascending, nullsFirst: false })
             case 'fvs_score': return q.order('fvs_score', { ascending, nullsFirst: false })
             case 'market_cap': return q.order('market_cap', { ascending, nullsFirst: false })
@@ -1384,7 +1385,7 @@ ${markdownToHtml(markdown)}
             case 'psg': return q.order('psg', { ascending, nullsFirst: false })
             case 'revenue_growth_yoy': return q.order('revenue_growth_yoy', { ascending, nullsFirst: false })
             case 'vol_mc_ratio': return q.order('dollar_volume_7d', { ascending, nullsFirst: false })
-            default: return q.order('ai_setup_quality_score', { ascending: false, nullsFirst: false })
+            default: return q.order('setup_purity_score', { ascending: false, nullsFirst: false })
           }
         }
 
