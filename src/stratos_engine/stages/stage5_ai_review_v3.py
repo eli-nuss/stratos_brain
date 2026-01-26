@@ -15,9 +15,18 @@ import json
 import hashlib
 import logging
 import os
+from decimal import Decimal
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+
+
+class DecimalEncoder(json.JSONEncoder):
+    """JSON encoder that handles Decimal types."""
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super().default(obj)
 
 from google import genai
 from google.genai import types
@@ -489,8 +498,8 @@ class Stage5AIReviewV3:
             "model": self.model_name,
             "input_hash": input_hash,
             
-            # Quant setup integration
-            "active_quant_setups": active_setups,
+            # Quant setup integration (use converted setups from packet, not raw DB output)
+            "active_quant_setups": packet["quant_setups"]["active_setups"],
             "primary_setup": primary_setup["setup_name"] if primary_setup else None,
             "historical_profit_factor": primary_setup.get("historical_profit_factor") if primary_setup else None,
             "quant_entry_price": primary_setup.get("entry_price") if primary_setup else None,
@@ -548,7 +557,7 @@ class Stage5AIReviewV3:
                     "input_hash": result["input_hash"],
                     
                     # Quant setup fields
-                    "active_quant_setups": json.dumps(result.get("active_quant_setups")),
+                    "active_quant_setups": json.dumps(result.get("active_quant_setups"), cls=DecimalEncoder),
                     "primary_setup": result.get("primary_setup"),
                     "setup_purity_score": result.get("setup_purity_score"),
                     "historical_profit_factor": result.get("historical_profit_factor"),
@@ -566,12 +575,12 @@ class Stage5AIReviewV3:
                     "ai_time_horizon": result.get("time_horizon"),
                     "ai_confidence": result.get("confidence"),
                     "ai_summary_text": result.get("summary_text"),
-                    "ai_key_levels": json.dumps(result.get("key_levels")),
-                    "ai_entry": json.dumps(result.get("entry_zone")),
-                    "ai_targets": json.dumps(result.get("targets")),
-                    "ai_why_now": json.dumps(result.get("why_now")),
-                    "ai_risks": json.dumps(result.get("risks_and_contradictions")),
-                    "ai_what_to_watch_next": json.dumps(result.get("what_to_watch_next")),
+                    "ai_key_levels": json.dumps(result.get("key_levels"), cls=DecimalEncoder),
+                    "ai_entry": json.dumps(result.get("entry_zone"), cls=DecimalEncoder),
+                    "ai_targets": json.dumps(result.get("targets"), cls=DecimalEncoder),
+                    "ai_why_now": json.dumps(result.get("why_now"), cls=DecimalEncoder),
+                    "ai_risks": json.dumps(result.get("risks_and_contradictions"), cls=DecimalEncoder),
+                    "ai_what_to_watch_next": json.dumps(result.get("what_to_watch_next"), cls=DecimalEncoder),
                     
                     # Required fields
                     "scope": "v3_constrained_autonomy",
@@ -601,7 +610,7 @@ class Stage5AIReviewV3:
                         "what_to_watch_next": result.get("what_to_watch_next"),
                         "active_quant_setups": result.get("active_quant_setups"),
                         "primary_setup": result.get("primary_setup"),
-                    }),
+                    }, cls=DecimalEncoder),
                 }
                 
                 # Build INSERT ON CONFLICT statement
