@@ -431,23 +431,36 @@ async function fetchSetupSignalsData(supabase: SupabaseClient) {
 }
 
 async function fetchSignalFactsData(supabase: SupabaseClient) {
-  console.log('[SignalFacts] Fetching data...')
+  console.log('[SignalFacts] Fetching data from setup_signals...')
   
-  // Get active signals with asset info
+  // Get recent setup signals with asset info (using setup_signals instead of daily_signal_facts)
+  const threeDaysAgo = new Date()
+  threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
+  const dateStr = threeDaysAgo.toISOString().split('T')[0]
+  
   const { data: signals } = await supabase
-    .from('daily_signal_facts')
+    .from('setup_signals')
     .select(`
-      *,
-      assets!inner(symbol, name, asset_type)
+      id,
+      asset_id,
+      setup_name,
+      signal_date,
+      entry_price,
+      stop_loss,
+      target_price,
+      risk_reward,
+      context,
+      historical_profit_factor,
+      assets!inner(symbol, name, asset_type, sector)
     `)
-    .eq('is_active', true)
-    .order('strength', { ascending: false })
+    .gte('signal_date', dateStr)
+    .order('risk_reward', { ascending: false })
     .limit(200)
   
-  // Group by signal type
+  // Group by setup type
   const signalGroups = new Map<string, typeof signals>()
   for (const signal of (signals || [])) {
-    const type = signal.signal_name || signal.signal_type
+    const type = signal.setup_name || 'unknown'
     if (!signalGroups.has(type)) {
       signalGroups.set(type, [])
     }
@@ -509,12 +522,16 @@ async function fetchPortfolioData(supabase: SupabaseClient) {
     .in('asset_id', assetIds)
     .order('date', { ascending: false })
   
-  // Get signals on held assets
+  // Get active setup signals on held assets
+  const threeDaysAgo = new Date()
+  threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
+  const dateStr = threeDaysAgo.toISOString().split('T')[0]
+  
   const { data: signals } = await supabase
-    .from('daily_signal_facts')
-    .select('asset_id, signal_name, direction')
+    .from('setup_signals')
+    .select('asset_id, setup_name, entry_price, target_price, stop_loss, risk_reward')
     .in('asset_id', assetIds)
-    .eq('is_active', true)
+    .gte('signal_date', dateStr)
   
   // Get FVS scores for held assets
   const { data: fvsScores } = await supabase
@@ -529,10 +546,16 @@ async function fetchPortfolioData(supabase: SupabaseClient) {
     if (!barMap.has(b.asset_id)) barMap.set(b.asset_id, b)
   }
   
-  const signalMap = new Map<number, string[]>()
+  const signalMap = new Map<number, { setup_name: string; entry_price: string; target_price: string; stop_loss: string; risk_reward: string }[]>()
   for (const s of (signals || [])) {
     if (!signalMap.has(s.asset_id)) signalMap.set(s.asset_id, [])
-    signalMap.get(s.asset_id)!.push(s.signal_name)
+    signalMap.get(s.asset_id)!.push({
+      setup_name: s.setup_name,
+      entry_price: s.entry_price,
+      target_price: s.target_price,
+      stop_loss: s.stop_loss,
+      risk_reward: s.risk_reward
+    })
   }
   
   const fvsMap = new Map()
@@ -1028,41 +1051,59 @@ async function generateSignalAlerts(data: Awaited<ReturnType<typeof fetchSignalF
 
   const systemPrompt = `You are the Stratos CIO Agent generating the Signal Alerts section.
 
-Your task is to summarize the most significant technical signals firing across the market.
+Your task is to summarize the most significant SETUP SIGNALS firing across the market.
+These are trading setups with defined entry, stop, and target prices.
 
 Output a JSON array of signal alerts with this structure:
 [
   {
-    "signal_type": "string - signal name",
+    "signal_type": "string - setup name (e.g., donchian_55_breakout, vcp_squeeze)",
     "direction": "bullish" | "bearish",
-    "strength": number (0-100),
+    "strength": number (0-100, based on risk/reward and profit factor),
     "count": number,
     "is_new_today": boolean,
-    "notable_assets": ["array of symbols"],
-    "interpretation": "string - what this signal means for trading"
+    "notable_assets": ["array of symbols with best R:R"],
+    "interpretation": "string - what this setup type means and how to trade it"
   }
 ]
 
+Setup Types Reference:
+- donchian_55_breakout: 55-day channel breakout, trend following
+- vcp_squeeze: Volatility Contraction Pattern, breakout from compression
+- mean_reversion: Oversold bounce plays
+- momentum_continuation: Riding existing trends
+
 Rules:
-- Maximum 8 signal types
-- Group similar signals
-- Focus on actionable signals
-- Explain what each signal means in plain English`
+- Maximum 8 setup types
+- Rank by average risk/reward and historical profit factor
+- Focus on setups with R:R >= 2.0
+- Explain what each setup means in plain English`
 
-  const signalSummary = Object.entries(data.signalGroups).map(([type, signals]) => ({
-    signal_type: type,
-    count: (signals as unknown[]).length,
-    assets: (signals as { assets?: { symbol?: string }; direction?: string; strength?: number }[]).slice(0, 5).map(s => ({
-      symbol: s.assets?.symbol,
-      direction: s.direction,
-      strength: s.strength
-    }))
-  }))
+  const signalSummary = Object.entries(data.signalGroups).map(([type, signals]) => {
+    const signalList = signals as { assets?: { symbol?: string; asset_type?: string }; risk_reward?: string; historical_profit_factor?: string; entry_price?: string; target_price?: string; stop_loss?: string; signal_date?: string }[]
+    const avgRR = signalList.reduce((sum, s) => sum + (parseFloat(s.risk_reward as string) || 0), 0) / signalList.length
+    const avgPF = signalList.reduce((sum, s) => sum + (parseFloat(s.historical_profit_factor as string) || 0), 0) / signalList.length
+    
+    return {
+      setup_type: type,
+      count: signalList.length,
+      avg_risk_reward: avgRR.toFixed(2),
+      avg_profit_factor: avgPF.toFixed(2),
+      top_assets: signalList.slice(0, 5).map(s => ({
+        symbol: s.assets?.symbol,
+        asset_type: s.assets?.asset_type,
+        risk_reward: parseFloat(s.risk_reward as string)?.toFixed(2),
+        entry: s.entry_price,
+        target: s.target_price,
+        stop: s.stop_loss
+      }))
+    }
+  })
 
-  const prompt = `Signal Summary by Type:
+  const prompt = `Active Setup Signals by Type:
 ${JSON.stringify(signalSummary, null, 2)}
 
-Generate the Signal Alerts section.`
+Generate the Signal Alerts section based on these trading setups.`
 
   const { text, tokensIn, tokensOut } = await callGemini(prompt, systemPrompt)
   
@@ -1101,10 +1142,14 @@ Look for:
 - Fundamental risks
 - Bearish signals on popular assets`
 
-  // Find potential warnings
+  // Find potential warnings from setup data
   const overbought = setupData.setups.filter(s => (s.features?.rsi_14 || 50) > 70)
   const lowQuality = setupData.setups.filter(s => (s.fvs?.final_score || 100) < 40)
-  const bearishSignals = signalData.signals.filter(s => s.direction === 'bearish')
+  const lowRR = setupData.setups.filter(s => parseFloat(s.risk_reward as string) < 1.5)
+  const highVolatility = setupData.setups.filter(s => (s.features?.atr_pct || 0) > 5)
+
+  // Also check signal data for low profit factor setups
+  const lowProfitFactor = signalData.signals.filter(s => parseFloat(s.historical_profit_factor as string) < 1.3)
 
   const prompt = `Potential Warning Signs:
 
@@ -1114,8 +1159,14 @@ ${JSON.stringify(overbought.slice(0, 10).map(s => ({ symbol: s.assets?.symbol, r
 Low Quality Setups (FVS < 40):
 ${JSON.stringify(lowQuality.slice(0, 10).map(s => ({ symbol: s.assets?.symbol, fvs: s.fvs?.final_score })), null, 2)}
 
-Bearish Signals:
-${JSON.stringify(bearishSignals.slice(0, 10).map(s => ({ symbol: s.assets?.symbol, signal: s.signal_name })), null, 2)}
+Poor Risk/Reward Setups (R:R < 1.5):
+${JSON.stringify(lowRR.slice(0, 10).map(s => ({ symbol: s.assets?.symbol, rr: s.risk_reward })), null, 2)}
+
+High Volatility Assets (ATR% > 5):
+${JSON.stringify(highVolatility.slice(0, 10).map(s => ({ symbol: s.assets?.symbol, atr_pct: s.features?.atr_pct })), null, 2)}
+
+Low Historical Profit Factor Setups (PF < 1.3):
+${JSON.stringify(lowProfitFactor.slice(0, 10).map(s => ({ symbol: (s as { assets?: { symbol?: string } }).assets?.symbol, pf: s.historical_profit_factor })), null, 2)}
 
 Generate the Skeptic's Corner section.`
 
