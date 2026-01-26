@@ -1,0 +1,65 @@
+name: Equity AI Signals (Parallel E2B )
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_date:
+        description: 'Target date (YYYY-MM-DD). Leave empty for today.'
+        required: false
+        type: string
+      sandboxes:
+        description: 'Number of E2B sandboxes to spawn (max 100)'
+        required: false
+        default: '50'
+        type: string
+      max_concurrent:
+        description: 'Maximum concurrent sandboxes'
+        required: false
+        default: '50'
+        type: string
+      model:
+        description: 'Gemini model to use'
+        required: false
+        default: 'gemini-3-flash-preview'
+        type: string
+
+jobs:
+  parallel-ai-analysis:
+    name: Parallel E2B AI Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install e2b-code-interpreter psycopg2-binary
+      
+      - name: Determine target date
+        id: date
+        run: |
+          if [ -n "${{ github.event.inputs.target_date }}" ]; then
+            echo "date=${{ github.event.inputs.target_date }}" >> $GITHUB_OUTPUT
+          else
+            echo "date=$(date -u +%Y-%m-%d)" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Run parallel E2B orchestrator
+        env:
+          E2B_API_KEY: ${{ secrets.E2B_API_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python scripts/e2b_parallel_orchestrator.py \
+            --date ${{ steps.date.outputs.date }} \
+            --asset-type equity \
+            --model ${{ github.event.inputs.model || 'gemini-3-flash-preview' }} \
+            --sandboxes ${{ github.event.inputs.sandboxes || '50' }} \
+            --max-concurrent ${{ github.event.inputs.max_concurrent || '50' }}
