@@ -572,6 +572,10 @@ class Stage5AIReviewV3:
                     "ai_risks": json.dumps(result.get("risks_and_contradictions")),
                     "ai_what_to_watch_next": json.dumps(result.get("what_to_watch_next")),
                     
+                    # Required fields
+                    "scope": "v3_constrained_autonomy",
+                    "source_scope": "v3_constrained_autonomy",
+                    
                     # Legacy compatibility
                     "attention_level": result.get("attention_level"),
                     "direction": result.get("direction"),
