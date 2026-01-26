@@ -7,6 +7,7 @@ import { CompanyChatInterfaceNew as CompanyChatInterface } from '@/components/Co
 import { useCompanyChats, createOrGetChat, CompanyChat } from '@/hooks/useCompanyChats';
 import { AssetSearchForChat } from '@/components/AssetSearchForChat';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNotepad } from '@/contexts/NoteContext';
 
 export default function CompanyChatPage() {
   const [, params] = useRoute('/chat/:chatId');
@@ -19,6 +20,9 @@ export default function CompanyChatPage() {
   const [isCreatingChat, setIsCreatingChat] = useState(false);
   const [autoCreateAttempted, setAutoCreateAttempted] = useState(false);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  
+  // Get notepad context setter
+  const { setContext } = useNotepad();
 
   // Handle URL query parameters for auto-creating chats
   useEffect(() => {
@@ -62,6 +66,27 @@ export default function CompanyChatPage() {
       setShowMobileSidebar(false);
     }
   }, [selectedChat]);
+
+  // Update notepad context based on selected chat
+  useEffect(() => {
+    if (selectedChat) {
+      // Extract symbol from display_name (e.g., "Taiwan Semiconductor Manufacturing (TSM)" -> "TSM")
+      const symbolMatch = selectedChat.display_name.match(/\(([^)]+)\)$/);
+      const symbol = symbolMatch ? symbolMatch[1] : selectedChat.display_name;
+      
+      setContext({
+        type: 'asset',
+        id: selectedChat.asset_id,
+        name: `${symbol} Notes`
+      });
+    } else {
+      // No chat selected - use general context for Company Chats
+      setContext({
+        type: 'general',
+        name: 'Company Chats'
+      });
+    }
+  }, [selectedChat, setContext]);
 
   const handleSelectChat = (chat: CompanyChat) => {
     setSelectedChat(chat);
