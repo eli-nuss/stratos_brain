@@ -49,7 +49,7 @@ interface CustomizableAssetTableProps {
   initialCategory?: string;
 }
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 100;
 
 // Available categories for crypto filtering
 const CRYPTO_CATEGORIES = [
@@ -804,7 +804,7 @@ export default function CustomizableAssetTable({
   const colCount = visibleColumns.length;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-200px)] min-h-[600px] bg-background border border-border rounded-lg overflow-hidden">
+    <div className="flex flex-col h-[calc(100vh-120px)] min-h-[800px] bg-background border border-border rounded-lg overflow-hidden">
       {/* Header */}
       <div className="p-3 border-b border-border space-y-3">
         <div className="flex items-center justify-between">

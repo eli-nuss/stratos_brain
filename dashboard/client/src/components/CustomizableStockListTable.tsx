@@ -41,7 +41,7 @@ interface CustomizableStockListTableProps {
 
 // SortField and SortOrder imported from useSortPreferences
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 100;
 
 // Draggable header component
 function DraggableHeader({
@@ -526,7 +526,7 @@ export default function CustomizableStockListTable({ list, onAssetClick }: Custo
   const colCount = visibleColumns.length;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-200px)] min-h-[600px] bg-background border border-border rounded-lg overflow-hidden">
+    <div className="flex flex-col h-[calc(100vh-120px)] min-h-[800px] bg-background border border-border rounded-lg overflow-hidden">
       {/* Header */}
       <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-muted/30">
         <h3 className="font-medium text-sm flex items-center gap-2">
