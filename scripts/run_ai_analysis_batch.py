@@ -14,10 +14,13 @@ import logging
 import os
 import sys
 
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+# Add the specific module directory to path to avoid importing all stages via __init__.py
+# This is necessary because E2B sandboxes only have minimal dependencies installed
+_stages_dir = os.path.join(os.path.dirname(__file__), '..', 'src', 'stratos_engine', 'stages')
+sys.path.insert(0, _stages_dir)
 
-from src.stratos_engine.stages.stage5_ai_review_v3 import Stage5AIReviewV3
+# Direct import from the module file, bypassing __init__.py
+from stage5_ai_review_v3 import Stage5AIReviewV3
 
 logging.basicConfig(
     level=logging.INFO,
