@@ -1,6 +1,6 @@
 import useSWR from "swr";
 import { useState, useRef, useEffect } from "react";
-import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, Activity, MessageCircle, Info, ExternalLink, Tag, FileText, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera, Crosshair, Zap, CheckCircle2, Sparkles, Clock } from "lucide-react";
+import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, Activity, MessageCircle, Info, ExternalLink, Tag, FileText, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera } from "lucide-react";
 import html2canvas from "html2canvas";
 import { Area, Line, ComposedChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis, Legend } from "recharts";
 import { format } from "date-fns";
@@ -44,224 +44,34 @@ function InfoTooltip({ content, className = "" }: { content: string; className?:
   );
 }
 
-// Format setup name for display
-function formatSetupName(name: string): string {
-  return name
-    .split('_')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
+// Confidence meter component
+function ConfidenceMeter({ confidence }: { confidence: number }) {
+  const percentage = Math.round(confidence * 100);
+  
+  // Color based on confidence level
+  const getColor = () => {
+    if (percentage >= 75) return 'bg-emerald-500';
+    if (percentage >= 50) return 'bg-yellow-500';
+    return 'bg-muted-foreground';
+  };
+  
+  const getTextColor = () => {
+    if (percentage >= 75) return 'text-emerald-500';
+    if (percentage >= 50) return 'text-yellow-500';
+    return 'text-muted-foreground';
+  };
 
-// Setup Badge Component
-function SetupBadge({ setup, purity }: { setup: string; purity: number }) {
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <div className="px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 bg-cyan-500/20 text-cyan-400 border border-cyan-500/40">
-        <Crosshair className="w-4 h-4" />
-        <span>{formatSetupName(setup)}</span>
+    <div className="flex items-center gap-2">
+      <div className="flex-1 h-2 bg-muted/30 rounded-full overflow-hidden">
+        <div 
+          className={`h-full ${getColor()} transition-all duration-500`}
+          style={{ width: `${percentage}%` }}
+        />
       </div>
-      <div className="flex items-center gap-1.5 px-2 py-1 bg-muted rounded-md">
-        <span className="text-[10px] text-muted-foreground uppercase">Purity</span>
-        <span className={`text-sm font-bold ${
-          purity >= 85 ? "text-emerald-400" : purity >= 70 ? "text-yellow-400" : "text-orange-400"
-        }`}>
-          {purity}%
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// Trade Ladder Component
-function TradeLadder({ 
-  entry, 
-  targets, 
-  stop,
-  quantEntry,
-  quantStop,
-  quantTarget,
-  aiAdjustedEntry,
-  aiAdjustedStop,
-  aiAdjustedTarget
-}: { 
-  entry: { low: number; high: number } | null; 
-  targets: number[] | null; 
-  stop: number | null;
-  quantEntry?: number | null;
-  quantStop?: number | null;
-  quantTarget?: number | null;
-  aiAdjustedEntry?: number | null;
-  aiAdjustedStop?: number | null;
-  aiAdjustedTarget?: number | null;
-}) {
-  const displayEntry = aiAdjustedEntry || quantEntry || entry?.low;
-  const displayStop = aiAdjustedStop || quantStop || stop;
-  const displayTarget = aiAdjustedTarget || quantTarget || (targets && targets.length > 0 ? targets[targets.length - 1] : null);
-  
-  const risk = displayEntry && displayStop ? displayEntry - displayStop : 0;
-  const reward = displayEntry && displayTarget ? displayTarget - displayEntry : 0;
-  const riskReward = risk > 0 ? (reward / risk).toFixed(2) : '—';
-  
-  return (
-    <div className="bg-card border border-border rounded-lg overflow-hidden">
-      <div className="bg-muted/30 px-4 py-2 border-b border-border flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Target className="w-4 h-4 text-primary" />
-          <h3 className="font-semibold text-sm">Trade Plan</h3>
-          <InfoTooltip content="AI-generated trade plan with specific price levels. Entry zone is where to consider initiating positions. Targets are profit-taking levels. Stop is where the thesis fails." />
-        </div>
-        <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-500/10 border border-blue-500/30 rounded">
-          <span className="text-[10px] text-muted-foreground">R:R</span>
-          <span className="text-xs font-bold text-blue-400">{riskReward}</span>
-        </div>
-      </div>
-      
-      <div className="p-4">
-        <div className="relative space-y-4">
-          {/* Target */}
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-blue-500/20 border-2 border-blue-500 flex items-center justify-center flex-shrink-0">
-              <TrendingUp className="w-4 h-4 text-blue-400" />
-            </div>
-            <div className="flex-1">
-              <div className="text-[10px] text-muted-foreground uppercase mb-0.5">Target</div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-lg font-mono font-bold text-blue-400">
-                  {displayTarget ? `$${displayTarget.toFixed(2)}` : '—'}
-                </span>
-                {targets && targets.length > 1 && (
-                  <span className="text-xs text-muted-foreground">
-                    ({targets.map(t => `$${t.toFixed(2)}`).join(' → ')})
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-          
-          {/* Entry */}
-          <div className="flex items-center gap-3 pl-4">
-            <div className="w-8 h-8 rounded-full bg-purple-500/20 border-2 border-purple-500 flex items-center justify-center flex-shrink-0">
-              <Target className="w-4 h-4 text-purple-400" />
-            </div>
-            <div className="flex-1">
-              <div className="text-[10px] text-muted-foreground uppercase mb-0.5">Entry</div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-lg font-mono font-bold text-purple-400">
-                  {displayEntry ? `$${displayEntry.toFixed(2)}` : '—'}
-                </span>
-                {entry && entry.low !== entry.high && (
-                  <span className="text-xs text-muted-foreground">
-                    (${entry.low?.toFixed(2)} - ${entry.high?.toFixed(2)})
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-          
-          {/* Stop */}
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-red-500/20 border-2 border-red-500 flex items-center justify-center flex-shrink-0">
-              <AlertTriangle className="w-4 h-4 text-red-400" />
-            </div>
-            <div className="flex-1">
-              <div className="text-[10px] text-muted-foreground uppercase mb-0.5">Stop</div>
-              <span className="text-lg font-mono font-bold text-red-400">
-                {displayStop ? `$${displayStop.toFixed(2)}` : '—'}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Why Now Section Component
-function WhyNowSection({ reasons }: { reasons: string[] | null }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  
-  if (!reasons || reasons.length === 0) return null;
-  
-  const displayReasons = isExpanded ? reasons : reasons.slice(0, 3);
-  
-  return (
-    <div className="bg-card border border-border rounded-lg overflow-hidden">
-      <div className="bg-muted/30 px-4 py-2 border-b border-border flex items-center gap-2">
-        <Zap className="w-4 h-4 text-yellow-400" />
-        <h3 className="font-semibold text-sm">Why Now</h3>
-        <InfoTooltip content="Specific reasons why this setup is actionable right now based on technical and market conditions." />
-      </div>
-      <div className="p-3 space-y-2">
-        {displayReasons.map((reason, idx) => (
-          <div key={idx} className="flex items-start gap-2 text-sm text-foreground/80">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
-            <span>{reason}</span>
-          </div>
-        ))}
-        {reasons.length > 3 && (
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mt-2"
-          >
-            {isExpanded ? (
-              <>
-                <ChevronUp className="w-3 h-3" />
-                Show less
-              </>
-            ) : (
-              <>
-                <ChevronDown className="w-3 h-3" />
-                Show {reasons.length - 3} more
-              </>
-            )}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// Risks Section Component  
-function RisksSection({ risks }: { risks: string[] | null }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  
-  if (!risks || risks.length === 0) return null;
-  
-  const displayRisks = isExpanded ? risks : risks.slice(0, 2);
-  
-  return (
-    <div className="bg-card border border-border rounded-lg overflow-hidden">
-      <div className="bg-muted/30 px-4 py-2 border-b border-border flex items-center gap-2">
-        <AlertTriangle className="w-4 h-4 text-orange-400" />
-        <h3 className="font-semibold text-sm">Key Risks</h3>
-        <InfoTooltip content="Risk factors and potential issues to watch that could invalidate the trade thesis." />
-      </div>
-      <div className="p-3 space-y-2">
-        {displayRisks.map((risk, idx) => (
-          <div key={idx} className="flex items-start gap-2 text-sm text-muted-foreground">
-            <div className="w-1.5 h-1.5 rounded-full bg-orange-400 mt-2 flex-shrink-0" />
-            <span>{risk}</span>
-          </div>
-        ))}
-        {risks.length > 2 && (
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mt-2"
-          >
-            {isExpanded ? (
-              <>
-                <ChevronUp className="w-3 h-3" />
-                Show less
-              </>
-            ) : (
-              <>
-                <ChevronDown className="w-3 h-3" />
-                Show {risks.length - 2} more
-              </>
-            )}
-          </button>
-        )}
-      </div>
+      <span className={`text-xs font-mono font-medium ${getTextColor()}`}>
+        {percentage}%
+      </span>
     </div>
   );
 }
@@ -290,27 +100,43 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
         backgroundColor: '#0a0a0a',
         scale: 2,
         logging: false,
-        useCORS: true
       });
       
-      const link = document.createElement('a');
-      link.download = `${data?.asset?.symbol || 'chart'}-${new Date().toISOString().split('T')[0]}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    } catch (error) {
-      console.error('Failed to capture chart:', error);
+      canvas.toBlob(async (blob) => {
+        if (blob) {
+          try {
+            await navigator.clipboard.write([
+              new ClipboardItem({ 'image/png': blob })
+            ]);
+            // Show brief success feedback
+            alert('Chart copied to clipboard!');
+          } catch (err) {
+            // Fallback: download the image
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${asset?.symbol || 'chart'}_${format(new Date(), 'yyyy-MM-dd')}.png`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }
+        }
+      }, 'image/png');
+    } catch (err) {
+      console.error('Failed to capture chart:', err);
     } finally {
       setIsCapturing(false);
     }
   };
 
-  if (isLoading || !data) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="animate-pulse text-muted-foreground">Loading...</div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
+
+  if (!data || !data.asset) return null;
 
   const { asset, ohlcv, ai_score_history, features, review, review_status, stock_lists } = data;
 
@@ -328,14 +154,13 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
 
   const getTradingViewUrl = (symbol: string, assetType: string) => {
     if (assetType === 'crypto') {
+      // For crypto, use CRYPTO exchange with USD pair
       return `https://www.tradingview.com/chart/?symbol=CRYPTO:${symbol}USD`;
     } else {
+      // For equities, just use the symbol
       return `https://www.tradingview.com/chart/?symbol=${symbol}`;
     }
   };
-
-  // Check if we have v3 data
-  const hasV3Data = review?.primary_setup || review?.setup_purity_score;
 
   return (
     <>
@@ -353,285 +178,485 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               {data.as_of_date}
             </span>
           </div>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <AddToPortfolioButton assetId={asset.asset_id} symbol={asset.symbol} />
-            <AssetTagButton assetId={asset.asset_id} />
-            <a 
-              href={getTradingViewUrl(asset.symbol, asset.asset_type)} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors bg-muted/50 rounded-md hover:bg-muted"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              TradingView
-            </a>
-            <button
+          <div className="flex items-center gap-2">
+            {/* TradingView link */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <a
+                  href={getTradingViewUrl(asset.symbol, asset.asset_type)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 rounded-full transition-colors text-muted-foreground hover:text-primary hover:bg-primary/10"
+                >
+                  <ExternalLink className="w-5 h-5" />
+                </a>
+              </TooltipTrigger>
+              <TooltipContent>
+                Open chart on TradingView
+              </TooltipContent>
+            </Tooltip>
+            {/* Add to Portfolio button */}
+            <AddToPortfolioButton assetId={parseInt(assetId)} assetType={asset?.asset_type} />
+            
+            {/* Asset Tag button */}
+            <AssetTagButton assetId={parseInt(assetId)} />
+            
+            {/* Research Chat button */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <a 
+                  href={`/chat?asset_id=${assetId}&symbol=${encodeURIComponent(asset?.symbol || '')}&name=${encodeURIComponent(asset?.name || '')}&asset_type=${asset?.asset_type || 'equity'}`}
+                  className="p-2 rounded-full transition-colors hover:bg-muted text-muted-foreground hover:text-foreground"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                </a>
+              </TooltipTrigger>
+              <TooltipContent>
+                Open full research chat
+              </TooltipContent>
+            </Tooltip>
+            <button 
               onClick={onClose}
-              className="p-2 hover:bg-muted rounded-lg transition-colors"
+              className="p-2 hover:bg-muted rounded-full transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Main Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-3 sm:py-4 space-y-3 sm:space-y-4">
-          {/* Grid Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-10 gap-3 sm:gap-4">
-            {/* Left Column: Chart, AI Analysis, Trade Plan (70% = 7 cols) */}
-            <div className="lg:col-span-7 space-y-3 sm:space-y-4">
-              {/* Chart Section */}
-              <div className={`bg-card border border-border rounded-lg overflow-hidden ${isChartFullscreen ? 'fixed inset-4 z-50' : ''}`}>
-                <div className="bg-muted/30 px-4 py-2 border-b border-border flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+        {/* Main Content - 70/30 split */}
+        <div className="flex-1 overflow-y-auto p-2 sm:p-4 grid grid-cols-1 lg:grid-cols-10 gap-3 sm:gap-4">
+          {/* Left Column: Chart, AI Analysis, Trade Plan & Signals (70% = 7 cols) */}
+          <div className="lg:col-span-7 space-y-4 flex flex-col">
+            {/* Chart - Expanded */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold">Price Chart</h3>
+                  {/* Chart View Toggle */}
+                  <div className="flex items-center bg-muted/30 rounded-md p-0.5">
                     <button
                       onClick={() => setChartView('tradingview')}
-                      className={`px-3 py-1 text-xs font-medium rounded ${
-                        chartView === 'tradingview' 
-                          ? 'bg-primary text-primary-foreground' 
+                      className={`px-2 py-1 text-xs rounded transition-colors ${
+                        chartView === 'tradingview'
+                          ? 'bg-primary text-primary-foreground'
                           : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
-                      Chart
+                      TradingView
                     </button>
-                    <button
-                      onClick={() => setChartView('financials')}
-                      className={`px-3 py-1 text-xs font-medium rounded ${
-                        chartView === 'financials' 
-                          ? 'bg-primary text-primary-foreground' 
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      Financials
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={captureChart}
-                      disabled={isCapturing}
-                      className="p-1.5 hover:bg-muted rounded transition-colors"
-                      title="Capture chart"
-                    >
-                      <Camera className={`w-4 h-4 ${isCapturing ? 'animate-pulse' : ''}`} />
-                    </button>
-                    <button
-                      onClick={() => setIsChartFullscreen(!isChartFullscreen)}
-                      className="p-1.5 hover:bg-muted rounded transition-colors"
-                    >
-                      {isChartFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-                    </button>
+
+                    {asset.asset_type === 'equity' && (
+                      <button
+                        onClick={() => setChartView('financials')}
+                        className={`px-2 py-1 text-xs rounded transition-colors ${
+                          chartView === 'financials'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        Financials
+                      </button>
+                    )}
+
                   </div>
                 </div>
-                <div ref={chartRef} className={`${isChartFullscreen ? 'h-[calc(100%-48px)]' : 'h-[350px] sm:h-[400px]'}`}>
-                  {chartView === 'tradingview' ? (
-                    <TradingViewWidget symbol={asset.symbol} assetType={asset.asset_type} />
-                  ) : (
-                    <HistoricalFinancials assetId={parseInt(assetId)} symbol={asset.symbol} />
-                  )}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={captureChart}
+                    disabled={isCapturing}
+                    className="p-1 rounded hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                    title="Copy chart to clipboard"
+                  >
+                    <Camera className={`w-4 h-4 ${isCapturing ? 'animate-pulse' : ''}`} />
+                  </button>
+                  <button
+                    onClick={() => setIsChartFullscreen(!isChartFullscreen)}
+                    className="p-1 rounded hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
+                    title={isChartFullscreen ? "Exit fullscreen" : "Fullscreen"}
+                  >
+                    {isChartFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                  </button>
+                  <a
+                    href={getTradingViewUrl(asset.symbol, asset.asset_type)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
+                  >
+                    Open in TradingView <ExternalLink className="w-3 h-3" />
+                  </a>
                 </div>
               </div>
-
-              {/* V3 Setup Badge - Show prominently if available */}
-              {hasV3Data && review?.primary_setup && (
-                <div className="bg-card border border-border rounded-lg p-4">
-                  <SetupBadge 
-                    setup={review.primary_setup} 
-                    purity={review.setup_purity_score || 0} 
+              
+              {chartView === 'financials' ? (
+                <div className={`${isChartFullscreen ? 'min-h-[600px]' : 'min-h-[450px]'} w-full transition-all duration-300`}>
+                  <HistoricalFinancials assetId={parseInt(assetId)} assetType={asset.asset_type} symbol={asset.symbol} embedded={true} />
+                </div>
+              ) : (
+                <div className={`${isChartFullscreen ? 'h-[600px]' : 'h-[450px]'} w-full rounded-lg border border-border overflow-hidden transition-all duration-300`}>
+                  <TradingViewWidget
+                    symbol={asset.symbol}
+                    assetType={asset.asset_type === 'crypto' ? 'crypto' : 'equity'}
+                    theme="dark"
+                    interval="D"
                   />
-                  {review.historical_profit_factor && review.historical_profit_factor > 0 && (
-                    <div className="mt-3 flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">Historical Profit Factor:</span>
-                      <span className="text-sm font-bold text-emerald-400">
-                        {review.historical_profit_factor.toFixed(2)}
-                      </span>
-                      <InfoTooltip content="Profit factor from backtested trades using this setup. Values above 1.5 indicate strong historical performance." />
+                </div>
+              )}
+            </div>
+
+            {/* AI Analysis - Different content based on view */}
+            {chartView === 'financials' && asset.asset_type === 'equity' ? (
+              /* Fundamental Vigor Score (FVS) Thesis for Fundamentals View */
+              <div className="bg-muted/10 border border-border rounded-lg overflow-hidden">
+                <div className="bg-muted/30 px-4 py-2.5 border-b border-border flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-primary" />
+                    <h3 className="font-semibold text-sm">Fundamental Analysis</h3>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {asset.fvs_score != null && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">FVS Score:<InfoTooltip content="Fundamental Vigor Score (0-100) is a weighted composite of Profitability (30%), Solvency (25%), Growth (25%), and Moat (20%). Scores ≥80 indicate Quality fundamentals, 60-79 are Quality-leaning, 40-59 are Speculative, and <40 indicate Distressed financials." /></span>
+                        <span className={`text-lg font-bold ${
+                          asset.fvs_score >= 80 ? 'text-emerald-400' :
+                          asset.fvs_score >= 60 ? 'text-blue-400' :
+                          asset.fvs_score >= 40 ? 'text-yellow-400' :
+                          'text-red-400'
+                        }`}>
+                          {asset.fvs_score.toFixed(0)}
+                        </span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                          asset.fvs_score >= 80 ? 'bg-emerald-500/20 text-emerald-400' :
+                          asset.fvs_score >= 60 ? 'bg-blue-500/20 text-blue-400' :
+                          asset.fvs_score >= 40 ? 'bg-yellow-500/20 text-yellow-400' :
+                          'bg-red-500/20 text-red-400'
+                        }`}>
+                          {asset.fvs_score >= 80 ? 'QUALITY' :
+                           asset.fvs_score >= 60 ? 'QUALITY' :
+                           asset.fvs_score >= 40 ? 'SPECULATIVE' : 'DISTRESSED'}
+                        </span>
+                      </div>
+                    )}
+                    <span className="text-[10px] text-muted-foreground/70 font-mono">
+                      gemini-3-pro-preview
+                    </span>
+                  </div>
+                </div>
+                <div className="p-4">
+                  {asset.fvs_reasoning ? (
+                    <div className="space-y-4">
+                      {/* FVS Pillar Scores */}
+                      <div className="grid grid-cols-4 gap-3">
+                        <div className="text-center">
+                          <div className="text-[10px] text-muted-foreground mb-1 flex items-center justify-center gap-1">
+                            <span>Profitability</span>
+                            <InfoTooltip content="Measures the company's ability to generate profits. Evaluates gross margin, operating margin, net margin, ROE, and ROA. Higher scores indicate stronger profit generation and efficient use of capital." />
+                          </div>
+                          <div className={`text-sm font-semibold ${
+                            (asset.fvs_profitability || 0) >= 70 ? 'text-emerald-400' :
+                            (asset.fvs_profitability || 0) >= 50 ? 'text-blue-400' :
+                            (asset.fvs_profitability || 0) >= 30 ? 'text-yellow-400' : 'text-red-400'
+                          }`}>{asset.fvs_profitability || '-'}</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-[10px] text-muted-foreground mb-1 flex items-center justify-center gap-1">
+                            <span>Solvency</span>
+                            <InfoTooltip content="Assesses financial stability and ability to meet obligations. Analyzes current ratio, debt-to-equity, interest coverage, and Altman Z-Score. Higher scores indicate lower bankruptcy risk and stronger balance sheet." />
+                          </div>
+                          <div className={`text-sm font-semibold ${
+                            (asset.fvs_solvency || 0) >= 70 ? 'text-emerald-400' :
+                            (asset.fvs_solvency || 0) >= 50 ? 'text-blue-400' :
+                            (asset.fvs_solvency || 0) >= 30 ? 'text-yellow-400' : 'text-red-400'
+                          }`}>{asset.fvs_solvency || '-'}</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-[10px] text-muted-foreground mb-1 flex items-center justify-center gap-1">
+                            <span>Growth</span>
+                            <InfoTooltip content="Evaluates revenue and earnings expansion. Measures revenue CAGR, earnings growth, and recent acceleration trends. Higher scores indicate stronger growth trajectory and momentum." />
+                          </div>
+                          <div className={`text-sm font-semibold ${
+                            (asset.fvs_growth || 0) >= 70 ? 'text-emerald-400' :
+                            (asset.fvs_growth || 0) >= 50 ? 'text-blue-400' :
+                            (asset.fvs_growth || 0) >= 30 ? 'text-yellow-400' : 'text-red-400'
+                          }`}>{asset.fvs_growth || '-'}</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-[10px] text-muted-foreground mb-1 flex items-center justify-center gap-1">
+                            <span>Moat</span>
+                            <InfoTooltip content="Measures competitive advantage durability. Analyzes FCF/Net Income ratio (cash conversion quality) and Piotroski F-Score (financial strength). Higher scores suggest sustainable competitive positioning." />
+                          </div>
+                          <div className={`text-sm font-semibold ${
+                            (asset.fvs_moat || 0) >= 70 ? 'text-emerald-400' :
+                            (asset.fvs_moat || 0) >= 50 ? 'text-blue-400' :
+                            (asset.fvs_moat || 0) >= 30 ? 'text-yellow-400' : 'text-red-400'
+                          }`}>{asset.fvs_moat || '-'}</div>
+                        </div>
+                      </div>
+                      {/* FVS Summary/Thesis */}
+                      <div className="bg-muted/20 rounded-lg p-3">
+                        <p className="text-sm text-foreground/90 leading-relaxed">
+                          {asset.fvs_reasoning}
+                        </p>
+                      </div>
+                      {/* Altman Z-Score indicator */}
+                      {asset.fvs_altman_z != null && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">Altman Z-Score:<InfoTooltip content="The Altman Z-Score predicts bankruptcy probability using 5 financial ratios. Scores >2.99 indicate Safe Zone (low bankruptcy risk), 1.81-2.99 is Grey Zone (moderate risk), and <1.81 is Distress Zone (high bankruptcy risk). Developed by Edward Altman in 1968." /></span>
+                          <span className={`font-mono ${
+                            asset.fvs_altman_z >= 2.99 ? 'text-emerald-400' :
+                            asset.fvs_altman_z >= 1.81 ? 'text-yellow-400' : 'text-red-400'
+                          }`}>
+                            {asset.fvs_altman_z.toFixed(2)}
+                          </span>
+                          <span className="text-muted-foreground/60">
+                            ({asset.fvs_altman_z >= 2.99 ? 'Safe Zone' :
+                              asset.fvs_altman_z >= 1.81 ? 'Grey Zone' : 'Distress Zone'})
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6">
+                      <p className="text-sm text-muted-foreground/60 italic">Fundamental analysis not yet available for this equity</p>
+                      <p className="text-xs text-muted-foreground/40 mt-1">FVS scores are generated during scheduled analysis runs</p>
                     </div>
                   )}
                 </div>
-              )}
-
-              {/* AI Summary */}
-              {chartView !== 'financials' && review?.summary_text && (
+              </div>
+            ) : (
+              /* AI Summary for Technicals View */
+              review?.summary_text && (
                 <div className="bg-muted/10 border border-border rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <Activity className="w-4 h-4 text-muted-foreground" />
                       <span className="text-xs font-medium text-muted-foreground">AI Summary</span>
                     </div>
-                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70 font-mono">
-                      <Sparkles className="w-3 h-3" />
-                      <span>{review.model_id || "gemini-3-flash-preview"}</span>
-                      {review.as_of_date && (
-                        <>
-                          <span>•</span>
-                          <Clock className="w-3 h-3" />
-                          <span>{review.as_of_date}</span>
-                        </>
-                      )}
-                    </div>
+                    <span className="text-[10px] text-muted-foreground/70 font-mono">
+                      {review.model_id || "gemini-3-pro-preview"}
+                      {review.as_of_date && ` • ${review.as_of_date}`}
+                    </span>
                   </div>
                   <p className="text-sm text-foreground/90 leading-relaxed">
                     {review.summary_text}
                   </p>
                 </div>
-              )}
+              )
+            )}
 
-              {/* Trade Plan & Why Now - Grid Layout */}
-              {chartView !== 'financials' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  {/* Trade Ladder */}
-                  <TradeLadder 
-                    entry={review?.entry}
-                    targets={review?.targets}
-                    stop={review?.invalidation}
-                    quantEntry={review?.quant_entry_price}
-                    quantStop={review?.quant_stop_loss}
-                    quantTarget={review?.quant_target_price}
-                    aiAdjustedEntry={review?.ai_adjusted_entry}
-                    aiAdjustedStop={review?.ai_adjusted_stop}
-                    aiAdjustedTarget={review?.ai_adjusted_target}
-                  />
-                  
-                  {/* Why Now */}
-                  {review?.why_now && review.why_now.length > 0 ? (
-                    <WhyNowSection reasons={review.why_now} />
+            {/* Trade Plan & Signals - Only show in Technicals view */}
+            {chartView !== 'financials' && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                {/* Trade Plan */}
+                <div className="bg-card border border-border rounded-lg overflow-hidden">
+                  <div className="bg-muted/30 px-4 py-2 border-b border-border flex items-center gap-2">
+                    <Target className="w-4 h-4 text-primary" />
+                    <h3 className="font-semibold text-sm">Trade Plan</h3>
+                    <InfoTooltip content="AI-generated trade plan with specific price levels. Entry zone is where to consider initiating positions. Targets are profit-taking levels. Invalidation is where the thesis fails." />
+                  </div>
+                  {review ? (
+                    <div className="p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Entry</span>
+                        <span className="font-mono text-sm font-semibold text-primary">
+                          ${review.entry?.low?.toFixed(2) || "—"} - ${review.entry?.high?.toFixed(2) || "—"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Targets</span>
+                        <div className="flex gap-2">
+                          {review.targets?.slice(0, 3).map((target: number, i: number) => (
+                            <span key={i} className="font-mono text-xs text-signal-bullish">
+                              ${target?.toFixed(2) || "—"}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Stop</span>
+                        <span className="font-mono text-sm font-semibold text-signal-bearish">
+                          ${review.invalidation?.toFixed(2) || "—"}
+                        </span>
+                      </div>
+                    </div>
                   ) : (
-                    /* Signals fallback if no why_now */
-                    <div className="bg-card border border-border rounded-lg overflow-hidden">
-                      <div className="bg-muted/30 px-4 py-2 border-b border-border flex items-center gap-2">
-                        <Activity className="w-4 h-4 text-muted-foreground" />
-                        <h3 className="font-semibold text-sm">Signals</h3>
-                        <InfoTooltip content="Quantitative signals that triggered this asset's score. Each signal has a strength from 0-100 based on technical criteria." />
-                      </div>
-                      <div className="p-3 max-h-[180px] overflow-y-auto">
-                        {review?.signal_facts && review.signal_facts.length > 0 ? (
-                          <div className="space-y-1.5">
-                            {review.signal_facts.map((signal: any, i: number) => (
-                              <Tooltip key={i}>
-                                <TooltipTrigger asChild>
-                                  <div className="flex items-center justify-between p-1.5 bg-muted/20 rounded cursor-help hover:bg-muted/30 transition-colors">
-                                    <span className="text-xs font-medium truncate">
-                                      {formatSignalType(signal.signal_type)}
-                                    </span>
-                                    <span className={`text-xs font-mono ml-2 ${
-                                      signal.strength >= 70 ? 'text-signal-bullish' : 
-                                      signal.strength >= 40 ? 'text-yellow-500' : 
-                                      'text-muted-foreground'
-                                    }`}>
-                                      {signal.strength}
-                                    </span>
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent className="max-w-xs">
-                                  {getSignalTooltip(signal.signal_type)}
-                                </TooltipContent>
-                              </Tooltip>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-xs text-muted-foreground text-center py-2">
-                            No signal data available
-                          </p>
-                        )}
-                      </div>
+                    <div className="p-3 text-center">
+                      <p className="text-xs text-muted-foreground">No trade plan available</p>
                     </div>
                   )}
                 </div>
-              )}
 
-              {/* Key Risks */}
-              {chartView !== 'financials' && review?.risks && review.risks.length > 0 && (
-                <RisksSection risks={review.risks} />
-              )}
-
-              {/* Inline One Pager */}
-              <InlineOnePager assetId={parseInt(assetId)} symbol={asset.symbol} />
-            </div>
-
-            {/* Right Column: About, Fundamentals, Documents, Notes, Files (30% = 3 cols) */}
-            <div className="lg:col-span-3 space-y-3">
-              {/* About Section */}
-              <div className="bg-card border border-border rounded-lg overflow-hidden">
-                <button
-                  onClick={() => toggleSection('about')}
-                  className="w-full bg-muted/30 px-4 py-2.5 border-b border-border flex items-center justify-between hover:bg-muted/40 transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-muted-foreground" />
-                    <h3 className="font-semibold text-sm">About</h3>
+                {/* Signals */}
+                <div className="bg-card border border-border rounded-lg overflow-hidden">
+                  <div className="bg-muted/30 px-4 py-2 border-b border-border flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-muted-foreground" />
+                    <h3 className="font-semibold text-sm">Signals</h3>
+                    <InfoTooltip content="Quantitative signals that triggered this asset's score. Each signal has a strength from 0-100 based on technical criteria." />
                   </div>
-                  {collapsedSections['about'] ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronUp className="w-4 h-4 text-muted-foreground" />}
-                </button>
-                {!collapsedSections['about'] && (
-                  <div className="p-3">
-                    {asset.short_description ? (
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        {asset.short_description}
-                      </p>
+                  <div className="p-3 max-h-[120px] overflow-y-auto">
+                    {review?.signal_facts && review.signal_facts.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {review.signal_facts.map((signal: any, i: number) => (
+                          <Tooltip key={i}>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center justify-between p-1.5 bg-muted/20 rounded cursor-help hover:bg-muted/30 transition-colors">
+                                <span className="text-xs font-medium truncate">
+                                  {formatSignalType(signal.signal_type)}
+                                </span>
+                                <span className={`text-xs font-mono ml-2 ${
+                                  signal.strength >= 70 ? 'text-signal-bullish' : 
+                                  signal.strength >= 40 ? 'text-yellow-500' : 
+                                  'text-muted-foreground'
+                                }`}>
+                                  {signal.strength}
+                                </span>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              {getSignalTooltip(signal.signal_type)}
+                            </TooltipContent>
+                          </Tooltip>
+                        ))}
+                      </div>
                     ) : (
-                      <p className="text-xs text-muted-foreground/50 italic">No description available</p>
+                      <p className="text-xs text-muted-foreground text-center py-2">
+                        No signal data available
+                      </p>
                     )}
-                    {(asset.sector || asset.industry) && (
-                      <div className="mt-3 pt-3 border-t border-border space-y-1.5">
-                        {asset.sector && (
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground">Sector</span>
-                            <span className="font-medium">{asset.sector}</span>
-                          </div>
-                        )}
-                        {asset.industry && (
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground">Industry</span>
-                            <span className="font-medium truncate max-w-[150px]">{asset.industry}</span>
-                          </div>
-                        )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Historical Financials is now available in the chart tabs above */}
+
+            {/* Inline One Pager - Full width in left column */}
+            <InlineOnePager assetId={parseInt(assetId)} symbol={asset.symbol} />
+          </div>
+
+          {/* Right Column: About, Fundamentals, Documents, Notes, Files (30% = 3 cols) */}
+          <div className="lg:col-span-3 space-y-3">
+            {/* About Section - TOP */}
+            <div className="bg-card border border-border rounded-lg overflow-hidden">
+              <button
+                onClick={() => toggleSection('about')}
+                className="w-full bg-muted/30 px-4 py-2.5 border-b border-border flex items-center justify-between hover:bg-muted/40 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-muted-foreground" />
+                  <h3 className="font-semibold text-sm">About</h3>
+                </div>
+                {collapsedSections['about'] ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronUp className="w-4 h-4 text-muted-foreground" />}
+              </button>
+              {!collapsedSections['about'] && (
+              <div className="p-4 space-y-3">
+                {/* EV + MC Display for equities */}
+                {asset.asset_type === 'equity' && (asset.enterprise_value || asset.market_cap) && (
+                  <div className="flex items-center gap-3 pb-2 border-b border-border/50">
+                    {asset.enterprise_value && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-wide">EV</span>
+                        <span className="text-xs font-mono font-medium text-foreground">
+                          {asset.enterprise_value >= 1e12 ? `$${(asset.enterprise_value / 1e12).toFixed(2)}T` :
+                           asset.enterprise_value >= 1e9 ? `$${(asset.enterprise_value / 1e9).toFixed(2)}B` :
+                           asset.enterprise_value >= 1e6 ? `$${(asset.enterprise_value / 1e6).toFixed(1)}M` :
+                           `$${asset.enterprise_value.toLocaleString()}`}
+                        </span>
+                      </div>
+                    )}
+                    {asset.enterprise_value && asset.market_cap && (
+                      <span className="text-muted-foreground/50">+</span>
+                    )}
+                    {asset.market_cap && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-wide">MC</span>
+                        <span className="text-xs font-mono font-medium text-foreground">
+                          {asset.market_cap >= 1e12 ? `$${(asset.market_cap / 1e12).toFixed(2)}T` :
+                           asset.market_cap >= 1e9 ? `$${(asset.market_cap / 1e9).toFixed(2)}B` :
+                           asset.market_cap >= 1e6 ? `$${(asset.market_cap / 1e6).toFixed(1)}M` :
+                           `$${asset.market_cap.toLocaleString()}`}
+                        </span>
                       </div>
                     )}
                   </div>
                 )}
-              </div>
 
-              {/* Fundamentals Summary */}
-              <FundamentalsSummary asset={asset} />
-
-              {/* Stock Lists */}
-              {stock_lists && stock_lists.length > 0 && (
-                <div className="bg-card border border-border rounded-lg overflow-hidden">
-                  <div className="bg-muted/30 px-4 py-2.5 border-b border-border flex items-center gap-2">
-                    <Tag className="w-4 h-4 text-muted-foreground" />
-                    <h3 className="font-semibold text-sm">Lists</h3>
+                {/* Category Badge */}
+                {asset.category && (
+                  <div className="flex items-center gap-2">
+                    <Tag className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-xs font-medium px-2 py-0.5 rounded bg-primary/10 text-primary">
+                      {asset.category}
+                    </span>
                   </div>
-                  <div className="p-3 flex flex-wrap gap-2">
-                    {stock_lists.map((list: any) => (
-                      <span 
+                )}
+                
+                {/* Stock List Tags (Subsectors) */}
+                {stock_lists && stock_lists.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                    {stock_lists.map((list: { id: number; name: string; color: string; icon: string }) => (
+                      <span
                         key={list.id}
-                        className="px-2 py-1 text-xs rounded-full"
-                        style={{ 
-                          backgroundColor: `${list.color}20`,
-                          color: list.color,
-                          border: `1px solid ${list.color}40`
+                        className="text-[10px] font-medium px-2 py-0.5 rounded-full border"
+                        style={{
+                          backgroundColor: `${list.color}15`,
+                          borderColor: `${list.color}40`,
+                          color: list.color
                         }}
                       >
-                        {list.icon && <span className="mr-1">{list.icon}</span>}
                         {list.name}
                       </span>
                     ))}
                   </div>
-                </div>
+                )}
+                
+                {/* Description */}
+                {asset.short_description ? (
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {asset.short_description}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground/60 italic">
+                    No description available
+                  </p>
+                )}
+              </div>
               )}
-
-              {/* Documents */}
-              <DocumentsSection assetId={parseInt(assetId)} symbol={asset.symbol} />
-
-              {/* Notes */}
-              <NotesHistory assetId={parseInt(assetId)} />
-
-              {/* Files */}
-              <FilesSection assetId={parseInt(assetId)} symbol={asset.symbol} />
             </div>
+
+            {/* Dynamic Sidebar based on active tab */}
+            {chartView === 'financials' && asset.asset_type === 'equity' ? (
+              <FundamentalsSidebar 
+                assetId={assetId}
+                asset={asset}
+                review={review}
+              />
+            ) : (
+              <TechnicalsSidebar 
+                asset={asset}
+                review={review}
+                features={features}
+              />
+            )}
+
+            {/* AI Documents Section */}
+            <DocumentsSection 
+              assetId={parseInt(assetId)} 
+              symbol={asset.symbol} 
+              companyName={asset.name}
+              assetType={asset.asset_type}
+            />
+
+            {/* Notes History */}
+            <NotesHistory assetId={parseInt(assetId)} />
+
+            {/* Files Section - BOTTOM */}
+            <FilesSection assetId={parseInt(assetId)} />
           </div>
         </div>
       </div>
+
+
     </>
   );
 }
