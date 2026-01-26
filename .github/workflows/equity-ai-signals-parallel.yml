@@ -35,6 +35,11 @@ on:
         required: false
         default: '50'
         type: string
+      stagger_delay:
+        description: 'Seconds between launching each sandbox'
+        required: false
+        default: '2'
+        type: string
       model:
         description: 'Gemini model to use'
         required: false
@@ -48,7 +53,7 @@ jobs:
   parallel-ai-analysis:
     name: Parallel E2B AI Analysis
     runs-on: ubuntu-latest
-    timeout-minutes: 60  # Orchestrator should complete within this time
+    timeout-minutes: 60
     
     steps:
       - name: Checkout repository
@@ -71,7 +76,6 @@ jobs:
           if [ -n "${{ github.event.inputs.target_date }}" ]; then
             echo "date=${{ github.event.inputs.target_date }}" >> $GITHUB_OUTPUT
           else
-            # Default to today (UTC)
             echo "date=$(date -u +%Y-%m-%d)" >> $GITHUB_OUTPUT
           fi
       
@@ -85,6 +89,7 @@ jobs:
           echo "📅 Date: ${{ steps.date.outputs.date }}"
           echo "🔢 Sandboxes: ${{ github.event.inputs.sandboxes || '50' }}"
           echo "⚡ Max Concurrent: ${{ github.event.inputs.max_concurrent || '50' }}"
+          echo "⏱️ Stagger Delay: ${{ github.event.inputs.stagger_delay || '2' }}s"
           echo ""
           
           python scripts/e2b_parallel_orchestrator.py \
@@ -92,18 +97,15 @@ jobs:
             --asset-type equity \
             --model ${{ github.event.inputs.model || 'gemini-3-flash-preview' }} \
             --sandboxes ${{ github.event.inputs.sandboxes || '50' }} \
-            --max-concurrent ${{ github.event.inputs.max_concurrent || '50' }}
+            --max-concurrent ${{ github.event.inputs.max_concurrent || '50' }} \
+            --stagger-delay ${{ github.event.inputs.stagger_delay || '2' }}
       
       - name: Report completion
         if: success()
         run: |
           echo "✅ Parallel E2B processing completed successfully"
-          echo ""
-          echo "All equity assets have been processed across multiple sandboxes."
-          echo "Results are stored in the asset_ai_reviews table."
       
       - name: Report failure
         if: failure()
         run: |
           echo "❌ Parallel E2B processing failed"
-          echo "Check the logs above for details on which sandboxes failed."
