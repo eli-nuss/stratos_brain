@@ -213,3 +213,6 @@ export function getPurityInterpretation(score: number | null | undefined): {
     color: '#ef4444',
   };
 }
+
+// Alias for getPurityInterpretation
+export const getPurityLabel = getPurityInterpretation;
