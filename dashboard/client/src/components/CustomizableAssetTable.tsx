@@ -670,16 +670,14 @@ export default function CustomizableAssetTable({
         }
         return (
           <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center gap-1.5 cursor-help">
-                <span className="text-sm">{setupDef.icon}</span>
-                <span 
-                  className="text-xs font-medium"
-                  style={{ color: setupDef.color }}
-                >
-                  {setupDef.shortName}
-                </span>
-              </div>
+            <TooltipTrigger className="flex items-center gap-1.5 cursor-help">
+              <span className="text-sm">{setupDef.icon}</span>
+              <span 
+                className="text-xs font-medium"
+                style={{ color: setupDef.color }}
+              >
+                {setupDef.shortName}
+              </span>
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-xs">
               <div className="space-y-1.5">
@@ -701,24 +699,22 @@ export default function CustomizableAssetTable({
         }
         return (
           <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center gap-1.5 cursor-help">
-                <span 
-                  className="font-mono text-xs font-medium"
-                  style={{ color: purity.color }}
-                >
-                  {row.setup_purity_score.toFixed(0)}
-                </span>
-                <span 
-                  className="text-[10px] px-1 py-0.5 rounded"
-                  style={{ 
-                    backgroundColor: `${purity.color}20`,
-                    color: purity.color 
-                  }}
-                >
-                  {purity.label}
-                </span>
-              </div>
+            <TooltipTrigger className="flex items-center gap-1.5 cursor-help">
+              <span 
+                className="font-mono text-xs font-medium"
+                style={{ color: purity.color }}
+              >
+                {row.setup_purity_score.toFixed(0)}
+              </span>
+              <span 
+                className="text-[10px] px-1 py-0.5 rounded"
+                style={{ 
+                  backgroundColor: `${purity.color}20`,
+                  color: purity.color 
+                }}
+              >
+                {purity.label}
+              </span>
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-xs">
               <div className="space-y-1">
