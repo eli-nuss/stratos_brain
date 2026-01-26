@@ -1,0 +1,187 @@
+{
+  "setup": "donchian_55_breakout",
+  "total_combinations": 27,
+  "elapsed_seconds": 18.82186245918274,
+  "best_result": {
+    "entry_params": {
+      "lookback_days": 55,
+      "ma_slope_threshold": 0
+    },
+    "exit_params": {
+      "trailing_low_days": 20,
+      "max_hold_days": 120
+    },
+    "trades": 122,
+    "win_rate": 50.8,
+    "profit_factor": 1.99,
+    "avg_return": 5.321,
+    "score": 33.672
+  },
+  "best_by_profit_factor": {
+    "entry_params": {
+      "lookback_days": 55,
+      "ma_slope_threshold": 0
+    },
+    "exit_params": {
+      "trailing_low_days": 20,
+      "max_hold_days": 120
+    },
+    "trades": 122,
+    "win_rate": 50.8,
+    "profit_factor": 1.99,
+    "avg_return": 5.321,
+    "score": 33.672
+  },
+  "top_10": [
+    {
+      "entry_params": {
+        "lookback_days": 55,
+        "ma_slope_threshold": 0
+      },
+      "exit_params": {
+        "trailing_low_days": 20,
+        "max_hold_days": 120
+      },
+      "trades": 122,
+      "win_rate": 50.8,
+      "profit_factor": 1.99,
+      "avg_return": 5.321,
+      "score": 33.672
+    },
+    {
+      "entry_params": {
+        "lookback_days": 55,
+        "ma_slope_threshold": 0
+      },
+      "exit_params": {
+        "trailing_low_days": 25,
+        "max_hold_days": 120
+      },
+      "trades": 122,
+      "win_rate": 50.8,
+      "profit_factor": 1.99,
+      "avg_return": 5.321,
+      "score": 33.672
+    },
+    {
+      "entry_params": {
+        "lookback_days": 55,
+        "ma_slope_threshold": 0
+      },
+      "exit_params": {
+        "trailing_low_days": 30,
+        "max_hold_days": 120
+      },
+      "trades": 122,
+      "win_rate": 50.8,
+      "profit_factor": 1.99,
+      "avg_return": 5.321,
+      "score": 33.672
+    },
+    {
+      "entry_params": {
+        "lookback_days": 55,
+        "ma_slope_threshold": 0
+      },
+      "exit_params": {
+        "trailing_low_days": 20,
+        "max_hold_days": 252
+      },
+      "trades": 119,
+      "win_rate": 51.3,
+      "profit_factor": 1.968,
+      "avg_return": 5.368,
+      "score": 33.0
+    },
+    {
+      "entry_params": {
+        "lookback_days": 55,
+        "ma_slope_threshold": 0
+      },
+      "exit_params": {
+        "trailing_low_days": 25,
+        "max_hold_days": 252
+      },
+      "trades": 119,
+      "win_rate": 51.3,
+      "profit_factor": 1.968,
+      "avg_return": 5.368,
+      "score": 33.0
+    },
+    {
+      "entry_params": {
+        "lookback_days": 55,
+        "ma_slope_threshold": 0
+      },
+      "exit_params": {
+        "trailing_low_days": 30,
+        "max_hold_days": 252
+      },
+      "trades": 119,
+      "win_rate": 51.3,
+      "profit_factor": 1.968,
+      "avg_return": 5.368,
+      "score": 33.0
+    },
+    {
+      "entry_params": {
+        "lookback_days": 55,
+        "ma_slope_threshold": 0.001
+      },
+      "exit_params": {
+        "trailing_low_days": 20,
+        "max_hold_days": 120
+      },
+      "trades": 119,
+      "win_rate": 49.6,
+      "profit_factor": 1.969,
+      "avg_return": 5.343,
+      "score": 32.948
+    },
+    {
+      "entry_params": {
+        "lookback_days": 55,
+        "ma_slope_threshold": 0.001
+      },
+      "exit_params": {
+        "trailing_low_days": 25,
+        "max_hold_days": 120
+      },
+      "trades": 119,
+      "win_rate": 49.6,
+      "profit_factor": 1.969,
+      "avg_return": 5.343,
+      "score": 32.948
+    },
+    {
+      "entry_params": {
+        "lookback_days": 55,
+        "ma_slope_threshold": 0.001
+      },
+      "exit_params": {
+        "trailing_low_days": 30,
+        "max_hold_days": 120
+      },
+      "trades": 119,
+      "win_rate": 49.6,
+      "profit_factor": 1.969,
+      "avg_return": 5.343,
+      "score": 32.948
+    },
+    {
+      "entry_params": {
+        "lookback_days": 55,
+        "ma_slope_threshold": 0.002
+      },
+      "exit_params": {
+        "trailing_low_days": 20,
+        "max_hold_days": 120
+      },
+      "trades": 115,
+      "win_rate": 49.6,
+      "profit_factor": 1.966,
+      "avg_return": 5.476,
+      "score": 32.635
+    }
+  ]
+}
