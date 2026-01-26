@@ -1693,7 +1693,6 @@ serve(async (req: Request) => {
             direction,
             setup_type,
             ai_direction_score,
-            ai_setup_quality_score,
             ai_attention_level,
             ai_confidence,
             ai_summary_text,
@@ -1703,6 +1702,19 @@ serve(async (req: Request) => {
             ai_risks,
             ai_time_horizon,
             ai_what_to_watch_next,
+            ai_why_now,
+            primary_setup,
+            setup_purity_score,
+            historical_profit_factor,
+            active_quant_setups,
+            quant_entry_price,
+            quant_stop_loss,
+            quant_target_price,
+            ai_adjusted_entry,
+            ai_adjusted_stop,
+            ai_adjusted_target,
+            model,
+            prompt_version,
             created_at
           `)
           .eq('asset_id', assetId)
