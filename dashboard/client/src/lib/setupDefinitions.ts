@@ -114,6 +114,15 @@ export const SETUP_DEFINITIONS: Record<string, SetupDefinition> = {
     color: '#f97316', // orange
     icon: '🔄',
   },
+  weinstein_stage2: {
+    id: 'weinstein_stage2',
+    shortName: 'Stage 2',
+    fullName: 'Weinstein Stage 2 Breakout',
+    description: 'Stock is breaking out of a long base (100+ days) into Stage 2 of the Weinstein cycle. This is a rare but powerful signal indicating the start of a major uptrend.',
+    category: 'breakout',
+    color: '#10b981', // emerald
+    icon: '🏆',
+  },
 };
 
 /**

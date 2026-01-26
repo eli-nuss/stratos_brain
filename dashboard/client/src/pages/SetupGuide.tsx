@@ -316,6 +316,39 @@ const SETUPS = [
       "Best when overall market is supportive"
     ],
     chartPattern: "breakout"
+  },
+  {
+    id: "weinstein_stage2",
+    name: "Weinstein Stage 2 Breakout",
+    shortName: "Stage 2",
+    category: "Breakout",
+    color: "#10b981",
+    profitFactor: 4.09,
+    avgRiskReward: 3.50,
+    signalCount: 0,
+    description: "A stock breaking out of a long consolidation base (100+ days) into Stage 2 of the Weinstein market cycle. This rare but powerful signal often marks the beginning of a major multi-month uptrend.",
+    howToIdentify: [
+      "Long base formation (100+ trading days minimum)",
+      "Base range within 15% from high to low",
+      "Price breaking above base resistance with 1.5x+ volume",
+      "30-week (150-day) moving average flattening or turning up",
+      "Stock emerging from Stage 1 (basing) into Stage 2 (advancing)"
+    ],
+    howToTrade: [
+      "Entry: Buy on breakout above base with volume confirmation",
+      "Stop: Below the base low or 2x ATR (wider stop for longer-term trade)",
+      "Target: Trail with 30-week MA, expect 20%+ moves",
+      "Position size: Can use larger size due to high profit factor",
+      "Hold time: Position trade - expect to hold for months"
+    ],
+    keyInsights: [
+      "Highest profit factor (4.09) of ALL setups - exceptional edge",
+      "Very rare - requires 100+ day base, few signals per year",
+      "Based on Stan Weinstein's 'Secrets for Profiting in Bull and Bear Markets'",
+      "Best for position traders with longer time horizons",
+      "The longer the base, the bigger the potential move"
+    ],
+    chartPattern: "weinstein_stage2"
   }
 ];
 
@@ -550,6 +583,45 @@ function ChartPattern({ pattern }: { pattern: string }) {
             <rect x="215" y="50" width="8" height="15" fill="#22c55e" opacity="0.7" />
             <rect x="235" y="45" width="8" height="12" fill="#22c55e" opacity="0.7" />
             <rect x="255" y="40" width="8" height="10" fill="#22c55e" opacity="0.7" />
+          </>
+        );
+      case "weinstein_stage2":
+        return (
+          <>
+            {/* Long base formation (100+ days) */}
+            <rect x="20" y="70" width="180" height="40" fill="#10b981" opacity="0.1" rx="2" />
+            {/* Base price action - sideways consolidation */}
+            <path 
+              d="M 25 90 L 40 85 L 55 92 L 70 88 L 85 95 L 100 87 L 115 93 L 130 86 L 145 91 L 160 84 L 175 90 L 190 82" 
+              fill="none" 
+              stroke="#6b7280" 
+              strokeWidth="1.5"
+            />
+            {/* Resistance line at top of base */}
+            <line x1="20" y1="75" x2="200" y2="75" stroke="#ef4444" strokeWidth="1" strokeDasharray="4" />
+            {/* Support line at bottom of base */}
+            <line x1="20" y1="100" x2="200" y2="100" stroke="#22c55e" strokeWidth="1" strokeDasharray="4" />
+            {/* 30-week MA flattening */}
+            <path 
+              d="M 20 110 L 60 105 L 100 98 L 140 93 L 180 88 L 200 85" 
+              fill="none" 
+              stroke="#eab308" 
+              strokeWidth="1.5"
+              strokeDasharray="3"
+            />
+            {/* Breakout with volume */}
+            <path 
+              d="M 190 82 L 210 65 L 230 50 L 250 40 L 270 25 L 280 20" 
+              fill="none" 
+              stroke="#10b981" 
+              strokeWidth="2.5"
+            />
+            {/* Volume spike on breakout */}
+            <rect x="200" y="120" width="12" height="25" fill="#10b981" opacity="0.6" />
+            <rect x="215" y="110" width="12" height="35" fill="#10b981" opacity="0.8" />
+            <rect x="230" y="105" width="12" height="40" fill="#10b981" opacity="0.9" />
+            {/* "100+ days" label */}
+            <text x="100" y="115" fill="#6b7280" fontSize="10" textAnchor="middle">100+ days</text>
           </>
         );
       default:
