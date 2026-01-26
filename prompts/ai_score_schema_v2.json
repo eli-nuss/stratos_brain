@@ -1,0 +1,153 @@
+{
+  "type": "object",
+  "properties": {
+    "attention_level": {
+      "type": "string",
+      "enum": ["URGENT", "FOCUS", "WATCH", "IGNORE"],
+      "description": "The level of attention required for this asset."
+    },
+    "direction": {
+      "type": "string",
+      "enum": ["bullish", "bearish", "neutral"],
+      "description": "The primary direction suggested by the chart analysis."
+    },
+    "setup_type": {
+      "type": "string",
+      "enum": ["breakout", "breakdown", "reversal", "continuation", "range", "mean_reversion", "unclear"],
+      "description": "The technical setup identified."
+    },
+    "time_horizon": {
+      "type": "string",
+      "enum": ["days", "weeks", "months", "unclear"],
+      "description": "The expected time horizon for the setup to play out."
+    },
+    "ai_direction_score": {
+      "type": "integer",
+      "description": "The model's directional conviction score, ranging from -100 (strong bearish) to 100 (strong bullish).",
+      "minimum": -100,
+      "maximum": 100
+    },
+    "setup_purity_score": {
+      "type": "integer",
+      "description": "How cleanly the detected quant setup matches the ideal pattern (0-100). 0 if no active quant setups.",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "confidence": {
+      "type": "number",
+      "description": "The model's confidence in its overall assessment, ranging from 0.0 (low) to 1.0 (high).",
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "summary_text": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "A comprehensive 5-7 sentence technical analysis covering setup context, current structure, purity assessment, key thesis, and risk definition. Must be specific and quantitative with concrete numbers from the data."
+    },
+    "why_now": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 7,
+      "items": {
+        "type": "string"
+      },
+      "description": "3-7 bullet points explaining the immediate technical catalysts, each citing concrete numbers from the input data."
+    },
+    "key_levels": {
+      "type": "object",
+      "properties": {
+        "support": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 3,
+          "items": {
+            "type": "number"
+          },
+          "description": "2-3 key support levels."
+        },
+        "resistance": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 3,
+          "items": {
+            "type": "number"
+          },
+          "description": "2-3 key resistance levels."
+        },
+        "invalidation": {
+          "type": "number",
+          "description": "The price level that invalidates the current setup."
+        }
+      },
+      "required": ["support", "resistance", "invalidation"],
+      "description": "Key price levels for the setup."
+    },
+    "entry_zone": {
+      "type": ["object", "null"],
+      "properties": {
+        "low": {
+          "type": "number"
+        },
+        "high": {
+          "type": "number"
+        }
+      },
+      "required": ["low", "high"],
+      "description": "The recommended entry price range."
+    },
+    "targets": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+        "type": "number"
+      },
+      "description": "1-3 price targets."
+    },
+    "what_to_watch_next": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 6,
+      "items": {
+        "type": "string"
+      },
+      "description": "2-6 points on what to watch for confirmation or negation."
+    },
+    "risks_and_contradictions": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 6,
+      "items": {
+        "type": "string"
+      },
+      "description": "2-6 points on risks and contradictory signals."
+    },
+    "ai_adjusted_entry": {
+      "type": ["number", "null"],
+      "description": "AI-adjusted entry price (within ±10% of quant entry). Null if no adjustment recommended."
+    },
+    "ai_adjusted_stop": {
+      "type": ["number", "null"],
+      "description": "AI-adjusted stop loss (within ±10% of quant stop). Null if no adjustment recommended."
+    },
+    "ai_adjusted_target": {
+      "type": ["number", "null"],
+      "description": "AI-adjusted target price (within ±10% of quant target). Null if no adjustment recommended."
+    }
+  },
+  "required": [
+    "attention_level",
+    "direction",
+    "setup_type",
+    "time_horizon",
+    "ai_direction_score",
+    "setup_purity_score",
+    "confidence",
+    "summary_text",
+    "why_now",
+    "key_levels",
+    "targets",
+    "what_to_watch_next",
+    "risks_and_contradictions"
+  ]
+}
