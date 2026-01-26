@@ -670,8 +670,7 @@ export default function CustomizableAssetTable({
         }
         return (
           <Tooltip>
-            <TooltipTrigger className="flex items-center gap-1.5 cursor-help">
-              <span className="text-sm">{setupDef.icon}</span>
+            <TooltipTrigger className="cursor-help">
               <span 
                 className="text-xs font-medium"
                 style={{ color: setupDef.color }}
@@ -682,7 +681,7 @@ export default function CustomizableAssetTable({
             <TooltipContent side="top" className="max-w-xs">
               <div className="space-y-1.5">
                 <div className="font-semibold text-sm" style={{ color: setupDef.color }}>
-                  {setupDef.icon} {setupDef.fullName}
+                  {setupDef.fullName}
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   {setupDef.description}

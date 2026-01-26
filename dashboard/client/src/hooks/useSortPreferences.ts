@@ -36,7 +36,7 @@ interface SortPreferences {
 }
 
 const STORAGE_KEY_PREFIX = "stratos_sort_";
-const DEFAULT_SORT_BY: SortField = "setup_purity_score";
+const DEFAULT_SORT_BY: SortField = "market_cap";
 const DEFAULT_SORT_ORDER: SortOrder = "desc";
 
 /**
