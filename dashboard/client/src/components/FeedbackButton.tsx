@@ -3,7 +3,10 @@ import { useLocation } from 'wouter';
 import { MessageSquarePlus, X, Bug, Lightbulb, Sparkles, Send, Loader2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { API_BASE, getJsonApiHeaders } from '@/lib/api-config';
+import { getJsonApiHeaders } from '@/lib/api-config';
+
+// Feedback API endpoint (separate from control-api)
+const FEEDBACK_API_BASE = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/feedback-api';
 
 type FeedbackCategory = 'bug' | 'feature' | 'improvement';
 type FeedbackPriority = 'low' | 'medium' | 'high';
@@ -80,7 +83,7 @@ export default function FeedbackButton() {
         : 'Anon';
       const userEmail = user?.email || null;
 
-      const response = await fetch(`${API_BASE}/feedback`, {
+      const response = await fetch(FEEDBACK_API_BASE, {
         method: 'POST',
         headers: getJsonApiHeaders(),
         body: JSON.stringify({
