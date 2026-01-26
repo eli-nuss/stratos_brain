@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 
 // Config version - increment this when adding new columns that should be auto-added to existing configs
-const CONFIG_VERSION = 3; // v3: Added list_tags column for stock lists
+const CONFIG_VERSION = 4; // v4: Added primary_setup and setup_purity_score columns, removed ai_setup_quality_score
 
 // Column definition type
 export interface ColumnDef {
@@ -26,7 +26,8 @@ export const ALL_COLUMNS: ColumnDef[] = [
   { id: "actions", label: "", tooltip: "Click to sort by tag (Interesting first)", minWidth: "64px", align: "center", sticky: true, stickyOffset: "0", required: true, sortField: "interesting_first" },
   { id: "asset", label: "Asset", tooltip: "Asset name and symbol", sortField: "symbol", minWidth: "120px", align: "left", sticky: true, stickyOffset: "64px", required: true },
   { id: "direction", label: "Dir", tooltip: "AI directional conviction (-100 to +100)", sortField: "ai_direction_score", minWidth: "70px", align: "center" },
-  { id: "quality", label: "Quality", tooltip: "AI setup quality score (0-100)", sortField: "ai_setup_quality_score", minWidth: "70px", align: "center" },
+  { id: "primary_setup", label: "Setup", tooltip: "Primary quantitative setup detected (e.g., rs_breakout, trend_pullback_50ma)", sortField: "primary_setup", minWidth: "120px", align: "center", addedInVersion: 4 },
+  { id: "setup_purity_score", label: "Purity", tooltip: "Setup purity score (0-100) - How clean and tradeable the setup is", sortField: "setup_purity_score", minWidth: "70px", align: "center", addedInVersion: 4 },
   { id: "fvs_score", label: "FVS", tooltip: "Fundamental Vigor Score (0-100) - AI-powered fundamental health assessment", sortField: "fvs_score", minWidth: "70px", align: "center", appliesTo: ["equity", "watchlist", "stocklist"], addedInVersion: 2 },
   { id: "market_cap", label: "Mkt Cap", tooltip: "Market capitalization", sortField: "market_cap", minWidth: "90px", align: "right" },
   { id: "price", label: "Price", tooltip: "Latest closing price", sortField: "close", minWidth: "80px", align: "right" },
@@ -51,10 +52,10 @@ export const ALL_COLUMNS: ColumnDef[] = [
 
 // Default visible columns for each table type
 export const DEFAULT_VISIBLE_COLUMNS: Record<string, string[]> = {
-  crypto: ["actions", "asset", "direction", "quality", "market_cap", "price", "return_1d", "return_7d", "return_30d", "return_365d", "volume_7d", "volume_30d", "category", "description", "notes"],
-  equity: ["actions", "asset", "direction", "quality", "fvs_score", "market_cap", "price", "return_1d", "return_7d", "return_30d", "return_365d", "volume_7d", "volume_30d", "pe_ratio", "forward_pe", "peg_ratio", "price_to_sales", "forward_ps", "psg", "revenue_growth_yoy", "category", "description", "notes"],
-  watchlist: ["actions", "asset", "direction", "quality", "fvs_score", "market_cap", "price", "return_1d", "return_7d", "return_30d", "return_365d", "volume_7d", "volume_30d", "pe_ratio", "forward_pe", "peg_ratio", "price_to_sales", "forward_ps", "psg", "revenue_growth_yoy", "category", "description", "notes"],
-  stocklist: ["actions", "asset", "direction", "quality", "fvs_score", "market_cap", "price", "return_1d", "return_7d", "return_30d", "return_365d", "volume_7d", "volume_30d", "pe_ratio", "forward_pe", "peg_ratio", "price_to_sales", "forward_ps", "psg", "revenue_growth_yoy", "list_tags", "category", "description", "notes"],
+  crypto: ["actions", "asset", "direction", "primary_setup", "setup_purity_score", "market_cap", "price", "return_1d", "return_7d", "return_30d", "return_365d", "volume_7d", "volume_30d", "category", "description", "notes"],
+  equity: ["actions", "asset", "direction", "primary_setup", "setup_purity_score", "fvs_score", "market_cap", "price", "return_1d", "return_7d", "return_30d", "return_365d", "volume_7d", "volume_30d", "pe_ratio", "forward_pe", "peg_ratio", "price_to_sales", "forward_ps", "psg", "revenue_growth_yoy", "category", "description", "notes"],
+  watchlist: ["actions", "asset", "direction", "primary_setup", "setup_purity_score", "fvs_score", "market_cap", "price", "return_1d", "return_7d", "return_30d", "return_365d", "volume_7d", "volume_30d", "pe_ratio", "forward_pe", "peg_ratio", "price_to_sales", "forward_ps", "psg", "revenue_growth_yoy", "category", "description", "notes"],
+  stocklist: ["actions", "asset", "direction", "primary_setup", "setup_purity_score", "fvs_score", "market_cap", "price", "return_1d", "return_7d", "return_30d", "return_365d", "volume_7d", "volume_30d", "pe_ratio", "forward_pe", "peg_ratio", "price_to_sales", "forward_ps", "psg", "revenue_growth_yoy", "list_tags", "category", "description", "notes"],
 };
 
 // Default column order (same as ALL_COLUMNS order)

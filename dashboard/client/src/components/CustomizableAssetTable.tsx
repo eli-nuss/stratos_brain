@@ -99,7 +99,7 @@ const EQUITY_INDUSTRIES = [
 
 interface FilterThresholds {
   aiDirScore?: { min?: number; max?: number };
-  aiQualityScore?: { min?: number; max?: number };
+  setupPurityScore?: { min?: number; max?: number };
   return1d?: { min?: number; max?: number };
   volume7d?: { min?: number; max?: number };
   marketCap?: { min?: number; max?: number };
@@ -261,8 +261,8 @@ export default function CustomizableAssetTable({
   const [filterInputs, setFilterInputs] = useState({
     aiDirScoreMin: "",
     aiDirScoreMax: "",
-    aiQualityScoreMin: "",
-    aiQualityScoreMax: "",
+    setupPurityScoreMin: "",
+    setupPurityScoreMax: "",
     return1dMin: "",
     return1dMax: "",
     volume7dMin: "",
@@ -364,8 +364,8 @@ export default function CustomizableAssetTable({
         if ((threshold as any).max !== undefined && score > (threshold as any).max) return false;
         return true;
       }
-      case 'aiQualityScore': {
-        const score = row.ai_setup_quality_score || 0;
+      case 'setupPurityScore': {
+        const score = row.setup_purity_score || 0;
         if ((threshold as any).min !== undefined && score < (threshold as any).min) return false;
         if ((threshold as any).max !== undefined && score > (threshold as any).max) return false;
         return true;
@@ -493,10 +493,10 @@ export default function CustomizableAssetTable({
         max: filterInputs.aiDirScoreMax ? parseFloat(filterInputs.aiDirScoreMax) : undefined,
       };
     }
-    if (filterInputs.aiQualityScoreMin || filterInputs.aiQualityScoreMax) {
-      newThresholds.aiQualityScore = {
-        min: filterInputs.aiQualityScoreMin ? parseFloat(filterInputs.aiQualityScoreMin) : undefined,
-        max: filterInputs.aiQualityScoreMax ? parseFloat(filterInputs.aiQualityScoreMax) : undefined,
+    if (filterInputs.setupPurityScoreMin || filterInputs.setupPurityScoreMax) {
+      newThresholds.setupPurityScore = {
+        min: filterInputs.setupPurityScoreMin ? parseFloat(filterInputs.setupPurityScoreMin) : undefined,
+        max: filterInputs.setupPurityScoreMax ? parseFloat(filterInputs.setupPurityScoreMax) : undefined,
       };
     }
     if (filterInputs.return1dMin || filterInputs.return1dMax) {
@@ -556,8 +556,8 @@ export default function CustomizableAssetTable({
     setFilterInputs({
       aiDirScoreMin: "",
       aiDirScoreMax: "",
-      aiQualityScoreMin: "",
-      aiQualityScoreMax: "",
+      setupPurityScoreMin: "",
+      setupPurityScoreMax: "",
       return1dMin: "",
       return1dMax: "",
       volume7dMin: "",
@@ -662,13 +662,21 @@ export default function CustomizableAssetTable({
             </span>
           </div>
         );
-      case "quality":
+      case "primary_setup":
+        return (
+          <span className={`text-xs ${
+            row.primary_setup ? "text-cyan-400" : "text-muted-foreground"
+          }`}>
+            {row.primary_setup ? row.primary_setup.replace(/_/g, ' ') : "-"}
+          </span>
+        );
+      case "setup_purity_score":
         return (
           <span className={`font-mono text-xs ${
-            row.ai_setup_quality_score >= 70 ? "text-signal-bullish" :
-            row.ai_setup_quality_score >= 40 ? "text-yellow-400" : "text-muted-foreground"
+            row.setup_purity_score >= 80 ? "text-signal-bullish" :
+            row.setup_purity_score >= 60 ? "text-yellow-400" : "text-muted-foreground"
           }`}>
-            {row.ai_setup_quality_score ?? "-"}
+            {row.setup_purity_score != null ? row.setup_purity_score.toFixed(0) : "-"}
           </span>
         );
       case "fvs_score":
@@ -832,15 +840,15 @@ export default function CustomizableAssetTable({
                     className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
                 </div>
               </div>
-              {/* AI Quality Score */}
+              {/* Setup Purity Score */}
               <div className="space-y-1">
-                <label className="text-[9px] font-bold text-muted-foreground uppercase">AI Quality</label>
+                <label className="text-[9px] font-bold text-muted-foreground uppercase">Purity</label>
                 <div className="flex gap-1">
-                  <input type="number" placeholder="Min" value={filterInputs.aiQualityScoreMin}
-                    onChange={(e) => setFilterInputs({...filterInputs, aiQualityScoreMin: e.target.value})}
+                  <input type="number" placeholder="Min" value={filterInputs.setupPurityScoreMin}
+                    onChange={(e) => setFilterInputs({...filterInputs, setupPurityScoreMin: e.target.value})}
                     className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
-                  <input type="number" placeholder="Max" value={filterInputs.aiQualityScoreMax}
-                    onChange={(e) => setFilterInputs({...filterInputs, aiQualityScoreMax: e.target.value})}
+                  <input type="number" placeholder="Max" value={filterInputs.setupPurityScoreMax}
+                    onChange={(e) => setFilterInputs({...filterInputs, setupPurityScoreMax: e.target.value})}
                     className="w-1/2 min-w-0 text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
                 </div>
               </div>

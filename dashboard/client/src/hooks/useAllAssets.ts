@@ -2,7 +2,7 @@ import useSWR from "swr";
 import { apiFetcher, defaultSwrConfig, API_BASE } from "../lib/api-config";
 
 export type AssetType = "crypto" | "equity";
-export type SortField = "weighted_score" | "symbol" | "score_delta" | "inflection_score" | "ai_confidence" | "ai_setup_quality_score" | "ai_direction_score" | "fvs_score" | "market_cap" | "return_1d" | "return_7d" | "return_30d" | "return_365d" | "close" | "dollar_volume_7d" | "dollar_volume_30d" | "industry" | "pe_ratio" | "forward_pe" | "peg_ratio" | "price_to_sales_ttm" | "forward_ps" | "psg" | "revenue_growth_yoy" | "interesting_first";
+export type SortField = "weighted_score" | "symbol" | "score_delta" | "inflection_score" | "ai_confidence" | "ai_direction_score" | "primary_setup" | "setup_purity_score" | "fvs_score" | "market_cap" | "return_1d" | "return_7d" | "return_30d" | "return_365d" | "close" | "dollar_volume_7d" | "dollar_volume_30d" | "industry" | "pe_ratio" | "forward_pe" | "peg_ratio" | "price_to_sales_ttm" | "forward_ps" | "psg" | "revenue_growth_yoy" | "interesting_first";
 export type SortOrder = "asc" | "desc";
 
 interface UseAllAssetsParams {
@@ -32,7 +32,7 @@ export function useAllAssets({
   date,
   limit = 50,
   offset = 0,
-  sortBy = "ai_setup_quality_score", // Default to AI quality score
+  sortBy = "setup_purity_score", // Default to setup purity score
   sortOrder = "desc",
   secondarySortBy = null,
   secondarySortOrder = "desc",
@@ -51,7 +51,7 @@ export function useAllAssets({
     limit: effectiveLimit.toString(),
     offset: effectiveOffset.toString(),
     asset_type: assetType, // Use asset_type filter (equity or crypto)
-    sort_by: effectiveSortBy || "ai_setup_quality_score", // Default to AI score
+    sort_by: effectiveSortBy || "setup_purity_score", // Default to setup purity score
     sort_order: sortOrder,
   });
 

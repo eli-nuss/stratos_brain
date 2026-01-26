@@ -6,8 +6,9 @@ export type SortField =
   | "score_delta" 
   | "inflection_score" 
   | "ai_confidence" 
-  | "ai_setup_quality_score" 
   | "ai_direction_score" 
+  | "primary_setup"
+  | "setup_purity_score"
   | "fvs_score" 
   | "market_cap" 
   | "return_1d" 
@@ -35,7 +36,7 @@ interface SortPreferences {
 }
 
 const STORAGE_KEY_PREFIX = "stratos_sort_";
-const DEFAULT_SORT_BY: SortField = "market_cap";
+const DEFAULT_SORT_BY: SortField = "setup_purity_score";
 const DEFAULT_SORT_ORDER: SortOrder = "desc";
 
 /**
