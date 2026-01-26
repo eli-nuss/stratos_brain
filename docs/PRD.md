@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 26, 2026 (v11.1 - Setup Type Filters & UI Improvements)  
+**Last Updated: January 26, 2026 (v11.1.1 - Feedback API Bug Fix)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
