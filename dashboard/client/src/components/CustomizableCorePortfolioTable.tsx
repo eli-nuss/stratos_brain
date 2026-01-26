@@ -11,6 +11,7 @@ import ColumnCustomizer from "@/components/ColumnCustomizer";
 import { useCorePortfolioAssets, useCorePortfolio } from "@/hooks/useCorePortfolio";
 import AddToPortfolioButton from "@/components/AddToPortfolioButton";
 import { useColumnConfig, ColumnDef } from "@/hooks/useColumnConfig";
+import { getSetupDefinition, getPurityLabel } from "@/lib/setupDefinitions";
 import { useSortPreferences, SortField, SortOrder } from "@/hooks/useSortPreferences";
 import {
   DndContext,
@@ -293,15 +294,36 @@ export default function CustomizableCorePortfolioTable({ onAssetClick }: Customi
             </span>
           </div>
         );
-      case "quality":
+      case "primary_setup": {
+        if (!row.primary_setup) return <span className="text-muted-foreground">-</span>;
+        const setupDef = getSetupDefinition(row.primary_setup);
         return (
-          <span className={`font-mono text-xs ${
-            row.ai_setup_quality_score >= 70 ? "text-signal-bullish" :
-            row.ai_setup_quality_score >= 40 ? "text-yellow-400" : "text-muted-foreground"
-          }`}>
-            {row.ai_setup_quality_score ?? "-"}
-          </span>
+          <Tooltip>
+            <TooltipTrigger className={`text-xs font-medium px-1.5 py-0.5 rounded ${setupDef.colorClass}`}>
+              {setupDef.shortName}
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs text-left">
+              <p className="font-medium">{setupDef.displayName}</p>
+              <p className="text-xs text-muted-foreground mt-1">{setupDef.description}</p>
+            </TooltipContent>
+          </Tooltip>
         );
+      }
+      case "setup_purity_score": {
+        if (row.setup_purity_score == null) return <span className="text-muted-foreground">-</span>;
+        const purity = getPurityLabel(row.setup_purity_score);
+        return (
+          <Tooltip>
+            <TooltipTrigger className={`font-mono text-xs ${purity.colorClass}`}>
+              {row.setup_purity_score}
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs text-left">
+              <p className="font-medium">{purity.label}</p>
+              <p className="text-xs text-muted-foreground mt-1">{purity.description}</p>
+            </TooltipContent>
+          </Tooltip>
+        );
+      }
       case "market_cap":
         return <span className="font-mono text-xs">{formatMarketCap(row.market_cap)}</span>;
       case "price":
