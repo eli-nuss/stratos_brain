@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 25, 2026 (v11.0 - Daily Brief System)  
+**Last Updated: January 26, 2026 (v11.1 - Setup Type Filters & UI Improvements)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -68,7 +68,7 @@
                                                               - Stratos Brain automates the end-to-end analytical workflow through:
                                                              
                                                               - - **Automated Data Ingestion**: Daily ingestion from CoinGecko (crypto), Alpha Vantage (equities), and Financial Modeling Prep (fundamentals)
-                                                                - - **Quantitative Signal Detection**: 9+ technical signal templates for pattern recognition
+                                                                - - **Quantitative Signal Detection**: 11 technical setup templates for pattern recognition
                                                                   - - **Two-Pass AI Analysis**: Bias-reduced analysis using independent and reconciled AI passes
                                                                     - - **AI Research Agents**: Chat-based research with code execution and web search
                                                                       - - **Document Generation**: Automated investment memos and one-pagers
@@ -504,22 +504,38 @@ Schedule: Daily after market close
 ```
 
 #### Setup Scanner
-The `daily_setup_scanner.py` script runs after features are calculated and detects assets meeting optimized setup criteria:
+The `daily_setup_scanner.py` script runs after features are calculated and detects assets meeting optimized setup criteria. Each setup includes a **Purity Score** (0-100) indicating how closely the asset matches the ideal pattern.
 
 **Position Trading Setups (60-252 day holds):**
-- `weinstein_stage2` - Breakout from long base (PF: 4.09, Avg Return: 8.45%)
-- `donchian_55_breakout` - Turtle Traders 55-day breakout (PF: 1.99)
-- `rs_breakout` - Relative strength breakout (PF: 2.03)
-- `trend_pullback_50ma` - Pullback to 50MA in uptrend (PF: 1.97)
-- `adx_holy_grail` - ADX pullback to EMA (PF: 1.71)
-- `golden_cross` - 50MA crosses above 200MA (PF: 1.53)
-- `breakout_confirmed` - Volume-confirmed breakout (PF: 1.45)
+
+| Setup | Display Name | Description | Category |
+|-------|--------------|-------------|----------|
+| `weinstein_stage2` | Stage 2 | Breakout from 100+ day base into Weinstein Stage 2 cycle | Breakout |
+| `donchian_55_breakout` | 55D Break | Turtle Traders 55-day channel breakout | Breakout |
+| `rs_breakout` | RS Break | Relative strength breakout with market outperformance | Breakout |
+| `trend_pullback_50ma` | Pullback | Pullback to 50MA support in established uptrend | Trend |
+| `adx_holy_grail` | ADX Setup | Strong ADX trend with pullback to 20 EMA | Trend |
+| `golden_cross` | Golden X | 50MA crosses above 200MA (bullish trend shift) | Trend |
+| `breakout_confirmed` | Breakout | Volume-confirmed breakout above key resistance | Breakout |
 
 **Swing Trading Setups (10-20 day holds):**
-- `vcp_squeeze` - Volatility contraction pattern (PF: 1.69)
-- `gap_up_momentum` - Gap up with volume (PF: 1.58)
-- `oversold_bounce` - RSI oversold bounce (PF: 1.52)
-- `acceleration_turn` - Momentum acceleration (PF: 1.48)
+
+| Setup | Display Name | Description | Category |
+|-------|--------------|-------------|----------|
+| `vcp_squeeze` | VCP | Volatility Contraction Pattern - tight range before breakout | Squeeze |
+| `gap_up_momentum` | Gap Up | Gap up on high volume, often news-driven | Momentum |
+| `oversold_bounce` | Bounce | RSI oversold (<30) with reversal signs | Reversal |
+| `acceleration_turn` | Accel Turn | Momentum acceleration after consolidation | Momentum |
+
+**Purity Score Interpretation:**
+
+| Score Range | Label | Description |
+|-------------|-------|-------------|
+| 90-100 | Textbook | Near-perfect setup, highest probability |
+| 80-89 | Strong | High-quality, good for position sizing |
+| 70-79 | Solid | Meets core criteria, minor imperfections |
+| 60-69 | Moderate | Present but not ideal, smaller size recommended |
+| <60 | Weak | Barely meets criteria, higher failure risk |
 
                                                                                             #### Fundamentals Pipeline
                                                                                             ```yaml
@@ -559,13 +575,26 @@ The `daily_setup_scanner.py` script runs after features are calculated and detec
 
                                                                                             ### 8.2 Key API Endpoints
 
-                                                                                            #### Dashboard Data
-                                                                                            ```
-                                                                                            GET  /api/dashboard/all-assets     # All assets with scores
-                                                                                            GET  /api/dashboard/asset/:id      # Single asset detail (now includes enterprise_value for equities)
-                                                                                            GET  /api/dashboard/inflections    # Inflection signals
-                                                                                            GET  /api/dashboard/health         # Pipeline status
-                                                                                            ```
+#### Dashboard Data
+```
+GET  /api/dashboard/all-assets     # All assets with scores
+     Query params:
+     - asset_type: 'crypto' | 'equity'
+     - primary_setup: Filter by setup type (rs_breakout, donchian_55_breakout, etc.)
+     - category: Crypto category filter
+     - industry: Equity industry filter
+     - min_ai_score, max_ai_score: AI direction score range
+     - min_purity, max_purity: Purity score range
+     - min_return_24h, max_return_24h: 24h return range
+     - min_volume_7d: Minimum 7-day volume
+     - min_market_cap: Minimum market cap
+     - page, limit: Pagination (default limit: 100)
+     - sort_by, sort_order: Sorting options
+
+GET  /api/dashboard/asset/:id      # Single asset detail (includes enterprise_value for equities)
+GET  /api/dashboard/inflections    # Inflection signals
+GET  /api/dashboard/health         # Pipeline status
+```
 
                                                                                             #### Chat
                                                                                             ```
@@ -637,9 +666,10 @@ PATCH  /api/dashboard/research-notes/:id/favorite # Toggle favorite status
                                                                                             │   ├── CompanyChat.tsx
                                                                                             │   ├── SmartMoney.tsx
                                                                                             │   └── ResearchNotes.tsx
-                                                                                            └── lib/                 # Utilities
-                                                                                                ├── supabase.ts
-                                                                                                └── portfolioMath.ts  # Risk calculations, correlation, volatility
+└── lib/                 # Utilities
+    ├── supabase.ts
+    ├── portfolioMath.ts  # Risk calculations, correlation, volatility
+    └── setupDefinitions.ts  # Setup type definitions, purity score interpretation
                                                                                             ```
 
                                                                                             ### 9.2 Key Components
@@ -647,7 +677,7 @@ PATCH  /api/dashboard/research-notes/:id/favorite # Toggle favorite status
 | Component | Purpose |
 |-----------|---------|
 | `DashboardLayout` | Main app shell with navigation |
-| `CustomizableAssetTable` | Flexible data table with sorting/filtering, including tag-based sorting (Interesting first) |
+| `CustomizableAssetTable` | Flexible data table with sorting/filtering, setup type filter dropdown, tag-based sorting (Interesting first), 100 rows per page |
 | `AssetDetail` | Modal with charts, AI analysis, trade plan, and EV+MC display for equities |
 | `chat/BaseChatInterface` | **Shared base component for all chat interfaces** (v2.1) - Provides unified message rendering, tool call visualization, streaming support, and error recovery |
 | `SourcesPanel` | UI for managing user-provided sources (files, URLs, text) |
@@ -1061,6 +1091,15 @@ Both hooks subscribe to Supabase Realtime channels for live updates:
                                                                                             ## 11. Roadmap & Planned Features
 
 ### 11.1 Completed Features
+
+- **Setup Type Filters & UI Improvements (v11.1 - January 26, 2026):**
+  - Added Setup Type filter dropdown to All Assets table (server-side filtering via API)
+  - Added Setup Type filter dropdown to Custom Lists, Watchlist, Model Portfolio, Core Portfolio (client-side filtering)
+  - Filter options include all 11 setup types: RS Break, 55D Break, Pullback, VCP, ADX Setup, Gap Up, Golden X, Breakout, Bounce, Accel Turn, Stage 2
+  - Filter highlights in primary color when active, shows "X of Y" count
+  - Expanded table viewing area (calc(100vh-120px)) for more visible rows
+  - Increased page size from 50 to 100 rows per page across all tables
+  - Backend `control-api` now supports `primary_setup` query parameter for filtering
 
 - **NotebookLM-style Sources (v2.5):** Users can now upload files, add URLs, and create text notes as custom sources for each chat. The AI will reference these sources when answering questions.
 
