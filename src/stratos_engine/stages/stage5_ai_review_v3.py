@@ -60,7 +60,7 @@ class Stage5AIReviewV3:
     """Stage 5 AI Review V3: Constrained Autonomy with Quant Setup Integration."""
     
     PROMPT_VERSION = "v3.0.0"
-    DEFAULT_MODEL = "gemini-3-flash-preview"
+    DEFAULT_MODEL = "gemini-2.0-flash"
     PASS1_BARS = 365
     
     def __init__(self, model: Optional[str] = None, db_url: Optional[str] = None):
@@ -458,22 +458,46 @@ class Stage5AIReviewV3:
         
         input_hash = self._compute_input_hash(packet)
         
-        # Call Gemini API
-        try:
-            prompt_with_schema = f"{self.system_prompt}\n\nYou MUST respond with valid JSON matching this schema:\n{json.dumps(self.output_schema, indent=2)}"
-            
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=[prompt_with_schema, json.dumps(packet)],
-                config=types.GenerateContentConfig(
-                    temperature=0.2,
-                    max_output_tokens=4000,
-                    response_mime_type="application/json",
+        # Call Gemini API with retry logic
+        ai_result = None
+        max_retries = 3
+        
+        for attempt in range(max_retries):
+            try:
+                prompt_with_schema = f"{self.system_prompt}\n\nYou MUST respond with valid JSON matching this schema:\n{json.dumps(self.output_schema, indent=2)}"
+                
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=[prompt_with_schema, json.dumps(packet)],
+                    config=types.GenerateContentConfig(
+                        temperature=0.2,
+                        max_output_tokens=8000,
+                        response_mime_type="application/json",
+                    )
                 )
-            )
-            ai_result = json.loads(response.text)
-        except Exception as e:
-            logger.error(f"Error calling Gemini API for {symbol}: {e}")
+                
+                # Try to parse JSON, handle truncated responses
+                response_text = response.text
+                try:
+                    ai_result = json.loads(response_text)
+                    break  # Success, exit retry loop
+                except json.JSONDecodeError as je:
+                    logger.warning(f"JSON parse error for {symbol} (attempt {attempt + 1}): {je}")
+                    # Try to fix common truncation issues
+                    if attempt < max_retries - 1:
+                        continue  # Retry
+                    else:
+                        logger.error(f"Failed to parse JSON after {max_retries} attempts for {symbol}")
+                        return None
+                        
+            except Exception as e:
+                logger.error(f"Error calling Gemini API for {symbol} (attempt {attempt + 1}): {e}")
+                if attempt < max_retries - 1:
+                    continue  # Retry
+                else:
+                    return None
+        
+        if ai_result is None:
             return None
         
         # Get primary setup for post-processing
