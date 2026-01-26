@@ -184,11 +184,14 @@ async def main_async(args):
     # Repository URL
     repo_url = "https://github.com/eli-nuss/stratos_brain.git"
     
-    # Launch all sandboxes
-    start_time = time.time()
+    # Stagger startup delay (seconds between launching each sandbox)
+    stagger_delay = args.stagger_delay
     
-    tasks = [
-        run_sandbox_batch(
+    async def launch_with_delay(batch, delay):
+        """Launch a sandbox after a delay."""
+        if delay > 0:
+            await asyncio.sleep(delay)
+        return await run_sandbox_batch(
             sandbox_id=batch["sandbox_id"],
             date=args.date,
             asset_type=args.asset_type,
@@ -198,7 +201,14 @@ async def main_async(args):
             repo_url=repo_url,
             semaphore=semaphore,
         )
-        for batch in batches
+    
+    # Launch all sandboxes with staggered startup
+    start_time = time.time()
+    logger.info(f"Launching sandboxes with {stagger_delay}s stagger delay...")
+    
+    tasks = [
+        launch_with_delay(batch, i * stagger_delay)
+        for i, batch in enumerate(batches)
     ]
     
     results = await asyncio.gather(*tasks)
@@ -240,6 +250,8 @@ def main():
                         help='Number of E2B sandboxes to spawn')
     parser.add_argument('--max-concurrent', type=int, default=50,
                         help='Maximum concurrent sandboxes')
+    parser.add_argument('--stagger-delay', type=float, default=2.0,
+                        help='Seconds to wait between launching each sandbox (default: 2.0)')
     
     args = parser.parse_args()
     
@@ -250,6 +262,7 @@ def main():
     logger.info(f"  Model: {args.model}")
     logger.info(f"  Target Sandboxes: {args.sandboxes}")
     logger.info(f"  Max Concurrent: {args.max_concurrent}")
+    logger.info(f"  Stagger Delay: {args.stagger_delay}s")
     logger.info("=" * 60)
     
     # Check required env vars
