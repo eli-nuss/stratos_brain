@@ -103,7 +103,7 @@ async def run_sandbox_batch(
                     --batch-size {batch_size}
                 """
                 
-                result = await sandbox.commands.run(cmd, timeout=1800)
+                result = await sandbox.commands.run(cmd, timeout=21600)  # 6 hour timeout
                 
                 elapsed = time.time() - start_time
                 
