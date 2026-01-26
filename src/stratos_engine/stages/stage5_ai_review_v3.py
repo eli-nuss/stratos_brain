@@ -502,7 +502,8 @@ class Stage5AIReviewV3:
             "ai_direction_score": ai_result.get("ai_direction_score"),
             "attention_level": ai_result.get("attention_level"),
             "direction": ai_result.get("direction"),
-            "setup_type": ai_result.get("setup_type"),
+            # Use quant setup name as setup_type when available, otherwise use AI's classification
+            "setup_type": primary_setup["setup_name"] if primary_setup else ai_result.get("setup_type"),
             "time_horizon": ai_result.get("time_horizon"),
             "confidence": ai_result.get("confidence"),
             "summary_text": ai_result.get("summary_text"),
