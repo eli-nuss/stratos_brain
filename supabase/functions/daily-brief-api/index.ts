@@ -1,6 +1,6 @@
 // Daily Brief API - Generates AI-powered daily market briefs
 // Uses Gemini-3-Pro-Preview to analyze all assets and surface the best setups
-// v1.0 - Initial implementation
+// v1.1 - Fixed database queries to use correct column names
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0"
@@ -176,18 +176,12 @@ Return a JSON object with this exact structure:
 
 // Fetch all assets with their latest data
 async function fetchAllAssetsData(supabase: ReturnType<typeof createClient>): Promise<AssetData[]> {
-  // Fetch assets with their latest AI reviews
-  // Using a simpler query to avoid timeout issues
+  console.log('Fetching assets...')
+  
+  // Fetch active assets
   const { data: assets, error } = await supabase
     .from('assets')
-    .select(`
-      asset_id,
-      symbol,
-      name,
-      asset_type,
-      sector,
-      industry
-    `)
+    .select('asset_id, symbol, name, asset_type, sector, industry')
     .eq('is_active', true)
     .limit(100)
   
@@ -196,90 +190,143 @@ async function fetchAllAssetsData(supabase: ReturnType<typeof createClient>): Pr
     throw error
   }
 
-  // Fetch latest AI reviews for these assets
+  console.log(`Found ${assets?.length || 0} active assets`)
   const assetIds = (assets || []).map(a => a.asset_id)
+
+  // Fetch latest AI reviews (using correct column names: as_of_date, ai_summary_text)
+  console.log('Fetching AI reviews...')
   const { data: reviews, error: reviewError } = await supabase
     .from('asset_ai_reviews')
-    .select('asset_id, attention_level, direction, summary, setup_type')
+    .select('asset_id, attention_level, direction, ai_summary_text, setup_type, as_of_date')
     .in('asset_id', assetIds)
-    .order('review_date', { ascending: false })
+    .order('as_of_date', { ascending: false })
   
   if (reviewError) {
     console.error('Error fetching reviews:', reviewError)
   }
+  console.log(`Found ${reviews?.length || 0} AI reviews`)
 
   // Create a map of latest reviews by asset_id
-  const reviewMap = new Map<number, { attention_level: string; direction: string; summary: string; setup_type: string }>()
+  const reviewMap = new Map<number, { attention_level: string; direction: string; ai_summary_text: string; setup_type: string }>()
   for (const review of (reviews || [])) {
     if (!reviewMap.has(review.asset_id)) {
       reviewMap.set(review.asset_id, review)
     }
   }
 
-  // Fetch latest scores
+  // Fetch latest scores from daily_asset_scores (correct table name, using as_of_date)
+  console.log('Fetching scores...')
   const { data: scores, error: scoreError } = await supabase
-    .from('daily_scores')
-    .select('asset_id, weighted_score, inflection_score')
+    .from('daily_asset_scores')
+    .select('asset_id, weighted_score, inflection_score, as_of_date')
     .in('asset_id', assetIds)
-    .order('score_date', { ascending: false })
+    .order('as_of_date', { ascending: false })
   
   if (scoreError) {
     console.error('Error fetching scores:', scoreError)
   }
+  console.log(`Found ${scores?.length || 0} scores`)
 
   // Create a map of latest scores by asset_id
   const scoreMap = new Map<number, { weighted_score: number; inflection_score: number }>()
   for (const score of (scores || [])) {
-    if (!scoreMap.has(score.asset_id)) {
-      scoreMap.set(score.asset_id, score)
+    if (!scoreMap.has(Number(score.asset_id))) {
+      scoreMap.set(Number(score.asset_id), score)
     }
   }
 
-  // Fetch latest prices
+  // Fetch latest prices from daily_bars (using correct column names: date, close)
+  console.log('Fetching price bars...')
   const { data: bars, error: barError } = await supabase
     .from('daily_bars')
-    .select('asset_id, close_price, volume')
+    .select('asset_id, close, volume, date')
     .in('asset_id', assetIds)
-    .order('bar_date', { ascending: false })
+    .order('date', { ascending: false })
   
   if (barError) {
     console.error('Error fetching bars:', barError)
   }
+  console.log(`Found ${bars?.length || 0} price bars`)
 
   // Create a map of latest bars by asset_id
-  const barMap = new Map<number, { close_price: number; volume: number }>()
+  const barMap = new Map<number, { close: number; volume: number }>()
   for (const bar of (bars || [])) {
     if (!barMap.has(bar.asset_id)) {
       barMap.set(bar.asset_id, bar)
     }
   }
+
+  // Fetch latest features from daily_features (for RSI, MACD, etc.)
+  console.log('Fetching features...')
+  const { data: features, error: featureError } = await supabase
+    .from('daily_features')
+    .select('asset_id, date, rsi_14, macd_histogram, bb_pct, return_1d, return_5d, return_21d')
+    .in('asset_id', assetIds)
+    .order('date', { ascending: false })
+  
+  if (featureError) {
+    console.error('Error fetching features:', featureError)
+  }
+  console.log(`Found ${features?.length || 0} features`)
+
+  // Create a map of latest features by asset_id
+  const featureMap = new Map<number, { rsi_14: number; macd_histogram: number; bb_pct: number; return_1d: number; return_5d: number; return_21d: number }>()
+  for (const feature of (features || [])) {
+    if (!featureMap.has(feature.asset_id)) {
+      featureMap.set(feature.asset_id, feature)
+    }
+  }
+
+  // Fetch active signals from daily_signal_facts
+  console.log('Fetching signals...')
+  const { data: signals, error: signalError } = await supabase
+    .from('daily_signal_facts')
+    .select('asset_id, signal_name, direction, as_of_date')
+    .in('asset_id', assetIds)
+    .eq('is_active', true)
+  
+  if (signalError) {
+    console.error('Error fetching signals:', signalError)
+  }
+  console.log(`Found ${signals?.length || 0} active signals`)
+
+  // Create a map of active signals by asset_id
+  const signalMap = new Map<number, string[]>()
+  for (const signal of (signals || [])) {
+    const existing = signalMap.get(signal.asset_id) || []
+    existing.push(signal.signal_name)
+    signalMap.set(signal.asset_id, existing)
+  }
   
   // Transform to our interface and sort by score
   const result = (assets || []).map((a: Record<string, unknown>) => {
-    const review = reviewMap.get(a.asset_id as number)
-    const score = scoreMap.get(a.asset_id as number)
-    const bar = barMap.get(a.asset_id as number)
+    const assetId = a.asset_id as number
+    const review = reviewMap.get(assetId)
+    const score = scoreMap.get(assetId)
+    const bar = barMap.get(assetId)
+    const feature = featureMap.get(assetId)
+    const assetSignals = signalMap.get(assetId) || []
     
     return {
-      asset_id: a.asset_id as number,
+      asset_id: assetId,
       symbol: a.symbol as string,
       name: a.name as string,
       asset_type: a.asset_type as 'crypto' | 'equity',
-      close_usd: bar?.close_price || 0,
-      change_1d: 0,
-      change_7d: 0,
-      change_30d: 0,
-      volume_usd: bar?.volume || 0,
+      close_usd: bar?.close ? parseFloat(String(bar.close)) : 0,
+      change_1d: feature?.return_1d ? parseFloat(String(feature.return_1d)) * 100 : 0,
+      change_7d: feature?.return_5d ? parseFloat(String(feature.return_5d)) * 100 : 0,
+      change_30d: feature?.return_21d ? parseFloat(String(feature.return_21d)) * 100 : 0,
+      volume_usd: bar?.volume ? parseFloat(String(bar.volume)) : 0,
       weighted_score: score?.weighted_score || 0,
       inflection_score: score?.inflection_score || 0,
-      rsi_14: 50,
-      macd_histogram: 0,
-      bb_position: 0.5,
+      rsi_14: feature?.rsi_14 ? parseFloat(String(feature.rsi_14)) : 50,
+      macd_histogram: feature?.macd_histogram ? parseFloat(String(feature.macd_histogram)) : 0,
+      bb_position: feature?.bb_pct ? parseFloat(String(feature.bb_pct)) : 0.5,
       ai_attention_level: review?.attention_level || 'WATCH',
       ai_direction: review?.direction || 'neutral',
-      ai_summary: review?.summary || '',
+      ai_summary: review?.ai_summary_text || '',
       ai_confidence: 0,
-      active_signals: [],
+      active_signals: assetSignals,
       sector: a.sector as string || undefined,
       industry: a.industry as string || undefined,
       market_cap: undefined,
@@ -317,15 +364,16 @@ async function generateBriefWithGemini(
       rsi: a.rsi_14,
       macd: a.macd_histogram,
       bb: a.bb_position,
-      ai_attn: a.ai_attention_level,
-      ai_dir: a.ai_direction,
-      ai_conf: a.ai_confidence,
-      signals: a.active_signals,
+      aiDir: a.ai_direction,
+      aiAttn: a.ai_attention_level,
+      aiSum: a.ai_summary?.substring(0, 200),
+      signals: a.active_signals
     })),
-    equity: equityAssets.map(a => ({
+    equities: equityAssets.map(a => ({
       id: a.asset_id,
       sym: a.symbol,
       name: a.name,
+      sector: a.sector,
       price: a.close_usd,
       chg1d: a.change_1d,
       chg7d: a.change_7d,
@@ -335,81 +383,64 @@ async function generateBriefWithGemini(
       rsi: a.rsi_14,
       macd: a.macd_histogram,
       bb: a.bb_position,
-      ai_attn: a.ai_attention_level,
-      ai_dir: a.ai_direction,
-      ai_conf: a.ai_confidence,
-      signals: a.active_signals,
-      sector: a.sector,
-      industry: a.industry,
-      mcap: a.market_cap,
-    })),
-    summary: {
-      total_crypto: cryptoAssets.length,
-      total_equity: equityAssets.length,
-      avg_crypto_score: cryptoAssets.reduce((sum, a) => sum + a.weighted_score, 0) / cryptoAssets.length || 0,
-      avg_equity_score: equityAssets.reduce((sum, a) => sum + a.weighted_score, 0) / equityAssets.length || 0,
-      bullish_count: assets.filter(a => a.ai_direction === 'bullish').length,
-      bearish_count: assets.filter(a => a.ai_direction === 'bearish').length,
-    }
+      aiDir: a.ai_direction,
+      aiAttn: a.ai_attention_level,
+      aiSum: a.ai_summary?.substring(0, 200),
+      signals: a.active_signals
+    }))
   }
   
   const userMessage = `Here is today's market data for analysis:
 
 ${JSON.stringify(assetDataSummary, null, 2)}
 
-Please analyze this data and generate the daily brief following the exact JSON structure specified in your instructions.`
+Please analyze this data and generate the daily brief following the exact JSON structure specified.`
 
-  const requestBody = {
-    contents: [
-      {
-        role: 'user',
-        parts: [{ text: userMessage }]
-      }
-    ],
-    systemInstruction: { parts: [{ text: systemPrompt }] },
-    generationConfig: {
-      temperature: 0.7,
-      maxOutputTokens: 8192,
-      candidateCount: 1,
-      responseMimeType: 'application/json'
-    }
-  }
-  
+  // Call Gemini API
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify({
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: systemPrompt + '\n\n' + userMessage }]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 8192,
+          responseMimeType: 'application/json'
+        }
+      })
     }
   )
   
   if (!response.ok) {
     const errorText = await response.text()
-    throw new Error(`Gemini API error: ${response.status} - ${errorText.substring(0, 500)}`)
+    console.error('Gemini API error:', errorText)
+    throw new Error(`Gemini API error: ${response.status}`)
   }
   
-  const data = await response.json()
-  const candidate = data.candidates?.[0]
+  const result = await response.json()
   
-  if (!candidate?.content?.parts?.[0]?.text) {
-    throw new Error('No response from Gemini')
-  }
-  
-  const responseText = candidate.content.parts[0].text
-  const tokensIn = data.usageMetadata?.promptTokenCount || 0
-  const tokensOut = data.usageMetadata?.candidatesTokenCount || 0
+  // Extract the generated content
+  const generatedText = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
+  const tokensIn = result.usageMetadata?.promptTokenCount || 0
+  const tokensOut = result.usageMetadata?.candidatesTokenCount || 0
   
   // Parse the JSON response
   let briefData: Partial<DailyBrief>
   try {
-    briefData = JSON.parse(responseText)
+    briefData = JSON.parse(generatedText)
   } catch (e) {
-    console.error('Failed to parse Gemini response:', responseText.substring(0, 500))
-    throw new Error('Failed to parse Gemini response as JSON')
+    console.error('Failed to parse Gemini response:', generatedText)
+    throw new Error('Failed to parse AI response')
   }
   
-  // Construct the full brief object
+  // Construct the full brief
   const brief: DailyBrief = {
     brief_date: date,
     market_overview: briefData.market_overview || 'Unable to generate market overview.',
@@ -422,13 +453,13 @@ Please analyze this data and generate the daily brief following the exact JSON s
     generated_at: new Date().toISOString(),
     model_used: GEMINI_MODEL,
     tokens_in: tokensIn,
-    tokens_out: tokensOut,
+    tokens_out: tokensOut
   }
   
   return { brief, tokensIn, tokensOut }
 }
 
-// Save the brief to the database
+// Save brief to database
 async function saveBrief(
   supabase: ReturnType<typeof createClient>,
   brief: DailyBrief
@@ -448,9 +479,8 @@ async function saveBrief(
       model_used: brief.model_used,
       tokens_in: brief.tokens_in,
       tokens_out: brief.tokens_out,
-    }, {
-      onConflict: 'brief_date'
-    })
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'brief_date' })
     .select('brief_id')
     .single()
   
@@ -462,8 +492,30 @@ async function saveBrief(
   return data.brief_id
 }
 
-// Get existing brief for a date
-async function getBrief(
+// Get latest brief from database
+async function getLatestBrief(
+  supabase: ReturnType<typeof createClient>
+): Promise<DailyBrief | null> {
+  const { data, error } = await supabase
+    .from('daily_briefs')
+    .select('*')
+    .order('brief_date', { ascending: false })
+    .limit(1)
+    .single()
+  
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return null // No briefs found
+    }
+    console.error('Error fetching latest brief:', error)
+    throw error
+  }
+  
+  return data
+}
+
+// Get brief by date
+async function getBriefByDate(
   supabase: ReturnType<typeof createClient>,
   date: string
 ): Promise<DailyBrief | null> {
@@ -473,15 +525,18 @@ async function getBrief(
     .eq('brief_date', date)
     .single()
   
-  if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-    console.error('Error fetching brief:', error)
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return null
+    }
+    console.error('Error fetching brief by date:', error)
     throw error
   }
   
-  return data as DailyBrief | null
+  return data
 }
 
-// Get list of available briefs
+// List all briefs
 async function listBriefs(
   supabase: ReturnType<typeof createClient>,
   limit: number = 30
@@ -500,62 +555,76 @@ async function listBriefs(
   return data || []
 }
 
+// Main handler
 serve(async (req) => {
-  // Handle CORS preflight
+  // Handle CORS
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders })
   }
-
+  
   try {
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
     const url = new URL(req.url)
-    const path = url.pathname.replace('/daily-brief-api', '')
-
-    // GET /brief - Get brief for a specific date (or today)
-    if (req.method === 'GET' && (path === '/brief' || path === '')) {
-      const dateParam = url.searchParams.get('date')
-      const date = dateParam || new Date().toISOString().split('T')[0]
-      
-      const brief = await getBrief(supabase, date)
-      
-      if (!brief) {
+    const path = url.pathname.split('/').pop() || ''
+    
+    // Create Supabase client
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    
+    // Route handling
+    if (req.method === 'GET') {
+      if (path === 'latest') {
+        // Get the latest brief
+        const brief = await getLatestBrief(supabase)
+        if (!brief) {
+          return new Response(
+            JSON.stringify({ error: 'No briefs available' }),
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
         return new Response(
-          JSON.stringify({ error: 'No brief found for this date', date }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify(brief),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
       
-      return new Response(
-        JSON.stringify(brief),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // GET /list - List available briefs
-    if (req.method === 'GET' && path === '/list') {
-      const limit = parseInt(url.searchParams.get('limit') || '30')
-      const briefs = await listBriefs(supabase, limit)
+      if (path === 'list') {
+        // List all briefs
+        const briefs = await listBriefs(supabase)
+        return new Response(
+          JSON.stringify(briefs),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
       
-      return new Response(
-        JSON.stringify(briefs),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      // Get brief by date (path is the date)
+      if (path.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const brief = await getBriefByDate(supabase, path)
+        if (!brief) {
+          return new Response(
+            JSON.stringify({ error: 'Brief not found for this date' }),
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+        return new Response(
+          JSON.stringify(brief),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
     }
-
-    // POST /generate - Generate a new brief for today (or specified date)
-    if (req.method === 'POST' && path === '/generate') {
+    
+    if (req.method === 'POST' && path === 'generate') {
+      // Generate a new brief
       const body = await req.json().catch(() => ({}))
-      const dateParam = body.date || url.searchParams.get('date')
-      const date = dateParam || new Date().toISOString().split('T')[0]
-      const forceRegenerate = body.force || url.searchParams.get('force') === 'true'
+      const date = body.date || new Date().toISOString().split('T')[0]
+      const force = body.force || false
       
-      // Check if brief already exists
-      if (!forceRegenerate) {
-        const existingBrief = await getBrief(supabase, date)
+      // Check if brief already exists for this date
+      if (!force) {
+        const existingBrief = await getBriefByDate(supabase, date)
         if (existingBrief) {
           return new Response(
             JSON.stringify({ 
               message: 'Brief already exists for this date',
+              brief_id: existingBrief.brief_id,
               brief: existingBrief,
               cached: true
             }),
@@ -565,21 +634,14 @@ serve(async (req) => {
       }
       
       // Fetch all assets data
-      console.log(`Fetching assets data for ${date}...`)
+      console.log('Fetching asset data for brief generation...')
       const assets = await fetchAllAssetsData(supabase)
-      console.log(`Found ${assets.length} assets`)
+      console.log(`Fetched ${assets.length} assets`)
       
-      if (assets.length === 0) {
-        return new Response(
-          JSON.stringify({ error: 'No asset data available' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-      
-      // Generate the brief with Gemini
+      // Generate brief with Gemini
       console.log('Generating brief with Gemini...')
       const { brief, tokensIn, tokensOut } = await generateBriefWithGemini(assets, date)
-      console.log(`Brief generated. Tokens: ${tokensIn} in, ${tokensOut} out`)
+      console.log(`Brief generated: ${tokensIn} tokens in, ${tokensOut} tokens out`)
       
       // Save to database
       const briefId = await saveBrief(supabase, brief)
@@ -589,46 +651,21 @@ serve(async (req) => {
         JSON.stringify({ 
           message: 'Brief generated successfully',
           brief_id: briefId,
-          brief,
+          brief: { ...brief, brief_id: briefId },
           cached: false
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
-
-    // GET /latest - Get the most recent brief
-    if (req.method === 'GET' && path === '/latest') {
-      const { data, error } = await supabase
-        .from('daily_briefs')
-        .select('*')
-        .order('brief_date', { ascending: false })
-        .limit(1)
-        .single()
-      
-      if (error && error.code !== 'PGRST116') {
-        throw error
-      }
-      
-      if (!data) {
-        return new Response(
-          JSON.stringify({ error: 'No briefs available' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-      
-      return new Response(
-        JSON.stringify(data),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
+    
+    // Default: return error for unknown routes
     return new Response(
-      JSON.stringify({ error: 'Not found' }),
+      JSON.stringify({ error: 'Unknown endpoint' }),
       { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
-
+    
   } catch (error) {
-    console.error('Daily Brief API error:', error)
+    console.error('Error:', error)
     return new Response(
       JSON.stringify({ error: error.message || 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
