@@ -153,7 +153,7 @@ class Stage5AIReviewV3:
                         fill_query += f" AND a.asset_id NOT IN ({','.join(['%s'] * len(existing_ids))})"
                         fill_params.extend(existing_ids)
                     
-                    fill_query += " ORDER BY a.market_cap DESC NULLS LAST LIMIT %s"
+                    fill_query += " ORDER BY a.asset_id LIMIT %s"
                     fill_params.append(remaining)
                     
                     cur.execute(fill_query, fill_params)
