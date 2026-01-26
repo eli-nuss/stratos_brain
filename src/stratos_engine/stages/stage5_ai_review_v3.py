@@ -15,6 +15,8 @@ import json
 import hashlib
 import logging
 import os
+import re
+import time
 from decimal import Decimal
 from pathlib import Path
 from typing import Dict, Any, List, Optional
@@ -60,7 +62,8 @@ class Stage5AIReviewV3:
     """Stage 5 AI Review V3: Constrained Autonomy with Quant Setup Integration."""
     
     PROMPT_VERSION = "v3.0.0"
-    DEFAULT_MODEL = "gemini-2.0-flash"
+    DEFAULT_MODEL = "gemini-3-flash-preview"
+    FALLBACK_MODEL = "gemini-2.0-flash"
     PASS1_BARS = 365
     
     def __init__(self, model: Optional[str] = None, db_url: Optional[str] = None):
@@ -413,6 +416,80 @@ class Stage5AIReviewV3:
         ai_result["adjustment_deviations"] = deviations
         return ai_result
     
+    def _parse_json_with_repair(self, response_text: str, symbol: str) -> Optional[Dict[str, Any]]:
+        """Parse JSON response with repair logic for truncated responses.
+        
+        Args:
+            response_text: Raw JSON response from Gemini
+            symbol: Asset symbol for logging
+            
+        Returns:
+            Parsed JSON dict or None if repair fails
+        """
+        # First, try direct parsing
+        try:
+            result = json.loads(response_text)
+            # Handle case where model returns a list instead of dict
+            if isinstance(result, list) and len(result) > 0:
+                logger.warning(f"Model returned list instead of dict for {symbol}, using first element")
+                return result[0] if isinstance(result[0], dict) else None
+            return result if isinstance(result, dict) else None
+        except json.JSONDecodeError:
+            pass
+        
+        # Try common repairs for truncated JSON
+        repaired_text = response_text.strip()
+        
+        # Count brackets to detect truncation
+        open_braces = repaired_text.count('{')
+        close_braces = repaired_text.count('}')
+        open_brackets = repaired_text.count('[')
+        close_brackets = repaired_text.count(']')
+        
+        # Add missing closing brackets/braces
+        if open_brackets > close_brackets:
+            repaired_text += ']' * (open_brackets - close_brackets)
+        if open_braces > close_braces:
+            repaired_text += '}' * (open_braces - close_braces)
+        
+        # Try parsing repaired text
+        try:
+            result = json.loads(repaired_text)
+            logger.info(f"Successfully repaired truncated JSON for {symbol}")
+            return result
+        except json.JSONDecodeError:
+            pass
+        
+        # Try to find the last complete JSON object
+        # Look for patterns like '"key": "value' (unterminated string)
+        # and try to close them
+        repaired_text = response_text.strip()
+        
+        # Fix unterminated strings by finding last quote and closing
+        if repaired_text.count('"') % 2 == 1:
+            # Odd number of quotes - find last key and try to close
+            repaired_text += '"'
+        
+        # Re-count and close brackets
+        open_braces = repaired_text.count('{')
+        close_braces = repaired_text.count('}')
+        open_brackets = repaired_text.count('[')
+        close_brackets = repaired_text.count(']')
+        
+        if open_brackets > close_brackets:
+            repaired_text += ']' * (open_brackets - close_brackets)
+        if open_braces > close_braces:
+            repaired_text += '}' * (open_braces - close_braces)
+        
+        try:
+            result = json.loads(repaired_text)
+            logger.info(f"Successfully repaired truncated JSON (v2) for {symbol}")
+            return result
+        except json.JSONDecodeError as e:
+            logger.debug(f"JSON repair failed for {symbol}: {e}")
+            logger.debug(f"Response preview: {response_text[:500]}...")
+            return None
+    
     def analyze_asset(
         self,
         asset_id: int,
@@ -458,46 +535,55 @@ class Stage5AIReviewV3:
         
         input_hash = self._compute_input_hash(packet)
         
-        # Call Gemini API with retry logic
+        # Call Gemini API with retry logic and fallback
         ai_result = None
-        max_retries = 3
+        prompt_with_schema = f"{self.system_prompt}\n\nYou MUST respond with valid JSON matching this schema:\n{json.dumps(self.output_schema, indent=2)}"
         
-        for attempt in range(max_retries):
-            try:
-                prompt_with_schema = f"{self.system_prompt}\n\nYou MUST respond with valid JSON matching this schema:\n{json.dumps(self.output_schema, indent=2)}"
-                
-                response = self.client.models.generate_content(
-                    model=self.model_name,
-                    contents=[prompt_with_schema, json.dumps(packet)],
-                    config=types.GenerateContentConfig(
-                        temperature=0.2,
-                        max_output_tokens=8000,
-                        response_mime_type="application/json",
-                    )
-                )
-                
-                # Try to parse JSON, handle truncated responses
-                response_text = response.text
+        # Try primary model first, then fallback
+        models_to_try = [self.model_name]
+        if self.model_name != self.FALLBACK_MODEL:
+            models_to_try.append(self.FALLBACK_MODEL)
+        
+        for model_name in models_to_try:
+            max_retries = 3 if model_name == self.model_name else 2
+            
+            for attempt in range(max_retries):
                 try:
-                    ai_result = json.loads(response_text)
-                    break  # Success, exit retry loop
-                except json.JSONDecodeError as je:
-                    logger.warning(f"JSON parse error for {symbol} (attempt {attempt + 1}): {je}")
-                    # Try to fix common truncation issues
-                    if attempt < max_retries - 1:
-                        continue  # Retry
+                    response = self.client.models.generate_content(
+                        model=model_name,
+                        contents=[prompt_with_schema, json.dumps(packet)],
+                        config=types.GenerateContentConfig(
+                            temperature=0.2,
+                            max_output_tokens=16000,  # High buffer for thinking models
+                            response_mime_type="application/json",
+                        )
+                    )
+                    
+                    # Try to parse JSON, with repair for truncated responses
+                    response_text = response.text
+                    ai_result = self._parse_json_with_repair(response_text, symbol)
+                    
+                    if ai_result:
+                        if model_name != self.model_name:
+                            logger.info(f"Successfully used fallback model {model_name} for {symbol}")
+                        break  # Success
                     else:
-                        logger.error(f"Failed to parse JSON after {max_retries} attempts for {symbol}")
-                        return None
-                        
-            except Exception as e:
-                logger.error(f"Error calling Gemini API for {symbol} (attempt {attempt + 1}): {e}")
-                if attempt < max_retries - 1:
-                    continue  # Retry
-                else:
-                    return None
+                        logger.warning(f"JSON parse failed for {symbol} with {model_name} (attempt {attempt + 1})")
+                        if attempt < max_retries - 1:
+                            time.sleep(1)  # Brief delay before retry
+                            continue
+                            
+                except Exception as e:
+                    logger.error(f"Error calling {model_name} for {symbol} (attempt {attempt + 1}): {e}")
+                    if attempt < max_retries - 1:
+                        time.sleep(1)
+                        continue
+            
+            if ai_result:
+                break  # Got result, no need to try fallback
         
         if ai_result is None:
+            logger.error(f"All models failed for {symbol}")
             return None
         
         # Get primary setup for post-processing
