@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import useSWR from "swr";
-import { apiFetcher } from "@/lib/api-config";
+import { apiFetcher, DAILY_BRIEF_API_BASE, getJsonApiHeaders } from "@/lib/api-config";
 import { format, parseISO } from "date-fns";
 
 // Types matching the backend
@@ -323,13 +323,15 @@ export default function DailyBrief() {
   const handleGenerateBrief = async (force: boolean = false) => {
     setIsGenerating(true);
     try {
-      const response = await fetch(`/api/daily-brief/generate`, {
+      const response = await fetch(`${DAILY_BRIEF_API_BASE}/generate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getJsonApiHeaders(),
         body: JSON.stringify({ date: selectedDate, force })
       });
       
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error:', errorText);
         throw new Error('Failed to generate brief');
       }
       

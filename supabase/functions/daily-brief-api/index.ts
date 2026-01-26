@@ -176,42 +176,118 @@ Return a JSON object with this exact structure:
 
 // Fetch all assets with their latest data
 async function fetchAllAssetsData(supabase: ReturnType<typeof createClient>): Promise<AssetData[]> {
-  // Fetch from the dashboard view which has all the joined data
+  // Fetch assets with their latest AI reviews
+  // Using a simpler query to avoid timeout issues
   const { data: assets, error } = await supabase
-    .from('v_dashboard_all_assets')
-    .select('*')
-    .order('weighted_score', { ascending: false })
+    .from('assets')
+    .select(`
+      asset_id,
+      symbol,
+      name,
+      asset_type,
+      sector,
+      industry
+    `)
+    .eq('is_active', true)
+    .limit(100)
   
   if (error) {
     console.error('Error fetching assets:', error)
     throw error
   }
+
+  // Fetch latest AI reviews for these assets
+  const assetIds = (assets || []).map(a => a.asset_id)
+  const { data: reviews, error: reviewError } = await supabase
+    .from('asset_ai_reviews')
+    .select('asset_id, attention_level, direction, summary, setup_type')
+    .in('asset_id', assetIds)
+    .order('review_date', { ascending: false })
   
-  // Transform to our interface
-  return (assets || []).map((a: Record<string, unknown>) => ({
-    asset_id: a.asset_id as number,
-    symbol: a.symbol as string,
-    name: a.name as string,
-    asset_type: a.asset_type as 'crypto' | 'equity',
-    close_usd: a.close_usd as number || 0,
-    change_1d: a.change_1d as number || 0,
-    change_7d: a.change_7d as number || 0,
-    change_30d: a.change_30d as number || 0,
-    volume_usd: a.volume_usd as number || 0,
-    weighted_score: a.weighted_score as number || 0,
-    inflection_score: a.inflection_score as number || 0,
-    rsi_14: a.rsi_14 as number || 50,
-    macd_histogram: a.macd_histogram as number || 0,
-    bb_position: a.bb_position as number || 0.5,
-    ai_attention_level: a.ai_attention_level as string || 'WATCH',
-    ai_direction: a.ai_direction as string || 'neutral',
-    ai_summary: a.ai_summary as string || '',
-    ai_confidence: a.ai_confidence as number || 0,
-    active_signals: (a.active_signals as string[] || []),
-    sector: a.sector as string || undefined,
-    industry: a.industry as string || undefined,
-    market_cap: a.market_cap as number || undefined,
-  }))
+  if (reviewError) {
+    console.error('Error fetching reviews:', reviewError)
+  }
+
+  // Create a map of latest reviews by asset_id
+  const reviewMap = new Map<number, { attention_level: string; direction: string; summary: string; setup_type: string }>()
+  for (const review of (reviews || [])) {
+    if (!reviewMap.has(review.asset_id)) {
+      reviewMap.set(review.asset_id, review)
+    }
+  }
+
+  // Fetch latest scores
+  const { data: scores, error: scoreError } = await supabase
+    .from('daily_scores')
+    .select('asset_id, weighted_score, inflection_score')
+    .in('asset_id', assetIds)
+    .order('score_date', { ascending: false })
+  
+  if (scoreError) {
+    console.error('Error fetching scores:', scoreError)
+  }
+
+  // Create a map of latest scores by asset_id
+  const scoreMap = new Map<number, { weighted_score: number; inflection_score: number }>()
+  for (const score of (scores || [])) {
+    if (!scoreMap.has(score.asset_id)) {
+      scoreMap.set(score.asset_id, score)
+    }
+  }
+
+  // Fetch latest prices
+  const { data: bars, error: barError } = await supabase
+    .from('daily_bars')
+    .select('asset_id, close_price, volume')
+    .in('asset_id', assetIds)
+    .order('bar_date', { ascending: false })
+  
+  if (barError) {
+    console.error('Error fetching bars:', barError)
+  }
+
+  // Create a map of latest bars by asset_id
+  const barMap = new Map<number, { close_price: number; volume: number }>()
+  for (const bar of (bars || [])) {
+    if (!barMap.has(bar.asset_id)) {
+      barMap.set(bar.asset_id, bar)
+    }
+  }
+  
+  // Transform to our interface and sort by score
+  const result = (assets || []).map((a: Record<string, unknown>) => {
+    const review = reviewMap.get(a.asset_id as number)
+    const score = scoreMap.get(a.asset_id as number)
+    const bar = barMap.get(a.asset_id as number)
+    
+    return {
+      asset_id: a.asset_id as number,
+      symbol: a.symbol as string,
+      name: a.name as string,
+      asset_type: a.asset_type as 'crypto' | 'equity',
+      close_usd: bar?.close_price || 0,
+      change_1d: 0,
+      change_7d: 0,
+      change_30d: 0,
+      volume_usd: bar?.volume || 0,
+      weighted_score: score?.weighted_score || 0,
+      inflection_score: score?.inflection_score || 0,
+      rsi_14: 50,
+      macd_histogram: 0,
+      bb_position: 0.5,
+      ai_attention_level: review?.attention_level || 'WATCH',
+      ai_direction: review?.direction || 'neutral',
+      ai_summary: review?.summary || '',
+      ai_confidence: 0,
+      active_signals: [],
+      sector: a.sector as string || undefined,
+      industry: a.industry as string || undefined,
+      market_cap: undefined,
+    }
+  })
+
+  // Sort by weighted_score descending
+  return result.sort((a, b) => b.weighted_score - a.weighted_score)
 }
 
 // Call Gemini to generate the daily brief
