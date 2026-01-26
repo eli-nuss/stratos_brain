@@ -11,7 +11,7 @@ import ColumnCustomizer from "@/components/ColumnCustomizer";
 import { useCorePortfolioAssets, useCorePortfolio } from "@/hooks/useCorePortfolio";
 import AddToPortfolioButton from "@/components/AddToPortfolioButton";
 import { useColumnConfig, ColumnDef } from "@/hooks/useColumnConfig";
-import { getSetupDefinition, getPurityLabel } from "@/lib/setupDefinitions";
+import { getSetupDefinition, getPurityLabel, SETUP_DEFINITIONS } from "@/lib/setupDefinitions";
 import { useSortPreferences, SortField, SortOrder } from "@/hooks/useSortPreferences";
 import {
   DndContext,
@@ -149,6 +149,7 @@ export default function CustomizableCorePortfolioTable({ onAssetClick }: Customi
   const [page, setPage] = useState(0);
   const { sortBy, sortOrder, handleSort } = useSortPreferences("core-portfolio");
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [selectedSetupType, setSelectedSetupType] = useState("");
 
   // Ensure assets is always an array for safety
   const safeAssets = Array.isArray(assets) ? assets : [];
@@ -164,8 +165,14 @@ export default function CustomizableCorePortfolioTable({ onAssetClick }: Customi
     mutateAssets();
   };
 
+  // Filter assets by setup type
+  const filteredAssets = useMemo(() => {
+    if (!selectedSetupType) return safeAssets;
+    return safeAssets.filter((a: any) => a.primary_setup === selectedSetupType);
+  }, [safeAssets, selectedSetupType]);
+
   // Sort assets
-  const sortedAssets = [...safeAssets].sort((a: any, b: any) => {
+  const sortedAssets = [...filteredAssets].sort((a: any, b: any) => {
     const aVal = a[sortBy] ?? (sortOrder === "asc" ? Infinity : -Infinity);
     const bVal = b[sortBy] ?? (sortOrder === "asc" ? Infinity : -Infinity);
     if (sortOrder === "asc") {
@@ -175,7 +182,8 @@ export default function CustomizableCorePortfolioTable({ onAssetClick }: Customi
   });
 
   const paginatedAssets = sortedAssets.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const total = safeAssets.length;
+  const total = filteredAssets.length;
+  const totalAssets = safeAssets.length;
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const visibleColumns = getVisibleColumns();
   const availableColumns = getAvailableColumns();
@@ -418,9 +426,27 @@ export default function CustomizableCorePortfolioTable({ onAssetClick }: Customi
         <h3 className="font-medium text-sm flex items-center gap-2">
           <span className="w-3 h-3 rounded-full bg-emerald-500"></span>
           Core Portfolio
-          <span className="text-xs text-muted-foreground">({total} assets)</span>
+          <span className="text-xs text-muted-foreground">({selectedSetupType ? `${total} of ${totalAssets}` : `${total} assets`})</span>
         </h3>
         <div className="flex items-center gap-2">
+          {/* Setup type filter */}
+          <select
+            value={selectedSetupType}
+            onChange={(e) => {
+              setSelectedSetupType(e.target.value);
+              setPage(0);
+            }}
+            className={`text-xs px-2 py-1.5 border rounded focus:outline-none focus:ring-1 focus:ring-primary ${
+              selectedSetupType
+                ? 'bg-primary/10 border-primary/30 text-primary'
+                : 'bg-background border-border text-muted-foreground'
+            }`}
+          >
+            <option value="">All Setups</option>
+            {Object.values(SETUP_DEFINITIONS).map(setup => (
+              <option key={setup.id} value={setup.id}>{setup.shortName}</option>
+            ))}
+          </select>
           <AssetSearchDropdown
             existingAssetIds={existingAssetIds}
             onAddAsset={handleAddAsset}

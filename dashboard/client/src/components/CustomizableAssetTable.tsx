@@ -7,7 +7,7 @@ import { useSortPreferences, SortField, SortOrder } from "@/hooks/useSortPrefere
 import { useColumnConfig, ColumnDef, ALL_COLUMNS } from "@/hooks/useColumnConfig";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { NoteCell } from "@/components/NoteCell";
-import { getSetupDefinition, getPurityInterpretation } from "@/lib/setupDefinitions";
+import { getSetupDefinition, getPurityInterpretation, SETUP_DEFINITIONS } from "@/lib/setupDefinitions";
 import TableSummaryRows from "@/components/TableSummaryRows";
 import AddToListButton from "@/components/AddToListButton";
 import AddToPortfolioButton from "@/components/AddToPortfolioButton";
@@ -282,6 +282,7 @@ export default function CustomizableAssetTable({
     psgMax: "",
     category: initialCategory || "",
     industry: initialIndustry || initialSector || "",
+    setupType: "",
   });
 
   // Update filter inputs when initial values change (from URL navigation)
@@ -315,6 +316,7 @@ export default function CustomizableAssetTable({
     sortOrder,
     search: effectiveSearch,
     industry: assetType === "equity" && filterInputs.industry ? filterInputs.industry : undefined,
+    primarySetup: filterInputs.setupType || undefined,
   });
 
   // When tag sorting, we have all data client-side, so calculate pages from sorted data length
@@ -577,11 +579,12 @@ export default function CustomizableAssetTable({
       psgMax: "",
       category: "",
       industry: "",
+      setupType: "",
     });
     setPage(0);
   };
 
-  const hasActiveFilters = Object.keys(filterThresholds).length > 0 || filterInputs.category !== "" || filterInputs.industry !== "";
+  const hasActiveFilters = Object.keys(filterThresholds).length > 0 || filterInputs.category !== "" || filterInputs.industry !== "" || filterInputs.setupType !== "";
 
   // Format helpers
   const getDirectionIcon = (direction: string) => {
@@ -926,6 +929,21 @@ export default function CustomizableAssetTable({
                 <input type="number" placeholder="Min" value={filterInputs.marketCapMin}
                   onChange={(e) => setFilterInputs({...filterInputs, marketCapMin: e.target.value})}
                   className="w-full text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none" />
+              </div>
+              {/* Setup Type */}
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-muted-foreground uppercase">Setup Type</label>
+                <select value={filterInputs.setupType}
+                  onChange={(e) => {
+                    setFilterInputs({...filterInputs, setupType: e.target.value});
+                    setPage(0);
+                  }}
+                  className="w-full text-[10px] bg-background border border-border rounded px-1 py-0.5 focus:outline-none">
+                  <option value="">All Setups</option>
+                  {Object.values(SETUP_DEFINITIONS).map(setup => (
+                    <option key={setup.id} value={setup.id}>{setup.shortName}</option>
+                  ))}
+                </select>
               </div>
               {/* Category/Industry */}
               {assetType === "crypto" ? (

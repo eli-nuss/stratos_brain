@@ -18,6 +18,7 @@ interface UseAllAssetsParams {
   minMarketCap?: number;
   maxMarketCap?: number;
   industry?: string;
+  primarySetup?: string;
 }
 
 interface AllAssetsResponse {
@@ -40,6 +41,7 @@ export function useAllAssets({
   minMarketCap,
   maxMarketCap,
   industry,
+  primarySetup,
 }: UseAllAssetsParams) {
   // When sorting by interesting_first, we need all data for client-side sorting
   const isTagSorting = sortBy === "interesting_first";
@@ -78,6 +80,10 @@ export function useAllAssets({
 
   if (industry) {
     params.append("industry", industry);
+  }
+
+  if (primarySetup) {
+    params.append("primary_setup", primarySetup);
   }
 
   const url = `${API_BASE}/dashboard/all-assets?${params.toString()}`;

@@ -13,7 +13,7 @@ import ColumnCustomizer from "@/components/ColumnCustomizer";
 import { useWatchlist } from "@/hooks/useWatchlist";
 import { useAssetTags } from "@/hooks/useAssetTags";
 import { useColumnConfig, ColumnDef } from "@/hooks/useColumnConfig";
-import { getSetupDefinition, getPurityLabel } from "@/lib/setupDefinitions";
+import { getSetupDefinition, getPurityLabel, SETUP_DEFINITIONS } from "@/lib/setupDefinitions";
 import { useSortPreferences, SortField, SortOrder } from "@/hooks/useSortPreferences";
 import {
   DndContext,
@@ -162,6 +162,7 @@ export default function CustomizableStockListTable({ list, onAssetClick }: Custo
   const [filterSearch, setFilterSearch] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
+  const [selectedSetupType, setSelectedSetupType] = useState("");
 
   // Extract all unique tags from the assets
   const allTags = useMemo(() => {
@@ -213,8 +214,13 @@ export default function CustomizableStockListTable({ list, onAssetClick }: Custo
       });
     }
     
+    // Filter by setup type
+    if (selectedSetupType) {
+      filtered = filtered.filter((a: any) => a.primary_setup === selectedSetupType);
+    }
+    
     return filtered;
-  }, [assets, filterSearch, selectedTags]);
+  }, [assets, filterSearch, selectedTags, selectedSetupType]);
 
   // Sort assets with special handling for interesting_first
   const sortedAssets = [...filteredAssets].sort((a: any, b: any) => {
@@ -529,7 +535,7 @@ export default function CustomizableStockListTable({ list, onAssetClick }: Custo
             style={{ backgroundColor: list.color || '#10b981' }}
           />
           {list.name}
-          <span className="text-xs text-muted-foreground">({(filterSearch || selectedTags.length > 0) ? `${total} of ${totalAssets}` : `${total} assets`})</span>
+          <span className="text-xs text-muted-foreground">({(filterSearch || selectedTags.length > 0 || selectedSetupType) ? `${total} of ${totalAssets}` : `${total} assets`})</span>
         </h3>
         <div className="flex items-center gap-2">
           {/* Filter current list search */}
@@ -554,6 +560,24 @@ export default function CustomizableStockListTable({ list, onAssetClick }: Custo
               </button>
             )}
           </div>
+          {/* Setup type filter */}
+          <select
+            value={selectedSetupType}
+            onChange={(e) => {
+              setSelectedSetupType(e.target.value);
+              setPage(0);
+            }}
+            className={`text-xs px-2 py-1.5 border rounded focus:outline-none focus:ring-1 focus:ring-primary ${
+              selectedSetupType
+                ? 'bg-primary/10 border-primary/30 text-primary'
+                : 'bg-background border-border text-muted-foreground'
+            }`}
+          >
+            <option value="">All Setups</option>
+            {Object.values(SETUP_DEFINITIONS).map(setup => (
+              <option key={setup.id} value={setup.id}>{setup.shortName}</option>
+            ))}
+          </select>
           {/* Tag filter dropdown */}
           {allTags.length > 0 && (
             <div className="relative">

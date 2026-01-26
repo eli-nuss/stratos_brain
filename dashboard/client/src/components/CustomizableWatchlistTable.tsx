@@ -12,7 +12,7 @@ import ColumnCustomizer from "@/components/ColumnCustomizer";
 import { useWatchlistAssets, useWatchlist } from "@/hooks/useWatchlist";
 import { useAssetTags } from "@/hooks/useAssetTags";
 import { useColumnConfig, ColumnDef } from "@/hooks/useColumnConfig";
-import { getSetupDefinition, getPurityLabel } from "@/lib/setupDefinitions";
+import { getSetupDefinition, getPurityLabel, SETUP_DEFINITIONS } from "@/lib/setupDefinitions";
 import { useSortPreferences, SortField, SortOrder } from "@/hooks/useSortPreferences";
 import {
   DndContext,
@@ -157,6 +157,7 @@ export default function CustomizableWatchlistTable({ onAssetClick }: Customizabl
   const [page, setPage] = useState(0);
   const { sortBy, sortOrder, handleSort } = useSortPreferences("watchlist");
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [selectedSetupType, setSelectedSetupType] = useState("");
 
   // Compute existing asset IDs for the search dropdown
   const existingAssetIds = useMemo(() => {
@@ -169,8 +170,14 @@ export default function CustomizableWatchlistTable({ onAssetClick }: Customizabl
     mutateAssets();
   };
 
+  // Filter assets by setup type
+  const filteredAssets = useMemo(() => {
+    if (!selectedSetupType) return assets;
+    return assets.filter((a: any) => a.primary_setup === selectedSetupType);
+  }, [assets, selectedSetupType]);
+
   // Sort assets with special handling for interesting_first
-  const sortedAssets = [...assets].sort((a: any, b: any) => {
+  const sortedAssets = [...filteredAssets].sort((a: any, b: any) => {
     if (sortBy === "interesting_first") {
       const aTag = tagsMap.get(a.asset_id);
       const bTag = tagsMap.get(b.asset_id);
@@ -200,7 +207,8 @@ export default function CustomizableWatchlistTable({ onAssetClick }: Customizabl
   });
 
   const paginatedAssets = sortedAssets.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const total = assets.length;
+  const total = filteredAssets.length;
+  const totalAssets = assets.length;
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const visibleColumns = getVisibleColumns();
   const availableColumns = getAvailableColumns();
@@ -453,9 +461,27 @@ export default function CustomizableWatchlistTable({ onAssetClick }: Customizabl
       <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-muted/30">
         <h3 className="font-medium text-sm flex items-center gap-2">
           Watchlist
-          <span className="text-xs text-muted-foreground">({total} assets)</span>
+          <span className="text-xs text-muted-foreground">({selectedSetupType ? `${total} of ${totalAssets}` : `${total} assets`})</span>
         </h3>
         <div className="flex items-center gap-2">
+          {/* Setup type filter */}
+          <select
+            value={selectedSetupType}
+            onChange={(e) => {
+              setSelectedSetupType(e.target.value);
+              setPage(0);
+            }}
+            className={`text-xs px-2 py-1.5 border rounded focus:outline-none focus:ring-1 focus:ring-primary ${
+              selectedSetupType
+                ? 'bg-primary/10 border-primary/30 text-primary'
+                : 'bg-background border-border text-muted-foreground'
+            }`}
+          >
+            <option value="">All Setups</option>
+            {Object.values(SETUP_DEFINITIONS).map(setup => (
+              <option key={setup.id} value={setup.id}>{setup.shortName}</option>
+            ))}
+          </select>
           <AssetSearchDropdown
             existingAssetIds={existingAssetIds}
             onAddAsset={handleAddAsset}

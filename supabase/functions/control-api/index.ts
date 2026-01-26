@@ -1312,6 +1312,7 @@ ${markdownToHtml(markdown)}
         const minMarketCap = url.searchParams.get('min_market_cap')
         const maxMarketCap = url.searchParams.get('max_market_cap')
         const industry = url.searchParams.get('industry')
+        const primarySetup = url.searchParams.get('primary_setup') // Filter by setup type
         const includeEtfs = url.searchParams.get('include_etfs') !== 'false' // Default to true
         
         let query = supabase
@@ -1356,6 +1357,10 @@ ${markdownToHtml(markdown)}
         if (industry) {
           // Case-insensitive match for industry (database has mixed case values)
           query = query.ilike('industry', industry)
+        }
+        if (primarySetup) {
+          // Filter by primary setup type (exact match)
+          query = query.eq('primary_setup', primarySetup)
         }
         
         // Helper to apply sorting
