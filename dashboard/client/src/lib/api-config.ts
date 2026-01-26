@@ -19,6 +19,9 @@ import {
 // Use direct Supabase URL since Vercel rewrites don't forward auth headers
 export const API_BASE = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/control-api';
 
+// Daily Brief API base URL
+export const DAILY_BRIEF_API_BASE = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/daily-brief-api';
+
 // Supabase anon key for API authentication
 export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indmb2diYWlwaXFvb3RqcnNwcmRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxOTQ4NDQsImV4cCI6MjA4MTc3MDg0NH0.DWjb0nVian7a9njxbGR9VjAsWQuWuHI375PgEHH1TRw';
 
@@ -251,12 +254,15 @@ export function getJsonApiHeaders(): HeadersInit {
  * Includes automatic stale auth detection and recovery
  */
 export async function apiFetcher<T = unknown>(url: string): Promise<T> {
-  // Convert /api/dashboard paths to direct Supabase URL
-  const fullUrl = url.startsWith('/api/dashboard') 
-    ? url.replace('/api/dashboard', API_BASE + '/dashboard')
-    : url.startsWith('/api/')
-    ? url.replace('/api/', API_BASE + '/')
-    : url;
+  // Convert /api paths to direct Supabase URLs
+  let fullUrl = url;
+  if (url.startsWith('/api/daily-brief')) {
+    fullUrl = url.replace('/api/daily-brief', DAILY_BRIEF_API_BASE);
+  } else if (url.startsWith('/api/dashboard')) {
+    fullUrl = url.replace('/api/dashboard', API_BASE + '/dashboard');
+  } else if (url.startsWith('/api/')) {
+    fullUrl = url.replace('/api/', API_BASE + '/');
+  }
   
   const response = await fetch(fullUrl, {
     headers: getApiHeaders(),
@@ -357,12 +363,15 @@ export const API_HEADERS = getApiHeaders();
  * POST request helper with auth recovery
  */
 export async function apiPost<T = unknown>(url: string, body: unknown): Promise<T> {
-  // Convert /api/dashboard paths to direct Supabase URL
-  const fullUrl = url.startsWith('/api/dashboard') 
-    ? url.replace('/api/dashboard', API_BASE + '/dashboard')
-    : url.startsWith('/api/')
-    ? url.replace('/api/', API_BASE + '/')
-    : url;
+  // Convert /api paths to direct Supabase URLs
+  let fullUrl = url;
+  if (url.startsWith('/api/daily-brief')) {
+    fullUrl = url.replace('/api/daily-brief', DAILY_BRIEF_API_BASE);
+  } else if (url.startsWith('/api/dashboard')) {
+    fullUrl = url.replace('/api/dashboard', API_BASE + '/dashboard');
+  } else if (url.startsWith('/api/')) {
+    fullUrl = url.replace('/api/', API_BASE + '/');
+  }
   
   const response = await fetch(fullUrl, {
     method: 'POST',
@@ -395,12 +404,15 @@ export async function apiPost<T = unknown>(url: string, body: unknown): Promise<
  * PUT request helper with auth recovery
  */
 export async function apiPut<T = unknown>(url: string, body: unknown): Promise<T> {
-  // Convert /api/dashboard paths to direct Supabase URL
-  const fullUrl = url.startsWith('/api/dashboard') 
-    ? url.replace('/api/dashboard', API_BASE + '/dashboard')
-    : url.startsWith('/api/')
-    ? url.replace('/api/', API_BASE + '/')
-    : url;
+  // Convert /api paths to direct Supabase URLs
+  let fullUrl = url;
+  if (url.startsWith('/api/daily-brief')) {
+    fullUrl = url.replace('/api/daily-brief', DAILY_BRIEF_API_BASE);
+  } else if (url.startsWith('/api/dashboard')) {
+    fullUrl = url.replace('/api/dashboard', API_BASE + '/dashboard');
+  } else if (url.startsWith('/api/')) {
+    fullUrl = url.replace('/api/', API_BASE + '/');
+  }
   
   const response = await fetch(fullUrl, {
     method: 'PUT',
@@ -433,12 +445,15 @@ export async function apiPut<T = unknown>(url: string, body: unknown): Promise<T
  * PATCH request helper with auth recovery
  */
 export async function apiPatch<T = unknown>(url: string, body: unknown): Promise<T> {
-  // Convert /api/dashboard paths to direct Supabase URL
-  const fullUrl = url.startsWith('/api/dashboard') 
-    ? url.replace('/api/dashboard', API_BASE + '/dashboard')
-    : url.startsWith('/api/')
-    ? url.replace('/api/', API_BASE + '/')
-    : url;
+  // Convert /api paths to direct Supabase URLs
+  let fullUrl = url;
+  if (url.startsWith('/api/daily-brief')) {
+    fullUrl = url.replace('/api/daily-brief', DAILY_BRIEF_API_BASE);
+  } else if (url.startsWith('/api/dashboard')) {
+    fullUrl = url.replace('/api/dashboard', API_BASE + '/dashboard');
+  } else if (url.startsWith('/api/')) {
+    fullUrl = url.replace('/api/', API_BASE + '/');
+  }
   
   const response = await fetch(fullUrl, {
     method: 'PATCH',
@@ -471,12 +486,15 @@ export async function apiPatch<T = unknown>(url: string, body: unknown): Promise
  * DELETE request helper with auth recovery
  */
 export async function apiDelete<T = unknown>(url: string): Promise<T> {
-  // Convert /api/dashboard paths to direct Supabase URL
-  const fullUrl = url.startsWith('/api/dashboard') 
-    ? url.replace('/api/dashboard', API_BASE + '/dashboard')
-    : url.startsWith('/api/')
-    ? url.replace('/api/', API_BASE + '/')
-    : url;
+  // Convert /api paths to direct Supabase URLs
+  let fullUrl = url;
+  if (url.startsWith('/api/daily-brief')) {
+    fullUrl = url.replace('/api/daily-brief', DAILY_BRIEF_API_BASE);
+  } else if (url.startsWith('/api/dashboard')) {
+    fullUrl = url.replace('/api/dashboard', API_BASE + '/dashboard');
+  } else if (url.startsWith('/api/')) {
+    fullUrl = url.replace('/api/', API_BASE + '/');
+  }
   
   const response = await fetch(fullUrl, {
     method: 'DELETE',

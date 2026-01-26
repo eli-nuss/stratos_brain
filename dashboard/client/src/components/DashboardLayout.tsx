@@ -13,7 +13,8 @@ import {
   StickyNote,
   Home,
   ChevronDown,
-  Settings
+  Settings,
+  Sparkles
 } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
 import { MobileNav } from "@/components/MobileNav";
@@ -43,6 +44,7 @@ const navGroups = [
   {
     label: 'AI Research',
     items: [
+      { href: '/daily-brief', label: 'Daily Brief', icon: Sparkles },
       { href: '/chat', label: 'Company Chat', icon: MessageSquare },
       { href: '/brain', label: 'Stratos Brain', icon: Brain },
     ]
