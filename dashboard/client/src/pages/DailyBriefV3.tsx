@@ -161,7 +161,7 @@ function AssetCard({ pick, onClick }: { pick: AssetPick; onClick: () => void }) 
             {pick.conviction}
           </Badge>
         </div>
-        {pick.risk_reward && (
+        {pick.risk_reward && typeof pick.risk_reward === 'number' && (
           <span className="text-xs font-mono text-muted-foreground">
             {pick.risk_reward.toFixed(1)}:1
           </span>
