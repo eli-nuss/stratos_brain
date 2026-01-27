@@ -554,9 +554,10 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey)
     
     const url = new URL(req.url)
-    const action = url.searchParams.get('action') || 'generate'
+    const action = url.searchParams.get('action')
     
-    if (action === 'generate' || req.method === 'POST') {
+    // Only generate on POST or explicit action=generate
+    if (req.method === 'POST' || action === 'generate') {
       console.log('[DailyBrief v3] Starting generation...')
       const brief = await generateDailyBrief(supabase)
       
