@@ -339,7 +339,7 @@ function SetupQualityCard({
       <div className="px-3 py-2 border-b border-border/50 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Award className="w-4 h-4 text-primary" />
-          <h3 className="font-semibold text-sm">Setup Quality</h3>
+          <h3 className="font-semibold text-sm">Setup</h3>
         </div>
         {setup && (
           <span 
