@@ -34,6 +34,7 @@ const DailyBrief = lazy(() => import("./pages/DailyBrief"));
 const DailyBriefV2 = lazy(() => import("./pages/DailyBriefV2"));
 const DailyBriefV3 = lazy(() => import("./pages/DailyBriefV3"));
 const SetupGuide = lazy(() => import("./pages/SetupGuide"));
+const AssetPage = lazy(() => import("./pages/AssetPage"));
 
 // Wrapper component for lazy-loaded pages with error boundary
 function LazyPage({ component: Component }: { component: React.ComponentType }) {
@@ -60,7 +61,9 @@ function Router() {
       <Route path={"/indices"} component={Home} />
       <Route path={"/commodities"} component={Home} />
       <Route path={"/list/:listId"} component={Home} />
-      <Route path={"/asset/:assetId"} component={Home} />
+      <Route path={"/asset/:assetId"}>
+        <LazyPage component={AssetPage} />
+      </Route>
       
       {/* Auth callback - needs to be fast */}
       <Route path={"/auth/callback"} component={AuthCallback} />
