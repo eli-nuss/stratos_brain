@@ -82,7 +82,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
 
   const [chartView, setChartView] = useState<'tradingview' | 'financials'>('tradingview');
   const [isChartFullscreen, setIsChartFullscreen] = useState(false);
-  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({ about: true });
 
   const toggleSection = (section: string) => {
     setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -574,17 +574,17 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                   )}
                 </div>
 
-                {/* Signals - Enhanced */}
-                <div className="bg-card border border-border rounded-lg overflow-hidden">
-                  <div className="bg-muted/30 px-4 py-2.5 border-b border-border flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Activity className="w-4 h-4 text-muted-foreground" />
-                      <h3 className="font-semibold text-sm">Active Signals</h3>
+                {/* Signals - Only show when there are active signals */}
+                {review?.signal_facts && review.signal_facts.length > 0 && (
+                  <div className="bg-card border border-border rounded-lg overflow-hidden">
+                    <div className="bg-muted/30 px-4 py-2.5 border-b border-border flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-muted-foreground" />
+                        <h3 className="font-semibold text-sm">Active Signals</h3>
+                      </div>
+                      <InfoTooltip content="Quantitative signals that triggered this asset's score. Each signal has a strength from 0-100 based on technical criteria." />
                     </div>
-                    <InfoTooltip content="Quantitative signals that triggered this asset's score. Each signal has a strength from 0-100 based on technical criteria." />
-                  </div>
-                  <div className="p-3 max-h-[180px] overflow-y-auto">
-                    {review?.signal_facts && review.signal_facts.length > 0 ? (
+                    <div className="p-3 max-h-[180px] overflow-y-auto">
                       <div className="space-y-2">
                         {review.signal_facts.map((signal: any, i: number) => (
                           <Tooltip key={i}>
@@ -627,15 +627,9 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                           </Tooltip>
                         ))}
                       </div>
-                    ) : (
-                      <div className="text-center py-4">
-                        <Activity className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
-                        <p className="text-xs text-muted-foreground">No active signals</p>
-                        <p className="text-[10px] text-muted-foreground/50 mt-1">Signals appear when patterns are detected</p>
-                      </div>
-                    )}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
 
