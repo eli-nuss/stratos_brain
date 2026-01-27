@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 26, 2026 (v11.1.3 - Company Chat Notepad Context)  
+**Last Updated: January 26, 2026 (v11.1.4 - Trading Tab Redesign with Enhanced Technical Indicators)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -678,7 +678,8 @@ PATCH  /api/dashboard/research-notes/:id/favorite # Toggle favorite status
 |-----------|---------|
 | `DashboardLayout` | Main app shell with navigation |
 | `CustomizableAssetTable` | Flexible data table with sorting/filtering, setup type filter dropdown, tag-based sorting (Interesting first), 100 rows per page |
-| `AssetDetail` | Modal with charts, AI analysis, trade plan, and EV+MC display for equities |
+| `AssetDetail` | Modal with charts, AI analysis, trade plan, and EV+MC display for equities. Contains two tabs: **TradingView** (technical analysis) and **Financials** (fundamental data) |
+| `TechnicalsSidebar` | Right sidebar for Trading tab with: RSI gauge visualization, MACD status, Setup Quality Card (purity score, profit factor, R:R), technical metrics grid (RVOL, ATR, RS vs SPY, BB Width), performance returns, key levels with MA distances |
 | `chat/BaseChatInterface` | **Shared base component for all chat interfaces** (v2.1) - Provides unified message rendering, tool call visualization, streaming support, and error recovery |
 | `SourcesPanel` | UI for managing user-provided sources (files, URLs, text) |
 | `StudioPanel` | NotebookLM-style studio section with diagrams, slide decks (future), summaries (future) |
