@@ -231,11 +231,18 @@ The Daily Brief v3 is an AI-generated market summary that surfaces the best trad
 3. **Compression & Reversion**: Volatility compression, mean reversion, oversold bounces (vcp_squeeze, oversold_bounce)
 
 **Key Features:**
+- **Morning Intel (NEW)**: Real-time market intelligence using Gemini's grounded Google Search:
+  - Market Pulse: Pre-market futures, key levels, VIX, global markets
+  - Macro Calendar: Economic data releases, Fed speakers, earnings
+  - Geopolitical & Policy: Trade policy, regulatory news, international tensions
+  - Sector Themes: Leading/lagging sectors, rotation signals
+  - Liquidity & Flows: Dollar strength, Treasury yields, credit spreads
+  - Risk Factors: Key risks and potential catalysts for the day
 - **Market Regime Detection**: Bullish/Bearish/Neutral regime from daily_macro_metrics
 - **Portfolio Alerts**: Add-on opportunities and sector concentration warnings for held positions
 - **Priority Actions**: Top action items derived from the best picks
 - **Direct Navigation**: Asset cards link directly to /asset/{asset_id} for full analysis
-- **Stored in `daily_briefs_v3`**: Persists generated briefs with category picks, alerts, and token usage
+- **Stored in `daily_briefs_v3`**: Persists generated briefs with morning_intel, category picks, alerts, and token usage
 
 ### 4.4 Document Generation
                                                                                      
