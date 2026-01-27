@@ -1,0 +1,53 @@
+name: FX Rates Daily Update
+
+on:
+  # Run daily at 22:00 UTC (after US market close)
+  schedule:
+    - cron: '0 22 * * 1-5'  # Weekdays only
+  
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Target date (YYYY-MM-DD, leave empty for today)'
+        required: false
+        default: ''
+
+jobs:
+  ingest-fx-rates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install requests psycopg2-binary
+
+      - name: Run FX Rates Ingestion
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
+        run: |
+          # Build command with optional date argument
+          CMD="python -m jobs.fx_rates_daily"
+          
+          if [ -n "${{ github.event.inputs.date }}" ]; then
+            CMD="$CMD --date ${{ github.event.inputs.date }}"
+          fi
+          
+          echo "Running: $CMD"
+          $CMD
+
+      - name: Report Results
+        if: always()
+        run: |
+          echo "FX rates ingestion completed"
+          echo "Check the logs above for detailed results"

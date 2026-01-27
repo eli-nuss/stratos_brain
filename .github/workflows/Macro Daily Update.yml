@@ -1,0 +1,60 @@
+name: Macro Daily Update
+
+on:
+  # Run daily at 22:00 UTC (after US market close)
+  schedule:
+    - cron: '0 22 * * 1-5'  # Weekdays only
+  
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Target date (YYYY-MM-DD, leave empty for today)'
+        required: false
+        default: ''
+      backfill:
+        description: 'Number of days to backfill (optional)'
+        required: false
+        default: ''
+
+jobs:
+  ingest-macro:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install requests psycopg2-binary
+
+      - name: Run Macro Data Ingestion
+        env:
+          FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
+        run: |
+          cd scripts
+          
+          # Build command with optional arguments
+          CMD="python ingest_macro_fmp_v2.py"
+          
+          if [ -n "${{ github.event.inputs.date }}" ]; then
+            CMD="$CMD --date ${{ github.event.inputs.date }}"
+          elif [ -n "${{ github.event.inputs.backfill }}" ]; then
+            CMD="$CMD --backfill ${{ github.event.inputs.backfill }}"
+          fi
+          
+          echo "Running: $CMD"
+          $CMD
+
+      - name: Report Results
+        if: always()
+        run: |
+          echo "Macro data ingestion completed"
+          echo "Check the logs above for detailed results"
