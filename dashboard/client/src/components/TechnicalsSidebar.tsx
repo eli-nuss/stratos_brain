@@ -591,26 +591,55 @@ export function TechnicalsSidebar({ asset, review, features }: TechnicalsSidebar
 
   return (
     <div className="space-y-4">
-      {/* Module A: Setup Quality (moved to top - most actionable) */}
-      <SetupQualityCard 
-        setupType={setupData.setupType}
-        purityScore={setupData.purityScore}
-        profitFactor={setupData.profitFactor}
-        riskReward={setupData.riskReward}
-      />
+      {/* Module A: Performance (moved to top) */}
+      <div className="bg-muted/5 rounded-lg border border-border overflow-hidden">
+        <button 
+          onClick={() => setPerformanceExpanded(!performanceExpanded)}
+          className="w-full flex items-center justify-between p-3 hover:bg-muted/10 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <Percent className="w-4 h-4 text-muted-foreground" />
+            <h3 className="font-semibold text-sm">Performance</h3>
+          </div>
+          {performanceExpanded ? (
+            <ChevronUp className="w-4 h-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+          )}
+        </button>
+        
+        {performanceExpanded && (
+          <div className="px-3 pb-3">
+            <ReturnPill label="1 Day" value={technicalMetrics.return1d} />
+            <ReturnPill label="5 Days" value={technicalMetrics.return5d} />
+            <ReturnPill label="21 Days" value={technicalMetrics.return21d} />
+            
+            {/* Distance from 52W */}
+            {asset.week_52_high && currentPrice && (
+              <div className="mt-3 pt-3 border-t border-border/30">
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                  <span>From 52W High</span>
+                  <span className={`font-mono ${
+                    ((currentPrice - parseFloat(asset.week_52_high)) / parseFloat(asset.week_52_high) * 100) > -10 
+                      ? 'text-emerald-400' 
+                      : 'text-muted-foreground'
+                  }`}>
+                    {((currentPrice - parseFloat(asset.week_52_high)) / parseFloat(asset.week_52_high) * 100).toFixed(1)}%
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-1">
+                  <span>From 52W Low</span>
+                  <span className="font-mono text-emerald-400">
+                    +{((currentPrice - parseFloat(asset.week_52_low)) / parseFloat(asset.week_52_low) * 100).toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
-      {/* Module B: Trade Plan Visual (condensed visualization) */}
-      <TradePlanVisual
-        entryLow={entryLow}
-        entryHigh={entryHigh}
-        target1={target1}
-        target2={target2}
-        stopLoss={stopLossValue}
-        currentPrice={currentPrice}
-        riskReward={setupData.riskReward}
-      />
-
-      {/* Module C: Technical Indicators */}
+      {/* Module B: Technical Indicators */}
       <div className="bg-muted/5 rounded-lg border border-border overflow-hidden">
         <button 
           onClick={() => setTechnicalExpanded(!technicalExpanded)}
@@ -696,53 +725,24 @@ export function TechnicalsSidebar({ asset, review, features }: TechnicalsSidebar
         )}
       </div>
 
-      {/* Module D: Performance */}
-      <div className="bg-muted/5 rounded-lg border border-border overflow-hidden">
-        <button 
-          onClick={() => setPerformanceExpanded(!performanceExpanded)}
-          className="w-full flex items-center justify-between p-3 hover:bg-muted/10 transition-colors"
-        >
-          <div className="flex items-center gap-2">
-            <Percent className="w-4 h-4 text-muted-foreground" />
-            <h3 className="font-semibold text-sm">Performance</h3>
-          </div>
-          {performanceExpanded ? (
-            <ChevronUp className="w-4 h-4 text-muted-foreground" />
-          ) : (
-            <ChevronDown className="w-4 h-4 text-muted-foreground" />
-          )}
-        </button>
-        
-        {performanceExpanded && (
-          <div className="px-3 pb-3">
-            <ReturnPill label="1 Day" value={technicalMetrics.return1d} />
-            <ReturnPill label="5 Days" value={technicalMetrics.return5d} />
-            <ReturnPill label="21 Days" value={technicalMetrics.return21d} />
-            
-            {/* Distance from 52W */}
-            {asset.week_52_high && currentPrice && (
-              <div className="mt-3 pt-3 border-t border-border/30">
-                <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                  <span>From 52W High</span>
-                  <span className={`font-mono ${
-                    ((currentPrice - parseFloat(asset.week_52_high)) / parseFloat(asset.week_52_high) * 100) > -10 
-                      ? 'text-emerald-400' 
-                      : 'text-muted-foreground'
-                  }`}>
-                    {((currentPrice - parseFloat(asset.week_52_high)) / parseFloat(asset.week_52_high) * 100).toFixed(1)}%
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-1">
-                  <span>From 52W Low</span>
-                  <span className="font-mono text-emerald-400">
-                    +{((currentPrice - parseFloat(asset.week_52_low)) / parseFloat(asset.week_52_low) * 100).toFixed(1)}%
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      {/* Module C: Setup */}
+      <SetupQualityCard 
+        setupType={setupData.setupType}
+        purityScore={setupData.purityScore}
+        profitFactor={setupData.profitFactor}
+        riskReward={setupData.riskReward}
+      />
+
+      {/* Module D: Trade Plan Visual */}
+      <TradePlanVisual
+        entryLow={entryLow}
+        entryHigh={entryHigh}
+        target1={target1}
+        target2={target2}
+        stopLoss={stopLossValue}
+        currentPrice={currentPrice}
+        riskReward={setupData.riskReward}
+      />
 
       {/* Module E: Key Levels */}
       <div className="bg-muted/5 rounded-lg border border-border overflow-hidden">
