@@ -11,13 +11,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sheet, SheetContent, SheetHeader, SheetDescription } from "@/components/ui/sheet";
 import { 
   RefreshCw, 
   Zap, 
   TrendingUp, 
   Magnet, 
-  ArrowRight,
   Quote,
   CheckCircle2,
   AlertTriangle,
@@ -35,6 +33,7 @@ import { format } from "date-fns";
 // --- Types ---
 
 interface AssetPick {
+  asset_id?: number;
   symbol: string;
   name?: string;
   sector?: string;
@@ -182,120 +181,11 @@ function AssetCard({ pick, onClick }: { pick: AssetPick; onClick: () => void }) 
   );
 }
 
-function AssetDetailSheet({ 
-  pick, 
-  isOpen, 
-  onClose,
-  onNavigate 
-}: { 
-  pick: AssetPick | null; 
-  isOpen: boolean; 
-  onClose: () => void;
-  onNavigate: (symbol: string) => void;
-}) {
-  if (!pick) return null;
-
-  return (
-    <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="sm:max-w-md overflow-y-auto">
-        <SheetHeader className="mb-6">
-          <div className="flex items-center gap-3 mb-2">
-            <h2 className="text-2xl font-bold">{pick.symbol}</h2>
-            <Badge className={cn(
-              "text-xs",
-              pick.conviction === "HIGH" ? "bg-green-500" : 
-              pick.conviction === "MEDIUM" ? "bg-yellow-500" : "bg-gray-500"
-            )}>
-              {pick.conviction}
-            </Badge>
-          </div>
-          <SheetDescription>
-            {pick.setup_type.replace(/_/g, " ")} • {pick.sector || "Unknown Sector"}
-          </SheetDescription>
-        </SheetHeader>
-
-        <div className="space-y-6">
-          {/* Scores */}
-          <div className="grid grid-cols-2 gap-3">
-            {pick.direction_score !== undefined && (
-              <Card>
-                <CardContent className="p-3">
-                  <span className="text-[10px] text-muted-foreground uppercase">Direction</span>
-                  <span className="block text-xl font-bold font-mono">{pick.direction_score}</span>
-                </CardContent>
-              </Card>
-            )}
-            {pick.purity_score !== undefined && (
-              <Card>
-                <CardContent className="p-3">
-                  <span className="text-[10px] text-muted-foreground uppercase">Purity</span>
-                  <span className="block text-xl font-bold font-mono">{pick.purity_score}</span>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Trade Levels */}
-          {(pick.entry || pick.stop || pick.target) && (
-            <div className="space-y-2">
-              <h3 className="font-semibold text-sm flex items-center gap-2">
-                <Target className="w-4 h-4 text-primary" />
-                Trade Levels
-              </h3>
-              <div className="grid grid-cols-3 gap-2">
-                {pick.entry && (
-                  <div className="p-3 rounded-lg bg-muted/50 text-center">
-                    <span className="text-[10px] text-muted-foreground block">Entry</span>
-                    <span className="font-mono font-bold">${pick.entry.toFixed(2)}</span>
-                  </div>
-                )}
-                {pick.stop && (
-                  <div className="p-3 rounded-lg bg-red-500/10 text-center">
-                    <span className="text-[10px] text-red-600 block">Stop</span>
-                    <span className="font-mono font-bold text-red-600">${pick.stop.toFixed(2)}</span>
-                  </div>
-                )}
-                {pick.target && (
-                  <div className="p-3 rounded-lg bg-green-500/10 text-center">
-                    <span className="text-[10px] text-green-600 block">Target</span>
-                    <span className="font-mono font-bold text-green-600">${pick.target.toFixed(2)}</span>
-                  </div>
-                )}
-              </div>
-              {pick.risk_reward && (
-                <p className="text-xs text-muted-foreground text-center">
-                  Risk/Reward: <span className="font-mono font-bold">{pick.risk_reward.toFixed(2)}:1</span>
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Rationale */}
-          <div className="space-y-2">
-            <h3 className="font-semibold text-sm flex items-center gap-2">
-              <Quote className="w-4 h-4 text-primary" /> 
-              CIO Analysis
-            </h3>
-            <div className="p-4 rounded-lg bg-muted/50 text-sm leading-relaxed border-l-4 border-primary">
-              {pick.one_liner}
-            </div>
-          </div>
-
-          <Button className="w-full" onClick={() => onNavigate(pick.symbol)}>
-            Open Full Analysis <ArrowRight className="w-4 h-4 ml-2" />
-          </Button>
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
-}
-
 // --- Main Page ---
 
 export default function DailyBriefV3() {
   const [, setLocation] = useLocation();
   const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedPick, setSelectedPick] = useState<AssetPick | null>(null);
 
   // Fetch the latest brief
   const { data: response, mutate, isLoading } = useSWR<{ success: boolean; brief: DailyBriefData }>(
@@ -327,15 +217,14 @@ export default function DailyBriefV3() {
     }
   };
 
+  // Navigate directly to asset summary page
   const handleAssetClick = (pick: AssetPick) => {
-    setSelectedPick(pick);
-  };
-
-  const handleNavigate = (symbol: string) => {
-    // Find asset by symbol and navigate
-    setSelectedPick(null);
-    // For now, just log - would need asset ID lookup
-    console.log("Navigate to", symbol);
+    if (pick.asset_id) {
+      setLocation(`/asset/${pick.asset_id}`);
+    } else {
+      // Fallback: log warning if asset_id is missing
+      console.warn(`No asset_id for ${pick.symbol}, cannot navigate`);
+    }
   };
 
   const regimeBadge = useMemo(() => {
@@ -544,14 +433,6 @@ export default function DailyBriefV3() {
           )}
 
         </main>
-
-        {/* Detail Sheet */}
-        <AssetDetailSheet 
-          pick={selectedPick} 
-          isOpen={!!selectedPick} 
-          onClose={() => setSelectedPick(null)} 
-          onNavigate={handleNavigate}
-        />
 
       </div>
     </DashboardLayout>

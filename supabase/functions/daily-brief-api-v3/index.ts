@@ -354,7 +354,16 @@ async function aiReRankCategory(bucket: CategoryBucket, macroRegime: string): Pr
   }
   
   // Prepare candidate data for AI
+  // Create a map of symbol -> asset_id for enriching AI picks later
+  const symbolToAssetId = new Map<string, number>()
+  bucket.candidates.forEach(c => {
+    if (c.assets?.symbol && c.asset_id) {
+      symbolToAssetId.set(c.assets.symbol, c.asset_id)
+    }
+  })
+  
   const candidateData = bucket.candidates.slice(0, 40).map(c => ({
+    asset_id: c.asset_id,
     symbol: c.assets?.symbol,
     name: c.assets?.name,
     sector: c.assets?.sector,
@@ -390,6 +399,7 @@ Output a JSON object with:
   "theme_summary": "1-2 sentence summary of what's working in this category today",
   "picks": [
     {
+      "asset_id": number,
       "symbol": "string",
       "name": "string",
       "sector": "string",
@@ -402,7 +412,9 @@ Output a JSON object with:
       "one_liner": "Why this setup stands out (1 sentence)"
     }
   ]
-}`
+}
+
+IMPORTANT: You MUST include the asset_id from the candidate data in each pick. This is required for navigation.`
 
   const prompt = `Review these ${candidateData.length} candidates and select your TOP 15:
 
@@ -414,8 +426,15 @@ Remember: Prioritize conviction, ensure sector diversity, and write a compelling
   
   try {
     const parsed = JSON.parse(text)
+    // Ensure each pick has asset_id (fallback to lookup if AI didn't include it)
+    const enrichedPicks = (parsed.picks || []).map((pick: any) => {
+      if (!pick.asset_id && pick.symbol) {
+        pick.asset_id = symbolToAssetId.get(pick.symbol) || null
+      }
+      return pick
+    })
     return {
-      picks: parsed.picks || [],
+      picks: enrichedPicks,
       theme_summary: parsed.theme_summary || '',
       tokensIn,
       tokensOut
@@ -425,6 +444,7 @@ Remember: Prioritize conviction, ensure sector diversity, and write a compelling
     return { picks: [], theme_summary: 'AI parsing error', tokensIn, tokensOut }
   }
 }
+
 
 // ============================================================================
 // PORTFOLIO ALERTS
