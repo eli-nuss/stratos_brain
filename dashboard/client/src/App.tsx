@@ -32,6 +32,7 @@ const InvestorWatchlist = lazy(() => import("./pages/InvestorWatchlist"));
 const ResearchNotes = lazy(() => import("./pages/ResearchNotes"));
 const DailyBrief = lazy(() => import("./pages/DailyBrief"));
 const DailyBriefV2 = lazy(() => import("./pages/DailyBriefV2"));
+const DailyBriefV3 = lazy(() => import("./pages/DailyBriefV3"));
 const SetupGuide = lazy(() => import("./pages/SetupGuide"));
 
 // Wrapper component for lazy-loaded pages with error boundary
@@ -108,6 +109,9 @@ function Router() {
         <LazyPage component={ResearchNotes} />
       </Route>
       <Route path={"/daily-brief"}>
+        <LazyPage component={DailyBriefV3} />
+      </Route>
+      <Route path={"/daily-brief-v2"}>
         <LazyPage component={DailyBriefV2} />
       </Route>
       <Route path={"/daily-brief-old"}>
