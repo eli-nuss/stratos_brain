@@ -1200,6 +1200,38 @@ ${markdownToHtml(markdown)}
           .eq('date', targetDate)
           .single()
         
+        // Get most recent non-null RS vs SPY and BB Width (with dates) if current values are null
+        let featuresWithFallback = features ? { ...features } : null
+        if (featuresWithFallback && (featuresWithFallback.rs_vs_benchmark === null || featuresWithFallback.bb_width_pctile === null)) {
+          const { data: recentFeatures } = await supabase
+            .from('daily_features')
+            .select('date, rs_vs_benchmark, bb_width_pctile')
+            .eq('asset_id', assetId)
+            .lte('date', targetDate)
+            .or('rs_vs_benchmark.not.is.null,bb_width_pctile.not.is.null')
+            .order('date', { ascending: false })
+            .limit(10)
+          
+          if (recentFeatures && recentFeatures.length > 0) {
+            // Find most recent non-null RS vs SPY
+            if (featuresWithFallback.rs_vs_benchmark === null) {
+              const rsRow = recentFeatures.find(r => r.rs_vs_benchmark !== null)
+              if (rsRow) {
+                featuresWithFallback.rs_vs_benchmark = rsRow.rs_vs_benchmark
+                featuresWithFallback.rs_vs_benchmark_date = rsRow.date
+              }
+            }
+            // Find most recent non-null BB Width
+            if (featuresWithFallback.bb_width_pctile === null) {
+              const bbRow = recentFeatures.find(r => r.bb_width_pctile !== null)
+              if (bbRow) {
+                featuresWithFallback.bb_width_pctile = bbRow.bb_width_pctile
+                featuresWithFallback.bb_width_pctile_date = bbRow.date
+              }
+            }
+          }
+        }
+        
         // Get score row
         let scoreQuery = supabase
           .from('daily_asset_scores')
@@ -1283,7 +1315,7 @@ ${markdownToHtml(markdown)}
           as_of_date: targetDate,
           ohlcv: ohlcv?.reverse() || [],
           ai_score_history: aiScoreHistory || [],
-          features,
+          features: featuresWithFallback,
           scores,
           signals: signals || [],
           review,

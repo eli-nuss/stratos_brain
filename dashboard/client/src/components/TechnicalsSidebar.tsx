@@ -47,22 +47,24 @@ function InfoTooltip({ content }: { content: string }) {
   );
 }
 
-// RSI Gauge component - visual semicircle gauge
+// RSI Gauge component - visual semicircle gauge with colored border segments
 function RSIGauge({ value }: { value: number | null }) {
   if (value === null || value === undefined) {
     return (
-      <div className="text-center py-2">
-        <span className="text-muted-foreground/50 text-xs">—</span>
+      <div className="text-center py-4">
+        <span className="text-muted-foreground/50 text-sm">—</span>
       </div>
     );
   }
 
   const rsi = Math.round(value);
+  
+  // Get zone info based on RSI value
   const getZone = () => {
-    if (rsi <= 30) return { label: 'Oversold', color: 'text-emerald-400', bg: 'bg-emerald-500/20' };
-    if (rsi >= 70) return { label: 'Overbought', color: 'text-red-400', bg: 'bg-red-500/20' };
-    if (rsi >= 50) return { label: 'Bullish', color: 'text-blue-400', bg: 'bg-blue-500/20' };
-    return { label: 'Bearish', color: 'text-amber-400', bg: 'bg-amber-500/20' };
+    if (rsi < 30) return { label: 'Oversold', color: '#ef4444', textColor: 'text-red-400' };
+    if (rsi < 50) return { label: 'Bearish', color: '#f97316', textColor: 'text-orange-400' };
+    if (rsi < 70) return { label: 'Bullish', color: '#22c55e', textColor: 'text-emerald-400' };
+    return { label: 'Overbought', color: '#ef4444', textColor: 'text-red-400' };
   };
 
   const zone = getZone();
@@ -70,23 +72,34 @@ function RSIGauge({ value }: { value: number | null }) {
 
   return (
     <div className="flex flex-col items-center">
-      <div className="relative w-24 h-12 overflow-hidden">
-        <div className="absolute inset-0 rounded-t-full border-4 border-muted/30" 
-             style={{ borderBottomWidth: 0 }} />
-        <div className="absolute inset-0">
-          <div className="absolute left-0 top-0 w-1/3 h-full rounded-tl-full bg-emerald-500/20" />
-          <div className="absolute left-1/3 top-0 w-1/3 h-full bg-blue-500/10" />
-          <div className="absolute right-0 top-0 w-1/3 h-full rounded-tr-full bg-red-500/20" />
-        </div>
+      {/* Semicircle gauge */}
+      <div className="relative w-32 h-16 overflow-hidden">
+        {/* Colored arc border - using CSS border trick for semicircle */}
         <div 
-          className="absolute bottom-0 left-1/2 w-0.5 h-10 bg-white origin-bottom transition-transform duration-500"
+          className="absolute w-32 h-32 rounded-full border-8"
+          style={{ 
+            borderTopColor: '#ef4444',      // Red (overbought)
+            borderRightColor: '#22c55e',    // Green (bullish)
+            borderBottomColor: 'transparent',
+            borderLeftColor: '#f97316',     // Orange (bearish)
+            transform: 'rotate(-90deg)'
+          }} 
+        />
+        {/* Needle */}
+        <div 
+          className="absolute bottom-0 left-1/2 w-1 h-12 bg-white origin-bottom rounded-full transition-transform duration-500"
           style={{ transform: `translateX(-50%) rotate(${rotation}deg)` }}
         />
-        <div className="absolute bottom-0 left-1/2 w-2 h-2 -translate-x-1/2 translate-y-1/2 rounded-full bg-white" />
+        {/* Center dot */}
+        <div className="absolute bottom-0 left-1/2 w-3 h-3 bg-white rounded-full -translate-x-1/2" />
       </div>
-      <div className="mt-1 text-center">
-        <span className={`text-lg font-bold font-mono ${zone.color}`}>{rsi}</span>
-        <span className={`ml-1.5 text-[10px] px-1.5 py-0.5 rounded ${zone.bg} ${zone.color}`}>
+      {/* Value and label */}
+      <div className="flex items-center gap-2 mt-2">
+        <span className="text-2xl font-bold text-white font-mono">{rsi}</span>
+        <span 
+          className="text-sm px-2 py-0.5 rounded text-white font-medium"
+          style={{ backgroundColor: zone.color }}
+        >
           {zone.label}
         </span>
       </div>
@@ -125,14 +138,15 @@ function MACDStatus({ line, signal }: { line: number | null; signal: number | nu
   );
 }
 
-// Metric card component
+// Metric card component with optional date annotation for stale data
 function MetricCard({ 
   icon: Icon, 
   label, 
   value, 
   tooltip,
   status = 'neutral',
-  compact = false
+  compact = false,
+  asOfDate
 }: { 
   icon: any; 
   label: string; 
@@ -140,6 +154,7 @@ function MetricCard({
   tooltip: string;
   status?: 'bullish' | 'bearish' | 'neutral' | 'muted' | 'low' | 'high' | 'warning';
   compact?: boolean;
+  asOfDate?: string | null;
 }) {
   const statusColors = {
     bullish: 'text-emerald-400',
@@ -149,6 +164,12 @@ function MetricCard({
     low: 'text-amber-400',
     high: 'text-emerald-400',
     warning: 'text-amber-400'
+  };
+
+  // Format date as short form (e.g., "Jan 23")
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr + 'T00:00:00');
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
   return (
@@ -163,6 +184,11 @@ function MetricCard({
       <div className={`${compact ? 'text-sm' : 'text-lg'} font-mono font-bold ${statusColors[status]}`}>
         {value || '—'}
       </div>
+      {asOfDate && (
+        <div className="text-[9px] text-muted-foreground/60 mt-0.5">
+          as of {formatDate(asOfDate)}
+        </div>
+      )}
     </div>
   );
 }
@@ -369,13 +395,15 @@ export function TechnicalsSidebar({ asset, review, features }: TechnicalsSidebar
   // Technical metrics from daily_features
   const technicalMetrics = {
     rvol: features?.rvol_20 ?? null,
-    atr: features?.atr_14 ? parseFloat(features.atr_14) : null,
+    atr: features?.atr_pct ? parseFloat(features.atr_pct) : null,
     rsi: features?.rsi_14 ? parseFloat(features.rsi_14) : null,
     macdLine: features?.macd_line ? parseFloat(features.macd_line) : null,
     macdSignal: features?.macd_signal ? parseFloat(features.macd_signal) : null,
     bbWidthPctile: features?.bb_width_pctile ? parseFloat(features.bb_width_pctile) : null,
+    bbWidthPctileDate: features?.bb_width_pctile_date ?? null,
     squeezeFlag: features?.squeeze_flag ?? null,
     rsVsBenchmark: features?.rs_vs_benchmark ? parseFloat(features.rs_vs_benchmark) : null,
+    rsVsBenchmarkDate: features?.rs_vs_benchmark_date ?? null,
     rsRoc20: features?.rs_roc_20 ? parseFloat(features.rs_roc_20) : null,
     attentionScore: features?.attention_score ? parseFloat(features.attention_score) : null,
     return1d: features?.return_1d ? parseFloat(features.return_1d) : null,
@@ -563,6 +591,7 @@ export function TechnicalsSidebar({ asset, review, features }: TechnicalsSidebar
                 tooltip="Relative Strength vs benchmark. Positive means outperforming the market."
                 status={getRsStatus(technicalMetrics.rsVsBenchmark)}
                 compact
+                asOfDate={technicalMetrics.rsVsBenchmarkDate}
               />
               <MetricCard 
                 icon={BarChart2}
@@ -571,6 +600,7 @@ export function TechnicalsSidebar({ asset, review, features }: TechnicalsSidebar
                 tooltip="Bollinger Band Width Percentile. Low values indicate squeeze (potential breakout), high values indicate extended move."
                 status={technicalMetrics.squeezeFlag ? 'warning' : 'neutral'}
                 compact
+                asOfDate={technicalMetrics.bbWidthPctileDate}
               />
             </div>
 
