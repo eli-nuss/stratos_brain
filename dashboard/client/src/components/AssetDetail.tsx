@@ -424,22 +424,65 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                 </div>
               </div>
             ) : (
-              /* AI Summary for Technicals View */
+              /* AI Summary for Technicals View - Enhanced */
               review?.summary_text && (
-                <div className="bg-muted/10 border border-border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
+                <div className="bg-gradient-to-br from-muted/20 to-muted/5 border border-border rounded-lg overflow-hidden">
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-muted/20 border-b border-border/50">
                     <div className="flex items-center gap-2">
-                      <Activity className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-xs font-medium text-muted-foreground">AI Summary</span>
+                      <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
+                        <Activity className="w-3.5 h-3.5 text-primary" />
+                      </div>
+                      <span className="text-sm font-semibold">AI Analysis</span>
                     </div>
-                    <span className="text-[10px] text-muted-foreground/70 font-mono">
-                      {review.model_id || "gemini-3-pro-preview"}
-                      {review.as_of_date && ` • ${review.as_of_date}`}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-muted-foreground/70 font-mono px-2 py-0.5 bg-muted/30 rounded">
+                        {review.model_id || "gemini-3-pro-preview"}
+                      </span>
+                      {review.as_of_date && (
+                        <span className="text-[10px] text-muted-foreground/60">
+                          {review.as_of_date}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-sm text-foreground/90 leading-relaxed">
-                    {review.summary_text}
-                  </p>
+                  
+                  {/* Content */}
+                  <div className="p-4">
+                    <p className="text-sm text-foreground/90 leading-relaxed">
+                      {review.summary_text}
+                    </p>
+                    
+                    {/* Quick Stats Row */}
+                    {(review.time_horizon || review.why_now || review.risks) && (
+                      <div className="mt-4 pt-3 border-t border-border/30 space-y-2">
+                        {review.time_horizon && (
+                          <div className="flex items-start gap-2">
+                            <span className="text-[10px] text-muted-foreground uppercase tracking-wide w-20 flex-shrink-0">Horizon</span>
+                            <span className="text-xs text-foreground/80">{review.time_horizon}</span>
+                          </div>
+                        )}
+                        {review.why_now && (
+                          <div className="flex items-start gap-2">
+                            <span className="text-[10px] text-muted-foreground uppercase tracking-wide w-20 flex-shrink-0">Catalyst</span>
+                            <span className="text-xs text-foreground/80">{review.why_now}</span>
+                          </div>
+                        )}
+                        {review.risks && (
+                          <div className="flex items-start gap-2">
+                            <span className="text-[10px] text-amber-400 uppercase tracking-wide w-20 flex-shrink-0">Risks</span>
+                            <span className="text-xs text-foreground/80">{review.risks}</span>
+                          </div>
+                        )}
+                        {review.what_to_watch_next && (
+                          <div className="flex items-start gap-2">
+                            <span className="text-[10px] text-blue-400 uppercase tracking-wide w-20 flex-shrink-0">Watch</span>
+                            <span className="text-xs text-foreground/80">{review.what_to_watch_next}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )
             )}
@@ -447,81 +490,149 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
             {/* Trade Plan & Signals - Only show in Technicals view */}
             {chartView !== 'financials' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                {/* Trade Plan */}
+                {/* Trade Plan - Enhanced */}
                 <div className="bg-card border border-border rounded-lg overflow-hidden">
-                  <div className="bg-muted/30 px-4 py-2 border-b border-border flex items-center gap-2">
-                    <Target className="w-4 h-4 text-primary" />
-                    <h3 className="font-semibold text-sm">Trade Plan</h3>
+                  <div className="bg-muted/30 px-4 py-2.5 border-b border-border flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Target className="w-4 h-4 text-primary" />
+                      <h3 className="font-semibold text-sm">Trade Plan</h3>
+                    </div>
                     <InfoTooltip content="AI-generated trade plan with specific price levels. Entry zone is where to consider initiating positions. Targets are profit-taking levels. Invalidation is where the thesis fails." />
                   </div>
                   {review ? (
-                    <div className="p-3 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">Entry</span>
-                        <span className="font-mono text-sm font-semibold text-primary">
-                          ${review.entry?.low?.toFixed(2) || "—"} - ${review.entry?.high?.toFixed(2) || "—"}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">Targets</span>
-                        <div className="flex gap-2">
-                          {review.targets?.slice(0, 3).map((target: number, i: number) => (
-                            <span key={i} className="font-mono text-xs text-signal-bullish">
-                              ${target?.toFixed(2) || "—"}
-                            </span>
-                          ))}
+                    <div className="p-3 space-y-3">
+                      {/* Entry Zone */}
+                      <div className="bg-primary/5 border border-primary/20 rounded-lg p-2.5">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Entry Zone</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-lg font-bold text-primary">
+                            ${review.entry?.low?.toFixed(2) || review.entry?.toFixed?.(2) || "—"}
+                          </span>
+                          {review.entry?.high && (
+                            <>
+                              <span className="text-muted-foreground">→</span>
+                              <span className="font-mono text-lg font-bold text-primary">
+                                ${review.entry.high.toFixed(2)}
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">Stop</span>
-                        <span className="font-mono text-sm font-semibold text-signal-bearish">
-                          ${review.invalidation?.toFixed(2) || "—"}
-                        </span>
+                      
+                      {/* Targets Row */}
+                      <div>
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Profit Targets</span>
+                        <div className="flex flex-wrap gap-2 mt-1.5">
+                          {review.targets?.slice(0, 3).map((target: number, i: number) => (
+                            <div key={i} className="bg-emerald-500/10 border border-emerald-500/30 rounded px-2.5 py-1.5">
+                              <span className="text-[9px] text-emerald-400/70 block">T{i + 1}</span>
+                              <span className="font-mono text-sm font-semibold text-emerald-400">
+                                ${typeof target === 'object' ? (target as any).price?.toFixed(2) : target?.toFixed(2) || "—"}
+                              </span>
+                            </div>
+                          )) || (
+                            <span className="text-xs text-muted-foreground/50">No targets set</span>
+                          )}
+                        </div>
                       </div>
+                      
+                      {/* Stop Loss */}
+                      <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-2.5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <Shield className="w-3.5 h-3.5 text-red-400" />
+                            <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Invalidation</span>
+                          </div>
+                          <span className="font-mono text-lg font-bold text-red-400">
+                            ${review.invalidation?.toFixed(2) || "—"}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {/* Risk/Reward if available */}
+                      {review.risk_reward && (
+                        <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                          <span className="text-[10px] text-muted-foreground">Risk/Reward Ratio</span>
+                          <span className={`font-mono text-sm font-semibold ${
+                            review.risk_reward >= 3 ? 'text-emerald-400' :
+                            review.risk_reward >= 2 ? 'text-blue-400' :
+                            review.risk_reward >= 1.5 ? 'text-amber-400' : 'text-muted-foreground'
+                          }`}>
+                            {review.risk_reward.toFixed(1)}:1
+                          </span>
+                        </div>
+                      )}
                     </div>
                   ) : (
-                    <div className="p-3 text-center">
+                    <div className="p-4 text-center">
+                      <Target className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
                       <p className="text-xs text-muted-foreground">No trade plan available</p>
+                      <p className="text-[10px] text-muted-foreground/50 mt-1">Run AI analysis to generate levels</p>
                     </div>
                   )}
                 </div>
 
-                {/* Signals */}
+                {/* Signals - Enhanced */}
                 <div className="bg-card border border-border rounded-lg overflow-hidden">
-                  <div className="bg-muted/30 px-4 py-2 border-b border-border flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-muted-foreground" />
-                    <h3 className="font-semibold text-sm">Signals</h3>
+                  <div className="bg-muted/30 px-4 py-2.5 border-b border-border flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-muted-foreground" />
+                      <h3 className="font-semibold text-sm">Active Signals</h3>
+                    </div>
                     <InfoTooltip content="Quantitative signals that triggered this asset's score. Each signal has a strength from 0-100 based on technical criteria." />
                   </div>
-                  <div className="p-3 max-h-[120px] overflow-y-auto">
+                  <div className="p-3 max-h-[180px] overflow-y-auto">
                     {review?.signal_facts && review.signal_facts.length > 0 ? (
-                      <div className="space-y-1.5">
+                      <div className="space-y-2">
                         {review.signal_facts.map((signal: any, i: number) => (
                           <Tooltip key={i}>
                             <TooltipTrigger asChild>
-                              <div className="flex items-center justify-between p-1.5 bg-muted/20 rounded cursor-help hover:bg-muted/30 transition-colors">
-                                <span className="text-xs font-medium truncate">
-                                  {formatSignalType(signal.signal_type)}
-                                </span>
-                                <span className={`text-xs font-mono ml-2 ${
-                                  signal.strength >= 70 ? 'text-signal-bullish' : 
-                                  signal.strength >= 40 ? 'text-yellow-500' : 
-                                  'text-muted-foreground'
-                                }`}>
-                                  {signal.strength}
-                                </span>
+                              <div className="flex items-center justify-between p-2 bg-muted/10 hover:bg-muted/20 rounded-lg cursor-help transition-colors border border-border/30">
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-2 h-2 rounded-full ${
+                                    signal.strength >= 70 ? 'bg-emerald-500' : 
+                                    signal.strength >= 40 ? 'bg-amber-500' : 
+                                    'bg-muted-foreground/50'
+                                  }`} />
+                                  <span className="text-xs font-medium">
+                                    {formatSignalType(signal.signal_type)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-16 h-1.5 bg-muted/30 rounded-full overflow-hidden">
+                                    <div 
+                                      className={`h-full rounded-full ${
+                                        signal.strength >= 70 ? 'bg-emerald-500' : 
+                                        signal.strength >= 40 ? 'bg-amber-500' : 
+                                        'bg-muted-foreground/50'
+                                      }`}
+                                      style={{ width: `${signal.strength}%` }}
+                                    />
+                                  </div>
+                                  <span className={`text-xs font-mono font-medium w-8 text-right ${
+                                    signal.strength >= 70 ? 'text-emerald-400' : 
+                                    signal.strength >= 40 ? 'text-amber-400' : 
+                                    'text-muted-foreground'
+                                  }`}>
+                                    {signal.strength}
+                                  </span>
+                                </div>
                               </div>
                             </TooltipTrigger>
-                            <TooltipContent className="max-w-xs">
+                            <TooltipContent className="max-w-xs text-xs">
                               {getSignalTooltip(signal.signal_type)}
                             </TooltipContent>
                           </Tooltip>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-muted-foreground text-center py-2">
-                        No signal data available
-                      </p>
+                      <div className="text-center py-4">
+                        <Activity className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
+                        <p className="text-xs text-muted-foreground">No active signals</p>
+                        <p className="text-[10px] text-muted-foreground/50 mt-1">Signals appear when patterns are detected</p>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -536,7 +647,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
 
           {/* Right Column: About, Fundamentals, Documents, Notes, Files (30% = 3 cols) */}
           <div className="lg:col-span-3 space-y-3">
-            {/* About Section - TOP */}
+            {/* About Section - TOP - Enhanced */}
             <div className="bg-card border border-border rounded-lg overflow-hidden">
               <button
                 onClick={() => toggleSection('about')}
@@ -550,38 +661,51 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               </button>
               {!collapsedSections['about'] && (
               <div className="p-4 space-y-3">
-                {/* EV + MC Display for equities */}
+                {/* Market Cap & Enterprise Value - Prominent Display */}
                 {asset.asset_type === 'equity' && (asset.enterprise_value || asset.market_cap) && (
-                  <div className="flex items-center gap-3 pb-2 border-b border-border/50">
-                    {asset.enterprise_value && (
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] text-muted-foreground uppercase tracking-wide">EV</span>
-                        <span className="text-xs font-mono font-medium text-foreground">
-                          {asset.enterprise_value >= 1e12 ? `$${(asset.enterprise_value / 1e12).toFixed(2)}T` :
-                           asset.enterprise_value >= 1e9 ? `$${(asset.enterprise_value / 1e9).toFixed(2)}B` :
-                           asset.enterprise_value >= 1e6 ? `$${(asset.enterprise_value / 1e6).toFixed(1)}M` :
-                           `$${asset.enterprise_value.toLocaleString()}`}
+                  <div className="grid grid-cols-2 gap-2">
+                    {asset.market_cap && (
+                      <div className="bg-muted/20 rounded-lg p-2.5">
+                        <span className="text-[9px] text-muted-foreground uppercase tracking-wide block mb-0.5">Market Cap</span>
+                        <span className="text-lg font-mono font-bold text-foreground">
+                          {asset.market_cap >= 1e12 ? `$${(asset.market_cap / 1e12).toFixed(2)}T` :
+                           asset.market_cap >= 1e9 ? `$${(asset.market_cap / 1e9).toFixed(1)}B` :
+                           asset.market_cap >= 1e6 ? `$${(asset.market_cap / 1e6).toFixed(0)}M` :
+                           `$${asset.market_cap.toLocaleString()}`}
                         </span>
                       </div>
                     )}
-                    {asset.enterprise_value && asset.market_cap && (
-                      <span className="text-muted-foreground/50">+</span>
-                    )}
-                    {asset.market_cap && (
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] text-muted-foreground uppercase tracking-wide">MC</span>
-                        <span className="text-xs font-mono font-medium text-foreground">
-                          {asset.market_cap >= 1e12 ? `$${(asset.market_cap / 1e12).toFixed(2)}T` :
-                           asset.market_cap >= 1e9 ? `$${(asset.market_cap / 1e9).toFixed(2)}B` :
-                           asset.market_cap >= 1e6 ? `$${(asset.market_cap / 1e6).toFixed(1)}M` :
-                           `$${asset.market_cap.toLocaleString()}`}
+                    {asset.enterprise_value && (
+                      <div className="bg-muted/20 rounded-lg p-2.5">
+                        <span className="text-[9px] text-muted-foreground uppercase tracking-wide block mb-0.5">Enterprise Value</span>
+                        <span className="text-lg font-mono font-bold text-foreground">
+                          {asset.enterprise_value >= 1e12 ? `$${(asset.enterprise_value / 1e12).toFixed(2)}T` :
+                           asset.enterprise_value >= 1e9 ? `$${(asset.enterprise_value / 1e9).toFixed(1)}B` :
+                           asset.enterprise_value >= 1e6 ? `$${(asset.enterprise_value / 1e6).toFixed(0)}M` :
+                           `$${asset.enterprise_value.toLocaleString()}`}
                         </span>
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* Category Badge */}
+                {/* Sector & Industry Tags */}
+                {(asset.sector || asset.industry) && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {asset.sector && (
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                        {asset.sector}
+                      </span>
+                    )}
+                    {asset.industry && (
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-muted/30 text-muted-foreground border border-border">
+                        {asset.industry}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Category Badge (for crypto) */}
                 {asset.category && (
                   <div className="flex items-center gap-2">
                     <Tag className="w-3.5 h-3.5 text-muted-foreground" />
@@ -591,9 +715,9 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                   </div>
                 )}
                 
-                {/* Stock List Tags (Subsectors) */}
+                {/* Stock List Tags (Subsectors/Themes) */}
                 {stock_lists && stock_lists.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     {stock_lists.map((list: { id: number; name: string; color: string; icon: string }) => (
                       <span
                         key={list.id}
@@ -604,6 +728,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                           color: list.color
                         }}
                       >
+                        {list.icon && <span className="mr-1">{list.icon}</span>}
                         {list.name}
                       </span>
                     ))}
