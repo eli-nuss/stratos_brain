@@ -1,417 +1,559 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useState, useMemo } from "react";
+import { useLocation } from "wouter";
+import DashboardLayout from "@/components/DashboardLayout";
 import { 
-  TrendingUp, 
-  Activity, 
-  Target, 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Sheet, SheetContent, SheetHeader, SheetDescription } from "@/components/ui/sheet";
+import { 
   RefreshCw, 
-  Calendar,
-  AlertTriangle,
-  Zap,
-  ArrowUpRight,
-  ArrowDownRight,
-  Briefcase,
-  Clock,
+  Zap, 
+  TrendingUp, 
+  Magnet, 
+  ArrowRight,
+  Quote,
   CheckCircle2,
-  XCircle
-} from 'lucide-react';
-import { SUPABASE_ANON_KEY } from '@/lib/api-config';
+  AlertTriangle,
+  BarChart3,
+  ChevronRight,
+  Target,
+  Shield,
+  Calendar
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import useSWR from "swr";
+import { getApiUrl, getJsonApiHeaders } from "@/lib/api-config";
+import { format } from "date-fns";
 
-// Types
-interface Pick {
+// --- Types ---
+
+interface AssetPick {
   symbol: string;
-  name: string;
-  sector: string;
+  name?: string;
+  sector?: string;
+  conviction: "HIGH" | "MEDIUM" | "LOW";
   setup_type: string;
-  entry: number;
-  stop: number;
-  target: number;
-  risk_reward: number;
-  conviction: 'HIGH' | 'MEDIUM';
   one_liner: string;
+  entry?: number;
+  stop?: number;
+  target?: number;
+  risk_reward?: number;
+  composite_score?: number;
+  purity_score?: number;
+  direction_score?: number;
 }
 
-interface Category {
+interface CategoryData {
   theme_summary: string;
-  picks: Pick[];
+  picks: AssetPick[];
 }
 
 interface PortfolioAlert {
-  type: 'ADD_ON_OPPORTUNITY' | 'SECTOR_CONCENTRATION';
+  type: "add_on" | "concentration" | "exit";
   symbol: string;
-  sector?: string;
-  setup_type: string;
   message: string;
 }
 
 interface ActionItem {
-  priority: 'HIGH' | 'MEDIUM' | 'LOW';
-  action: string;
+  priority: "HIGH" | "MEDIUM" | "LOW";
   symbol: string;
-  setup_type: string;
+  action: string;
+  rationale: string;
 }
 
-interface DailyBrief {
+interface DailyBriefData {
   date: string;
   market_regime: string;
   macro_summary: string;
   categories: {
-    momentum_breakouts: Category;
-    trend_continuation: Category;
-    compression_reversion: Category;
+    momentum_breakouts: CategoryData;
+    trend_continuation: CategoryData;
+    compression_reversion: CategoryData;
   };
   portfolio_alerts: PortfolioAlert[];
   action_items: ActionItem[];
-  tokens: { in: number; out: number };
+  tokens?: { in: number; out: number };
 }
 
-const API_URL = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/daily-brief-api-v3';
+// --- Components ---
 
-export default function DailyBriefV3() {
-  const [brief, setBrief] = useState<DailyBrief | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchBrief = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch(API_URL, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      const data = await response.json();
-      if (data.success && data.brief) {
-        setBrief(data.brief);
-      } else {
-        setBrief(null);
-      }
-    } catch (err) {
-      setError('Failed to fetch daily brief');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const generateBrief = async () => {
-    try {
-      setGenerating(true);
-      setError(null);
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      const data = await response.json();
-      if (data.success && data.brief) {
-        setBrief(data.brief);
-      } else {
-        setError(data.error || 'Failed to generate brief');
-      }
-    } catch (err) {
-      setError('Failed to generate daily brief');
-      console.error(err);
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchBrief();
-  }, []);
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
-  };
-
-  const getRegimeBadge = (regime: string) => {
-    const lower = regime.toLowerCase();
-    if (lower.includes('bull') || lower.includes('risk-on')) {
-      return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">{regime}</Badge>;
-    } else if (lower.includes('bear') || lower.includes('risk-off')) {
-      return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">{regime}</Badge>;
-    }
-    return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">{regime}</Badge>;
-  };
-
-  const getConvictionBadge = (conviction: string) => {
-    if (conviction === 'HIGH') {
-      return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">HIGH</Badge>;
-    }
-    return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">MEDIUM</Badge>;
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'HIGH': return 'text-red-400';
-      case 'MEDIUM': return 'text-yellow-400';
-      case 'LOW': return 'text-blue-400';
-      default: return 'text-gray-400';
-    }
-  };
-
-  const CategorySection = ({ 
-    title, 
-    icon: Icon, 
-    category, 
-    color 
-  }: { 
-    title: string; 
-    icon: any; 
-    category: Category; 
-    color: string;
-  }) => (
-    <Card className="bg-zinc-900/50 border-zinc-800">
-      <CardHeader className="pb-3">
-        <div className="flex items-center gap-2">
-          <Icon className={`h-5 w-5 ${color}`} />
-          <CardTitle className="text-lg">{title}</CardTitle>
-          <Badge variant="outline" className="ml-auto">
-            {category.picks?.length || 0} picks
-          </Badge>
+function StrategyHeader({ 
+  title, 
+  icon: Icon, 
+  count, 
+  colorClass,
+  borderColor
+}: { 
+  title: string; 
+  icon: React.ElementType; 
+  count: number; 
+  colorClass: string;
+  borderColor: string;
+}) {
+  return (
+    <div className={cn("flex items-center justify-between p-4 border-b", borderColor)}>
+      <div className="flex items-center gap-3">
+        <div className={cn("p-2 rounded-lg", colorClass)}>
+          <Icon className="w-5 h-5" />
         </div>
-        <CardDescription className="text-zinc-400 mt-2">
-          {category.theme_summary}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {category.picks && category.picks.length > 0 ? (
-          <div className="space-y-3">
-            {category.picks.map((pick, idx) => (
-              <div 
-                key={idx} 
-                className="p-3 bg-zinc-800/50 rounded-lg border border-zinc-700/50 hover:border-zinc-600 transition-colors"
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-white">{pick.symbol}</span>
-                    {getConvictionBadge(pick.conviction)}
-                    <Badge variant="outline" className="text-xs">{pick.setup_type}</Badge>
-                  </div>
-                  <span className="text-xs text-zinc-500">{pick.sector}</span>
-                </div>
-                <p className="text-sm text-zinc-300 mb-2">{pick.one_liner}</p>
-                <div className="flex gap-4 text-xs text-zinc-500">
-                  <span>Entry: <span className="text-green-400">${pick.entry?.toFixed(2)}</span></span>
-                  <span>Stop: <span className="text-red-400">${pick.stop?.toFixed(2)}</span></span>
-                  <span>Target: <span className="text-blue-400">${pick.target?.toFixed(2)}</span></span>
-                  <span>R:R: <span className="text-yellow-400">{pick.risk_reward?.toFixed(1)}</span></span>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-zinc-500 text-center py-4">No picks available</p>
-        )}
-      </CardContent>
-    </Card>
-  );
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <RefreshCw className="h-8 w-8 animate-spin text-blue-500" />
+        <div>
+          <h3 className="font-semibold text-sm">{title}</h3>
+          <p className="text-xs text-muted-foreground">
+            {count} {count === 1 ? "opportunity" : "opportunities"}
+          </p>
+        </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
+
+function AssetCard({ pick, onClick }: { pick: AssetPick; onClick: () => void }) {
+  const convictionColors = {
+    HIGH: "bg-green-500/10 text-green-600 border-green-500/20",
+    MEDIUM: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
+    LOW: "bg-gray-500/10 text-gray-600 border-gray-500/20"
+  };
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
+    <div 
+      onClick={onClick}
+      className="group flex flex-col gap-2 p-4 border-b last:border-0 hover:bg-muted/50 cursor-pointer transition-all"
+    >
+      {/* Top Row */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Zap className="h-6 w-6 text-yellow-500" />
-            Daily Brief
-          </h1>
-          <p className="text-zinc-400">AI-powered market analysis and top trading setups</p>
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-base group-hover:text-primary transition-colors">
+            {pick.symbol}
+          </span>
+          <Badge 
+            variant="outline" 
+            className={cn("text-[10px] h-5 font-medium", convictionColors[pick.conviction])}
+          >
+            {pick.conviction}
+          </Badge>
         </div>
-        <Button 
-          onClick={generateBrief} 
-          disabled={generating}
-          className="bg-blue-600 hover:bg-blue-700"
-        >
-          {generating ? (
-            <>
-              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-              Generating...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Regenerate
-            </>
-          )}
-        </Button>
+        {pick.risk_reward && (
+          <span className="text-xs font-mono text-muted-foreground">
+            {pick.risk_reward.toFixed(1)}:1
+          </span>
+        )}
       </div>
 
-      {error && (
-        <Card className="bg-red-500/10 border-red-500/30">
-          <CardContent className="p-4 flex items-center gap-2 text-red-400">
-            <XCircle className="h-5 w-5" />
-            {error}
-          </CardContent>
-        </Card>
+      {/* Setup Type */}
+      <Badge variant="secondary" className="w-fit text-[10px] px-2 h-5 font-normal">
+        {pick.setup_type.replace(/_/g, " ")}
+      </Badge>
+
+      {/* One-liner */}
+      <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+        {pick.one_liner}
+      </p>
+
+      {/* Entry/Stop/Target Row */}
+      {(pick.entry || pick.stop || pick.target) && (
+        <div className="flex items-center gap-4 text-[10px] text-muted-foreground mt-1">
+          {pick.entry && (
+            <span className="flex items-center gap-1">
+              <Target className="w-3 h-3" />
+              Entry: ${pick.entry.toFixed(2)}
+            </span>
+          )}
+          {pick.stop && (
+            <span className="flex items-center gap-1 text-red-500">
+              <Shield className="w-3 h-3" />
+              Stop: ${pick.stop.toFixed(2)}
+            </span>
+          )}
+        </div>
       )}
 
-      {brief ? (
-        <>
-          {/* Market Overview */}
-          <Card className="bg-zinc-900/50 border-zinc-800">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Calendar className="h-5 w-5 text-zinc-400" />
-                  <span className="text-zinc-300">{formatDate(brief.date)}</span>
-                  {getRegimeBadge(brief.market_regime)}
-                </div>
-                <div className="text-xs text-zinc-500">
-                  {brief.tokens?.in?.toLocaleString()} tokens in / {brief.tokens?.out?.toLocaleString()} out
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-zinc-300">{brief.macro_summary}</p>
-            </CardContent>
-          </Card>
-
-          {/* Categories Tabs */}
-          <Tabs defaultValue="momentum" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 bg-zinc-900/50">
-              <TabsTrigger value="momentum" className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
-                Momentum
-              </TabsTrigger>
-              <TabsTrigger value="trend" className="flex items-center gap-2">
-                <Activity className="h-4 w-4" />
-                Trend
-              </TabsTrigger>
-              <TabsTrigger value="compression" className="flex items-center gap-2">
-                <Target className="h-4 w-4" />
-                Compression
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="momentum" className="mt-4">
-              <CategorySection 
-                title="Momentum Breakouts" 
-                icon={TrendingUp} 
-                category={brief.categories.momentum_breakouts}
-                color="text-green-500"
-              />
-            </TabsContent>
-
-            <TabsContent value="trend" className="mt-4">
-              <CategorySection 
-                title="Trend Continuation" 
-                icon={Activity} 
-                category={brief.categories.trend_continuation}
-                color="text-blue-500"
-              />
-            </TabsContent>
-
-            <TabsContent value="compression" className="mt-4">
-              <CategorySection 
-                title="Compression & Reversion" 
-                icon={Target} 
-                category={brief.categories.compression_reversion}
-                color="text-purple-500"
-              />
-            </TabsContent>
-          </Tabs>
-
-          {/* Portfolio Alerts & Action Items */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Portfolio Alerts */}
-            <Card className="bg-zinc-900/50 border-zinc-800">
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <Briefcase className="h-5 w-5 text-orange-500" />
-                  <CardTitle className="text-lg">Portfolio Alerts</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {brief.portfolio_alerts && brief.portfolio_alerts.length > 0 ? (
-                  <div className="space-y-2">
-                    {brief.portfolio_alerts.map((alert, idx) => (
-                      <div key={idx} className="p-3 bg-zinc-800/50 rounded-lg border border-zinc-700/50">
-                        <div className="flex items-center gap-2 mb-1">
-                          {alert.type === 'ADD_ON_OPPORTUNITY' ? (
-                            <ArrowUpRight className="h-4 w-4 text-green-400" />
-                          ) : (
-                            <AlertTriangle className="h-4 w-4 text-yellow-400" />
-                          )}
-                          <span className="font-medium text-white">{alert.symbol}</span>
-                          <Badge variant="outline" className="text-xs">{alert.type.replace(/_/g, ' ')}</Badge>
-                        </div>
-                        <p className="text-sm text-zinc-400">{alert.message}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-zinc-500 text-center py-4">No portfolio alerts</p>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Action Items */}
-            <Card className="bg-zinc-900/50 border-zinc-800">
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5 text-green-500" />
-                  <CardTitle className="text-lg">Action Items</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {brief.action_items && brief.action_items.length > 0 ? (
-                  <div className="space-y-2">
-                    {brief.action_items.slice(0, 7).map((item, idx) => (
-                      <div key={idx} className="p-3 bg-zinc-800/50 rounded-lg border border-zinc-700/50">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`font-bold text-xs ${getPriorityColor(item.priority)}`}>
-                            {item.priority}
-                          </span>
-                          <span className="font-medium text-white">{item.symbol}</span>
-                        </div>
-                        <p className="text-sm text-zinc-400">{item.action}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-zinc-500 text-center py-4">No action items</p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </>
-      ) : (
-        <Card className="bg-zinc-900/50 border-zinc-800">
-          <CardContent className="p-8 text-center">
-            <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
-            <h3 className="text-lg font-medium mb-2">No Brief Available</h3>
-            <p className="text-zinc-400 mb-4">Generate today's market brief to see the top trading opportunities.</p>
-            <Button onClick={generateBrief} disabled={generating}>
-              {generating ? 'Generating...' : 'Generate Brief'}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+      {/* Chevron */}
+      <div className="flex justify-end">
+        <ChevronRight className="w-4 h-4 text-muted-foreground/30 group-hover:text-primary/70 transition-all group-hover:translate-x-1" />
+      </div>
     </div>
+  );
+}
+
+function AssetDetailSheet({ 
+  pick, 
+  isOpen, 
+  onClose,
+  onNavigate 
+}: { 
+  pick: AssetPick | null; 
+  isOpen: boolean; 
+  onClose: () => void;
+  onNavigate: (symbol: string) => void;
+}) {
+  if (!pick) return null;
+
+  return (
+    <Sheet open={isOpen} onOpenChange={onClose}>
+      <SheetContent className="sm:max-w-md overflow-y-auto">
+        <SheetHeader className="mb-6">
+          <div className="flex items-center gap-3 mb-2">
+            <h2 className="text-2xl font-bold">{pick.symbol}</h2>
+            <Badge className={cn(
+              "text-xs",
+              pick.conviction === "HIGH" ? "bg-green-500" : 
+              pick.conviction === "MEDIUM" ? "bg-yellow-500" : "bg-gray-500"
+            )}>
+              {pick.conviction}
+            </Badge>
+          </div>
+          <SheetDescription>
+            {pick.setup_type.replace(/_/g, " ")} • {pick.sector || "Unknown Sector"}
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="space-y-6">
+          {/* Scores */}
+          <div className="grid grid-cols-2 gap-3">
+            {pick.direction_score !== undefined && (
+              <Card>
+                <CardContent className="p-3">
+                  <span className="text-[10px] text-muted-foreground uppercase">Direction</span>
+                  <span className="block text-xl font-bold font-mono">{pick.direction_score}</span>
+                </CardContent>
+              </Card>
+            )}
+            {pick.purity_score !== undefined && (
+              <Card>
+                <CardContent className="p-3">
+                  <span className="text-[10px] text-muted-foreground uppercase">Purity</span>
+                  <span className="block text-xl font-bold font-mono">{pick.purity_score}</span>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Trade Levels */}
+          {(pick.entry || pick.stop || pick.target) && (
+            <div className="space-y-2">
+              <h3 className="font-semibold text-sm flex items-center gap-2">
+                <Target className="w-4 h-4 text-primary" />
+                Trade Levels
+              </h3>
+              <div className="grid grid-cols-3 gap-2">
+                {pick.entry && (
+                  <div className="p-3 rounded-lg bg-muted/50 text-center">
+                    <span className="text-[10px] text-muted-foreground block">Entry</span>
+                    <span className="font-mono font-bold">${pick.entry.toFixed(2)}</span>
+                  </div>
+                )}
+                {pick.stop && (
+                  <div className="p-3 rounded-lg bg-red-500/10 text-center">
+                    <span className="text-[10px] text-red-600 block">Stop</span>
+                    <span className="font-mono font-bold text-red-600">${pick.stop.toFixed(2)}</span>
+                  </div>
+                )}
+                {pick.target && (
+                  <div className="p-3 rounded-lg bg-green-500/10 text-center">
+                    <span className="text-[10px] text-green-600 block">Target</span>
+                    <span className="font-mono font-bold text-green-600">${pick.target.toFixed(2)}</span>
+                  </div>
+                )}
+              </div>
+              {pick.risk_reward && (
+                <p className="text-xs text-muted-foreground text-center">
+                  Risk/Reward: <span className="font-mono font-bold">{pick.risk_reward.toFixed(2)}:1</span>
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Rationale */}
+          <div className="space-y-2">
+            <h3 className="font-semibold text-sm flex items-center gap-2">
+              <Quote className="w-4 h-4 text-primary" /> 
+              CIO Analysis
+            </h3>
+            <div className="p-4 rounded-lg bg-muted/50 text-sm leading-relaxed border-l-4 border-primary">
+              {pick.one_liner}
+            </div>
+          </div>
+
+          <Button className="w-full" onClick={() => onNavigate(pick.symbol)}>
+            Open Full Analysis <ArrowRight className="w-4 h-4 ml-2" />
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+// --- Main Page ---
+
+export default function DailyBriefV3() {
+  const [, setLocation] = useLocation();
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedPick, setSelectedPick] = useState<AssetPick | null>(null);
+
+  // Fetch the latest brief
+  const { data: response, mutate, isLoading } = useSWR<{ success: boolean; brief: DailyBriefData }>(
+    getApiUrl("DAILY_BRIEF_V3"),
+    async (url: string) => {
+      const res = await fetch(url, { headers: getJsonApiHeaders() });
+      return res.json();
+    },
+    { revalidateOnFocus: false }
+  );
+
+  const brief = response?.brief;
+
+  const handleGenerate = async () => {
+    setIsGenerating(true);
+    try {
+      const res = await fetch(getApiUrl("DAILY_BRIEF_V3"), { 
+        method: "POST", 
+        headers: getJsonApiHeaders(),
+      });
+      const data = await res.json();
+      if (data.success) {
+        mutate();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleAssetClick = (pick: AssetPick) => {
+    setSelectedPick(pick);
+  };
+
+  const handleNavigate = (symbol: string) => {
+    // Find asset by symbol and navigate
+    setSelectedPick(null);
+    // For now, just log - would need asset ID lookup
+    console.log("Navigate to", symbol);
+  };
+
+  const regimeBadge = useMemo(() => {
+    if (!brief?.market_regime) return null;
+    const regime = brief.market_regime.toLowerCase();
+    if (regime.includes("bullish") || regime.includes("risk-on")) {
+      return <Badge className="bg-green-500 text-white">Bullish</Badge>;
+    } else if (regime.includes("bearish") || regime.includes("risk-off")) {
+      return <Badge className="bg-red-500 text-white">Bearish</Badge>;
+    }
+    return <Badge variant="secondary">Neutral</Badge>;
+  }, [brief?.market_regime]);
+
+  return (
+    <DashboardLayout hideNavTabs>
+      <div className="min-h-screen bg-background pb-20">
+        
+        {/* Header */}
+        <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="container max-w-7xl mx-auto py-4 px-4 md:px-6 flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-primary" />
+                CIO Daily Briefing
+              </h1>
+              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                <Calendar className="w-3 h-3" />
+                {brief?.date ? format(new Date(brief.date), "EEEE, MMMM d, yyyy") : "Loading..."} 
+                {regimeBadge && <span className="ml-2">{regimeBadge}</span>}
+              </p>
+            </div>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={handleGenerate} 
+              disabled={isGenerating}
+              className="gap-2"
+            >
+              <RefreshCw className={cn("w-3.5 h-3.5", isGenerating && "animate-spin")} />
+              {isGenerating ? "Generating..." : "Regenerate"}
+            </Button>
+          </div>
+        </header>
+
+        <main className="container max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
+          
+          {/* Morning Memo */}
+          <section>
+            <Card className="border-l-4 border-l-primary">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <Quote className="w-4 h-4 text-primary" />
+                  Morning Memo
+                </CardTitle>
+                <CardDescription>Market Theme & Executive Summary</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="space-y-2">
+                    <div className="h-4 w-full bg-muted animate-pulse rounded" />
+                    <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
+                    <div className="h-4 w-5/6 bg-muted animate-pulse rounded" />
+                  </div>
+                ) : (
+                  <div className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground leading-relaxed">
+                    {brief?.macro_summary && (
+                      <p className="mb-3">{brief.macro_summary}</p>
+                    )}
+                    {brief?.categories?.momentum_breakouts?.theme_summary && (
+                      <p className="mb-2"><strong>Momentum:</strong> {brief.categories.momentum_breakouts.theme_summary}</p>
+                    )}
+                    {brief?.categories?.trend_continuation?.theme_summary && (
+                      <p className="mb-2"><strong>Trends:</strong> {brief.categories.trend_continuation.theme_summary}</p>
+                    )}
+                    {brief?.categories?.compression_reversion?.theme_summary && (
+                      <p className="mb-2"><strong>Pullbacks:</strong> {brief.categories.compression_reversion.theme_summary}</p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </section>
+
+          {/* Three Pillars */}
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            {/* Momentum Breakouts */}
+            <Card className="overflow-hidden border-t-4 border-t-indigo-500 flex flex-col">
+              <StrategyHeader 
+                title="Momentum Breakouts" 
+                icon={Zap} 
+                count={brief?.categories?.momentum_breakouts?.picks?.length || 0}
+                colorClass="bg-indigo-500/10 text-indigo-600" 
+                borderColor="border-indigo-500/20"
+              />
+              <ScrollArea className="flex-1 max-h-[500px]">
+                {brief?.categories?.momentum_breakouts?.picks?.map((pick, i) => (
+                  <AssetCard key={i} pick={pick} onClick={() => handleAssetClick(pick)} />
+                )) || (
+                  <div className="p-4 text-center text-muted-foreground text-sm">
+                    No picks available
+                  </div>
+                )}
+              </ScrollArea>
+            </Card>
+
+            {/* Trend Continuation */}
+            <Card className="overflow-hidden border-t-4 border-t-emerald-500 flex flex-col">
+              <StrategyHeader 
+                title="Trend Continuation" 
+                icon={TrendingUp} 
+                count={brief?.categories?.trend_continuation?.picks?.length || 0}
+                colorClass="bg-emerald-500/10 text-emerald-600" 
+                borderColor="border-emerald-500/20"
+              />
+              <ScrollArea className="flex-1 max-h-[500px]">
+                {brief?.categories?.trend_continuation?.picks?.map((pick, i) => (
+                  <AssetCard key={i} pick={pick} onClick={() => handleAssetClick(pick)} />
+                )) || (
+                  <div className="p-4 text-center text-muted-foreground text-sm">
+                    No picks available
+                  </div>
+                )}
+              </ScrollArea>
+            </Card>
+
+            {/* Compression & Reversion */}
+            <Card className="overflow-hidden border-t-4 border-t-amber-500 flex flex-col">
+              <StrategyHeader 
+                title="Pullbacks & Squeezes" 
+                icon={Magnet} 
+                count={brief?.categories?.compression_reversion?.picks?.length || 0}
+                colorClass="bg-amber-500/10 text-amber-600" 
+                borderColor="border-amber-500/20"
+              />
+              <ScrollArea className="flex-1 max-h-[500px]">
+                {brief?.categories?.compression_reversion?.picks?.map((pick, i) => (
+                  <AssetCard key={i} pick={pick} onClick={() => handleAssetClick(pick)} />
+                )) || (
+                  <div className="p-4 text-center text-muted-foreground text-sm">
+                    No picks available
+                  </div>
+                )}
+              </ScrollArea>
+            </Card>
+
+          </section>
+
+          {/* Portfolio Alerts */}
+          {brief?.portfolio_alerts && brief.portfolio_alerts.length > 0 && (
+            <section>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" /> Portfolio Alerts
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {brief.portfolio_alerts.map((alert, i) => (
+                  <Card key={i} className={cn(
+                    "border-l-4",
+                    alert.type === "add_on" ? "border-l-green-500" :
+                    alert.type === "concentration" ? "border-l-yellow-500" :
+                    "border-l-red-500"
+                  )}>
+                    <CardContent className="p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-bold text-sm">{alert.symbol}</span>
+                        <Badge variant="outline" className="text-[10px]">
+                          {alert.type.replace("_", " ")}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{alert.message}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Action Items */}
+          {brief?.action_items && brief.action_items.length > 0 && (
+            <section>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4" /> Priority Actions
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {brief.action_items.slice(0, 6).map((item, i) => (
+                  <Card key={i} className="hover:bg-muted/50 transition-colors">
+                    <CardContent className="p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge className={cn(
+                          "text-[10px]",
+                          item.priority === "HIGH" ? "bg-red-500" :
+                          item.priority === "MEDIUM" ? "bg-yellow-500" :
+                          "bg-gray-500"
+                        )}>
+                          {item.priority}
+                        </Badge>
+                        <span className="font-bold text-sm">{item.symbol}</span>
+                      </div>
+                      <p className="text-xs font-medium mb-1">{item.action}</p>
+                      <p className="text-xs text-muted-foreground">{item.rationale}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </section>
+          )}
+
+        </main>
+
+        {/* Detail Sheet */}
+        <AssetDetailSheet 
+          pick={selectedPick} 
+          isOpen={!!selectedPick} 
+          onClose={() => setSelectedPick(null)} 
+          onNavigate={handleNavigate}
+        />
+
+      </div>
+    </DashboardLayout>
   );
 }

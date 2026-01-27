@@ -22,6 +22,22 @@ export const API_BASE = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/c
 // Daily Brief API base URL
 export const DAILY_BRIEF_API_BASE = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/daily-brief-api';
 
+// Daily Brief V3 API URL
+export const DAILY_BRIEF_V3_API = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/daily-brief-api-v3';
+
+// API URL mapping
+const API_URLS: Record<string, string> = {
+  DAILY_BRIEF_V3: DAILY_BRIEF_V3_API,
+  DAILY_BRIEF: DAILY_BRIEF_API_BASE,
+};
+
+/**
+ * Get API URL by key
+ */
+export function getApiUrl(key: keyof typeof API_URLS): string {
+  return API_URLS[key] || '';
+}
+
 // Supabase anon key for API authentication
 export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indmb2diYWlwaXFvb3RqcnNwcmRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxOTQ4NDQsImV4cCI6MjA4MTc3MDg0NH0.DWjb0nVian7a9njxbGR9VjAsWQuWuHI375PgEHH1TRw';
 
