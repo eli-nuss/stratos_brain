@@ -725,7 +725,7 @@ export function TechnicalsSidebar({ asset, review, features }: TechnicalsSidebar
         )}
       </div>
 
-      {/* Module C: Setup */}
+      {/* Module C: Setup (positioned to align with Trade Plan on left) */}
       <SetupQualityCard 
         setupType={setupData.setupType}
         purityScore={setupData.purityScore}
@@ -733,18 +733,7 @@ export function TechnicalsSidebar({ asset, review, features }: TechnicalsSidebar
         riskReward={setupData.riskReward}
       />
 
-      {/* Module D: Trade Plan Visual */}
-      <TradePlanVisual
-        entryLow={entryLow}
-        entryHigh={entryHigh}
-        target1={target1}
-        target2={target2}
-        stopLoss={stopLossValue}
-        currentPrice={currentPrice}
-        riskReward={setupData.riskReward}
-      />
-
-      {/* Module E: Key Levels */}
+      {/* Module D: Key Levels */}
       <div className="bg-muted/5 rounded-lg border border-border overflow-hidden">
         <button 
           onClick={() => setLevelsExpanded(!levelsExpanded)}
