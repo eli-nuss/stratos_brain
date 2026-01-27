@@ -1258,18 +1258,6 @@ ${markdownToHtml(markdown)}
         const stockLists = listItems?.map(item => item.stock_lists).filter(Boolean) || []
         
         // Transform review to match frontend expected field names
-        // Calculate risk/reward from entry, targets, and invalidation
-        const calculateRiskReward = (entry: any, targets: any[], invalidation: number | null): number | null => {
-          if (!entry || !invalidation || !targets || targets.length === 0) return null;
-          const entryPrice = typeof entry === 'object' ? (entry.low || entry.high || entry) : entry;
-          const targetPrice = typeof targets[0] === 'object' ? targets[0].price : targets[0];
-          if (!entryPrice || !targetPrice) return null;
-          const risk = Math.abs(entryPrice - invalidation);
-          const reward = Math.abs(targetPrice - entryPrice);
-          if (risk === 0) return null;
-          return reward / risk;
-        };
-        
         const review = rawReview ? {
           ...rawReview,
           // Map ai_ prefixed columns to expected names (with fallbacks for v2/v3 schema differences)
@@ -1288,20 +1276,6 @@ ${markdownToHtml(markdown)}
           why_now: rawReview.ai_why_now,
           risks: rawReview.ai_risks,
           what_to_watch_next: rawReview.ai_what_to_watch_next,
-          // Calculate risk/reward ratio from trade plan
-          risk_reward: calculateRiskReward(
-            rawReview.ai_entry,
-            rawReview.ai_targets || [],
-            rawReview.invalidation || rawReview.ai_key_levels?.invalidation || rawReview.review_json?.key_levels?.invalidation || null
-          ),
-          // Build trade_plan object for TradePlanVisual component
-          trade_plan: {
-            entry_zone: rawReview.ai_entry,
-            targets: rawReview.ai_targets || [],
-            stop_loss: rawReview.invalidation || rawReview.ai_key_levels?.invalidation || rawReview.review_json?.key_levels?.invalidation || null
-          },
-          // Include signal facts for Active Signals section
-          signal_facts: signals || []
         } : null
         
         return new Response(JSON.stringify({

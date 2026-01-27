@@ -1391,23 +1391,3 @@ Both hooks subscribe to Supabase Realtime channels for live updates:
 5.  **Sign Out**: When the user signs out, the `signOut` function in `AuthContext` is called. This function tells Supabase to invalidate the token, calls `clearAllAuthData()` to ensure no local data is left behind, and clears all user-specific data from the SWR cache.
 
 This new architecture ensures that the application is much more resilient to common authentication problems and provides a smoother experience for the user.
-
-### 4.6 Asset Detail UI Redesign (January 2026)
-
-The Asset Detail page underwent a significant UI redesign to improve clarity and reduce visual clutter:
-
-**Changes Made:**
-- **Removed BULLISH/Confidence Card**: The redundant direction indicator was removed; direction is now unified in the Setup Quality badge
-- **Added TradePlanVisual Component**: A condensed horizontal bar visualization showing entry zone (blue), current price (white), targets (green), and stop (red) with R:R ratio
-- **Fixed RVOL Labels**: Changed from confusing "Bullish/Bearish" to descriptive "Low/Normal/High" based on volume thresholds
-- **About Section Collapsed by Default**: Reduces initial visual clutter while keeping info accessible
-- **Active Signals Hidden When Empty**: Clean UI when no signals are present
-- **Risk/Reward Calculation**: Automatically calculated from entry, targets, and invalidation levels
-
-**Visual Hierarchy (Top to Bottom):**
-1. Setup Quality (most actionable - shows if this is a tradeable setup)
-2. Trade Plan Visual (condensed entry/stop/targets at a glance)
-3. Technical Indicators (RSI gauge + metrics grid)
-4. Key Levels (support/resistance with current price)
-5. Performance (recent returns)
-6. Active Signals (only shown when signals exist)
