@@ -223,6 +223,98 @@ function ReturnPill({ label, value }: { label: string; value: number | null }) {
 }
 
 // Setup Quality Card component
+// Trading guidance for each setup type
+const SETUP_TRADING_GUIDANCE: Record<string, { howToTrade: string; keyPoints: string[] }> = {
+  rs_breakout: {
+    howToTrade: "Enter on the breakout above resistance with volume confirmation. Set stop below the breakout level or recent swing low. Trail stop as price advances.",
+    keyPoints: [
+      "Wait for volume spike (1.5x+ average) on breakout",
+      "Buy on first pullback to breakout level if missed",
+      "Use 8-21 EMA as trailing stop guide"
+    ]
+  },
+  donchian_55_breakout: {
+    howToTrade: "Enter when price closes above the 55-day high. Use ATR-based stop (2x ATR below entry). Hold until opposite signal or trailing stop hit.",
+    keyPoints: [
+      "Classic turtle trading entry signal",
+      "Works best in trending markets",
+      "Consider scaling in on pullbacks"
+    ]
+  },
+  trend_pullback_50ma: {
+    howToTrade: "Enter near the 50MA when price shows reversal candle (hammer, engulfing). Stop below the 50MA or recent low. Target previous highs.",
+    keyPoints: [
+      "Confirm uptrend: price above 50MA & 200MA",
+      "Look for RSI oversold bounce (30-40 range)",
+      "Best when volume dries up on pullback"
+    ]
+  },
+  vcp_squeeze: {
+    howToTrade: "Enter on breakout from the tight range with volume. Stop just below the consolidation low. Target measured move equal to prior advance.",
+    keyPoints: [
+      "Tighter the range, more explosive the move",
+      "Volume should contract during squeeze",
+      "Breakout volume should be 2x+ average"
+    ]
+  },
+  adx_holy_grail: {
+    howToTrade: "Enter when price pulls back to 20 EMA while ADX > 30. Stop below the 20 EMA. Target continuation of the strong trend.",
+    keyPoints: [
+      "ADX > 30 confirms strong trend",
+      "Entry on touch of 20 EMA, not break",
+      "Works in both uptrends and downtrends"
+    ]
+  },
+  gap_up_momentum: {
+    howToTrade: "Enter if gap holds first 30 mins. Stop below gap low or VWAP. Trail stop using 5-min chart structure for day trades.",
+    keyPoints: [
+      "Gap must hold and not fill in first hour",
+      "Higher volume = more conviction",
+      "Consider partial profits at 2R"
+    ]
+  },
+  golden_cross: {
+    howToTrade: "Enter on pullback after the cross occurs. Stop below the 200MA. This is a longer-term signal - hold for weeks to months.",
+    keyPoints: [
+      "Lagging indicator - confirms trend change",
+      "Best for position trading, not day trading",
+      "Combine with other signals for timing"
+    ]
+  },
+  breakout_confirmed: {
+    howToTrade: "Enter on the confirmed breakout or first pullback to breakout level. Stop below breakout zone. Target measured move from base.",
+    keyPoints: [
+      "Confirmation = close above resistance + volume",
+      "Failed breakouts reverse quickly - honor stops",
+      "Add to position on successful retest"
+    ]
+  },
+  oversold_bounce: {
+    howToTrade: "Enter when RSI crosses back above 30 with bullish candle. Tight stop below recent low. Quick profit target - this is mean reversion.",
+    keyPoints: [
+      "Counter-trend trade - use smaller size",
+      "Best in stocks with strong fundamentals",
+      "Take profits quickly at resistance"
+    ]
+  },
+  acceleration_turn: {
+    howToTrade: "Enter when momentum turns positive after consolidation. Stop below the consolidation low. Ride the acceleration phase.",
+    keyPoints: [
+      "Look for MACD histogram turning positive",
+      "Volume should increase with price",
+      "Early signal - may need patience"
+    ]
+  },
+  weinstein_stage2: {
+    howToTrade: "Enter on breakout from long base (100+ days). Stop below base low. This is a major signal - hold for big move potential.",
+    keyPoints: [
+      "Rare but powerful signal",
+      "Base should be 3-6 months minimum",
+      "Volume on breakout should be highest in months"
+    ]
+  }
+};
+
 function SetupQualityCard({ 
   setupType, 
   purityScore, 
@@ -236,6 +328,7 @@ function SetupQualityCard({
 }) {
   const setup = getSetupDefinition(setupType);
   const purity = getPurityInterpretation(purityScore);
+  const tradingGuidance = setupType ? SETUP_TRADING_GUIDANCE[setupType.toLowerCase()] : null;
 
   if (!setupType && !purityScore) {
     return null;
@@ -263,78 +356,66 @@ function SetupQualityCard({
       </div>
       
       <div className="p-3 space-y-3">
-        {/* Purity Score */}
-        {purityScore !== null && (
+        {/* Setup Description */}
+        {setup && (
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                Purity Score
-                <InfoTooltip content="How closely this setup matches the ideal pattern. 90+ is textbook, 80+ is strong, 70+ is solid, 60+ is moderate, below 60 is weak." />
-              </span>
-              <span 
-                className="text-[10px] px-1.5 py-0.5 rounded font-medium"
-                style={{ backgroundColor: `${purity.color}20`, color: purity.color }}
-              >
-                {purity.label}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-2 bg-muted/30 rounded-full overflow-hidden">
-                <div 
-                  className="h-full transition-all duration-500 rounded-full"
-                  style={{ 
-                    width: `${purityScore}%`,
-                    backgroundColor: purity.color
-                  }}
-                />
-              </div>
-              <span className="text-sm font-mono font-bold" style={{ color: purity.color }}>
-                {purityScore}
-              </span>
-            </div>
+            <p className="text-xs text-foreground/90 leading-relaxed">
+              {setup.description}
+            </p>
           </div>
         )}
 
-        {/* Stats Row */}
-        <div className="grid grid-cols-2 gap-2">
-          {/* Historical Profit Factor */}
-          <div className="bg-muted/20 rounded p-2">
-            <div className="text-[9px] text-muted-foreground uppercase tracking-wide mb-0.5 flex items-center gap-1">
-              Profit Factor
-              <InfoTooltip content="Historical profit factor from backtesting this setup. >1.5 is good, >2.0 is excellent. Measures gross profits / gross losses." />
+        {/* How to Trade Section */}
+        {tradingGuidance && (
+          <div className="bg-muted/20 rounded-lg p-2.5 space-y-2">
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium flex items-center gap-1">
+              <Target className="w-3 h-3" />
+              How to Trade
             </div>
-            <div className={`text-lg font-mono font-bold ${
-              profitFactor && profitFactor >= 2 ? 'text-emerald-400' :
-              profitFactor && profitFactor >= 1.5 ? 'text-blue-400' :
-              profitFactor && profitFactor >= 1 ? 'text-amber-400' :
-              'text-muted-foreground/50'
-            }`}>
-              {profitFactor ? profitFactor.toFixed(2) : '—'}
+            <p className="text-[11px] text-foreground/80 leading-relaxed">
+              {tradingGuidance.howToTrade}
+            </p>
+            <ul className="space-y-1 mt-2">
+              {tradingGuidance.keyPoints.map((point, idx) => (
+                <li key={idx} className="text-[10px] text-muted-foreground/80 flex items-start gap-1.5">
+                  <span className="text-primary mt-0.5">•</span>
+                  <span>{point}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Purity Score - kept but made more compact */}
+        {purityScore !== null && (
+          <div className="pt-2 border-t border-border/30">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                Setup Purity
+                <InfoTooltip content="How closely this setup matches the ideal pattern. 90+ is textbook, 80+ is strong, 70+ is solid." />
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-mono font-bold" style={{ color: purity.color }}>
+                  {purityScore}
+                </span>
+                <span 
+                  className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                  style={{ backgroundColor: `${purity.color}20`, color: purity.color }}
+                >
+                  {purity.label}
+                </span>
+              </div>
+            </div>
+            <div className="h-1.5 bg-muted/30 rounded-full overflow-hidden">
+              <div 
+                className="h-full transition-all duration-500 rounded-full"
+                style={{ 
+                  width: `${purityScore}%`,
+                  backgroundColor: purity.color
+                }}
+              />
             </div>
           </div>
-
-          {/* Risk/Reward */}
-          <div className="bg-muted/20 rounded p-2">
-            <div className="text-[9px] text-muted-foreground uppercase tracking-wide mb-0.5 flex items-center gap-1">
-              Risk/Reward
-              <InfoTooltip content="Potential reward relative to risk. 2:1 means you can make 2x what you risk. Higher is better but may have lower win rate." />
-            </div>
-            <div className={`text-lg font-mono font-bold ${
-              riskReward && riskReward >= 3 ? 'text-emerald-400' :
-              riskReward && riskReward >= 2 ? 'text-blue-400' :
-              riskReward && riskReward >= 1.5 ? 'text-amber-400' :
-              'text-muted-foreground/50'
-            }`}>
-              {riskReward ? `${riskReward.toFixed(1)}:1` : '—'}
-            </div>
-          </div>
-        </div>
-
-        {/* Setup Description */}
-        {setup && (
-          <p className="text-[10px] text-muted-foreground/70 leading-relaxed">
-            {setup.description}
-          </p>
         )}
       </div>
     </div>
