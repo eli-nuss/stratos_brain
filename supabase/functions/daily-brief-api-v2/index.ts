@@ -346,14 +346,15 @@ async function fetchMacroContextData(supabase: SupabaseClient) {
 }
 
 async function fetchSetupSignalsData(supabase: SupabaseClient) {
-  console.log('[SetupSignals] Fetching data...')
+  console.log('[SetupSignals] Fetching comprehensive data...')
   
   // Get recent setup signals (last 3 days to ensure we have data)
   const threeDaysAgo = new Date()
   threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
   const dateFilter = threeDaysAgo.toISOString().split('T')[0]
   
-  const { data: setups, error: setupError } = await supabase
+  // Fetch ALL setups to get full picture, then we'll summarize for AI
+  const { data: allSetups, error: setupError } = await supabase
     .from('setup_signals')
     .select(`
       *,
@@ -361,7 +362,34 @@ async function fetchSetupSignalsData(supabase: SupabaseClient) {
     `)
     .gte('signal_date', dateFilter)
     .order('risk_reward', { ascending: false })
-    .limit(50)
+    .limit(1000)
+  
+  // Also get counts by setup type and asset type for context
+  const setupCounts: Record<string, { equity: number; crypto: number; total: number; avgRR: number }> = {}
+  for (const setup of (allSetups || [])) {
+    const type = setup.setup_name || 'unknown'
+    const assetType = setup.assets?.asset_type || 'unknown'
+    if (!setupCounts[type]) {
+      setupCounts[type] = { equity: 0, crypto: 0, total: 0, avgRR: 0 }
+    }
+    setupCounts[type].total++
+    if (assetType === 'equity') setupCounts[type].equity++
+    if (assetType === 'crypto') setupCounts[type].crypto++
+    setupCounts[type].avgRR = (setupCounts[type].avgRR * (setupCounts[type].total - 1) + parseFloat(setup.risk_reward || '0')) / setupCounts[type].total
+  }
+  
+  // Get top setups per setup type (stratified sampling)
+  const topSetupsByType: Record<string, typeof allSetups> = {}
+  for (const setup of (allSetups || [])) {
+    const type = setup.setup_name || 'unknown'
+    if (!topSetupsByType[type]) topSetupsByType[type] = []
+    if (topSetupsByType[type]!.length < 15) { // Top 15 per type
+      topSetupsByType[type]!.push(setup)
+    }
+  }
+  
+  // Flatten to get representative sample
+  const setups = Object.values(topSetupsByType).flat()
   
   if (setupError) {
     console.error('[SetupSignals] Error fetching setups:', setupError)
@@ -426,18 +454,21 @@ async function fetchSetupSignalsData(supabase: SupabaseClient) {
       review: reviewMap.get(s.asset_id),
       features: featureMap.get(s.asset_id),
       bar: barMap.get(s.asset_id)
-    }))
+    })),
+    setupCounts, // Summary stats for AI context
+    totalSetups: allSetups?.length || 0
   }
 }
 
 async function fetchSignalFactsData(supabase: SupabaseClient) {
-  console.log('[SignalFacts] Fetching data from setup_signals...')
+  console.log('[SignalFacts] Fetching comprehensive setup signals data...')
   
-  // Get recent setup signals with asset info (using setup_signals instead of daily_signal_facts)
+  // Get recent setup signals with asset info
   const threeDaysAgo = new Date()
   threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
   const dateStr = threeDaysAgo.toISOString().split('T')[0]
   
+  // Fetch more signals to get comprehensive view
   const { data: signals } = await supabase
     .from('setup_signals')
     .select(`
@@ -455,7 +486,7 @@ async function fetchSignalFactsData(supabase: SupabaseClient) {
     `)
     .gte('signal_date', dateStr)
     .order('risk_reward', { ascending: false })
-    .limit(200)
+    .limit(500)
   
   // Group by setup type
   const signalGroups = new Map<string, typeof signals>()
