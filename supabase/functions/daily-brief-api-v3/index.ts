@@ -1,5 +1,6 @@
 // Daily Brief API v3 - Candidate Generation → Re-ranking Architecture
 // Top 20 per setup type → AI picks 15 per category
+// Enhanced Morning Intel with Grounded Search
 
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -47,10 +48,21 @@ interface CategoryBucket {
   ai_picks?: SetupSignal[]
 }
 
+interface MorningIntel {
+  market_pulse: string
+  macro_calendar: string
+  geopolitical: string
+  sector_themes: string
+  liquidity_flows: string
+  risk_factors: string
+  generated_at: string
+}
+
 interface DailyBrief {
   date: string
   market_regime: string
   macro_summary: string
+  morning_intel: MorningIntel | null
   categories: {
     momentum_breakouts: {
       theme_summary: string
@@ -116,6 +128,153 @@ function calculateCompressionScore(signal: SetupSignal): number {
   const direction = signal.ai_direction_score || 50
   const purity = signal.setup_purity_score || 50
   return (direction * 0.3) + (purity * 0.7)
+}
+
+// ============================================================================
+// GROUNDED SEARCH - MORNING INTEL
+// ============================================================================
+
+async function callGeminiWithSearch(query: string): Promise<{ text: string; tokensIn: number; tokensOut: number }> {
+  const apiKey = Deno.env.get('GEMINI_API_KEY')
+  if (!apiKey) throw new Error('GEMINI_API_KEY not set')
+  
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ 
+          role: 'user', 
+          parts: [{ text: query }] 
+        }],
+        tools: [{ googleSearch: {} }],
+        generationConfig: { 
+          temperature: 0.7,
+          maxOutputTokens: 2048
+        }
+      })
+    }
+  )
+
+  const data = await response.json()
+  
+  if (data.error) {
+    console.error('[Gemini Search] API Error:', data.error)
+    return { text: 'Search unavailable', tokensIn: 0, tokensOut: 0 }
+  }
+
+  const text = data.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text).join('') || 'No results found.'
+  const tokensIn = data.usageMetadata?.promptTokenCount || 0
+  const tokensOut = data.usageMetadata?.candidatesTokenCount || 0
+  
+  // Extract citations if available
+  const metadata = data.candidates?.[0]?.groundingMetadata
+  let citationText = ""
+  
+  if (metadata?.groundingChunks && metadata.groundingChunks.length > 0) {
+    citationText = "\n\n**Sources:** " + metadata.groundingChunks
+      .slice(0, 5)
+      .map((c: { web?: { title?: string } }) => c.web?.title || 'Source')
+      .join(' | ')
+  }
+
+  return { text: text + citationText, tokensIn, tokensOut }
+}
+
+async function generateMorningIntel(): Promise<{ intel: MorningIntel; tokensIn: number; tokensOut: number }> {
+  console.log('[Morning Intel] Starting grounded search for market intelligence...')
+  
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+  let totalTokensIn = 0
+  let totalTokensOut = 0
+  
+  // 1. Market Pulse - Pre-market action, futures, key levels
+  const marketPulseQuery = `Today is ${today}. As a financial analyst, provide a brief market pulse update:
+- US futures action (S&P 500, Nasdaq, Dow) and overnight moves
+- Key support/resistance levels for SPY and QQQ
+- VIX level and volatility context
+- Any significant overnight moves in global markets (Asia, Europe)
+Keep it concise and actionable for a trader starting their day.`
+
+  const marketPulse = await callGeminiWithSearch(marketPulseQuery)
+  totalTokensIn += marketPulse.tokensIn
+  totalTokensOut += marketPulse.tokensOut
+  
+  // 2. Macro Calendar - Economic events, earnings, Fed
+  const macroCalendarQuery = `Today is ${today}. What are the key economic and market events for today and this week?
+- Economic data releases today (CPI, jobs, GDP, etc.)
+- Fed speakers or central bank events
+- Major earnings reports due today and this week
+- Any Treasury auctions or bond market events
+Be specific with times (ET) where possible.`
+
+  const macroCalendar = await callGeminiWithSearch(macroCalendarQuery)
+  totalTokensIn += macroCalendar.tokensIn
+  totalTokensOut += macroCalendar.tokensOut
+  
+  // 3. Geopolitical & Policy
+  const geopoliticalQuery = `Today is ${today}. What are the key geopolitical and policy developments affecting markets?
+- Trade policy news (tariffs, trade deals, sanctions)
+- Regulatory developments (SEC, antitrust, crypto regulation)
+- International tensions or conflicts affecting markets
+- Major political developments with market implications
+Focus on what's actionable for investors.`
+
+  const geopolitical = await callGeminiWithSearch(geopoliticalQuery)
+  totalTokensIn += geopolitical.tokensIn
+  totalTokensOut += geopolitical.tokensOut
+  
+  // 4. Sector Themes
+  const sectorThemesQuery = `Today is ${today}. What are the key sector themes and rotations in the US stock market?
+- Which sectors are leading or lagging?
+- Any sector-specific news (tech, energy, financials, healthcare, etc.)
+- Notable rotation signals or theme plays
+- Key sector ETFs to watch (XLK, XLE, XLF, etc.)
+Be specific about what's driving sector moves.`
+
+  const sectorThemes = await callGeminiWithSearch(sectorThemesQuery)
+  totalTokensIn += sectorThemes.tokensIn
+  totalTokensOut += sectorThemes.tokensOut
+  
+  // 5. Liquidity & Flows
+  const liquidityQuery = `Today is ${today}. What's the current state of market liquidity and fund flows?
+- US Dollar strength/weakness (DXY)
+- Treasury yields (10Y, 2Y) and credit spreads
+- Recent fund flows (equity inflows/outflows)
+- Any liquidity concerns or risk appetite indicators
+Keep it brief but informative.`
+
+  const liquidity = await callGeminiWithSearch(liquidityQuery)
+  totalTokensIn += liquidity.tokensIn
+  totalTokensOut += liquidity.tokensOut
+  
+  // 6. Risk Factors - Synthesize key risks
+  const riskFactorsQuery = `Today is ${today}. As a risk manager, what are the TOP 3-5 key risks and potential catalysts to watch today?
+- Downside risks that could cause a selloff
+- Upside catalysts that could spark a rally
+- Key levels or events that could trigger volatility
+Be specific and actionable. Format as bullet points.`
+
+  const riskFactors = await callGeminiWithSearch(riskFactorsQuery)
+  totalTokensIn += riskFactors.tokensIn
+  totalTokensOut += riskFactors.tokensOut
+  
+  console.log(`[Morning Intel] Complete. Total tokens: ${totalTokensIn} in / ${totalTokensOut} out`)
+  
+  return {
+    intel: {
+      market_pulse: marketPulse.text,
+      macro_calendar: macroCalendar.text,
+      geopolitical: geopolitical.text,
+      sector_themes: sectorThemes.text,
+      liquidity_flows: liquidity.text,
+      risk_factors: riskFactors.text,
+      generated_at: new Date().toISOString()
+    },
+    tokensIn: totalTokensIn,
+    tokensOut: totalTokensOut
+  }
 }
 
 // ============================================================================
@@ -445,17 +604,18 @@ Remember: Prioritize conviction, ensure sector diversity, and write a compelling
   }
 }
 
-
 // ============================================================================
 // PORTFOLIO ALERTS
 // ============================================================================
 
 function generatePortfolioAlerts(signals: SetupSignal[], holdings: any[]): any[] {
   const alerts: any[] = []
+  
+  // Get held symbols and sectors
   const holdingSymbols = new Set(holdings.map(h => h.assets?.symbol).filter(Boolean))
   const holdingSectors = new Set(holdings.map(h => h.assets?.sector).filter(Boolean))
   
-  for (const signal of signals) {
+  for (const signal of signals.slice(0, 50)) {
     const symbol = signal.assets?.symbol
     const sector = signal.assets?.sector
     
@@ -492,6 +652,10 @@ async function generateDailyBrief(supabase: SupabaseClient): Promise<DailyBrief>
   let totalTokensIn = 0
   let totalTokensOut = 0
   
+  // Generate Morning Intel (grounded search) - run in parallel with data fetching
+  console.log('[DailyBrief v3] Starting Morning Intel generation...')
+  const morningIntelPromise = generateMorningIntel()
+  
   // Stage 1: Fetch candidates
   const rawSignals = await fetchTop20PerSetupType(supabase)
   const enrichedSignals = await enrichWithAIScores(supabase, rawSignals)
@@ -525,6 +689,11 @@ async function generateDailyBrief(supabase: SupabaseClient): Promise<DailyBrief>
   totalTokensIn += compressionResult.tokensIn
   totalTokensOut += compressionResult.tokensOut
   
+  // Wait for Morning Intel to complete
+  const morningIntelResult = await morningIntelPromise
+  totalTokensIn += morningIntelResult.tokensIn
+  totalTokensOut += morningIntelResult.tokensOut
+  
   // Portfolio alerts
   const portfolioAlerts = generatePortfolioAlerts(enrichedSignals, holdings)
   
@@ -533,6 +702,7 @@ async function generateDailyBrief(supabase: SupabaseClient): Promise<DailyBrief>
     date: today,
     market_regime: macro.regime,
     macro_summary: macro.summary,
+    morning_intel: morningIntelResult.intel,
     categories: {
       momentum_breakouts: {
         theme_summary: momentumResult.theme_summary,
@@ -590,6 +760,7 @@ Deno.serve(async (req) => {
           model_used: 'gemini-2.0-flash',
           market_regime: brief.market_regime,
           macro_summary: brief.macro_summary,
+          morning_intel: brief.morning_intel,
           momentum_breakouts: brief.categories.momentum_breakouts,
           trend_continuation: brief.categories.trend_continuation,
           compression_reversion: brief.categories.compression_reversion,
@@ -621,6 +792,7 @@ Deno.serve(async (req) => {
       date: latestBrief[0].brief_date,
       market_regime: latestBrief[0].market_regime,
       macro_summary: latestBrief[0].macro_summary,
+      morning_intel: latestBrief[0].morning_intel,
       categories: {
         momentum_breakouts: latestBrief[0].momentum_breakouts,
         trend_continuation: latestBrief[0].trend_continuation,

@@ -12,6 +12,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger
+} from "@/components/ui/collapsible";
+import { 
   RefreshCw, 
   Zap, 
   TrendingUp, 
@@ -21,9 +26,16 @@ import {
   AlertTriangle,
   BarChart3,
   ChevronRight,
+  ChevronDown,
   Target,
   Shield,
-  Calendar
+  Calendar,
+  Globe,
+  Landmark,
+  PieChart,
+  Droplets,
+  ShieldAlert,
+  Activity
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import useSWR from "swr";
@@ -54,6 +66,16 @@ interface CategoryData {
   picks: AssetPick[];
 }
 
+interface MorningIntel {
+  market_pulse: string;
+  macro_calendar: string;
+  geopolitical: string;
+  sector_themes: string;
+  liquidity_flows: string;
+  risk_factors: string;
+  generated_at: string;
+}
+
 interface PortfolioAlert {
   type: "add_on" | "concentration" | "exit";
   symbol: string;
@@ -71,6 +93,7 @@ interface DailyBriefData {
   date: string;
   market_regime: string;
   macro_summary: string;
+  morning_intel?: MorningIntel;
   categories: {
     momentum_breakouts: CategoryData;
     trend_continuation: CategoryData;
@@ -181,6 +204,52 @@ function AssetCard({ pick, onClick }: { pick: AssetPick; onClick: () => void }) 
   );
 }
 
+// Intel Section Component
+function IntelSection({ 
+  title, 
+  icon: Icon, 
+  content, 
+  colorClass,
+  defaultOpen = false
+}: { 
+  title: string; 
+  icon: React.ElementType; 
+  content: string;
+  colorClass: string;
+  defaultOpen?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <CollapsibleTrigger className="w-full">
+        <div className={cn(
+          "flex items-center justify-between p-3 rounded-lg transition-colors hover:bg-muted/50",
+          isOpen && "bg-muted/30"
+        )}>
+          <div className="flex items-center gap-3">
+            <div className={cn("p-2 rounded-lg", colorClass)}>
+              <Icon className="w-4 h-4" />
+            </div>
+            <span className="font-medium text-sm">{title}</span>
+          </div>
+          <ChevronDown className={cn(
+            "w-4 h-4 text-muted-foreground transition-transform",
+            isOpen && "rotate-180"
+          )} />
+        </div>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="px-3 pb-3 pt-1">
+          <div className="pl-11 text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+            {content}
+          </div>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
 // --- Main Page ---
 
 export default function DailyBriefV3() {
@@ -271,24 +340,73 @@ export default function DailyBriefV3() {
 
         <main className="container max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
           
-          {/* Morning Memo */}
+          {/* Morning Intel - Enhanced */}
           <section>
             <Card className="border-l-4 border-l-primary">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg font-semibold flex items-center gap-2">
                   <Quote className="w-4 h-4 text-primary" />
-                  Morning Memo
+                  Morning Intel
                 </CardTitle>
-                <CardDescription>Market Theme & Executive Summary</CardDescription>
+                <CardDescription>
+                  Real-time market intelligence powered by AI research
+                  {brief?.morning_intel?.generated_at && (
+                    <span className="ml-2 text-xs">
+                      • Updated {format(new Date(brief.morning_intel.generated_at), "h:mm a")}
+                    </span>
+                  )}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {isLoading ? (
-                  <div className="space-y-2">
-                    <div className="h-4 w-full bg-muted animate-pulse rounded" />
-                    <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
-                    <div className="h-4 w-5/6 bg-muted animate-pulse rounded" />
+                  <div className="space-y-3">
+                    <div className="h-12 w-full bg-muted animate-pulse rounded" />
+                    <div className="h-12 w-full bg-muted animate-pulse rounded" />
+                    <div className="h-12 w-full bg-muted animate-pulse rounded" />
+                  </div>
+                ) : brief?.morning_intel ? (
+                  <div className="space-y-1">
+                    <IntelSection
+                      title="Market Pulse"
+                      icon={Activity}
+                      content={brief.morning_intel.market_pulse}
+                      colorClass="bg-blue-500/10 text-blue-600"
+                      defaultOpen={true}
+                    />
+                    <IntelSection
+                      title="Macro Calendar"
+                      icon={Calendar}
+                      content={brief.morning_intel.macro_calendar}
+                      colorClass="bg-purple-500/10 text-purple-600"
+                    />
+                    <IntelSection
+                      title="Geopolitical & Policy"
+                      icon={Globe}
+                      content={brief.morning_intel.geopolitical}
+                      colorClass="bg-orange-500/10 text-orange-600"
+                    />
+                    <IntelSection
+                      title="Sector Themes"
+                      icon={PieChart}
+                      content={brief.morning_intel.sector_themes}
+                      colorClass="bg-emerald-500/10 text-emerald-600"
+                    />
+                    <IntelSection
+                      title="Liquidity & Flows"
+                      icon={Droplets}
+                      content={brief.morning_intel.liquidity_flows}
+                      colorClass="bg-cyan-500/10 text-cyan-600"
+                    />
+                    <IntelSection
+                      title="Risk Factors"
+                      icon={ShieldAlert}
+                      content={brief.morning_intel.risk_factors}
+                      colorClass="bg-red-500/10 text-red-600"
+                      defaultOpen={true}
+                    />
                   </div>
                 ) : (
+                  // Fallback to old format if no morning_intel
                   <div className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground leading-relaxed">
                     {brief?.macro_summary && (
                       <p className="mb-3">{brief.macro_summary}</p>
