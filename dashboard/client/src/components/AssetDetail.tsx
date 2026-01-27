@@ -11,6 +11,7 @@ import {
   formatSignalType, 
   getSignalTooltip 
 } from "@/lib/signalDefinitions";
+import { getSetupDefinition, SETUP_DEFINITIONS } from "@/lib/setupDefinitions";
 
 import { NotesHistory } from "./NotesHistory";
 import { FilesSection } from "./FilesSection";
@@ -574,62 +575,155 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                   )}
                 </div>
 
-                {/* Signals - Only show when there are active signals */}
-                {review?.signal_facts && review.signal_facts.length > 0 && (
-                  <div className="bg-card border border-border rounded-lg overflow-hidden">
-                    <div className="bg-muted/30 px-4 py-2.5 border-b border-border flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Activity className="w-4 h-4 text-muted-foreground" />
-                        <h3 className="font-semibold text-sm">Active Signals</h3>
+                {/* Setup Section - Next to Trade Plan */}
+                {(() => {
+                  const setupType = review?.setup_type;
+                  const setup = getSetupDefinition(setupType);
+                  
+                  // Trading guidance for each setup type
+                  const SETUP_TRADING_GUIDANCE: Record<string, { howToTrade: string; keyPoints: string[] }> = {
+                    rs_breakout: {
+                      howToTrade: "Enter on the breakout above resistance with volume confirmation. Set stop below the breakout level or recent swing low. Trail stop as price advances.",
+                      keyPoints: [
+                        "Wait for volume spike (1.5x+ average) on breakout",
+                        "Buy on first pullback to breakout level if missed",
+                        "Use 8-21 EMA as trailing stop guide"
+                      ]
+                    },
+                    donchian_55_breakout: {
+                      howToTrade: "Enter when price closes above the 55-day high. Use ATR-based stop (2x ATR below entry). Hold until opposite signal or trailing stop hit.",
+                      keyPoints: [
+                        "Classic turtle trading entry signal",
+                        "Works best in trending markets",
+                        "Consider scaling in on pullbacks"
+                      ]
+                    },
+                    trend_pullback_50ma: {
+                      howToTrade: "Enter near the 50MA when price shows reversal candle (hammer, engulfing). Stop below the 50MA or recent low. Target previous highs.",
+                      keyPoints: [
+                        "Confirm uptrend: price above 50MA & 200MA",
+                        "Look for RSI oversold bounce (30-40 range)",
+                        "Best when volume dries up on pullback"
+                      ]
+                    },
+                    vcp_squeeze: {
+                      howToTrade: "Enter on breakout from the tight range with volume. Stop just below the consolidation low. Target measured move equal to prior advance.",
+                      keyPoints: [
+                        "Tighter the range, more explosive the move",
+                        "Volume should contract during squeeze",
+                        "Breakout volume should be 2x+ average"
+                      ]
+                    },
+                    adx_holy_grail: {
+                      howToTrade: "Enter when price pulls back to 20 EMA while ADX > 30. Stop below the 20 EMA. Target continuation of the strong trend.",
+                      keyPoints: [
+                        "ADX > 30 confirms strong trend",
+                        "Entry on touch of 20 EMA, not break",
+                        "Works in both uptrends and downtrends"
+                      ]
+                    },
+                    gap_up_momentum: {
+                      howToTrade: "Enter if gap holds first 30 mins. Stop below gap low or VWAP. Trail stop using 5-min chart structure for day trades.",
+                      keyPoints: [
+                        "Gap must hold and not fill in first hour",
+                        "Higher volume = more conviction",
+                        "Consider partial profits at 2R"
+                      ]
+                    },
+                    golden_cross: {
+                      howToTrade: "Enter on pullback after the cross occurs. Stop below the 200MA. This is a longer-term signal - hold for weeks to months.",
+                      keyPoints: [
+                        "Lagging indicator - confirms trend change",
+                        "Best for position trading, not day trading",
+                        "Combine with other signals for timing"
+                      ]
+                    },
+                    breakout_confirmed: {
+                      howToTrade: "Enter on the confirmed breakout or first pullback to breakout level. Stop below breakout zone. Target measured move from base.",
+                      keyPoints: [
+                        "Confirmation = close above resistance + volume",
+                        "Failed breakouts reverse quickly - honor stops",
+                        "Add to position on successful retest"
+                      ]
+                    },
+                    oversold_bounce: {
+                      howToTrade: "Enter when RSI crosses back above 30 with bullish candle. Tight stop below recent low. Quick profit target - this is mean reversion.",
+                      keyPoints: [
+                        "Counter-trend trade - use smaller size",
+                        "Best in stocks with strong fundamentals",
+                        "Take profits quickly at resistance"
+                      ]
+                    },
+                    acceleration_turn: {
+                      howToTrade: "Enter when momentum turns positive after consolidation. Stop below the consolidation low. Ride the acceleration phase.",
+                      keyPoints: [
+                        "Look for MACD histogram turning positive",
+                        "Volume should increase with price",
+                        "Early signal - may need patience"
+                      ]
+                    },
+                    weinstein_stage2: {
+                      howToTrade: "Enter on breakout from long base (100+ days). Stop below base low. This is a major signal - hold for big move potential.",
+                      keyPoints: [
+                        "Rare but powerful signal",
+                        "Base should be 3-6 months minimum",
+                        "Volume on breakout should be highest in months"
+                      ]
+                    }
+                  };
+                  
+                  const tradingGuidance = setupType ? SETUP_TRADING_GUIDANCE[setupType.toLowerCase()] : null;
+                  
+                  if (!setup) return null;
+                  
+                  return (
+                    <div className="bg-card border border-border rounded-lg overflow-hidden">
+                      <div className="bg-muted/30 px-4 py-2.5 border-b border-border flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Target className="w-4 h-4 text-primary" />
+                          <h3 className="font-semibold text-sm">Setup</h3>
+                        </div>
+                        <span 
+                          className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                          style={{ 
+                            backgroundColor: `${setup.color}20`, 
+                            color: setup.color,
+                            border: `1px solid ${setup.color}40`
+                          }}
+                        >
+                          {setup.icon} {setup.shortName}
+                        </span>
                       </div>
-                      <InfoTooltip content="Quantitative signals that triggered this asset's score. Each signal has a strength from 0-100 based on technical criteria." />
-                    </div>
-                    <div className="p-3 max-h-[180px] overflow-y-auto">
-                      <div className="space-y-2">
-                        {review.signal_facts.map((signal: any, i: number) => (
-                          <Tooltip key={i}>
-                            <TooltipTrigger asChild>
-                              <div className="flex items-center justify-between p-2 bg-muted/10 hover:bg-muted/20 rounded-lg cursor-help transition-colors border border-border/30">
-                                <div className="flex items-center gap-2">
-                                  <div className={`w-2 h-2 rounded-full ${
-                                    signal.strength >= 70 ? 'bg-emerald-500' : 
-                                    signal.strength >= 40 ? 'bg-amber-500' : 
-                                    'bg-muted-foreground/50'
-                                  }`} />
-                                  <span className="text-xs font-medium">
-                                    {formatSignalType(signal.signal_type)}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <div className="w-16 h-1.5 bg-muted/30 rounded-full overflow-hidden">
-                                    <div 
-                                      className={`h-full rounded-full ${
-                                        signal.strength >= 70 ? 'bg-emerald-500' : 
-                                        signal.strength >= 40 ? 'bg-amber-500' : 
-                                        'bg-muted-foreground/50'
-                                      }`}
-                                      style={{ width: `${signal.strength}%` }}
-                                    />
-                                  </div>
-                                  <span className={`text-xs font-mono font-medium w-8 text-right ${
-                                    signal.strength >= 70 ? 'text-emerald-400' : 
-                                    signal.strength >= 40 ? 'text-amber-400' : 
-                                    'text-muted-foreground'
-                                  }`}>
-                                    {signal.strength}
-                                  </span>
-                                </div>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-xs text-xs">
-                              {getSignalTooltip(signal.signal_type)}
-                            </TooltipContent>
-                          </Tooltip>
-                        ))}
+                      <div className="p-3 space-y-3">
+                        {/* Setup Description */}
+                        <p className="text-xs text-foreground/90 leading-relaxed">
+                          {setup.description}
+                        </p>
+                        
+                        {/* How to Trade Section */}
+                        {tradingGuidance && (
+                          <div className="bg-muted/20 rounded-lg p-2.5 space-y-2">
+                            <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium flex items-center gap-1">
+                              <Target className="w-3 h-3" />
+                              How to Trade
+                            </div>
+                            <p className="text-[11px] text-foreground/80 leading-relaxed">
+                              {tradingGuidance.howToTrade}
+                            </p>
+                            <ul className="space-y-1 mt-2">
+                              {tradingGuidance.keyPoints.map((point, idx) => (
+                                <li key={idx} className="text-[10px] text-muted-foreground/80 flex items-start gap-1.5">
+                                  <span className="text-primary mt-0.5">•</span>
+                                  <span>{point}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             )}
 
