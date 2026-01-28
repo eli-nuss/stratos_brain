@@ -35,7 +35,11 @@ import {
   PieChart,
   Droplets,
   ShieldAlert,
-  Activity
+  Activity,
+  Sparkles,
+  ArrowUpRight,
+  Layers,
+  Flag
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import useSWR from "swr";
@@ -106,6 +110,139 @@ interface DailyBriefData {
 
 // --- Components ---
 
+// Quick Stats Bar Component
+function QuickStatsBar({ brief }: { brief: DailyBriefData | undefined }) {
+  const stats = useMemo(() => {
+    if (!brief) return null;
+
+    const allPicks = [
+      ...(brief.categories?.momentum_breakouts?.picks || []),
+      ...(brief.categories?.trend_continuation?.picks || []),
+      ...(brief.categories?.compression_reversion?.picks || []),
+    ];
+
+    const highConviction = allPicks.filter((p) => p.conviction === "HIGH").length;
+    const mediumConviction = allPicks.filter((p) => p.conviction === "MEDIUM").length;
+    const lowConviction = allPicks.filter((p) => p.conviction === "LOW").length;
+
+    // Calculate avg R:R
+    const validRR = allPicks.filter((p) => typeof p.risk_reward === "number" && !isNaN(p.risk_reward));
+    const avgRR = validRR.length > 0 ? validRR.reduce((sum, p) => sum + (p.risk_reward || 0), 0) / validRR.length : 0;
+
+    return {
+      totalOpportunities: allPicks.length,
+      highConviction,
+      mediumConviction,
+      lowConviction,
+      avgRR: avgRR.toFixed(1),
+      alertCount: brief.portfolio_alerts?.length || 0,
+      actionCount: brief.action_items?.length || 0,
+    };
+  }, [brief]);
+
+  if (!stats) return null;
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
+      {/* Total Opportunities */}
+      <Card className="border-l-4 border-l-blue-500">
+        <CardContent className="p-3">
+          <div className="flex items-center gap-2 text-muted-foreground mb-1">
+            <Layers className="w-3.5 h-3.5" />
+            <span className="text-[10px] uppercase font-medium tracking-wide">Opportunities</span>
+          </div>
+          <div className="flex items-baseline gap-1">
+            <span className="text-2xl font-bold">{stats.totalOpportunities}</span>
+            <span className="text-xs text-muted-foreground">total</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* High Conviction */}
+      <Card className="border-l-4 border-l-green-500">
+        <CardContent className="p-3">
+          <div className="flex items-center gap-2 text-green-600/70 mb-1">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span className="text-[10px] uppercase font-medium tracking-wide">High Conviction</span>
+          </div>
+          <div className="flex items-baseline gap-1">
+            <span className="text-2xl font-bold text-green-600">{stats.highConviction}</span>
+            <span className="text-xs text-muted-foreground">
+              {stats.totalOpportunities > 0 ? Math.round((stats.highConviction / stats.totalOpportunities) * 100) : 0}%
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Avg R:R */}
+      <Card className="border-l-4 border-l-indigo-500">
+        <CardContent className="p-3">
+          <div className="flex items-center gap-2 text-muted-foreground mb-1">
+            <ArrowUpRight className="w-3.5 h-3.5" />
+            <span className="text-[10px] uppercase font-medium tracking-wide">Avg R:R</span>
+          </div>
+          <div className="flex items-baseline gap-1">
+            <span className="text-2xl font-bold">{stats.avgRR}</span>
+            <span className="text-xs text-muted-foreground">:1</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Medium/Low Conviction */}
+      <Card className="border-l-4 border-l-yellow-500">
+        <CardContent className="p-3">
+          <div className="flex items-center gap-2 text-yellow-600/70 mb-1">
+            <Activity className="w-3.5 h-3.5" />
+            <span className="text-[10px] uppercase font-medium tracking-wide">Medium/Low</span>
+          </div>
+          <div className="flex items-baseline gap-1">
+            <span className="text-2xl font-bold">{stats.mediumConviction + stats.lowConviction}</span>
+            <span className="text-xs text-muted-foreground">
+              {stats.mediumConviction} med / {stats.lowConviction} low
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Portfolio Alerts */}
+      <Card className={cn("border-l-4", stats.alertCount > 0 ? "border-l-orange-500" : "border-l-gray-300")}>
+        <CardContent className="p-3">
+          <div className="flex items-center gap-2 text-muted-foreground mb-1">
+            <AlertTriangle className="w-3.5 h-3.5" />
+            <span className="text-[10px] uppercase font-medium tracking-wide">Alerts</span>
+          </div>
+          <div className="flex items-baseline gap-1">
+            <span className={cn("text-2xl font-bold", stats.alertCount > 0 && "text-orange-600")}>
+              {stats.alertCount}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {stats.alertCount === 0 ? "none" : stats.alertCount === 1 ? "active" : "active"}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Priority Actions */}
+      <Card className={cn("border-l-4", stats.actionCount > 0 ? "border-l-purple-500" : "border-l-gray-300")}>
+        <CardContent className="p-3">
+          <div className="flex items-center gap-2 text-muted-foreground mb-1">
+            <Flag className="w-3.5 h-3.5" />
+            <span className="text-[10px] uppercase font-medium tracking-wide">Actions</span>
+          </div>
+          <div className="flex items-baseline gap-1">
+            <span className={cn("text-2xl font-bold", stats.actionCount > 0 && "text-purple-600")}>
+              {stats.actionCount}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {stats.actionCount === 0 ? "none" : "pending"}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 function StrategyHeader({ 
   title, 
   icon: Icon, 
@@ -136,12 +273,29 @@ function StrategyHeader({
   );
 }
 
+// Setup style configuration
+const SETUP_STYLES: Record<string, { label: string; color: string; icon: string }> = {
+  weinstein_stage2: { label: "Position", color: "bg-blue-500/10 text-blue-600", icon: "📈" },
+  donchian_55_breakout: { label: "Position", color: "bg-blue-500/10 text-blue-600", icon: "📈" },
+  rs_breakout: { label: "Position", color: "bg-blue-500/10 text-blue-600", icon: "📈" },
+  trend_pullback_50ma: { label: "Position", color: "bg-blue-500/10 text-blue-600", icon: "📈" },
+  adx_holy_grail: { label: "Position", color: "bg-blue-500/10 text-blue-600", icon: "📈" },
+  golden_cross: { label: "Position", color: "bg-blue-500/10 text-blue-600", icon: "📈" },
+  breakout_confirmed: { label: "Position", color: "bg-blue-500/10 text-blue-600", icon: "📈" },
+  vcp_squeeze: { label: "Swing", color: "bg-purple-500/10 text-purple-600", icon: "⚡" },
+  gap_up_momentum: { label: "Swing", color: "bg-purple-500/10 text-purple-600", icon: "⚡" },
+  oversold_bounce: { label: "Swing", color: "bg-purple-500/10 text-purple-600", icon: "⚡" },
+  acceleration_turn: { label: "Swing", color: "bg-purple-500/10 text-purple-600", icon: "⚡" },
+};
+
 function AssetCard({ pick, onClick }: { pick: AssetPick; onClick: () => void }) {
   const convictionColors = {
     HIGH: "bg-green-500/10 text-green-600 border-green-500/20",
     MEDIUM: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
     LOW: "bg-gray-500/10 text-gray-600 border-gray-500/20"
   };
+
+  const setupStyle = SETUP_STYLES[pick.setup_type] || { label: "", color: "", icon: "" };
 
   return (
     <div 
@@ -161,11 +315,21 @@ function AssetCard({ pick, onClick }: { pick: AssetPick; onClick: () => void }) 
             {pick.conviction}
           </Badge>
         </div>
-        {pick.risk_reward && typeof pick.risk_reward === 'number' && (
-          <span className="text-xs font-mono text-muted-foreground">
-            {pick.risk_reward.toFixed(1)}:1
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {setupStyle.label && (
+            <Badge 
+              variant="outline" 
+              className={cn("text-[10px] h-5 font-medium border-0", setupStyle.color)}
+            >
+              {setupStyle.icon} {setupStyle.label}
+            </Badge>
+          )}
+          {pick.risk_reward && typeof pick.risk_reward === 'number' && (
+            <span className="text-xs font-mono text-muted-foreground">
+              {pick.risk_reward.toFixed(1)}:1
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Setup Type */}
@@ -339,6 +503,9 @@ export default function DailyBriefV3() {
         </header>
 
         <main className="container max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
+          
+          {/* Quick Stats Overview */}
+          <QuickStatsBar brief={brief} />
           
           {/* Morning Intel - Enhanced */}
           <section>
