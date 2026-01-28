@@ -3,7 +3,7 @@
 ETF Daily Setup Scanner
 =======================
 Scans ETFs for trading setups based on optimized parameters.
-Separate from the main setup scanner to allow independent ETF-specific tuning.
+Aligned with crypto/equity setup scanner - uses same 11 setups.
 
 Usage:
     python jobs/etf_daily_setup_scanner.py --date 2026-01-27
@@ -17,7 +17,8 @@ import os
 import sys
 import argparse
 import logging
-from datetime import datetime, date
+import json
+from datetime import datetime, date, timedelta
 from decimal import Decimal
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
@@ -46,9 +47,8 @@ def get_connection():
     return thread_local.conn
 
 
-# ETF-optimized setup definitions
-# Same 11 setups as equities, but tuned for ETF characteristics
-# ETFs are less volatile and trend more smoothly, so parameters are loosened
+# ETF setup definitions - aligned with crypto/equity scanner
+# Same 11 setups with ETF-optimized parameters
 
 SETUPS = {
     # Position Trading Setups (60-252 day holds)
@@ -61,7 +61,7 @@ SETUPS = {
         'entry': {
             'base_days': 100,
             'base_range_pct': 0.15,
-            'volume_mult': 1.3  # Slightly lower volume req for ETFs
+            'volume_mult': 1.3  # Lower volume req for ETFs
         },
         'exit': {
             'breakdown_ma_dist_200': -0.03,
@@ -137,105 +137,106 @@ SETUPS = {
             'max_hold_days': 90
         }
     },
+    'golden_cross': {
+        'description': 'Golden Cross (50MA > 200MA)',
+        'style': 'position',
+        'historical_profit_factor': 1.53,
+        'historical_win_rate': 0.359,
+        'historical_avg_return': 0.0202,
+        'entry': {
+            'ma_dist_50_min': -0.02,
+            'ma_dist_50_max': 0.07,
+            'rsi_min': 45,
+            'rsi_max': 70
+        },
+        'exit': {
+            'breakdown_ma_dist_50': -0.03,
+            'trailing_activation_pct': 0.15,
+            'trailing_atr_mult': 3.5,
+            'max_hold_days': 120
+        }
+    },
+    'breakout_confirmed': {
+        'description': 'Confirmed Breakout',
+        'style': 'position',
+        'historical_profit_factor': 1.45,
+        'historical_win_rate': 0.489,
+        'historical_avg_return': 0.0222,
+        'entry': {
+            'rvol_threshold': 1.2,  # Lower for ETFs
+            'rsi_min': 50,
+            'rsi_max': 75
+        },
+        'exit': {
+            'breakdown_ma_dist_20': -0.04,
+            'trailing_activation_pct': 0.12,
+            'trailing_atr_mult': 2.5,
+            'max_hold_days': 90
+        }
+    },
     
     # Swing Trading Setups (10-20 day holds)
     'vcp_squeeze': {
         'description': 'Volatility Contraction Pattern (VCP)',
         'style': 'swing',
-        'historical_profit_factor': 1.65,
-        'historical_win_rate': 0.512,
-        'historical_avg_return': 0.0321,
+        'historical_profit_factor': 1.69,
+        'historical_win_rate': 0.553,
+        'historical_avg_return': 0.0169,
         'entry': {
-            'contraction_phases': 2,
-            'volatility_contraction': 0.5,
-            'volume_dry_up': 0.7
+            'bb_width_pctile_max': 25,
+            'rsi_min': 35,
+            'rsi_max': 75
         },
         'exit': {
-            'breakdown_low_days': 5,
-            'max_hold_days': 20
-        }
-    },
-    'rsi_mean_reversion': {
-        'description': 'RSI Mean Reversion (Oversold Bounce)',
-        'style': 'swing',
-        'historical_profit_factor': 1.45,
-        'historical_win_rate': 0.534,
-        'historical_avg_return': 0.0218,
-        'entry': {
-            'rsi_max': 35,  # Slightly higher threshold for ETFs
-            'above_ma200': True  # Only in uptrend
-        },
-        'exit': {
-            'target_rsi': 55,
-            'stop_atr_mult': 2.0,
-            'max_hold_days': 10
-        }
-    },
-    'bollinger_squeeze': {
-        'description': 'Bollinger Band Squeeze Breakout',
-        'style': 'swing',
-        'historical_profit_factor': 1.58,
-        'historical_win_rate': 0.487,
-        'historical_avg_return': 0.0284,
-        'entry': {
-            'bb_width_threshold': 0.05,
-            'volume_mult': 1.3  # Lower for ETFs
-        },
-        'exit': {
-            'target_bb_band': 'upper',
+            'target_pct': 0.12,
             'stop_atr_mult': 2.0,
             'max_hold_days': 15
         }
     },
-    
-    # Momentum Setups
-    'macd_momentum_shift': {
-        'description': 'MACD Momentum Shift',
+    'gap_up_momentum': {
+        'description': 'Gap Up Momentum',
         'style': 'swing',
-        'historical_profit_factor': 1.52,
-        'historical_win_rate': 0.498,
-        'historical_avg_return': 0.0247,
+        'historical_profit_factor': 1.58,
+        'historical_win_rate': 0.516,
+        'historical_avg_return': 0.0187,
         'entry': {
-            'macd_crossover': True,
-            'histogram_turn_positive': True,
-            'above_zero_line': True
+            'gap_pct_min': 0.02,
+            'rvol_min': 1.5  # Lower for ETFs
         },
         'exit': {
-            'macd_crossunder': True,
+            'breakdown_ma_dist_20': -0.03,
+            'max_hold_days': 15
+        }
+    },
+    'oversold_bounce': {
+        'description': 'Oversold Bounce',
+        'style': 'swing',
+        'historical_profit_factor': 1.52,
+        'historical_win_rate': 0.656,
+        'historical_avg_return': 0.0183,
+        'entry': {
+            'rsi_max': 35,
+            'ma_dist_20_max': -0.06
+        },
+        'exit': {
+            'target_ma_dist_20': 0.01,
+            'stop_atr_mult': 2.5,
             'max_hold_days': 20
         }
     },
-    
-    # Reversal Setups
-    'volume_climax_reversal': {
-        'description': 'Volume Climax Reversal',
+    'acceleration_turn': {
+        'description': 'Acceleration Turn Up',
         'style': 'swing',
-        'historical_profit_factor': 1.38,
-        'historical_win_rate': 0.476,
-        'historical_avg_return': 0.0198,
+        'historical_profit_factor': 1.48,
+        'historical_win_rate': 0.629,
+        'historical_avg_return': 0.0097,
         'entry': {
-            'rvol_min': 2.0,
-            'price_range_pct': 0.03,
-            'close_near_high': True
+            'rsi_min': 25,
+            'rsi_max': 65
         },
         'exit': {
-            'volume_normalization': True,
-            'max_hold_days': 5
-        }
-    },
-    'morning_star_hammer': {
-        'description': 'Morning Star / Hammer Pattern',
-        'style': 'swing',
-        'historical_profit_factor': 1.42,
-        'historical_win_rate': 0.489,
-        'historical_avg_return': 0.0223,
-        'entry': {
-            'downtrend_days': 5,
-            'body_size_ratio': 0.3,
-            'lower_shadow_ratio': 2.0
-        },
-        'exit': {
-            'confirmation_close': True,
+            'target_pct': 0.06,
+            'stop_atr_mult': 2.5,
             'max_hold_days': 10
         }
     }
@@ -252,6 +253,9 @@ def get_etfs_with_features(target_date: str) -> list:
                 a.symbol,
                 a.name,
                 df.close,
+                df.open,
+                df.high,
+                df.low,
                 df.rsi_14,
                 df.ma_dist_20,
                 df.ma_dist_50,
@@ -260,14 +264,23 @@ def get_etfs_with_features(target_date: str) -> list:
                 df.above_ma200,
                 df.ma50_above_ma200,
                 df.bb_width,
+                df.bb_width_pctile,
                 df.rvol_20,
                 df.return_21d,
+                df.gap_pct,
+                df.donchian_high_55,
+                df.donchian_low_20,
+                df.roc_20,
+                df.roc_63,
                 df.macd_histogram,
                 df.atr_14,
                 df.atr_pct,
-                df.sma_20,
-                df.sma_50,
-                df.sma_200
+                df.ma_slope_20,
+                df.ma_slope_50,
+                df.ma_slope_200,
+                df.accel_turn_up,
+                df.squeeze_flag,
+                df.breakout_confirmed_up
             FROM daily_features df
             JOIN assets a ON df.asset_id = a.asset_id
             WHERE df.date = %s
@@ -277,76 +290,470 @@ def get_etfs_with_features(target_date: str) -> list:
         return cur.fetchall()
 
 
-def evaluate_setup(etf: dict, setup_name: str, setup_config: dict) -> dict:
-    """Evaluate if an ETF meets setup criteria."""
-    entry = setup_config['entry']
+def get_historical_bars(asset_id: int, end_date: str, lookback_days: int = 150) -> pd.DataFrame:
+    """Fetch historical bars for calculating additional indicators (e.g., ADX)."""
+    conn = get_connection()
+    start_date = (datetime.strptime(end_date, '%Y-%m-%d') - timedelta(days=lookback_days)).strftime('%Y-%m-%d')
     
-    # Check each entry condition based on setup type
-    for key, value in entry.items():
-        if key == 'ma_dist_50_min':
-            if etf.get('ma_dist_50') is None or etf['ma_dist_50'] < value:
-                return None
-        elif key == 'ma_dist_50_max':
-            if etf.get('ma_dist_50') is None or etf['ma_dist_50'] > value:
-                return None
-        elif key == 'rsi_max':
-            if etf.get('rsi_14') is None or etf['rsi_14'] > value:
-                return None
-        elif key == 'rsi_min':
-            if etf.get('rsi_14') is None or etf['rsi_14'] < value:
-                return None
-        elif key == 'above_ma200':
-            if not etf.get('above_ma200'):
-                return None
-        elif key == 'ma50_above_ma200':
-            if not etf.get('ma50_above_ma200'):
-                return None
-        elif key == 'rvol_min':
-            if etf.get('rvol_20') is None or etf['rvol_20'] < value:
-                return None
-        elif key == 'bb_width_threshold':
-            if etf.get('bb_width') is None or etf['bb_width'] > value:
-                return None
-        elif key == 'volume_mult':
-            if etf.get('rvol_20') is None or etf['rvol_20'] < value:
-                return None
-        elif key == 'adx_threshold':
-            # Skip ADX check if not in features (can add later)
-            pass
-        elif key == 'macd_crossover':
-            # Check if MACD histogram turned positive (simplified)
-            if etf.get('macd_histogram') is None or etf['macd_histogram'] <= 0:
-                return None
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute("""
+            SELECT date, open, high, low, close, volume
+            FROM daily_bars
+            WHERE asset_id = %s AND date >= %s AND date <= %s
+            ORDER BY date ASC
+        """, (asset_id, start_date, end_date))
+        rows = cur.fetchall()
     
-    # Calculate entry/stop/target based on setup style
-    entry_price = etf['close']
-    atr_pct = etf.get('atr_pct', 2.0) or 2.0
+    if not rows:
+        return pd.DataFrame()
     
-    if setup_config['style'] == 'position':
-        # Position trades: wider stops, bigger targets
-        stop_loss = entry_price * (1 - atr_pct / 100 * 3)  # 3x ATR
-        target_price = entry_price * (1 + atr_pct / 100 * 5)  # 5x ATR
-    else:
-        # Swing trades: tighter stops
-        stop_loss = entry_price * (1 - atr_pct / 100 * 2)  # 2x ATR
-        target_price = entry_price * (1 + atr_pct / 100 * 3)  # 3x ATR
+    df = pd.DataFrame(rows)
+    for col in ['open', 'high', 'low', 'close', 'volume']:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+    return df
+
+
+def calculate_adx(bars: pd.DataFrame, period: int = 14) -> float:
+    """Calculate ADX for the most recent bar."""
+    if len(bars) < period + 10:
+        return None
     
-    # Ensure reasonable stop/target distances
-    stop_loss = max(stop_loss, entry_price * 0.92)  # Max 8% stop
-    target_price = min(target_price, entry_price * 1.20)  # Max 20% target
+    df = bars.copy()
+    df['tr'] = np.maximum(
+        df['high'] - df['low'],
+        np.maximum(
+            abs(df['high'] - df['close'].shift(1)),
+            abs(df['low'] - df['close'].shift(1))
+        )
+    )
     
-    # Calculate risk:reward
-    risk = entry_price - stop_loss
-    reward = target_price - entry_price
-    risk_reward = reward / risk if risk > 0 else 0
+    df['plus_dm'] = np.where(
+        (df['high'] - df['high'].shift(1)) > (df['low'].shift(1) - df['low']),
+        np.maximum(df['high'] - df['high'].shift(1), 0),
+        0
+    )
+    df['minus_dm'] = np.where(
+        (df['low'].shift(1) - df['low']) > (df['high'] - df['high'].shift(1)),
+        np.maximum(df['low'].shift(1) - df['low'], 0),
+        0
+    )
     
-    # Calculate setup strength (0-100)
+    df['atr'] = df['tr'].ewm(span=period, adjust=False).mean()
+    df['plus_di'] = 100 * (df['plus_dm'].ewm(span=period, adjust=False).mean() / df['atr'])
+    df['minus_di'] = 100 * (df['minus_dm'].ewm(span=period, adjust=False).mean() / df['atr'])
+    
+    df['dx'] = 100 * abs(df['plus_di'] - df['minus_di']) / (df['plus_di'] + df['minus_di'])
+    df['adx'] = df['dx'].ewm(span=period, adjust=False).mean()
+    
+    return df['adx'].iloc[-1] if not pd.isna(df['adx'].iloc[-1]) else None
+
+
+def calculate_base_range(bars: pd.DataFrame, base_days: int) -> float:
+    """Calculate the price range over the base period as a percentage."""
+    if len(bars) < base_days:
+        return None
+    
+    recent = bars.tail(base_days)
+    high = recent['high'].max()
+    low = recent['low'].min()
+    
+    if low == 0:
+        return None
+    
+    return (high - low) / low
+
+
+def clean_for_json(obj):
+    """Clean values for JSON serialization (handle NaN, Inf)."""
+    if isinstance(obj, dict):
+        return {k: clean_for_json(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [clean_for_json(v) for v in obj]
+    elif isinstance(obj, float):
+        if np.isnan(obj) or np.isinf(obj):
+            return None
+        return obj
+    elif isinstance(obj, (np.floating, np.integer)):
+        if np.isnan(obj) or np.isinf(obj):
+            return None
+        return float(obj)
+    return obj
+
+
+def check_weinstein_stage2(etf: dict, bars: pd.DataFrame, params: dict) -> dict:
+    """Check if ETF meets Weinstein Stage 2 criteria."""
+    entry = params['entry']
+    
+    if len(bars) < entry['base_days']:
+        return None
+    
+    base_range = calculate_base_range(bars, entry['base_days'])
+    if base_range is None or base_range > entry['base_range_pct']:
+        return None
+    
+    base_high = bars.tail(entry['base_days'])['high'].max()
+    current_close = etf.get('close')
+    if current_close is None or current_close <= base_high:
+        return None
+    
+    rvol = etf.get('rvol_20', 0) or 0
+    if rvol < entry['volume_mult']:
+        return None
+    
+    ma_slope_200 = etf.get('ma_slope_200', 0) or 0
+    if ma_slope_200 < -0.5:
+        return None
+    
+    return {
+        'context': {
+            'base_days': entry['base_days'],
+            'base_range_pct': round(base_range * 100, 2),
+            'base_high': round(base_high, 2),
+            'rvol': round(rvol, 2),
+            'ma_slope_200': round(ma_slope_200, 2)
+        }
+    }
+
+
+def check_donchian_55_breakout(etf: dict, bars: pd.DataFrame, params: dict) -> dict:
+    """Check if ETF meets Donchian 55-day breakout criteria."""
+    donchian_high_55 = etf.get('donchian_high_55')
+    current_close = etf.get('close')
+    
+    if donchian_high_55 is None or current_close is None:
+        return None
+    
+    if current_close < donchian_high_55 * 0.995:
+        return None
+    
+    rvol = etf.get('rvol_20', 1) or 1
+    rsi = etf.get('rsi_14', 50) or 50
+    ma_slope_200 = etf.get('ma_slope_200', 0) or 0
+    
+    return {
+        'context': {
+            'donchian_high_55': round(donchian_high_55, 2),
+            'rvol': round(rvol, 2),
+            'rsi': round(rsi, 1),
+            'ma_slope_200': round(ma_slope_200, 2)
+        }
+    }
+
+
+def check_rs_breakout(etf: dict, bars: pd.DataFrame, params: dict) -> dict:
+    """Check if ETF meets RS Breakout criteria."""
+    entry = params['entry']
+    
+    rsi = etf.get('rsi_14')
+    if rsi is None or rsi < entry['rsi_min'] or rsi > entry['rsi_max']:
+        return None
+    
+    rs_breakout = etf.get('rs_breakout', False)
+    if not rs_breakout:
+        return None
+    
+    above_ma200 = etf.get('above_ma200', False)
+    if not above_ma200:
+        return None
+    
+    rs_velocity = etf.get('rs_velocity', 0) or 0
+    rvol = etf.get('rvol_20', 1) or 1
+    
+    return {
+        'context': {
+            'rsi': round(rsi, 1),
+            'rs_velocity': round(rs_velocity, 2),
+            'rvol': round(rvol, 2)
+        }
+    }
+
+
+def check_trend_pullback_50ma(etf: dict, bars: pd.DataFrame, params: dict) -> dict:
+    """Check if ETF meets Trend Pullback to 50MA criteria."""
+    entry = params['entry']
+    
+    ma_dist_50 = etf.get('ma_dist_50')
+    if ma_dist_50 is None:
+        return None
+    
+    ma_dist_50_pct = ma_dist_50 / 100
+    if ma_dist_50_pct < entry['ma_dist_50_min'] or ma_dist_50_pct > entry['ma_dist_50_max']:
+        return None
+    
+    rsi = etf.get('rsi_14')
+    if rsi is None or rsi > entry['rsi_max']:
+        return None
+    
+    above_ma200 = etf.get('above_ma200', False)
+    if not above_ma200:
+        return None
+    
+    ma50_above_ma200 = etf.get('ma50_above_ma200', False)
+    if not ma50_above_ma200:
+        return None
+    
+    ma_slope_50 = etf.get('ma_slope_50', 0) or 0
+    
+    return {
+        'context': {
+            'ma_dist_50': round(ma_dist_50, 2),
+            'rsi': round(rsi, 1),
+            'ma_slope_50': round(ma_slope_50, 2)
+        }
+    }
+
+
+def check_adx_holy_grail(etf: dict, bars: pd.DataFrame, params: dict) -> dict:
+    """Check if ETF meets ADX Holy Grail criteria."""
+    entry = params['entry']
+    
+    adx = calculate_adx(bars)
+    if adx is None or adx < entry['adx_threshold']:
+        return None
+    
+    ma_dist_20 = etf.get('ma_dist_20')
+    if ma_dist_20 is None:
+        return None
+    
+    ma_dist_20_pct = abs(ma_dist_20 / 100)
+    if ma_dist_20_pct > entry['ma_touch_dist']:
+        return None
+    
+    above_ma200 = etf.get('above_ma200', False)
+    if not above_ma200:
+        return None
+    
+    rvol = etf.get('rvol_20', 1) or 1
+    
+    return {
+        'context': {
+            'adx': round(adx, 1),
+            'ma_dist_20': round(ma_dist_20, 2),
+            'rvol': round(rvol, 2)
+        }
+    }
+
+
+def check_golden_cross(etf: dict, bars: pd.DataFrame, params: dict) -> dict:
+    """Check if ETF meets Golden Cross criteria."""
+    entry = params['entry']
+    
+    ma50_above_ma200 = etf.get('ma50_above_ma200', False)
+    if not ma50_above_ma200:
+        return None
+    
+    ma_dist_50 = etf.get('ma_dist_50')
+    if ma_dist_50 is None:
+        return None
+    
+    ma_dist_50_pct = ma_dist_50 / 100
+    if ma_dist_50_pct < entry['ma_dist_50_min'] or ma_dist_50_pct > entry['ma_dist_50_max']:
+        return None
+    
+    rsi = etf.get('rsi_14')
+    if rsi is None or rsi < entry['rsi_min'] or rsi > entry['rsi_max']:
+        return None
+    
+    ma_slope_50 = etf.get('ma_slope_50', 0) or 0
+    ma_slope_200 = etf.get('ma_slope_200', 0) or 0
+    
+    return {
+        'context': {
+            'ma_dist_50': round(ma_dist_50, 2),
+            'rsi': round(rsi, 1),
+            'ma_slope_50': round(ma_slope_50, 2),
+            'ma_slope_200': round(ma_slope_200, 2)
+        }
+    }
+
+
+def check_breakout_confirmed(etf: dict, bars: pd.DataFrame, params: dict) -> dict:
+    """Check if ETF meets Confirmed Breakout criteria."""
+    entry = params['entry']
+    
+    breakout_confirmed = etf.get('breakout_confirmed_up', False)
+    if not breakout_confirmed:
+        return None
+    
+    rvol = etf.get('rvol_20')
+    if rvol is None or rvol < entry['rvol_threshold']:
+        return None
+    
+    rsi = etf.get('rsi_14')
+    if rsi is None or rsi < entry['rsi_min'] or rsi > entry['rsi_max']:
+        return None
+    
+    above_ma200 = etf.get('above_ma200', False)
+    
+    return {
+        'context': {
+            'rvol': round(rvol, 2),
+            'rsi': round(rsi, 1),
+            'above_ma200': above_ma200
+        }
+    }
+
+
+def check_vcp_squeeze(etf: dict, bars: pd.DataFrame, params: dict) -> dict:
+    """Check if ETF meets VCP Squeeze criteria."""
+    entry = params['entry']
+    
+    bb_width_pctile = etf.get('bb_width_pctile')
+    if bb_width_pctile is None or bb_width_pctile > entry['bb_width_pctile_max']:
+        return None
+    
+    rsi = etf.get('rsi_14')
+    if rsi is None or rsi < entry['rsi_min'] or rsi > entry['rsi_max']:
+        return None
+    
+    squeeze_flag = etf.get('squeeze_flag', False)
+    if not squeeze_flag:
+        return None
+    
+    rvol = etf.get('rvol_20', 1) or 1
+    
+    return {
+        'context': {
+            'bb_width_pctile': round(bb_width_pctile, 1),
+            'rsi': round(rsi, 1),
+            'rvol': round(rvol, 2)
+        }
+    }
+
+
+def check_gap_up_momentum(etf: dict, bars: pd.DataFrame, params: dict) -> dict:
+    """Check if ETF meets Gap Up Momentum criteria."""
+    entry = params['entry']
+    
+    gap_pct = etf.get('gap_pct')
+    if gap_pct is None or gap_pct < entry['gap_pct_min']:
+        return None
+    
+    rvol = etf.get('rvol_20')
+    if rvol is None or rvol < entry['rvol_min']:
+        return None
+    
+    rsi = etf.get('rsi_14', 50) or 50
+    
+    return {
+        'context': {
+            'gap_pct': round(gap_pct * 100, 2),
+            'rvol': round(rvol, 2),
+            'rsi': round(rsi, 1)
+        }
+    }
+
+
+def check_oversold_bounce(etf: dict, bars: pd.DataFrame, params: dict) -> dict:
+    """Check if ETF meets Oversold Bounce criteria."""
+    entry = params['entry']
+    
+    rsi = etf.get('rsi_14')
+    if rsi is None or rsi > entry['rsi_max']:
+        return None
+    
+    ma_dist_20 = etf.get('ma_dist_20')
+    if ma_dist_20 is None:
+        return None
+    
+    ma_dist_20_pct = ma_dist_20 / 100
+    if ma_dist_20_pct > entry['ma_dist_20_max']:
+        return None
+    
+    rvol = etf.get('rvol_20', 1) or 1
+    
+    return {
+        'context': {
+            'rsi': round(rsi, 1),
+            'ma_dist_20': round(ma_dist_20, 2),
+            'rvol': round(rvol, 2)
+        }
+    }
+
+
+def check_acceleration_turn(etf: dict, bars: pd.DataFrame, params: dict) -> dict:
+    """Check if ETF meets Acceleration Turn criteria."""
+    entry = params['entry']
+    
+    accel_turn_up = etf.get('accel_turn_up', False)
+    if not accel_turn_up:
+        return None
+    
+    rsi = etf.get('rsi_14')
+    if rsi is None or rsi < entry['rsi_min'] or rsi > entry['rsi_max']:
+        return None
+    
+    accel_z = etf.get('accel_z_20', 0) or 0
+    rvol = etf.get('rvol_20', 1) or 1
+    
+    return {
+        'context': {
+            'accel_z_20': round(accel_z, 2),
+            'rsi': round(rsi, 1),
+            'rvol': round(rvol, 2)
+        }
+    }
+
+
+# Map setup names to check functions
+SETUP_CHECKERS = {
+    'weinstein_stage2': check_weinstein_stage2,
+    'donchian_55_breakout': check_donchian_55_breakout,
+    'rs_breakout': check_rs_breakout,
+    'trend_pullback_50ma': check_trend_pullback_50ma,
+    'adx_holy_grail': check_adx_holy_grail,
+    'golden_cross': check_golden_cross,
+    'breakout_confirmed': check_breakout_confirmed,
+    'vcp_squeeze': check_vcp_squeeze,
+    'gap_up_momentum': check_gap_up_momentum,
+    'oversold_bounce': check_oversold_bounce,
+    'acceleration_turn': check_acceleration_turn
+}
+
+
+def calculate_stop_loss(etf: dict, setup_params: dict) -> float:
+    """Calculate stop loss price based on setup exit parameters."""
+    close = etf.get('close')
+    atr = etf.get('atr_14')
+    
+    if close is None or atr is None:
+        return None
+    
+    exit_params = setup_params['exit']
+    
+    if 'stop_atr_mult' in exit_params:
+        return close - (atr * exit_params['stop_atr_mult'])
+    elif 'trailing_atr_mult' in exit_params:
+        return close - (atr * exit_params['trailing_atr_mult'])
+    
+    return close - (atr * 2)
+
+
+def calculate_target(etf: dict, setup_params: dict) -> float:
+    """Calculate target price based on setup exit parameters."""
+    close = etf.get('close')
+    
+    if close is None:
+        return None
+    
+    exit_params = setup_params['exit']
+    
+    if 'target_pct' in exit_params:
+        return close * (1 + exit_params['target_pct'])
+    elif 'trailing_activation_pct' in exit_params:
+        return close * (1 + exit_params['trailing_activation_pct'])
+    
+    return close * 1.15
+
+
+def calculate_setup_strength(etf: dict, setup_name: str) -> int:
+    """Calculate setup strength score (0-100)."""
     strength = 50  # Base
     
     # RSI contribution
-    if etf.get('rsi_14') is not None:
-        rsi = etf['rsi_14']
-        if setup_name == 'rsi_mean_reversion':
+    rsi = etf.get('rsi_14')
+    if rsi is not None:
+        if setup_name == 'oversold_bounce':
             strength += min(30, int(40 - rsi))  # More oversold = stronger
         elif setup_name in ['weinstein_stage2', 'rs_breakout']:
             strength += min(15, int((rsi - 50) / 2))  # Higher RSI for breakouts
@@ -354,10 +761,9 @@ def evaluate_setup(etf: dict, setup_name: str, setup_config: dict) -> dict:
             strength += min(15, int(15 - abs(rsi - 50) / 5))  # Neutral RSI bonus
     
     # Volume contribution
-    if etf.get('rvol_20') is not None:
-        rvol = etf['rvol_20']
-        if rvol > 1.5:
-            strength += min(15, int((rvol - 1) * 10))
+    rvol = etf.get('rvol_20')
+    if rvol is not None and rvol > 1.5:
+        strength += min(15, int((rvol - 1) * 10))
     
     # Trend alignment bonus
     if etf.get('ma50_above_ma200'):
@@ -366,43 +772,64 @@ def evaluate_setup(etf: dict, setup_name: str, setup_config: dict) -> dict:
         strength += 5
     
     # Setup-specific bonuses
-    if setup_name == 'weinstein_stage2' and etf.get('ma_dist_50', 0) > 0.05:
-        strength += 10  # Strong trend
+    if setup_name == 'weinstein_stage2':
+        ma_dist_50 = etf.get('ma_dist_50', 0) or 0
+        if ma_dist_50 > 0.05:
+            strength += 10
     
-    if setup_name == 'trend_pullback_50ma' and etf.get('ma_dist_50', 0) < -0.02:
-        strength += 10  # Good pullback depth
+    if setup_name == 'trend_pullback_50ma':
+        ma_dist_50 = etf.get('ma_dist_50', 0) or 0
+        if ma_dist_50 < -0.02:
+            strength += 10
     
-    strength = min(100, max(0, strength))
+    return min(100, max(0, strength))
+
+
+def evaluate_setup(etf: dict, bars: pd.DataFrame, setup_name: str, setup_config: dict) -> dict:
+    """Evaluate if an ETF meets setup criteria."""
+    checker = SETUP_CHECKERS.get(setup_name)
+    if not checker:
+        return None
+    
+    result = checker(etf, bars, setup_config)
+    if not result:
+        return None
+    
+    close = etf.get('close')
+    stop_loss = calculate_stop_loss(etf, setup_config)
+    target = calculate_target(etf, setup_config)
+    
+    risk_reward = None
+    if close and stop_loss and target:
+        risk = close - stop_loss
+        reward = target - close
+        if risk > 0:
+            risk_reward = reward / risk
+    
+    strength = calculate_setup_strength(etf, setup_name)
     
     return {
         'asset_id': etf['asset_id'],
         'setup_name': setup_name,
-        'signal_date': None,  # Set by caller
-        'entry_price': entry_price,
+        'entry_price': close,
         'stop_loss': stop_loss,
-        'target_price': target_price,
+        'target_price': target,
         'risk_reward': risk_reward,
         'setup_strength': strength,
-        'entry_params': {k: float(v) if isinstance(v, (int, float, Decimal)) else v 
-                        for k, v in entry.items()},
+        'historical_profit_factor': setup_config.get('historical_profit_factor'),
+        'entry_params': setup_config['entry'],
         'exit_params': setup_config['exit'],
-        'context': {
-            'rsi': etf.get('rsi_14'),
-            'ma_dist_50': etf.get('ma_dist_50'),
-            'ma_dist_200': etf.get('ma_dist_200'),
-            'trend_regime': etf.get('trend_regime'),
-            'rvol': etf.get('rvol_20'),
-            'bb_width': etf.get('bb_width'),
-            'macd_histogram': etf.get('macd_histogram')
-        }
+        'context': result['context']
     }
 
 
 def process_etf(etf: dict, target_date: str) -> list:
     """Process a single ETF and return all detected setups."""
     setups = []
+    bars = get_historical_bars(etf['asset_id'], target_date)
+    
     for setup_name, setup_config in SETUPS.items():
-        result = evaluate_setup(etf, setup_name, setup_config)
+        result = evaluate_setup(etf, bars, setup_name, setup_config)
         if result:
             result['signal_date'] = target_date
             setups.append(result)
@@ -481,23 +908,26 @@ def main():
                 cur.execute("""
                     INSERT INTO setup_signals (
                         asset_id, setup_name, signal_date, entry_price, stop_loss, target_price,
-                        risk_reward, setup_strength, entry_params, exit_params, context,
+                        risk_reward, setup_strength, historical_profit_factor, entry_params, exit_params, context,
                         created_at
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                     ON CONFLICT (asset_id, setup_name, signal_date) DO UPDATE SET
                         entry_price = EXCLUDED.entry_price,
                         stop_loss = EXCLUDED.stop_loss,
                         target_price = EXCLUDED.target_price,
                         risk_reward = EXCLUDED.risk_reward,
                         setup_strength = EXCLUDED.setup_strength,
+                        historical_profit_factor = EXCLUDED.historical_profit_factor,
                         entry_params = EXCLUDED.entry_params,
                         exit_params = EXCLUDED.exit_params,
                         context = EXCLUDED.context
                 """, (
                     setup['asset_id'], setup['setup_name'], setup['signal_date'],
                     setup['entry_price'], setup['stop_loss'], setup['target_price'],
-                    setup['risk_reward'], setup['setup_strength'],
-                    str(setup['entry_params']), str(setup['exit_params']), str(setup['context'])
+                    setup['risk_reward'], setup['setup_strength'], setup['historical_profit_factor'],
+                    json.dumps(clean_for_json(setup['entry_params'])),
+                    json.dumps(clean_for_json(setup['exit_params'])),
+                    json.dumps(clean_for_json(setup['context']))
                 ))
                 inserted += 1
             except Exception as e:

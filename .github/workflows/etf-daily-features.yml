@@ -12,9 +12,9 @@
 name: ETF Daily Features
 
 on:
-  # Run after ETF OHLCV workflow completes
+  # Run after Index/Commodity/ETF OHLCV workflow completes
   workflow_run:
-    workflows: ["Index Commodity ETF Daily OHLCV"]
+    workflows: ["Index/Commodity/ETF Daily OHLCV"]
     types:
       - completed
   
