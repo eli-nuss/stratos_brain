@@ -3,9 +3,9 @@
 This document tracks all changes made to the Stratos Brain codebase with AI assistance.
 
 ## Quick Stats
-- **Total Changes:** 3
-- **Files Created:** 2
-- **Files Modified:** 2
+- **Total Changes:** 5
+- **Files Created:** 6
+- **Files Modified:** 3
 - **Status:** ✅ All deployed
 
 ---
@@ -99,9 +99,48 @@ Sub-agents can now safely query the database for analysis without risk of accide
 
 ---
 
+## Infrastructure / Backend
+
+### 2026-01-28 — ETF Feature Calculation & Scoring Pipeline
+**Status:** ✅ Deployed (GitHub Actions)  
+**Commit:** `7a43531`
+
+**Description:**
+Built complete data pipeline to enable technical analysis and ranking of ETFs (sector, index, commodity ETFs).
+
+**Components Created:**
+
+1. **jobs/etf_daily_features.py** (350 lines)
+   - Calculates 30+ technical indicators for ETFs
+   - RSI, MACD, Bollinger Bands, moving averages (20/50/200)
+   - ATR (volatility), volume metrics, trend regime detection
+   - Parallel processing with ThreadPoolExecutor
+
+2. **jobs/etf_daily_scoring.py** (180 lines)
+   - Composite scoring algorithm for ETFs
+   - Trend score (35%), Momentum (25%), Mean reversion (25%), Volume (15%)
+   - Generates weighted_score and inflection_score for ranking
+
+3. **GitHub Actions Workflows**
+   - `.github/workflows/etf-daily-features.yml` — runs daily at 7am UTC
+   - `.github/workflows/etf-daily-scoring.yml` — triggers after features complete
+
+**Prerequisites Met:**
+- ETFs already have OHLCV data (from index_commodity_etf_daily_ohlcv.py)
+- daily_features table already accepts ETF asset_ids
+- daily_asset_scores table already supports ETF universe
+
+**Impact:**
+Enables the todo item #48: "rank order all the sector ETFs based on their technical score to search for ideas." Frontend can now query `daily_asset_scores` for ETFs and display ranked lists.
+
+**Next Step:** Run the workflows to populate historical ETF features, then build the frontend ETF ranking UI.
+
+---
+
 ## Pending / Ideas
 
 - [ ] Recent Assets Quick Access — horizontal strip of last viewed assets
+- [x] ETF technical score rankings — **Backend complete, frontend pending**
 - [ ] Multi-column sorting in asset tables
 - [ ] TradingView chart integration in asset detail
 - [ ] Memo generation agent for fundamental narratives
