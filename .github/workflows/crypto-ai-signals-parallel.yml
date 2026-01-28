@@ -9,7 +9,8 @@
 # - Total wall-clock time: ~8 minutes
 #
 # TRIGGERS:
-# - Manual dispatch only (due to cost/resource usage)
+# - Schedule: Sun, Mon, Wed, Fri at 1:00 AM UTC
+# - Manual dispatch
 #
 # REQUIREMENTS:
 # - E2B_API_KEY secret
@@ -19,6 +20,10 @@
 name: Crypto AI Signals (Parallel E2B)
 
 on:
+  # Run on Sunday, Monday, Wednesday, Friday at 1:00 AM UTC
+  schedule:
+    - cron: '0 1 * * 0,1,3,5'
+  
   workflow_dispatch:
     inputs:
       target_date:
