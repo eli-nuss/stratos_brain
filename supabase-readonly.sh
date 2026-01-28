@@ -1,13 +1,19 @@
 #!/bin/bash
 # Read-only Supabase query wrapper for sub-agents
-# This script provides LIMITED read-only access to the database
-# For use by sub-agents and automated tools only
+# Uses direct PostgreSQL connection (read-only user)
 
 set -e
 
-# Read-only connection (no write permissions)
-export SUPABASE_URL="https://wfogbaipiqootjrsprde.supabase.co"
-export SUPABASE_SERVICE_KEY="sb_secret_READONLY_KEY_PLACEHOLDER"
+# Read-only database connection
+# User: readonly_user (SELECT only, no INSERT/UPDATE/DELETE)
+export DATABASE_URL="postgresql://readonly_user:generate_a_secure_password_here@db.wfogbaipiqootjrsprde.supabase.co:5432/postgres?sslmode=require"
 
-# Use the main supabase.sh wrapper with read-only credentials
-exec /home/eli/clawd/supabase.sh "$@"
+# Use psql for direct queries
+# Usage: ./supabase-readonly.sh "SELECT * FROM assets LIMIT 10"
+
+if [ $# -eq 0 ]; then
+    echo "Usage: $0 'SELECT ...'"
+    exit 1
+fi
+
+psql "$DATABASE_URL" -c "$@"
