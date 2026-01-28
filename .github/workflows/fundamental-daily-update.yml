@@ -41,7 +41,7 @@ jobs:
 
       - name: Run Daily Fundamental Score Update
         env:
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           cd scripts
 
