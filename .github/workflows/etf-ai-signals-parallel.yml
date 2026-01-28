@@ -15,13 +15,7 @@
 name: ETF AI Signals (Parallel E2B)
 
 on:
-  # Run after ETF Setup Scanner completes
-  workflow_run:
-    workflows: ["ETF Daily Setup Scanner"]
-    types:
-      - completed
-  
-  # Manual dispatch
+    # Manual dispatch
   workflow_dispatch:
     inputs:
       target_date:
