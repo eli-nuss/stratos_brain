@@ -199,15 +199,26 @@ def calculate_trend_regime(df: pd.DataFrame) -> pd.DataFrame:
     """Determine trend regime based on MA alignment."""
     df = df.copy()
     
-    conditions = [
-        (df['close'] > df['sma_50']) & (df['sma_50'] > df['sma_200']),  # Bullish
-        (df['close'] < df['sma_50']) & (df['sma_50'] < df['sma_200']),  # Bearish
-    ]
-    choices = ['bullish', 'bearish']
-    df['trend_regime'] = np.select(conditions, choices, default='sideways')
+    # Initialize with default values
+    df['trend_regime'] = 'sideways'
+    df['above_ma200'] = False
+    df['ma50_above_ma200'] = False
     
-    df['above_ma200'] = df['close'] > df['sma_200']
-    df['ma50_above_ma200'] = df['sma_50'] > df['sma_200']
+    # Only calculate if we have valid SMA data
+    valid_sma = df['sma_50'].notna() & df['sma_200'].notna()
+    
+    if valid_sma.any():
+        # Bullish: price > 50MA > 200MA
+        bullish = (df['close'] > df['sma_50']) & (df['sma_50'] > df['sma_200'])
+        df.loc[bullish & valid_sma, 'trend_regime'] = 'bullish'
+        
+        # Bearish: price < 50MA < 200MA
+        bearish = (df['close'] < df['sma_50']) & (df['sma_50'] < df['sma_200'])
+        df.loc[bearish & valid_sma, 'trend_regime'] = 'bearish'
+        
+        # Boolean flags
+        df.loc[valid_sma, 'above_ma200'] = df.loc[valid_sma, 'close'] > df.loc[valid_sma, 'sma_200']
+        df.loc[valid_sma, 'ma50_above_ma200'] = df.loc[valid_sma, 'sma_50'] > df.loc[valid_sma, 'sma_200']
     
     return df
 
@@ -239,6 +250,16 @@ def build_record(row: pd.Series, asset_id: int, target_date: str) -> tuple:
         except:
             return None
     
+    def safe_bool(val):
+        if pd.isna(val) or val is None:
+            return False
+        return bool(val)
+    
+    # Get trend_regime with proper default
+    trend_regime = row.get('trend_regime')
+    if pd.isna(trend_regime) or trend_regime is None:
+        trend_regime = 'sideways'
+    
     return (
         asset_id,
         target_date,
@@ -257,7 +278,7 @@ def build_record(row: pd.Series, asset_id: int, target_date: str) -> tuple:
         safe_float(row.get('ma_slope_20')),
         safe_float(row.get('ma_slope_50')),
         safe_float(row.get('ma_slope_200')),
-        row.get('trend_regime', 'unknown'),
+        trend_regime,
         safe_float(row.get('return_5d')),  # roc_5
         None,  # roc_10
         None,  # roc_20
@@ -273,8 +294,8 @@ def build_record(row: pd.Series, asset_id: int, target_date: str) -> tuple:
         safe_float(row.get('sma_20')),
         safe_float(row.get('sma_50')),
         safe_float(row.get('sma_200')),
-        bool(row.get('above_ma200', False)),
-        bool(row.get('ma50_above_ma200', False))
+        safe_bool(row.get('above_ma200')),
+        safe_bool(row.get('ma50_above_ma200'))
     )
 
 
