@@ -14,8 +14,12 @@ import {
   CompanyChat,
 } from '@/hooks/useCompanyChats';
 import { useAuth } from '@/contexts/AuthContext';
+import { getJsonApiHeaders } from '@/lib/api-config';
 import { CompanySidePanel } from './CompanySidePanel';
 import { BaseChatInterface, SuggestedQuestion, SummaryResult } from './chat';
+
+// Company Chat API base URL
+const COMPANY_CHAT_API_BASE = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/company-chat-api';
 
 interface CompanyChatInterfaceProps {
   chat: CompanyChat;
@@ -96,12 +100,9 @@ export function CompanyChatInterfaceNew({ chat, onRefresh }: CompanyChatInterfac
   };
 
   const handleSummarize = async (): Promise<SummaryResult | null> => {
-    const response = await fetch(`/api/company-chat-api/chats/${chat.chat_id}/summarize`, {
+    const response = await fetch(`${COMPANY_CHAT_API_BASE}/chats/${chat.chat_id}/summarize`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-user-id': userId || '',
-      },
+      headers: getJsonApiHeaders(),
     });
     
     if (!response.ok) {

@@ -2,9 +2,22 @@ import useSWR from 'swr';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { 
+  GLOBAL_CHAT_API_BASE, 
+  getApiHeaders, 
+  getJsonApiHeaders,
+  getCachedUserId,
+  getCachedAccessToken,
+  SUPABASE_ANON_KEY
+} from '@/lib/api-config';
 
-// Helper to get user ID for API calls
+// Helper to get user ID for API calls (fallback to localStorage)
 export function getUserId(): string | null {
+  // First try the centralized cache
+  const cachedId = getCachedUserId();
+  if (cachedId) return cachedId;
+  
+  // Fallback to localStorage
   try {
     const storageKey = Object.keys(localStorage).find(key => 
       key.startsWith('sb-') && key.endsWith('-auth-token')
@@ -19,8 +32,13 @@ export function getUserId(): string | null {
   return null;
 }
 
-// Helper to get access token for API calls
+// Helper to get access token for API calls (fallback to localStorage)
 export function getAccessToken(): string | null {
+  // First try the centralized cache
+  const cachedToken = getCachedAccessToken();
+  if (cachedToken && cachedToken !== SUPABASE_ANON_KEY) return cachedToken;
+  
+  // Fallback to localStorage
   try {
     const storageKey = Object.keys(localStorage).find(key => 
       key.startsWith('sb-') && key.endsWith('-auth-token')
@@ -35,16 +53,15 @@ export function getAccessToken(): string | null {
   return null;
 }
 
-// Create a fetcher that includes user_id header and authorization
-const createFetcher = (userId: string | null, accessToken: string | null) => async (url: string) => {
-  const headers: HeadersInit = {};
-  if (userId) {
-    headers['x-user-id'] = userId;
+// Create a fetcher that uses centralized headers and direct Supabase URL
+const createFetcher = () => async (url: string) => {
+  // Convert /api paths to direct Supabase URLs
+  let fullUrl = url;
+  if (url.startsWith('/api/global-chat-api')) {
+    fullUrl = url.replace('/api/global-chat-api', GLOBAL_CHAT_API_BASE);
   }
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
-  }
-  const res = await fetch(url, { headers });
+  
+  const res = await fetch(fullUrl, { headers: getApiHeaders() });
   return res.json();
 };
 
@@ -123,7 +140,6 @@ export interface BrainJob {
 export function useBrainChats() {
   const { user, session, loading: authLoading } = useAuth();
   const userId = user?.id || null;
-  const accessToken = session?.access_token || null;
   
   // Also check localStorage for auth token as a fallback
   // This helps when the auth context hasn't fully propagated yet
@@ -136,13 +152,9 @@ export function useBrainChats() {
   const isAuthenticated = userId !== null || (hasLocalStorageAuth && !authLoading);
   const shouldFetch = !authLoading && isAuthenticated;
   
-  // If we have localStorage auth but no userId yet, try to get it from localStorage
-  const effectiveUserId = userId || getUserId();
-  const effectiveAccessToken = accessToken || getAccessToken();
-  
   const { data, error, isLoading, mutate } = useSWR<{ chats: BrainChat[] }>(
     shouldFetch ? '/api/global-chat-api/chats' : null,
-    createFetcher(effectiveUserId, effectiveAccessToken),
+    createFetcher(),
     {
       refreshInterval: 30000, // Refresh every 30 seconds
     }
@@ -161,16 +173,12 @@ export function useBrainChats() {
 
 // Hook to get messages for a chat
 export function useBrainMessages(chatId: string | null, limit = 50) {
-  const { user, session } = useAuth();
-  const userId = user?.id || null;
-  const accessToken = session?.access_token || null;
-  
   const { data, error, isLoading, mutate } = useSWR<{
     messages: BrainMessage[];
     total: number;
   }>(
     chatId ? `/api/global-chat-api/chats/${chatId}/messages?limit=${limit}` : null,
-    createFetcher(userId, accessToken),
+    createFetcher(),
     {
       refreshInterval: 0, // Don't auto-refresh, we'll manually update
     }
@@ -358,27 +366,14 @@ export function useSendBrainMessage(chatId: string | null) {
     setIsRecovering(false);
     requestStartTimeRef.current = Date.now();
 
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
-    
-    const userId = getUserId();
-    if (userId) {
-      headers['x-user-id'] = userId;
-    }
-    
-    const accessToken = getAccessToken();
-    if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
-    }
-
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 120000);
 
     try {
-      const response = await fetch(`/api/global-chat-api/chats/${chatId}/messages`, {
+      // Use direct Supabase URL with proper headers
+      const response = await fetch(`${GLOBAL_CHAT_API_BASE}/chats/${chatId}/messages`, {
         method: 'POST',
-        headers,
+        headers: getJsonApiHeaders(),
         body: JSON.stringify({ content, model: model || 'flash' }),
         signal: controller.signal,
       });
@@ -470,23 +465,10 @@ export function useSendBrainMessage(chatId: string | null) {
 }
 
 // Create a new brain chat
-export async function createBrainChat(title?: string, userId?: string | null): Promise<BrainChat> {
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-  };
-  
-  if (userId) {
-    headers['x-user-id'] = userId;
-  }
-  
-  const accessToken = getAccessToken();
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
-  }
-
-  const response = await fetch('/api/global-chat-api/chats', {
+export async function createBrainChat(title?: string): Promise<BrainChat> {
+  const response = await fetch(`${GLOBAL_CHAT_API_BASE}/chats`, {
     method: 'POST',
-    headers,
+    headers: getJsonApiHeaders(),
     body: JSON.stringify({ title: title || 'New Chat' }),
   });
 
@@ -498,21 +480,10 @@ export async function createBrainChat(title?: string, userId?: string | null): P
 }
 
 // Delete a brain chat
-export async function deleteBrainChat(chatId: string, userId?: string | null): Promise<void> {
-  const headers: HeadersInit = {};
-  
-  if (userId) {
-    headers['x-user-id'] = userId;
-  }
-  
-  const accessToken = getAccessToken();
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
-  }
-
-  const response = await fetch(`/api/global-chat-api/chats/${chatId}`, {
+export async function deleteBrainChat(chatId: string): Promise<void> {
+  const response = await fetch(`${GLOBAL_CHAT_API_BASE}/chats/${chatId}`, {
     method: 'DELETE',
-    headers,
+    headers: getApiHeaders(),
   });
 
   if (!response.ok) {
@@ -521,21 +492,10 @@ export async function deleteBrainChat(chatId: string, userId?: string | null): P
 }
 
 // Clear messages in a brain chat
-export async function clearBrainMessages(chatId: string, userId?: string | null): Promise<void> {
-  const headers: HeadersInit = {};
-  
-  if (userId) {
-    headers['x-user-id'] = userId;
-  }
-  
-  const accessToken = getAccessToken();
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
-  }
-
-  const response = await fetch(`/api/global-chat-api/chats/${chatId}/messages`, {
+export async function clearBrainMessages(chatId: string): Promise<void> {
+  const response = await fetch(`${GLOBAL_CHAT_API_BASE}/chats/${chatId}/messages`, {
     method: 'DELETE',
-    headers,
+    headers: getApiHeaders(),
   });
 
   if (!response.ok) {

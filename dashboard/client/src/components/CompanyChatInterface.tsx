@@ -10,11 +10,15 @@ import {
 } from '@/hooks/useCompanyChats';
 // useStreamingChat removed - now using broadcast streaming via useSendMessage
 import { useAuth } from '@/contexts/AuthContext';
+import { getJsonApiHeaders } from '@/lib/api-config';
 import { ThinkingSection } from './ThinkingSection';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { CompanySidePanel } from './CompanySidePanel';
 import { GenerativeUIRenderer } from './GenerativeUIRenderer';
 import { cn } from '@/lib/utils';
+
+// Company Chat API base URL
+const COMPANY_CHAT_API_BASE = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/company-chat-api';
 
 interface CompanyChatInterfaceProps {
   chat: CompanyChat;
@@ -561,12 +565,9 @@ export function CompanyChatInterface({ chat, onRefresh }: CompanyChatInterfacePr
     setSummaryResult(null);
     
     try {
-      const response = await fetch(`/api/company-chat-api/chats/${chat.chat_id}/summarize`, {
+      const response = await fetch(`${COMPANY_CHAT_API_BASE}/chats/${chat.chat_id}/summarize`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': userId || '',
-        },
+        headers: getJsonApiHeaders(),
       });
       
       if (!response.ok) {

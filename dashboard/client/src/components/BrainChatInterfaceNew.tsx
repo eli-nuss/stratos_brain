@@ -7,6 +7,7 @@ import {
   BrainChat,
 } from '@/hooks/useBrainChats';
 import { useAuth } from '@/contexts/AuthContext';
+import { GLOBAL_CHAT_API_BASE, getJsonApiHeaders } from '@/lib/api-config';
 import { BaseChatInterface, SuggestedQuestion, SummaryResult } from './chat';
 
 interface BrainChatInterfaceProps {
@@ -49,16 +50,13 @@ export function BrainChatInterfaceNew({ chat, onRefresh }: BrainChatInterfacePro
 
   // Handlers
   const handleClearChat = async () => {
-    await clearBrainMessages(chat.chat_id, userId);
+    await clearBrainMessages(chat.chat_id);
   };
 
   const handleSummarize = async (): Promise<SummaryResult | null> => {
-    const response = await fetch(`/api/global-chat-api/chats/${chat.chat_id}/summarize`, {
+    const response = await fetch(`${GLOBAL_CHAT_API_BASE}/chats/${chat.chat_id}/summarize`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-user-id': userId || '',
-      },
+      headers: getJsonApiHeaders(),
     });
     
     if (!response.ok) {

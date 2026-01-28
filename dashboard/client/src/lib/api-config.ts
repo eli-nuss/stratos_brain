@@ -25,6 +25,9 @@ export const DAILY_BRIEF_API_BASE = 'https://wfogbaipiqootjrsprde.supabase.co/fu
 // Daily Brief V3 API URL
 export const DAILY_BRIEF_V3_API = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/daily-brief-api-v3';
 
+// Global Chat API base URL (Brain Chat)
+export const GLOBAL_CHAT_API_BASE = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/global-chat-api';
+
 // API URL mapping
 const API_URLS: Record<string, string> = {
   DAILY_BRIEF_V3: DAILY_BRIEF_V3_API,
@@ -272,7 +275,9 @@ export function getJsonApiHeaders(): HeadersInit {
 export async function apiFetcher<T = unknown>(url: string): Promise<T> {
   // Convert /api paths to direct Supabase URLs
   let fullUrl = url;
-  if (url.startsWith('/api/daily-brief')) {
+  if (url.startsWith('/api/global-chat-api')) {
+    fullUrl = url.replace('/api/global-chat-api', GLOBAL_CHAT_API_BASE);
+  } else if (url.startsWith('/api/daily-brief')) {
     fullUrl = url.replace('/api/daily-brief', DAILY_BRIEF_API_BASE);
   } else if (url.startsWith('/api/dashboard')) {
     fullUrl = url.replace('/api/dashboard', API_BASE + '/dashboard');
@@ -381,7 +386,9 @@ export const API_HEADERS = getApiHeaders();
 export async function apiPost<T = unknown>(url: string, body: unknown): Promise<T> {
   // Convert /api paths to direct Supabase URLs
   let fullUrl = url;
-  if (url.startsWith('/api/daily-brief')) {
+  if (url.startsWith('/api/global-chat-api')) {
+    fullUrl = url.replace('/api/global-chat-api', GLOBAL_CHAT_API_BASE);
+  } else if (url.startsWith('/api/daily-brief')) {
     fullUrl = url.replace('/api/daily-brief', DAILY_BRIEF_API_BASE);
   } else if (url.startsWith('/api/dashboard')) {
     fullUrl = url.replace('/api/dashboard', API_BASE + '/dashboard');
@@ -422,7 +429,9 @@ export async function apiPost<T = unknown>(url: string, body: unknown): Promise<
 export async function apiPut<T = unknown>(url: string, body: unknown): Promise<T> {
   // Convert /api paths to direct Supabase URLs
   let fullUrl = url;
-  if (url.startsWith('/api/daily-brief')) {
+  if (url.startsWith('/api/global-chat-api')) {
+    fullUrl = url.replace('/api/global-chat-api', GLOBAL_CHAT_API_BASE);
+  } else if (url.startsWith('/api/daily-brief')) {
     fullUrl = url.replace('/api/daily-brief', DAILY_BRIEF_API_BASE);
   } else if (url.startsWith('/api/dashboard')) {
     fullUrl = url.replace('/api/dashboard', API_BASE + '/dashboard');
@@ -463,7 +472,9 @@ export async function apiPut<T = unknown>(url: string, body: unknown): Promise<T
 export async function apiPatch<T = unknown>(url: string, body: unknown): Promise<T> {
   // Convert /api paths to direct Supabase URLs
   let fullUrl = url;
-  if (url.startsWith('/api/daily-brief')) {
+  if (url.startsWith('/api/global-chat-api')) {
+    fullUrl = url.replace('/api/global-chat-api', GLOBAL_CHAT_API_BASE);
+  } else if (url.startsWith('/api/daily-brief')) {
     fullUrl = url.replace('/api/daily-brief', DAILY_BRIEF_API_BASE);
   } else if (url.startsWith('/api/dashboard')) {
     fullUrl = url.replace('/api/dashboard', API_BASE + '/dashboard');
@@ -504,7 +515,9 @@ export async function apiPatch<T = unknown>(url: string, body: unknown): Promise
 export async function apiDelete<T = unknown>(url: string): Promise<T> {
   // Convert /api paths to direct Supabase URLs
   let fullUrl = url;
-  if (url.startsWith('/api/daily-brief')) {
+  if (url.startsWith('/api/global-chat-api')) {
+    fullUrl = url.replace('/api/global-chat-api', GLOBAL_CHAT_API_BASE);
+  } else if (url.startsWith('/api/daily-brief')) {
     fullUrl = url.replace('/api/daily-brief', DAILY_BRIEF_API_BASE);
   } else if (url.startsWith('/api/dashboard')) {
     fullUrl = url.replace('/api/dashboard', API_BASE + '/dashboard');

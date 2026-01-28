@@ -8,6 +8,7 @@ import {
   BrainChat,
 } from '@/hooks/useBrainChats';
 import { useAuth } from '@/contexts/AuthContext';
+import { GLOBAL_CHAT_API_BASE, getJsonApiHeaders } from '@/lib/api-config';
 import { ThinkingSection } from './ThinkingSection';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { GenerativeUIRenderer } from './GenerativeUIRenderer';
@@ -361,7 +362,7 @@ export function BrainChatInterface({ chat, onRefresh }: BrainChatInterfaceProps)
     
     setIsClearingChat(true);
     try {
-      await clearBrainMessages(chat.chat_id, userId);
+      await clearBrainMessages(chat.chat_id);
       await refreshMessages();
       onRefresh?.();
     } catch (err) {
@@ -378,12 +379,9 @@ export function BrainChatInterface({ chat, onRefresh }: BrainChatInterfaceProps)
     setSummaryResult(null);
     
     try {
-      const response = await fetch(`/api/global-chat-api/chats/${chat.chat_id}/summarize`, {
+      const response = await fetch(`${GLOBAL_CHAT_API_BASE}/chats/${chat.chat_id}/summarize`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': userId || '',
-        },
+        headers: getJsonApiHeaders(),
       });
       
       if (!response.ok) {
