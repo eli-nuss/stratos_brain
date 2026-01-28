@@ -74,6 +74,26 @@ Better UX — non-intrusive notifications instead of blocking alerts.
 
 ---
 
+## Security Improvements
+
+### 2026-01-28 — Read-Only Database Access for Sub-Agents
+**Status:** ⚠️ Setup Required  
+**Purpose:** Enable sub-agents to query Supabase without risk of data destruction
+
+**Setup Steps:**
+1. Run SQL in Supabase to create read-only role and user
+2. Generate read-only service key or connection string
+3. Update placeholder in `.env.subagent` and `supabase-readonly.sh`
+
+**Files Created:**
+- `.env.subagent.template` — Template for sub-agent environment variables (read-only)
+- `supabase-readonly.sh` — Read-only query wrapper script
+
+**Impact:**
+Sub-agents can now safely query the database for analysis without risk of accidental deletions or modifications.
+
+---
+
 ## Pending / Ideas
 
 - [ ] Recent Assets Quick Access — horizontal strip of last viewed assets
