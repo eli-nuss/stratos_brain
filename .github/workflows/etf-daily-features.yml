@@ -18,10 +18,6 @@ on:
     types:
       - completed
   
-  # Scheduled run: Daily at 06:30 UTC (after OHLCV at 06:00)
-  schedule:
-    - cron: '30 6 * * *'
-  
   # Manual trigger
   workflow_dispatch:
     inputs:
