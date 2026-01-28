@@ -79,6 +79,24 @@ def get_stale_etfs(target_date: str) -> list:
         return cur.fetchall()
 
 
+def get_all_etfs(target_date: str) -> list:
+    """Get all active ETFs with bars for target_date (for force reprocessing)."""
+    conn = get_connection()
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute("""
+            SELECT a.asset_id, a.symbol, a.asset_type
+            FROM assets a
+            WHERE a.asset_type = %s
+              AND a.is_active = true
+              AND EXISTS (
+                  SELECT 1 FROM daily_bars db 
+                  WHERE db.asset_id = a.asset_id AND db.date = %s
+              )
+            ORDER BY a.asset_id
+        """, (ASSET_TYPE, target_date))
+        return cur.fetchall()
+
+
 def get_bars_for_etf(etf_id: int, end_date: str, lookback_days: int = 300) -> pd.DataFrame:
     """Fetch daily bars for an ETF directly from PostgreSQL."""
     conn = get_connection()
@@ -313,6 +331,7 @@ def main():
     parser.add_argument('--workers', type=int, default=8, help='Number of parallel workers')
     parser.add_argument('--batch-size', type=int, default=50, help='Batch size for DB writes')
     parser.add_argument('--limit', type=int, help='Limit number of ETFs (for testing)')
+    parser.add_argument('--force', action='store_true', help='Force reprocess all ETFs (ignore existing features)')
     args = parser.parse_args()
     
     # Determine target date
@@ -325,11 +344,17 @@ def main():
     logger.info("ETF DAILY FEATURES CALCULATION")
     logger.info(f"Target Date: {target_date}")
     logger.info(f"Workers: {args.workers}")
+    if args.force:
+        logger.info("FORCE MODE: Reprocessing all ETFs")
     logger.info("=" * 60)
     
-    # Get stale ETFs
-    logger.info("Fetching ETF assets needing features...")
-    etfs = get_stale_etfs(target_date)
+    # Get ETFs to process
+    if args.force:
+        logger.info("Fetching all ETF assets (force mode)...")
+        etfs = get_all_etfs(target_date)
+    else:
+        logger.info("Fetching ETF assets needing features...")
+        etfs = get_stale_etfs(target_date)
     
     if args.limit:
         etfs = etfs[:args.limit]
