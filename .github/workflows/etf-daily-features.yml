@@ -33,6 +33,11 @@ on:
         description: 'Limit number of ETFs (for testing). Leave empty for all.'
         required: false
         type: string
+      force:
+        description: 'Force reprocess all ETFs (ignore existing features)'
+        required: false
+        type: boolean
+        default: false
 
 env:
   PYTHON_VERSION: '3.11'
@@ -75,6 +80,9 @@ jobs:
           ARGS="--date ${{ steps.date.outputs.date }}"
           if [ -n "${{ github.event.inputs.limit }}" ]; then
             ARGS="$ARGS --limit ${{ github.event.inputs.limit }}"
+          fi
+          if [ "${{ github.event.inputs.force }}" == "true" ]; then
+            ARGS="$ARGS --force"
           fi
           echo "args=$ARGS" >> $GITHUB_OUTPUT
       
