@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-ETF Daily Features Calculation Job
-==================================
-Calculates technical features for all ETF assets for a given date.
-Designed to run after ETF OHLCV data is available.
+ETF/Index/Commodity Daily Features Calculation Job
+==================================================
+Calculates technical features for all ETF, Index, and Commodity assets for a given date.
+Designed to run after OHLCV data is available.
 Matches the equity_daily_features.py pattern.
 
 Usage:
@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 # Constants
 FEATURE_VERSION = "2.0"
-ASSET_TYPE = 'etf'
+ASSET_TYPES = ('etf', 'index', 'commodity')
 
 # Thread-local storage for connections
 thread_local = threading.local()
@@ -57,14 +57,14 @@ def get_connection():
     return thread_local.conn
 
 
-def get_stale_etfs(target_date: str) -> list:
-    """Get ETF assets that need feature calculation for target_date."""
+def get_stale_assets(target_date: str) -> list:
+    """Get ETF/Index/Commodity assets that need feature calculation for target_date."""
     conn = get_connection()
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute("""
             SELECT a.asset_id, a.symbol, a.asset_type
             FROM assets a
-            WHERE a.asset_type = %s
+            WHERE a.asset_type = ANY(%s)
               AND a.is_active = true
               AND NOT EXISTS (
                   SELECT 1 FROM daily_features df 
@@ -74,31 +74,31 @@ def get_stale_etfs(target_date: str) -> list:
                   SELECT 1 FROM daily_bars db 
                   WHERE db.asset_id = a.asset_id AND db.date = %s
               )
-            ORDER BY a.asset_id
-        """, (ASSET_TYPE, target_date, target_date))
+            ORDER BY a.asset_type, a.asset_id
+        """, (list(ASSET_TYPES), target_date, target_date))
         return cur.fetchall()
 
 
-def get_all_etfs(target_date: str) -> list:
-    """Get all active ETFs with bars for target_date (for force reprocessing)."""
+def get_all_assets(target_date: str) -> list:
+    """Get all active ETF/Index/Commodity assets with bars for target_date (for force reprocessing)."""
     conn = get_connection()
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute("""
             SELECT a.asset_id, a.symbol, a.asset_type
             FROM assets a
-            WHERE a.asset_type = %s
+            WHERE a.asset_type = ANY(%s)
               AND a.is_active = true
               AND EXISTS (
                   SELECT 1 FROM daily_bars db 
                   WHERE db.asset_id = a.asset_id AND db.date = %s
               )
-            ORDER BY a.asset_id
-        """, (ASSET_TYPE, target_date))
+            ORDER BY a.asset_type, a.asset_id
+        """, (list(ASSET_TYPES), target_date))
         return cur.fetchall()
 
 
-def get_bars_for_etf(etf_id: int, end_date: str, lookback_days: int = 300) -> pd.DataFrame:
-    """Fetch daily bars for an ETF directly from PostgreSQL."""
+def get_bars_for_asset(asset_id: int, end_date: str, lookback_days: int = 300) -> pd.DataFrame:
+    """Fetch daily bars for an asset directly from PostgreSQL."""
     conn = get_connection()
     start_date = (datetime.strptime(end_date, '%Y-%m-%d') - timedelta(days=lookback_days)).strftime('%Y-%m-%d')
     
@@ -108,7 +108,7 @@ def get_bars_for_etf(etf_id: int, end_date: str, lookback_days: int = 300) -> pd
             FROM daily_bars
             WHERE asset_id = %s AND date >= %s AND date <= %s
             ORDER BY date ASC
-        """, (etf_id, start_date, end_date))
+        """, (asset_id, start_date, end_date))
         rows = cur.fetchall()
     
     if not rows:
@@ -244,7 +244,7 @@ def build_record(row: pd.Series, asset_id: int, target_date: str) -> dict:
         'asset_id': asset_id,
         'date': target_date,
         'feature_version': FEATURE_VERSION,
-        'calc_version': 'etf_v1',
+        'calc_version': 'etf_index_commodity_v1',
     }
     
     for col in feature_cols:
@@ -284,28 +284,28 @@ def write_features_batch(records: list) -> int:
     return len(records)
 
 
-def process_etf(etf: dict, target_date: str) -> dict:
-    """Process a single ETF and return result dict."""
+def process_asset(asset: dict, target_date: str) -> dict:
+    """Process a single asset and return result dict."""
     try:
-        df = get_bars_for_etf(etf['asset_id'], target_date)
+        df = get_bars_for_asset(asset['asset_id'], target_date)
         if len(df) < 50:  # Need at least 50 days for 50MA
-            return {'status': 'skipped', 'reason': 'insufficient_data', 'asset_id': etf['asset_id']}
+            return {'status': 'skipped', 'reason': 'insufficient_data', 'asset_id': asset['asset_id']}
         
         df = compute_features(df)
         if df.empty:
-            return {'status': 'error', 'error': 'feature_calculation_failed', 'asset_id': etf['asset_id']}
+            return {'status': 'error', 'error': 'feature_calculation_failed', 'asset_id': asset['asset_id']}
         
         # Get the target date row
         target_row = df[df['date'] == pd.to_datetime(target_date)]
         if target_row.empty:
-            return {'status': 'skipped', 'reason': 'no_data_for_target_date', 'asset_id': etf['asset_id']}
+            return {'status': 'skipped', 'reason': 'no_data_for_target_date', 'asset_id': asset['asset_id']}
         
-        record = build_record(target_row.iloc[0], etf['asset_id'], target_date)
+        record = build_record(target_row.iloc[0], asset['asset_id'], target_date)
         
-        return {'status': 'success', 'record': record, 'asset_id': etf['asset_id'], 'symbol': etf['symbol']}
+        return {'status': 'success', 'record': record, 'asset_id': asset['asset_id'], 'symbol': asset['symbol'], 'asset_type': asset['asset_type']}
         
     except Exception as e:
-        return {'status': 'error', 'error': str(e), 'asset_id': etf['asset_id']}
+        return {'status': 'error', 'error': str(e), 'asset_id': asset['asset_id']}
 
 
 def update_latest_date(target_date: str):
@@ -313,25 +313,27 @@ def update_latest_date(target_date: str):
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("""
-                INSERT INTO latest_dates (asset_type, latest_date, updated_at)
-                VALUES ('etf', %s, NOW())
-                ON CONFLICT (asset_type) 
-                DO UPDATE SET latest_date = EXCLUDED.latest_date, updated_at = NOW()
-                WHERE latest_dates.latest_date < EXCLUDED.latest_date
-            """, (target_date,))
-            logger.info(f"Updated latest_dates for etf to {target_date}")
+            # Update for each asset type
+            for asset_type in ASSET_TYPES:
+                cur.execute("""
+                    INSERT INTO latest_dates (asset_type, latest_date, updated_at)
+                    VALUES (%s, %s, NOW())
+                    ON CONFLICT (asset_type) 
+                    DO UPDATE SET latest_date = EXCLUDED.latest_date, updated_at = NOW()
+                    WHERE latest_dates.latest_date < EXCLUDED.latest_date
+                """, (asset_type, target_date))
+            logger.info(f"Updated latest_dates for {ASSET_TYPES} to {target_date}")
     except Exception as e:
         logger.warning(f"Failed to update latest_dates: {e}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description='ETF Daily Features Calculation')
+    parser = argparse.ArgumentParser(description='ETF/Index/Commodity Daily Features Calculation')
     parser.add_argument('--date', type=str, help='Target date (YYYY-MM-DD). Defaults to today.')
     parser.add_argument('--workers', type=int, default=8, help='Number of parallel workers')
     parser.add_argument('--batch-size', type=int, default=50, help='Batch size for DB writes')
-    parser.add_argument('--limit', type=int, help='Limit number of ETFs (for testing)')
-    parser.add_argument('--force', action='store_true', help='Force reprocess all ETFs (ignore existing features)')
+    parser.add_argument('--limit', type=int, help='Limit number of assets (for testing)')
+    parser.add_argument('--force', action='store_true', help='Force reprocess all assets (ignore existing features)')
     args = parser.parse_args()
     
     # Determine target date
@@ -341,29 +343,30 @@ def main():
         target_date = date.today().isoformat()
     
     logger.info("=" * 60)
-    logger.info("ETF DAILY FEATURES CALCULATION")
+    logger.info("ETF/INDEX/COMMODITY DAILY FEATURES CALCULATION")
+    logger.info(f"Asset Types: {ASSET_TYPES}")
     logger.info(f"Target Date: {target_date}")
     logger.info(f"Workers: {args.workers}")
     if args.force:
-        logger.info("FORCE MODE: Reprocessing all ETFs")
+        logger.info("FORCE MODE: Reprocessing all assets")
     logger.info("=" * 60)
     
-    # Get ETFs to process
+    # Get assets to process
     if args.force:
-        logger.info("Fetching all ETF assets (force mode)...")
-        etfs = get_all_etfs(target_date)
+        logger.info("Fetching all ETF/Index/Commodity assets (force mode)...")
+        assets = get_all_assets(target_date)
     else:
-        logger.info("Fetching ETF assets needing features...")
-        etfs = get_stale_etfs(target_date)
+        logger.info("Fetching ETF/Index/Commodity assets needing features...")
+        assets = get_stale_assets(target_date)
     
     if args.limit:
-        etfs = etfs[:args.limit]
+        assets = assets[:args.limit]
     
-    total = len(etfs)
-    logger.info(f"Found {total} ETFs needing features for {target_date}")
+    total = len(assets)
+    logger.info(f"Found {total} assets needing features for {target_date}")
     
     if total == 0:
-        logger.info("No ETFs to process - all features up to date!")
+        logger.info("No assets to process - all features up to date!")
         update_latest_date(target_date)
         return
     
@@ -376,8 +379,8 @@ def main():
     batch = []
     
     with ThreadPoolExecutor(max_workers=args.workers) as executor:
-        futures = {executor.submit(process_etf, etf, target_date): etf 
-                   for etf in etfs}
+        futures = {executor.submit(process_asset, asset, target_date): asset 
+                   for asset in assets}
         
         for future in as_completed(futures):
             result = future.result()
@@ -402,7 +405,7 @@ def main():
             else:
                 errors += 1
                 if errors <= 5:
-                    logger.warning(f"Error processing ETF {result['asset_id']}: {result.get('error', 'unknown')}")
+                    logger.warning(f"Error processing asset {result['asset_id']}: {result.get('error', 'unknown')}")
     
     # Write remaining batch
     if batch:
@@ -415,7 +418,7 @@ def main():
     # Summary
     elapsed = time.time() - start_time
     logger.info("=" * 60)
-    logger.info("ETF FEATURES CALCULATION COMPLETE")
+    logger.info("ETF/INDEX/COMMODITY FEATURES CALCULATION COMPLETE")
     logger.info(f"Total: {total} | Success: {success} | Skipped: {skipped} | Errors: {errors}")
     logger.info(f"Time: {elapsed:.1f}s ({elapsed/60:.1f} min)")
     logger.info("=" * 60)

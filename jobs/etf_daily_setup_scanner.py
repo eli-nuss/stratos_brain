@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-ETF Daily Setup Scanner
-=======================
-Scans ETFs for trading setups based on optimized parameters.
+ETF/Index/Commodity Daily Setup Scanner
+=======================================
+Scans ETFs, Indices, and Commodities for trading setups based on optimized parameters.
 Aligned with crypto/equity setup scanner - uses same 11 setups.
 
 Usage:
@@ -38,6 +38,9 @@ logger = logging.getLogger(__name__)
 DATABASE_URL = os.environ.get('DATABASE_URL')
 thread_local = threading.local()
 
+# Asset types to process
+ASSET_TYPES = ('etf', 'index', 'commodity')
+
 
 def get_connection():
     """Get thread-local database connection."""
@@ -47,8 +50,8 @@ def get_connection():
     return thread_local.conn
 
 
-# ETF setup definitions - aligned with crypto/equity scanner
-# Same 11 setups with ETF-optimized parameters
+# ETF/Index/Commodity setup definitions - aligned with crypto/equity scanner
+# Same 11 setups with optimized parameters
 
 SETUPS = {
     # Position Trading Setups (60-252 day holds)
@@ -243,8 +246,8 @@ SETUPS = {
 }
 
 
-def get_etfs_with_features(target_date: str) -> list:
-    """Get all ETFs with features for target date."""
+def get_assets_with_features(target_date: str) -> list:
+    """Get all ETF/Index/Commodity assets with features for target date."""
     conn = get_connection()
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute("""
@@ -252,6 +255,7 @@ def get_etfs_with_features(target_date: str) -> list:
                 df.asset_id,
                 a.symbol,
                 a.name,
+                a.asset_type,
                 df.close,
                 df.open,
                 df.high,
@@ -284,9 +288,9 @@ def get_etfs_with_features(target_date: str) -> list:
             FROM daily_features df
             JOIN assets a ON df.asset_id = a.asset_id
             WHERE df.date = %s
-              AND a.asset_type = 'etf'
+              AND a.asset_type = ANY(%s)
               AND a.is_active = true
-        """, (target_date,))
+        """, (target_date, list(ASSET_TYPES)))
         return cur.fetchall()
 
 
@@ -823,7 +827,7 @@ def evaluate_setup(etf: dict, bars: pd.DataFrame, setup_name: str, setup_config:
     }
 
 
-def process_etf(etf: dict, target_date: str) -> list:
+def process_asset(etf: dict, target_date: str) -> list:
     """Process a single ETF and return all detected setups."""
     setups = []
     bars = get_historical_bars(etf['asset_id'], target_date)
@@ -837,7 +841,7 @@ def process_etf(etf: dict, target_date: str) -> list:
 
 
 def main():
-    parser = argparse.ArgumentParser(description='ETF Daily Setup Scanner')
+    parser = argparse.ArgumentParser(description='ETF/Index/Commodity Daily Setup Scanner')
     parser.add_argument('--date', type=str, help='Target date (YYYY-MM-DD)')
     parser.add_argument('--workers', type=int, default=8, help='Number of parallel workers')
     args = parser.parse_args()
@@ -845,29 +849,30 @@ def main():
     if args.date:
         target_date = args.date
     else:
-        # Default to latest date with ETF features
+        # Default to latest date with features
         conn = get_connection()
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT MAX(df.date) 
                 FROM daily_features df
                 JOIN assets a ON df.asset_id = a.asset_id
-                WHERE a.asset_type = 'etf'
-            """)
+                WHERE a.asset_type = ANY(%s)
+            """, (list(ASSET_TYPES),))
             result = cur.fetchone()
             target_date = result[0].isoformat() if result and result[0] else date.today().isoformat()
     
     logger.info("=" * 60)
-    logger.info("ETF DAILY SETUP SCANNER")
+    logger.info("ETF/INDEX/COMMODITY DAILY SETUP SCANNER")
+    logger.info(f"Asset Types: {ASSET_TYPES}")
     logger.info(f"Target Date: {target_date}")
     logger.info("=" * 60)
     
-    # Get ETFs with features
-    etfs = get_etfs_with_features(target_date)
-    logger.info(f"Found {len(etfs)} ETFs with features")
+    # Get assets with features
+    assets = get_assets_with_features(target_date)
+    logger.info(f"Found {len(assets)} assets with features")
     
-    if not etfs:
-        logger.warning("No ETFs found - run ETF features first")
+    if not assets:
+        logger.warning("No assets found - run features calculation first")
         return
     
     # Scan for setups in parallel
@@ -876,7 +881,7 @@ def main():
     errors = 0
     
     with ThreadPoolExecutor(max_workers=args.workers) as executor:
-        futures = {executor.submit(process_etf, etf, target_date): etf for etf in etfs}
+        futures = {executor.submit(process_asset, asset, target_date): asset for asset in assets}
         
         for future in as_completed(futures):
             try:
@@ -884,12 +889,12 @@ def main():
                 all_setups.extend(setups)
                 processed += 1
                 if processed % 100 == 0:
-                    logger.info(f"Processed {processed}/{len(etfs)} ETFs...")
+                    logger.info(f"Processed {processed}/{len(assets)} assets...")
             except Exception as e:
                 errors += 1
-                logger.warning(f"Error processing ETF: {e}")
+                logger.warning(f"Error processing asset: {e}")
     
-    logger.info(f"Processed {processed} ETFs, found {len(all_setups)} setups")
+    logger.info(f"Processed {processed} assets, found {len(all_setups)} setups"}
     
     if errors > 0:
         logger.warning(f"Errors: {errors}")
@@ -935,7 +940,7 @@ def main():
     
     conn.commit()
     logger.info("=" * 60)
-    logger.info(f"✅ Inserted/updated {inserted} ETF setups")
+    logger.info(f"✅ Inserted/updated {inserted} ETF/Index/Commodity setups")
     
     # Summary by setup type
     setup_counts = {}

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-E2B Parallel Orchestrator for ETF AI Analysis.
+E2B Parallel Orchestrator for ETF/Index/Commodity AI Analysis.
 
-Spawns multiple E2B sandboxes to process ETFs in parallel.
-Each sandbox handles a batch of ETFs.
+Spawns multiple E2B sandboxes to process ETFs, Indices, and Commodities in parallel.
+Each sandbox handles a batch of assets.
 
 Usage:
     python e2b_etf_orchestrator.py --date 2026-01-27 --sandboxes 10
@@ -31,8 +31,12 @@ except ImportError:
     sys.exit(1)
 
 
-def get_etf_count() -> int:
-    """Get total count of active ETFs."""
+# Asset types to process
+ASSET_TYPES = ('etf', 'index', 'commodity')
+
+
+def get_asset_count() -> int:
+    """Get total count of active ETF/Index/Commodity assets."""
     import psycopg2
     
     db_url = os.environ.get("DATABASE_URL")
@@ -42,7 +46,7 @@ def get_etf_count() -> int:
     conn = psycopg2.connect(db_url)
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT COUNT(*) FROM assets WHERE asset_type = 'etf' AND is_active = TRUE")
+            cur.execute("SELECT COUNT(*) FROM assets WHERE asset_type = ANY(%s) AND is_active = TRUE", (list(ASSET_TYPES),))
             return cur.fetchone()[0]
     finally:
         conn.close()
@@ -57,7 +61,7 @@ async def run_sandbox_batch(
     repo_url: str,
     semaphore: asyncio.Semaphore
 ) -> Dict[str, Any]:
-    """Run a single E2B sandbox for a batch of ETFs."""
+    """Run a single E2B sandbox for a batch of ETF/Index/Commodity assets."""
     
     async with semaphore:
         start_time = time.time()
@@ -81,7 +85,7 @@ async def run_sandbox_batch(
                 gemini_key = os.environ.get("GEMINI_API_KEY")
                 
                 # Run the batch script
-                logger.info(f"[Sandbox {sandbox_id}] Running ETF AI analysis batch...")
+                logger.info(f"[Sandbox {sandbox_id}] Running ETF/Index/Commodity AI analysis batch...")
                 cmd = f"""
                 cd /home/user/stratos_brain && \
                 export DATABASE_URL='{db_url}' && \
@@ -139,25 +143,25 @@ async def run_sandbox_batch(
 async def main_async(args):
     """Main async orchestration logic."""
     
-    # Get total ETF count
-    total_etfs = get_etf_count()
-    logger.info(f"Total ETFs to process: {total_etfs}")
+    # Get total asset count
+    total_assets = get_asset_count()
+    logger.info(f"Total ETF/Index/Commodity assets to process: {total_assets}")
     
-    if total_etfs == 0:
-        logger.info("No ETFs to process")
+    if total_assets == 0:
+        logger.info("No assets to process")
         return
     
     # Calculate batch distribution
-    num_sandboxes = min(args.sandboxes, total_etfs)
-    batch_size = (total_etfs + num_sandboxes - 1) // num_sandboxes  # Ceiling division
+    num_sandboxes = min(args.sandboxes, total_assets)
+    batch_size = (total_assets + num_sandboxes - 1) // num_sandboxes  # Ceiling division
     
-    logger.info(f"Using {num_sandboxes} sandboxes, ~{batch_size} ETFs each")
+    logger.info(f"Using {num_sandboxes} sandboxes, ~{batch_size} assets each")
     
     # Create batch configurations
     batches = []
     for i in range(num_sandboxes):
         offset = i * batch_size
-        actual_batch_size = min(batch_size, total_etfs - offset)
+        actual_batch_size = min(batch_size, total_assets - offset)
         if actual_batch_size > 0:
             batches.append({
                 "sandbox_id": i + 1,
@@ -208,9 +212,9 @@ async def main_async(args):
     error_count = sum(1 for r in results if isinstance(r, dict) and r["status"] != "success")
     
     logger.info("=" * 60)
-    logger.info("ETF PARALLEL PROCESSING COMPLETE")
+    logger.info("ETF/INDEX/COMMODITY PARALLEL PROCESSING COMPLETE")
     logger.info("=" * 60)
-    logger.info(f"Total ETFs: {total_etfs}")
+    logger.info(f"Total assets: {total_assets}")
     logger.info(f"Sandboxes: {num_sandboxes}")
     logger.info(f"Successful: {success_count}")
     logger.info(f"Failed: {error_count}")
@@ -224,7 +228,7 @@ async def main_async(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='E2B Parallel Orchestrator for ETFs')
+    parser = argparse.ArgumentParser(description='E2B Parallel Orchestrator for ETF/Index/Commodity')
     parser.add_argument('--date', type=str, required=True, help='Target date (YYYY-MM-DD)')
     parser.add_argument('--model', type=str, default='gemini-3-flash-preview', help='Gemini model')
     parser.add_argument('--sandboxes', type=int, default=10, help='Number of sandboxes')

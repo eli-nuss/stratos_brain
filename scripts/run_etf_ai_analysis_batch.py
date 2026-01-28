@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-ETF Batch AI Analysis Runner for E2B Parallel Processing.
+ETF/Index/Commodity Batch AI Analysis Runner for E2B Parallel Processing.
 
-Processes ETFs using Gemini AI with the same output format as equity/crypto analysis.
-Each sandbox handles a batch of ETFs.
+Processes ETFs, Indices, and Commodities using Gemini AI with the same output format as equity/crypto analysis.
+Each sandbox handles a batch of assets.
 
 Usage:
     python run_etf_ai_analysis_batch.py --date 2026-01-27 --offset 0 --batch-size 20
@@ -27,6 +27,9 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Asset types to process
+ASSET_TYPES = ('etf', 'index', 'commodity')
 
 # Historical profit factors (aligned with equity scanner)
 HISTORICAL_PROFIT_FACTORS = {
@@ -296,8 +299,8 @@ def get_gemini_client():
         raise ImportError("google-genai not installed. Run: pip install google-genai")
 
 
-def get_etf_batch(db_url: str, as_of_date: str, offset: int, batch_size: int) -> List[Dict]:
-    """Get a specific batch of ETFs based on offset and batch_size."""
+def get_asset_batch(db_url: str, as_of_date: str, offset: int, batch_size: int) -> List[Dict]:
+    """Get a specific batch of ETF/Index/Commodity assets based on offset and batch_size."""
     conn = psycopg2.connect(db_url)
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -306,6 +309,7 @@ def get_etf_batch(db_url: str, as_of_date: str, offset: int, batch_size: int) ->
                     a.asset_id,
                     a.symbol,
                     a.name,
+                    a.asset_type,
                     a.sector,
                     a.industry,
                     df.close,
@@ -328,18 +332,18 @@ def get_etf_batch(db_url: str, as_of_date: str, offset: int, batch_size: int) ->
                     FROM setup_signals 
                     WHERE signal_date = %s
                 ) ss ON a.asset_id = ss.asset_id
-                WHERE a.asset_type = 'etf'
+                WHERE a.asset_type = ANY(%s)
                   AND a.is_active = TRUE
-                ORDER BY df.dollar_volume_sma_20 DESC NULLS LAST
+                ORDER BY a.asset_type, df.dollar_volume_sma_20 DESC NULLS LAST
                 LIMIT %s OFFSET %s
-            """, (as_of_date, as_of_date, batch_size, offset))
+            """, (as_of_date, as_of_date, list(ASSET_TYPES), batch_size, offset))
             return list(cur.fetchall())
     finally:
         conn.close()
 
 
 def get_active_setups(db_url: str, asset_id: int, signal_date: str) -> List[Dict]:
-    """Get active quant setups for an ETF."""
+    """Get active quant setups for an asset."""
     conn = psycopg2.connect(db_url)
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -372,7 +376,7 @@ def get_active_setups(db_url: str, asset_id: int, signal_date: str) -> List[Dict
 
 
 def get_ohlcv_data(db_url: str, asset_id: int, target_date: str, limit: int = 365) -> List[Dict]:
-    """Fetch OHLCV data for an ETF (last N days for context)."""
+    """Fetch OHLCV data for an asset (last N days for context)."""
     conn = psycopg2.connect(db_url)
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -389,7 +393,7 @@ def get_ohlcv_data(db_url: str, asset_id: int, target_date: str, limit: int = 36
         conn.close()
 
 
-def build_ai_packet(etf: Dict, ohlcv: List[Dict], active_setups: List[Dict], as_of_date: str) -> Dict:
+def build_ai_packet(asset: Dict, ohlcv: List[Dict], active_setups: List[Dict], as_of_date: str) -> Dict:
     """Build the data packet for AI analysis (same format as equity scanner)."""
     # Format OHLCV as array rows
     ohlcv_formatted = [
@@ -423,9 +427,9 @@ def build_ai_packet(etf: Dict, ohlcv: List[Dict], active_setups: List[Dict], as_
     
     packet = {
         "asset": {
-            "symbol": etf["symbol"],
-            "name": etf.get("name", ""),
-            "asset_type": "etf",
+            "symbol": asset["symbol"],
+            "name": asset.get("name", ""),
+            "asset_type": asset.get("asset_type", "etf"),
         },
         "context": {
             "as_of_date": as_of_date,
@@ -499,12 +503,12 @@ def parse_json_with_repair(response_text: str, symbol: str) -> Optional[Dict]:
         return None
 
 
-def analyze_etf(client, etf: Dict, ohlcv: List[Dict], active_setups: List[Dict], 
+def analyze_asset(client, asset: Dict, ohlcv: List[Dict], active_setups: List[Dict], 
                 as_of_date: str, model: str) -> Optional[Dict]:
-    """Analyze an ETF using Gemini AI (same format as equity scanner)."""
+    """Analyze an asset using Gemini AI (same format as equity scanner)."""
     try:
         # Build the AI packet
-        packet = build_ai_packet(etf, ohlcv, active_setups, as_of_date)
+        packet = build_ai_packet(asset, ohlcv, active_setups, as_of_date)
         
         # Build prompt with schema
         prompt_with_schema = f"{SYSTEM_PROMPT}\n\nYou MUST respond with valid JSON matching this schema:\n{json.dumps(OUTPUT_SCHEMA, indent=2)}"
@@ -523,10 +527,10 @@ def analyze_etf(client, etf: Dict, ohlcv: List[Dict], active_setups: List[Dict],
         )
         
         # Parse JSON response
-        ai_result = parse_json_with_repair(response.text, etf['symbol'])
+        ai_result = parse_json_with_repair(response.text, asset['symbol'])
         
         if not ai_result:
-            logger.error(f"Failed to parse AI response for {etf['symbol']}")
+            logger.error(f"Failed to parse AI response for {asset['symbol']}")
             return None
         
         # Get primary setup for enrichment
@@ -534,8 +538,8 @@ def analyze_etf(client, etf: Dict, ohlcv: List[Dict], active_setups: List[Dict],
         
         # Build final result (same structure as equity scanner)
         result = {
-            "asset_id": str(etf['asset_id']),
-            "symbol": etf['symbol'],
+            "asset_id": str(asset['asset_id']),
+            "symbol": asset['symbol'],
             "as_of_date": as_of_date,
             "prompt_version": "v3.0.0",
             "ai_review_version": "v3.0.0",
@@ -577,7 +581,7 @@ def analyze_etf(client, etf: Dict, ohlcv: List[Dict], active_setups: List[Dict],
         return result
         
     except Exception as e:
-        logger.error(f"Error analyzing {etf['symbol']}: {e}")
+        logger.error(f"Error analyzing {asset['symbol']}: {e}")
         return None
 
 
@@ -683,16 +687,16 @@ def save_ai_review(db_url: str, review: Dict) -> bool:
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Run ETF AI analysis for a batch')
+    parser = argparse.ArgumentParser(description='Run ETF/Index/Commodity AI analysis for a batch')
     parser.add_argument('--date', type=str, required=True, help='Target date (YYYY-MM-DD)')
     parser.add_argument('--model', type=str, default='gemini-3-flash-preview',
                         help='Gemini model to use')
     parser.add_argument('--offset', type=int, required=True, help='Starting offset (0-indexed)')
-    parser.add_argument('--batch-size', type=int, required=True, help='Number of ETFs to process')
+    parser.add_argument('--batch-size', type=int, required=True, help='Number of assets to process')
     
     args = parser.parse_args()
     
-    logger.info(f"Starting ETF AI Analysis Batch (V3 Format)")
+    logger.info(f"Starting ETF/Index/Commodity AI Analysis Batch (V3 Format)")
     logger.info(f"  Date: {args.date}")
     logger.info(f"  Model: {args.model}")
     logger.info(f"  Offset: {args.offset}")
@@ -701,52 +705,52 @@ def main():
     db_url = get_db_url()
     client = get_gemini_client()
     
-    # Get batch of ETFs
-    etfs = get_etf_batch(db_url, args.date, args.offset, args.batch_size)
-    logger.info(f"Found {len(etfs)} ETFs in batch")
+    # Get batch of assets
+    assets = get_asset_batch(db_url, args.date, args.offset, args.batch_size)
+    logger.info(f"Found {len(assets)} assets in batch")
     
-    if not etfs:
-        logger.info("No ETFs to process in this batch")
+    if not assets:
+        logger.info("No assets to process in this batch")
         return
     
-    # Process each ETF
+    # Process each asset
     processed = 0
     errors = 0
     
-    for i, etf in enumerate(etfs):
+    for i, asset in enumerate(assets):
         try:
-            logger.info(f"Processing {etf['symbol']} ({i+1}/{len(etfs)})...")
+            logger.info(f"Processing {asset['symbol']} ({i+1}/{len(assets)})...")
             
-            # Get active setups for this ETF
-            active_setups = get_active_setups(db_url, etf['asset_id'], args.date)
+            # Get active setups for this asset
+            active_setups = get_active_setups(db_url, asset['asset_id'], args.date)
             logger.info(f"  Found {len(active_setups)} active setups")
             
             # Get OHLCV data
-            ohlcv = get_ohlcv_data(db_url, etf['asset_id'], args.date)
+            ohlcv = get_ohlcv_data(db_url, asset['asset_id'], args.date)
             
             # Analyze with AI
-            review = analyze_etf(client, etf, ohlcv, active_setups, args.date, args.model)
+            review = analyze_asset(client, asset, ohlcv, active_setups, args.date, args.model)
             
             if review:
                 # Save to database
                 if save_ai_review(db_url, review):
                     processed += 1
-                    logger.info(f"✓ Saved analysis for {etf['symbol']}")
+                    logger.info(f"✓ Saved analysis for {asset['symbol']}")
                 else:
                     errors += 1
-                    logger.warning(f"✗ Failed to save {etf['symbol']}")
+                    logger.warning(f"✗ Failed to save {asset['symbol']}")
             else:
                 errors += 1
-                logger.warning(f"✗ No analysis result for {etf['symbol']}")
+                logger.warning(f"✗ No analysis result for {asset['symbol']}")
                 
         except Exception as e:
             errors += 1
-            logger.error(f"Error processing {etf['symbol']}: {e}")
+            logger.error(f"Error processing {asset['symbol']}: {e}")
     
     logger.info(f"Batch complete: {processed} processed, {errors} errors")
     
     # Exit with error code if too many failures
-    if errors > len(etfs) * 0.5:
+    if errors > len(assets) * 0.5:
         logger.error("Too many errors, marking batch as failed")
         sys.exit(1)
 

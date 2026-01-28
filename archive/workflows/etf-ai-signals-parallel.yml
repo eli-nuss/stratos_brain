@@ -1,21 +1,20 @@
-# ETF AI Signals (Parallel E2B)
-# =============================
-# Processes ETFs using parallel E2B sandboxes with Gemini AI.
-# Each sandbox handles a batch of ETFs for sector/macro analysis.
+# ETF/Index/Commodity AI Signals (Parallel E2B)
+# ==============================================
+# Processes ETFs, Indices, and Commodities using parallel E2B sandboxes with Gemini AI.
+# Each sandbox handles a batch of assets for sector/macro analysis.
 #
 # TRIGGERS:
-# - Manual dispatch (due to cost)
-# - After ETF setup scanner completes (optional)
+# - Manual dispatch only (due to cost)
 #
 # REQUIREMENTS:
 # - E2B_API_KEY secret
 # - DATABASE_URL secret
 # - GEMINI_API_KEY secret
 
-name: ETF AI Signals (Parallel E2B)
+name: ETF/Index/Commodity AI Signals (Parallel E2B)
 
 on:
-    # Manual dispatch
+  # Manual dispatch only
   workflow_dispatch:
     inputs:
       target_date:
@@ -47,8 +46,8 @@ env:
   PYTHON_VERSION: '3.11'
 
 jobs:
-  parallel-etf-ai-analysis:
-    name: Parallel ETF AI Analysis
+  parallel-ai-analysis:
+    name: Parallel ETF/Index/Commodity AI Analysis
     runs-on: ubuntu-latest
     timeout-minutes: 45
     
@@ -76,20 +75,19 @@ jobs:
             echo "date=$(date -u +%Y-%m-%d)" >> $GITHUB_OUTPUT
           fi
       
-      - name: Run parallel E2B orchestrator for ETFs
+      - name: Run parallel E2B orchestrator
         env:
           E2B_API_KEY: ${{ secrets.E2B_API_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          echo "🚀 Starting parallel ETF AI analysis"
+          echo "🚀 Starting parallel ETF/Index/Commodity AI analysis"
           echo "📅 Date: ${{ steps.date.outputs.date }}"
           echo "🔢 Sandboxes: ${{ github.event.inputs.sandboxes || '10' }}"
           echo "⚡ Max Concurrent: ${{ github.event.inputs.max_concurrent || '10' }}"
           echo "⏱️ Stagger Delay: ${{ github.event.inputs.stagger_delay || '2' }}s"
           echo ""
           
-          # Use a modified orchestrator for ETFs
           python scripts/e2b_etf_orchestrator.py \
             --date ${{ steps.date.outputs.date }} \
             --model ${{ github.event.inputs.model || 'gemini-3-flash-preview' }} \
@@ -100,10 +98,10 @@ jobs:
       - name: Report completion
         if: success()
         run: |
-          echo "✅ ETF AI analysis completed successfully"
-          echo "ETFs analyzed for sector/macro themes"
+          echo "✅ ETF/Index/Commodity AI analysis completed successfully"
+          echo "Assets analyzed for sector/macro themes"
       
       - name: Report failure
         if: failure()
         run: |
-          echo "❌ ETF AI analysis failed"
+          echo "❌ ETF/Index/Commodity AI analysis failed"
