@@ -77,20 +77,25 @@ Better UX — non-intrusive notifications instead of blocking alerts.
 ## Security Improvements
 
 ### 2026-01-28 — Read-Only Database Access for Sub-Agents
-**Status:** ⚠️ Setup Required  
+**Status:** ✅ Active  
 **Purpose:** Enable sub-agents to query Supabase without risk of data destruction
 
-**Setup Steps:**
-1. Run SQL in Supabase to create read-only role and user
-2. Generate read-only service key or connection string
-3. Update placeholder in `.env.subagent` and `supabase-readonly.sh`
+**Setup:**
+- Created `readonly_user` in Supabase with SELECT-only permissions
+- Direct PostgreSQL connection (not REST API) for full SQL flexibility
+- Connection string in `.env.subagent` (read-only credentials)
 
 **Files Created:**
-- `.env.subagent.template` — Template for sub-agent environment variables (read-only)
-- `supabase-readonly.sh` — Read-only query wrapper script
+- `.env.subagent` — Sub-agent environment variables with read-only DATABASE_URL
+- `supabase-readonly.sh` — Direct psql wrapper for read-only queries
+
+**Usage:**
+```bash
+./supabase-readonly.sh "SELECT * FROM assets LIMIT 10"
+```
 
 **Impact:**
-Sub-agents can now safely query the database for analysis without risk of accidental deletions or modifications.
+Sub-agents can now safely query the database for analysis without risk of accidental deletions or modifications. Direct connection gives full SQL flexibility (CTEs, complex joins) vs REST API limitations.
 
 ---
 
