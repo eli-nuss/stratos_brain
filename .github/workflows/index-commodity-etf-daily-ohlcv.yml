@@ -1,0 +1,85 @@
+# Index/Commodity/ETF Daily OHLCV
+# ================================
+# Ingests daily OHLCV data for Index, Commodity, and ETF assets.
+# This is the first step in the ETF/Index/Commodity pipeline.
+#
+# TRIGGERS:
+# - Schedule: Daily at 22:00 UTC (after US market close)
+# - Manual trigger
+#
+# OUTPUT: Writes OHLCV data to daily_bars table
+
+name: Index/Commodity/ETF Daily OHLCV
+
+on:
+  # Run daily at 22:00 UTC (after US market close)
+  schedule:
+    - cron: '0 22 * * *'
+  
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Target date (YYYY-MM-DD, leave empty for today)'
+        required: false
+        default: ''
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  ingest-ohlcv:
+    name: Ingest Index/Commodity/ETF OHLCV
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests psycopg2-binary
+
+      - name: Run Index/Commodity/ETF OHLCV Ingestion
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
+        run: |
+          echo "🚀 Starting Index/Commodity/ETF OHLCV ingestion"
+          
+          # Build command with optional date argument
+          CMD="python jobs/index_commodity_etf_daily_ohlcv.py"
+          
+          if [ -n "${{ github.event.inputs.date }}" ]; then
+            CMD="$CMD --date ${{ github.event.inputs.date }}"
+            echo "📅 Target date: ${{ github.event.inputs.date }}"
+          else
+            echo "📅 Using today's date"
+          fi
+          
+          echo "Running: $CMD"
+          $CMD
+
+      - name: Report success
+        if: success()
+        run: |
+          echo "✅ Index/Commodity/ETF OHLCV ingestion completed successfully"
+          echo ""
+          echo "Asset types processed:"
+          echo "  - ETF (111 assets)"
+          echo "  - Index (15 assets)"
+          echo "  - Commodity (40 assets)"
+
+      - name: Report failure
+        if: failure()
+        run: |
+          echo "❌ Index/Commodity/ETF OHLCV ingestion failed"
+          echo "Check the logs above for details"
