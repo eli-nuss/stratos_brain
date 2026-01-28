@@ -261,239 +261,116 @@ const DEEP_RESEARCH_TEMPLATE = `# Deep Research Report: [Company Name] ([Ticker]
 
 | Product/Service | Description | Revenue Contribution | Growth Rate | Margin Profile |
 |-----------------|-------------|---------------------|-------------|----------------|
-| [Product 1] | [What it does] | [X]% | [X]% | [High/Medium/Low] |
+| [Product 1] | | | | |
 | [Product 2] | | | | |
 | [Product 3] | | | | |
+| **Total** | | 100% | | |
 
-**Analysis:** *[Which products are growth drivers vs cash cows? Any products in decline?]*
+### 1.3 Revenue Model
 
-### 1.3 Revenue Model Analysis
+**How does money actually flow in?**
 
-**How exactly does money flow into this business?**
+- **Primary Revenue Stream:** *[e.g., Subscription, Transaction fees, Licensing, Hardware sales]*
+- **Revenue Recognition:** *[How and when is revenue recognized?]*
+- **Pricing Model:** *[How do they price? Per seat? Per transaction? Tiered?]*
+- **Contract Structure:** *[Monthly? Annual? Multi-year? Upfront vs recurring?]*
 
-| Revenue Stream | Type | % of Total | Recurring? | Visibility |
-|----------------|------|------------|------------|------------|
-| [Stream 1] | (Subscription/Transaction/License/Hardware/Services) | [X]% | Yes/No | High/Medium/Low |
-| [Stream 2] | | | | |
-| [Stream 3] | | | | |
+### 1.4 Customer Analysis
 
-**Revenue Quality Assessment:** *[Is this high-quality recurring revenue or lumpy one-time sales? What's the predictability?]*
+**Who pays for this?**
 
-### 1.4 Revenue Breakdown by Geography
+| Customer Segment | % of Revenue | Avg Deal Size | Retention Rate | Growth Rate |
+|------------------|--------------|---------------|----------------|-------------|
+| [Segment 1] | | | | |
+| [Segment 2] | | | | |
+| [Segment 3] | | | | |
 
-| Region | Revenue ($M) | % of Total | YoY Growth | Key Trends |
-|--------|-------------|------------|------------|------------|
-| North America | | | | |
-| Europe | | | | |
-| Asia-Pacific | | | | |
-| Latin America | | | | |
-| Other | | | | |
+- **Customer Concentration:** *[Top 10 customers as % of revenue]*
+- **Geographic Mix:** *[Revenue by region]*
 
-**Geographic Risk Assessment:** *[Concentration risk? Currency exposure? Regulatory differences by region?]*
+### 1.5 Unit Economics
 
-### 1.5 Revenue Breakdown by Channel
+*[If applicable - SaaS, marketplace, consumer businesses]*
 
-| Channel | Description | % of Revenue | Trend | Strategic Importance |
-|---------|-------------|--------------|-------|---------------------|
-| Direct Sales | | | | |
-| Partner/Reseller | | | | |
-| E-commerce/Self-serve | | | | |
-| Enterprise | | | | |
-
-### 1.6 Customer Analysis
-
-**Who buys from this company and why?**
-
-| Customer Segment | Description | % of Revenue | Avg Deal Size | Retention Rate | Growth |
-|------------------|-------------|--------------|---------------|----------------|--------|
-| [Segment 1] | | | | | |
-| [Segment 2] | | | | | |
-| [Segment 3] | | | | | |
-
-**Customer Concentration:** 
-- Top customer: [X]% of revenue
-- Top 10 customers: [X]% of revenue
-- **Risk Assessment:** *[Is there dangerous concentration?]*
-
-**Value Proposition:** *[Why do customers choose this company over alternatives? What problem does it solve?]*
-
-### 1.7 The Buying Process
-
-**How do customers actually buy?**
-
-- **Sales Cycle Length:** [X] months (typical range: [X-Y] months)
-- **Decision Makers:** [Who signs the check? C-suite? Department head? End user?]
-- **Procurement Process:** [RFP? Direct negotiation? Self-serve? Land-and-expand?]
-- **Switching Costs:** [High/Medium/Low] — *[Explain: What makes it hard/easy to switch?]*
-- **Implementation Time:** [X] weeks/months
-
-### 1.8 Seasonality & Cyclicality
-
-| Quarter | Typical Revenue Pattern | % of Annual | Explanation |
-|---------|------------------------|-------------|-------------|
-| Q1 | [Strong/Weak/Normal] | [X]% | [Why?] |
-| Q2 | | | |
-| Q3 | | | |
-| Q4 | | | |
-
-**Cyclical Sensitivity:** *[How does this business perform in recessions? Is it tied to GDP, housing, tech spending, etc.?]*
-
-### 1.9 Margin Structure by Segment
-
-| Segment | Gross Margin | Operating Margin | Key Cost Drivers |
-|---------|--------------|------------------|------------------|
-| [Segment 1] | [X]% | [X]% | [Main costs] |
-| [Segment 2] | | | |
-| [Segment 3] | | | |
-| **Consolidated** | **[X]%** | **[X]%** | |
-
-**Margin Trajectory:** *[Are margins expanding or contracting? What's driving the change?]*
-
-### 1.10 Business Model Summary
-
-**The Business Model in One Paragraph:**
-
-*[Synthesize everything above: This company makes money by [X], selling primarily to [Y] customers, with [Z]% recurring revenue. The key economic drivers are [A, B, C]. Margins are [expanding/stable/contracting] because [reason].]*
-
-### 1.11 Upcoming Catalysts (12-Month View)
-
-**What events will move this stock in the next 12 months?**
-
-| # | Catalyst | Expected Date | Impact | Bull Case | Bear Case |
-|---|----------|---------------|--------|-----------|-----------|
-| 1 | [Event: e.g., Q2 Earnings] | [Date] | High/Med/Low | [Positive scenario] | [Negative scenario] |
-| 2 | [Event: e.g., Product Launch] | [Date] | | | |
-| 3 | [Event: e.g., FDA Decision] | [Date] | | | |
-
-**Catalyst Assessment:** *[Which catalyst has the highest probability of moving the stock? What's the risk/reward setup?]*
+| Metric | Value | Trend | Benchmark |
+|--------|-------|-------|-----------|
+| CAC | | | |
+| LTV | | | |
+| LTV/CAC | | | |
+| Payback Period | | | |
+| Net Revenue Retention | | | |
+| Gross Retention | | | |
 
 ---
 
-## Part 2: Historical Financial Analysis
+## Part 2: Financial Analysis (7-10 Year History)
 
-### 2.1 Income Statement Trends (5 Years)
+### 2.1 Income Statement Trends
 
-*[Agent Instruction: Extract actual historical data. Use Google Search to find investor presentations, 10-K filings, and financial databases.]*
+| Metric | FY-7 | FY-6 | FY-5 | FY-4 | FY-3 | FY-2 | FY-1 | TTM | CAGR |
+|--------|------|------|------|------|------|------|------|-----|------|
+| Revenue ($M) | | | | | | | | | |
+| YoY Growth | | | | | | | | | |
+| Gross Profit | | | | | | | | | |
+| Gross Margin % | | | | | | | | | |
+| Operating Income | | | | | | | | | |
+| Op Margin % | | | | | | | | | |
+| Net Income | | | | | | | | | |
+| Net Margin % | | | | | | | | | |
+| EPS | | | | | | | | | |
 
-| Metric ($M) | FY-5 | FY-4 | FY-3 | FY-2 | FY-1 | TTM |
-|-------------|------|------|------|------|------|-----|
-| Revenue | | | | | | |
-| YoY Growth % | | | | | | |
-| Gross Profit | | | | | | |
-| Gross Margin % | | | | | | |
-| EBITDA | | | | | | |
-| EBITDA Margin % | | | | | | |
-| EBIT | | | | | | |
-| EBIT Margin % | | | | | | |
-| Net Income | | | | | | |
-| Net Margin % | | | | | | |
-| Diluted EPS | | | | | | |
+### 2.2 Cash Flow Analysis
 
-**Key Observations:**
-1. **Revenue Growth:** *[Describe the trajectory - accelerating, decelerating, cyclical?]*
-2. **Margin Story:** *[Are margins expanding? Why or why not?]*
-3. **Inflection Points:** *[Any major changes? What caused them?]*
-
-### 2.2 Cash Flow Analysis (5 Years)
-
-| Metric ($M) | FY-5 | FY-4 | FY-3 | FY-2 | FY-1 | TTM |
-|-------------|------|------|------|------|------|-----|
+| Metric | FY-5 | FY-4 | FY-3 | FY-2 | FY-1 | TTM |
+|--------|------|------|------|------|------|-----|
 | Operating Cash Flow | | | | | | |
-| Capital Expenditures | | | | | | |
+| CapEx | | | | | | |
 | Free Cash Flow | | | | | | |
 | FCF Margin % | | | | | | |
-| FCF Conversion % | | | | | | |
-| Dividends Paid | | | | | | |
-| Share Buybacks | | | | | | |
-
-**Cash Flow Quality Assessment:**
-- Is FCF tracking net income? *[If not, why?]*
-- Working capital trends: *[Cash tied up in inventory/receivables?]*
-- CapEx intensity: *[Maintenance vs growth capex?]*
+| FCF Conversion | | | | | | |
 
 ### 2.3 Balance Sheet Health
 
-| Metric | Current | 3Y Avg | 5Y Avg | Industry Avg | Assessment |
-|--------|---------|--------|--------|--------------|------------|
-| Cash & Equivalents ($M) | | | | | |
-| Total Debt ($M) | | | | | |
-| Net Debt ($M) | | | | | |
-| Debt/EBITDA | | | | | |
-| Net Debt/EBITDA | | | | | |
-| Interest Coverage | | | | | |
-| Current Ratio | | | | | |
-| Quick Ratio | | | | | |
+| Metric | Current | 1Y Ago | 3Y Ago | Assessment |
+|--------|---------|--------|--------|------------|
+| Cash & Equivalents | | | | |
+| Total Debt | | | | |
+| Net Debt | | | | |
+| Debt/EBITDA | | | | |
+| Interest Coverage | | | | |
+| Current Ratio | | | | |
 
-**Financial Strength Grade:** [A/B/C/D/F]
-*[Explanation: Why this grade? Any concerns?]*
+### 2.4 Return Metrics
 
-### 2.4 Return on Capital Analysis
-
-| Metric | Current | 3Y Avg | 5Y Avg | 10Y Avg | Industry Avg | Assessment |
-|--------|---------|--------|--------|---------|--------------|------------|
-| ROIC | | | | | | |
-| ROE | | | | | | |
-| ROA | | | | | | |
-| ROCE | | | | | | |
-
-**Capital Efficiency Assessment:**
-- Is ROIC > WACC? *[Creating or destroying value?]*
-- ROIC trend: *[Improving, stable, or declining?]*
-- What drives returns? *[Margins? Asset turns? Leverage?]*
-
-### 2.5 Revenue by Segment (Historical)
-
-| Segment ($M) | FY-5 | FY-4 | FY-3 | FY-2 | FY-1 | TTM | 5Y CAGR |
-|--------------|------|------|------|------|------|-----|---------|
-| [Segment 1] | | | | | | | |
-| [Segment 2] | | | | | | | |
-| [Segment 3] | | | | | | | |
-| **Total** | | | | | | | |
-
-**Segment Mix Shift:** *[How is the business mix changing over time? Is this good or bad for margins/growth?]*
+| Metric | FY-5 | FY-4 | FY-3 | FY-2 | FY-1 | TTM | Industry Avg |
+|--------|------|------|------|------|------|-----|--------------|
+| ROE | | | | | | | |
+| ROA | | | | | | | |
+| ROIC | | | | | | | |
 
 ---
 
 ## Part 3: Key Metrics That Matter
 
-### 3.1 Identifying the Right Metrics
+*[This section is CRITICAL - identify the 3-5 metrics that actually drive value for THIS specific business]*
 
-*[Agent Instruction: Based on the business model analysis, identify 3-5 metrics that ACTUALLY MATTER for this specific business. Do NOT use generic metrics. The metrics must be specific to this company's business model.]*
+### 3.1 Why These Metrics?
 
-**Why These Metrics?**
-
-Based on the business model analysis above, these are the **3-5 metrics that actually matter** for evaluating [Company Name]:
-
-| # | Metric | Why It Matters for THIS Business | Current Value | Historical Range | Target/Benchmark |
-|---|--------|----------------------------------|---------------|------------------|------------------|
-| 1 | [Metric 1] | [Specific explanation] | | | |
-| 2 | [Metric 2] | [Specific explanation] | | | |
-| 3 | [Metric 3] | [Specific explanation] | | | |
-| 4 | [Metric 4] | [Specific explanation] | | | |
-| 5 | [Metric 5] | [Specific explanation] | | | |
+*[Explain the logic: Based on the business model analysis above, these are the metrics that matter because...]*
 
 ### 3.2 Key Metric #1: [Metric Name]
 
-**Definition:** *[Exactly how is this calculated? Formula if applicable.]*
+**Why it matters:** *[Explain the direct link to business value]*
 
-**Why It Matters for [Company Name]:** *[Specific explanation tied to the business model discovered in Part 1]*
-
-**Historical Trend:**
-
-| Period | Value | YoY Change | Commentary |
+| Period | Value | YoY Change | Assessment |
 |--------|-------|------------|------------|
-| FY-5 | | | |
-| FY-4 | | | |
-| FY-3 | | | |
-| FY-2 | | | |
-| FY-1 | | | |
-| TTM/Latest | | | |
+| 5Y Ago | | | |
+| 3Y Ago | | | |
+| 1Y Ago | | | |
+| Current | | | |
+| Target | | | |
 
-**Management Commentary:** *[What has management said about this metric in recent earnings calls? Include direct quotes if available.]*
-
-**What to Watch:**
-- **Bullish signal:** *[What would indicate improvement?]*
-- **Bearish signal:** *[What would indicate deterioration?]*
+**Trend Analysis:** *[What's the trajectory? Is it improving or deteriorating?]*
 
 ### 3.3 Key Metric #2: [Metric Name]
 
@@ -779,103 +656,123 @@ This report will serve as the foundation for ongoing research conversations via 
 
 Before generating any financials, you MUST deeply understand the business model:
 
-1. **Products/Services:** What exactly does the company sell? How has the product mix evolved?
-2. **Revenue Streams:** Subscription? Transaction? License? Hardware? Services? What's recurring vs one-time?
-3. **Customer Base:** Who buys? Enterprise? SMB? Consumer? Government? What's the concentration?
-4. **Geographic Mix:** Where does revenue come from? Any concentration risks?
-5. **Channel Strategy:** Direct sales? Partners? E-commerce? How do customers actually buy?
-6. **Seasonality:** Any quarterly patterns? Cyclical exposure to macro factors?
-7. **Margin Structure:** What drives costs? How do margins vary by segment?
+1. **Research the Business:**
+   - Use Google Search to find recent 10-K filings, investor presentations, and earnings calls
+   - Understand EXACTLY how revenue flows in (subscription? transaction? licensing?)
+   - Map out all product lines and their revenue contributions
+   - Identify the customer base and their characteristics
 
-**RESEARCH REQUIRED:** Use Google Search extensively to find:
-- Recent investor presentations and investor day materials
-- 10-K business description sections (Item 1)
-- Industry reports and market research
-- Management interviews and conference presentations
-- Competitor comparisons and market share data
+2. **Document Everything:**
+   - Fill in ALL sections of Part 1 (Business Model Deep Dive) with specific, sourced data
+   - Do not use generic descriptions - be specific about THIS company
 
-## PHASE 2: FINANCIAL DATA EXTRACTION
+## PHASE 2: IDENTIFY KEY METRICS
 
-Extract and present historical financials for 7-10 years where available:
-- Income statement metrics (Revenue, Gross Profit, EBITDA, EBIT, Net Income)
-- Cash flow metrics (OCF, CapEx, FCF)
-- Balance sheet metrics (Cash, Debt, Working Capital)
-- Return metrics (ROIC, ROE, ROA)
-- Segment breakdowns by business line and geography
+Based on your business model analysis:
 
-**CALCULATE:**
-- YoY growth rates for all metrics
-- Margins (Gross, EBITDA, EBIT, Net, FCF)
-- CAGRs for key metrics over 3Y, 5Y, 10Y periods
-- FCF conversion (FCF / Net Income)
+1. **Select 3-5 Metrics That ACTUALLY Matter:**
+   - For SaaS: Net Revenue Retention, CAC Payback, Rule of 40
+   - For Retail: Same-Store Sales, Inventory Turnover, Sales per Sq Ft
+   - For Banks: Net Interest Margin, Efficiency Ratio, NPL Ratio
+   - For Insurance: Combined Ratio, Loss Ratio, Premium Growth
+   - For Industrials: Backlog, Book-to-Bill, Capacity Utilization
 
-## PHASE 3: KEY METRICS IDENTIFICATION
+2. **Justify Each Metric:**
+   - Explain WHY this metric matters for THIS specific business
+   - Show historical trends (5+ years where possible)
+   - Compare to industry benchmarks
 
-**THIS IS CRITICAL:** Based on the business model discovered in Phase 1, identify 3-5 metrics that ACTUALLY MATTER for THIS specific business.
+## PHASE 3: COMPREHENSIVE ANALYSIS
 
-**DO NOT use generic metrics.** The metrics must be SPECIFIC to this business model:
-- For a SaaS company: ARR, Net Revenue Retention, CAC Payback, Rule of 40
-- For a retailer: Same-store sales, Inventory turns, Sales per sq ft
-- For a bank: NIM, Efficiency ratio, NPL ratio, CET1 ratio
-- For a manufacturer: Capacity utilization, Book-to-bill, Backlog
-- For a subscription business: Churn rate, ARPU, LTV/CAC
-
-**For each key metric you identify:**
-1. Define exactly how it's calculated
-2. Explain why it matters for THIS specific business (tie back to the business model)
-3. Show the historical trend (5+ years if available)
-4. Include management commentary from recent earnings calls
-5. Identify what would signal improvement vs deterioration
-
-## PHASE 4: SYNTHESIS
-
-Bring everything together:
-- Executive summary that captures the essence of the business
-- Competitive position and moat analysis
-- Management quality assessment
-- Risk factors specific to this business
-- Valuation context (is it cheap/fair/expensive vs history and peers?)
-- Key questions for follow-up research
-
-# STYLE GUIDELINES
-
-- **Tone:** Professional, objective, institutional (Goldman Sachs/Morgan Stanley quality)
-- **Formatting:** Clean Markdown with extensive use of tables for financial data
-- **Data:** Use exact numbers from sources. Cite everything with links.
-- **Length:** Comprehensive (15-20 pages equivalent) but readable
-- **Tables:** Use tables extensively - they make financial data scannable
-- **Citations:** Include source links for all external data points
+Fill in all remaining sections with:
+- 7-10 years of financial history where available
+- Detailed competitive analysis
+- Management track record with specific examples
+- Risk factors with probability and impact assessments
 
 # CRITICAL RULES
 
-1. **Business Model First:** Do NOT discuss financials until you understand HOW the company makes money
-2. **Specific Metrics:** Do NOT use generic metrics. Every metric must be justified for THIS specific business
-3. **Historical Context:** Show 7-10 years of data where available to identify trends
-4. **Management Voice:** Include direct quotes from earnings calls where relevant
-5. **No Hallucination:** If data is unavailable, say so explicitly. Do NOT make up numbers.
-6. **Actionable:** End with specific questions for follow-up research via Company Chat
-7. **Source Everything:** Every data point should have a source. Use Google Search extensively.
+1. **USE GOOGLE SEARCH EXTENSIVELY** - Every section should be informed by current research
+2. **BE SPECIFIC** - No generic statements. Every claim should have supporting data.
+3. **CITE SOURCES** - Include links to SEC filings, news articles, and other sources
+4. **FOLLOW THE TEMPLATE EXACTLY** - Do not skip sections or add new ones
+5. **DATA INTEGRITY** - Use exact numbers from the DATABASE_DATA where provided
 
 # OUTPUT FORMAT
 
-Generate the complete report following the TEMPLATE structure exactly. Fill in every section with real data from your research. If a section cannot be completed due to lack of data, note what's missing and why.
+Return the complete Deep Research Report in clean Markdown format, following the template structure exactly. This report will be stored and used as context for future Company Chat conversations.
 `
 
-// ==================== HELPER FUNCTIONS ====================
+// ==================== TYPES ====================
 
 interface AssetData {
-  asset: Record<string, unknown>
-  as_of_date: string
-  ohlcv: Array<Record<string, unknown>>
-  features: Record<string, unknown>
-  scores: Record<string, unknown>
-  signals: Array<Record<string, unknown>>
-  review: Record<string, unknown> | null
-  review_status: string
-  fundamentals?: Record<string, unknown>
+  asset?: {
+    asset_id: number
+    symbol: string
+    name: string
+    asset_type: string
+    current_price?: number
+    market_cap?: number
+    pe_ratio?: number
+    forward_pe?: number
+    ps_ratio?: number
+    pb_ratio?: number
+    ev_to_ebitda?: number
+    ev_to_revenue?: number
+    peg_ratio?: number
+    revenue?: number
+    revenue_growth_yoy?: number
+    gross_margin?: number
+    operating_margin?: number
+    profit_margin?: number
+    ebitda?: number
+    free_cash_flow?: number
+    roe?: number
+    roa?: number
+    eps?: number
+    earnings_growth_yoy?: number
+    dividend_yield?: number
+    total_cash?: number
+    total_debt?: number
+    week_52_high?: number
+    week_52_low?: number
+    analyst_target_price?: number
+    beta?: number
+    avg_volume?: number
+  }
+  review?: {
+    ai_direction_score?: number
+    ai_setup_quality_score?: number
+    attention_level?: string
+    setup_type?: string
+    summary_text?: string
+    ai_summary_text?: string
+  }
+  features?: {
+    rsi_14?: number
+    trend_regime?: string
+    return_1d?: number
+    return_5d?: number
+    return_21d?: number
+    return_63d?: number
+    return_252d?: number
+  }
+  ohlcv?: Array<{
+    date: string
+    open: number
+    high: number
+    low: number
+    close: number
+    volume: number
+  }>
+  review_status?: string
+  as_of_date?: string
   quarterly_fundamentals?: Array<Record<string, unknown>>
   annual_fundamentals?: Array<Record<string, unknown>>
+  fundamentals?: Record<string, unknown>
 }
+
+// ==================== HELPER FUNCTIONS ====================
 
 function formatDatabaseContext(data: AssetData): string {
   const asset = data.asset || {}
@@ -883,67 +780,73 @@ function formatDatabaseContext(data: AssetData): string {
   const features = data.features || {}
   const ohlcv = data.ohlcv || []
   
-  // Get recent OHLCV (last 30 days)
-  const recentOhlcv = ohlcv.slice(-30)
+  // Get recent price action (last 60 days)
+  const recentOhlcv = ohlcv.slice(-60)
   
   const context = {
-    // Core info
+    // Basic Info
     symbol: asset.symbol,
-    company_name: asset.name,
-    sector: asset.sector || asset.category,
-    industry: asset.industry || asset.category,
-    description: asset.short_description,
+    name: asset.name,
+    asset_type: asset.asset_type,
     
     // Valuation
-    market_cap: asset.market_cap,
-    pe_ratio: asset.pe_ratio,
-    forward_pe: asset.forward_pe,
-    price_to_sales_ttm: asset.price_to_sales_ttm,
-    ev_to_ebitda: asset.ev_to_ebitda,
-    price_to_book: asset.price_to_book,
-    peg_ratio: asset.peg_ratio,
+    valuation: {
+      current_price: asset.current_price,
+      market_cap: asset.market_cap,
+      pe_ratio: asset.pe_ratio,
+      forward_pe: asset.forward_pe,
+      ps_ratio: asset.ps_ratio,
+      pb_ratio: asset.pb_ratio,
+      ev_to_ebitda: asset.ev_to_ebitda,
+      ev_to_revenue: asset.ev_to_revenue,
+      peg_ratio: asset.peg_ratio,
+    },
     
-    // Growth & Profitability
-    revenue_ttm: asset.revenue_ttm,
-    revenue_growth_yoy: asset.revenue_growth_yoy,
-    profit_margin: asset.profit_margin,
-    operating_margin: asset.operating_margin,
-    roe: asset.roe,
-    roa: asset.roa,
-    eps: asset.eps,
-    earnings_growth_yoy: asset.earnings_growth_yoy,
+    // Fundamentals
+    fundamentals: {
+      revenue: asset.revenue,
+      revenue_growth_yoy: asset.revenue_growth_yoy,
+      gross_margin: asset.gross_margin,
+      operating_margin: asset.operating_margin,
+      profit_margin: asset.profit_margin,
+      ebitda: asset.ebitda,
+      free_cash_flow: asset.free_cash_flow,
+      roe: asset.roe,
+      roa: asset.roa,
+      eps: asset.eps,
+      earnings_growth_yoy: asset.earnings_growth_yoy,
+      dividend_yield: asset.dividend_yield,
+    },
+    
+    // Balance Sheet
+    balance_sheet: {
+      total_cash: asset.total_cash,
+      total_debt: asset.total_debt,
+    },
     
     // Price context
-    week_52_high: asset.week_52_high,
-    week_52_low: asset.week_52_low,
-    analyst_target_price: asset.analyst_target_price,
-    beta: asset.beta,
+    price_data: {
+      current_price: asset.current_price,
+      week_52_high: asset.week_52_high,
+      week_52_low: asset.week_52_low,
+      analyst_target_price: asset.analyst_target_price,
+      beta: asset.beta,
+      avg_volume: asset.avg_volume,
+    },
     
-    // AI Review data
-    review_status: data.review_status,
-    ai_direction_score: review.ai_direction_score,
-    ai_setup_quality_score: review.ai_setup_quality_score,
-    attention_level: review.attention_level,
-    setup_type: review.setup_type,
-    confidence: review.confidence,
-    ai_summary: review.summary_text || review.ai_summary_text,
-    entry: review.entry || review.ai_entry,
-    targets: review.targets || review.ai_targets,
-    invalidation: review.invalidation,
-    support_levels: review.ai_key_levels?.support,
-    resistance_levels: review.ai_key_levels?.resistance,
-    risks: review.risks || review.ai_risks,
-    why_now: review.why_now || review.ai_why_now,
-    what_to_watch_next: review.what_to_watch_next,
+    // AI Review data (if available)
+    ai_analysis: {
+      review_status: data.review_status,
+      direction_score: review.ai_direction_score,
+      quality_score: review.ai_setup_quality_score,
+      attention_level: review.attention_level,
+      setup_type: review.setup_type,
+      summary: review.summary_text || review.ai_summary_text,
+    },
     
-    // Technical features (key ones)
-    features: {
+    // Technical features
+    technical: {
       rsi_14: features.rsi_14,
-      sma_20: features.sma_20,
-      sma_50: features.sma_50,
-      sma_200: features.sma_200,
-      macd_histogram: features.macd_histogram,
-      atr_pct: features.atr_pct,
       trend_regime: features.trend_regime,
       return_1d: features.return_1d,
       return_5d: features.return_5d,
@@ -952,8 +855,8 @@ function formatDatabaseContext(data: AssetData): string {
       return_252d: features.return_252d,
     },
     
-    // Recent price action
-    recent_ohlcv: recentOhlcv,
+    // Recent price action (60 days)
+    ohlcv_60d: recentOhlcv,
     as_of_date: data.as_of_date,
   }
   
@@ -965,65 +868,61 @@ function formatDeepResearchContext(data: AssetData): string {
   const review = data.review || {}
   const features = data.features || {}
   const ohlcv = data.ohlcv || []
-  const fundamentals = data.fundamentals || {}
   const quarterlyFundamentals = data.quarterly_fundamentals || []
   const annualFundamentals = data.annual_fundamentals || []
+  const fundamentals = data.fundamentals || {}
   
-  // Get more OHLCV for deep research (last 252 trading days = ~1 year)
+  // Get recent price action (1 year)
   const recentOhlcv = ohlcv.slice(-252)
   
   const context = {
-    // Core info
+    // Basic Info
     symbol: asset.symbol,
-    company_name: asset.name,
-    sector: asset.sector || asset.category,
-    industry: asset.industry || asset.category,
-    description: asset.short_description,
+    name: asset.name,
     asset_type: asset.asset_type,
     
-    // Current Valuation Metrics
+    // Valuation
     valuation: {
+      current_price: asset.current_price,
       market_cap: asset.market_cap,
-      enterprise_value: asset.enterprise_value,
       pe_ratio: asset.pe_ratio,
       forward_pe: asset.forward_pe,
-      price_to_sales_ttm: asset.price_to_sales_ttm,
+      ps_ratio: asset.ps_ratio,
+      pb_ratio: asset.pb_ratio,
       ev_to_ebitda: asset.ev_to_ebitda,
       ev_to_revenue: asset.ev_to_revenue,
-      price_to_book: asset.price_to_book,
-      price_to_fcf: asset.price_to_fcf,
       peg_ratio: asset.peg_ratio,
     },
     
-    // Current Fundamentals
+    // Fundamentals (current)
     fundamentals: {
-      revenue_ttm: asset.revenue_ttm || fundamentals.revenue_ttm,
-      revenue_growth_yoy: asset.revenue_growth_yoy || fundamentals.revenue_growth_yoy,
-      gross_margin: asset.gross_margin || fundamentals.gross_margin,
-      operating_margin: asset.operating_margin || fundamentals.operating_margin,
-      profit_margin: asset.profit_margin || fundamentals.profit_margin,
-      ebitda: asset.ebitda || fundamentals.ebitda,
-      ebitda_margin: fundamentals.ebitda_margin,
-      free_cash_flow: asset.free_cash_flow || fundamentals.free_cash_flow,
-      fcf_margin: fundamentals.fcf_margin,
-      roe: asset.roe || fundamentals.roe,
-      roa: asset.roa || fundamentals.roa,
-      roic: fundamentals.roic,
+      revenue: asset.revenue,
+      revenue_growth_yoy: asset.revenue_growth_yoy,
+      gross_margin: asset.gross_margin,
+      operating_margin: asset.operating_margin,
+      profit_margin: asset.profit_margin,
+      ebitda: asset.ebitda,
+      ebitda_margin: (fundamentals as Record<string, unknown>).ebitda_margin,
+      free_cash_flow: asset.free_cash_flow,
+      fcf_margin: (fundamentals as Record<string, unknown>).fcf_margin,
+      roe: asset.roe,
+      roa: asset.roa,
+      roic: (fundamentals as Record<string, unknown>).roic,
       eps: asset.eps,
       eps_growth_yoy: asset.earnings_growth_yoy,
       dividend_yield: asset.dividend_yield,
-      payout_ratio: fundamentals.payout_ratio,
+      payout_ratio: (fundamentals as Record<string, unknown>).payout_ratio,
     },
     
     // Balance Sheet
     balance_sheet: {
-      total_cash: asset.total_cash || fundamentals.total_cash,
-      total_debt: asset.total_debt || fundamentals.total_debt,
-      net_debt: fundamentals.net_debt,
-      debt_to_equity: fundamentals.debt_to_equity,
-      current_ratio: fundamentals.current_ratio,
-      quick_ratio: fundamentals.quick_ratio,
-      book_value_per_share: fundamentals.book_value_per_share,
+      total_cash: asset.total_cash,
+      total_debt: asset.total_debt,
+      net_debt: (fundamentals as Record<string, unknown>).net_debt,
+      debt_to_equity: (fundamentals as Record<string, unknown>).debt_to_equity,
+      current_ratio: (fundamentals as Record<string, unknown>).current_ratio,
+      quick_ratio: (fundamentals as Record<string, unknown>).quick_ratio,
+      book_value_per_share: (fundamentals as Record<string, unknown>).book_value_per_share,
     },
     
     // Historical Quarterly Fundamentals (for trend analysis)
@@ -1078,7 +977,7 @@ async function callGeminiWithSearch(
   maxTokens: number = 16384,
   useSearch: boolean = true // Enable/disable Google Search grounding
 ): Promise<{ text: string; sources: Array<{ title: string; uri: string }> }> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`
   
   // Build request body - only include tools if useSearch is true
   const requestBody: Record<string, unknown> = {
@@ -1167,7 +1066,7 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const geminiApiKey = Deno.env.get('GEMINI_API_KEY') || 'AIzaSyAHg70im-BbB9HYZm7TOzr3cKRQp7RWY1Q'
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY')!
     
     const supabase = createClient(supabaseUrl, supabaseKey)
     
@@ -1227,74 +1126,83 @@ serve(async (req) => {
           }).eq('id', job.id)
           
           console.log(`Starting background generation for job ${job.id}...`)
-      // ==================== CASCADE GENERATION (document_type: 'all') ====================
-      if (document_type === 'all') {
-        console.log(`Starting Cascade Generation for ${symbol}...`)
-        const startTime = Date.now()
-        const results: { deep_research?: string; memo?: string; one_pager?: string } = {}
-        
-        // Fetch asset data first (shared across all documents)
-        let assetDataUrl = `${supabaseUrl}/functions/v1/control-api/dashboard/asset?symbol=${symbol}`
-        if (asset_type) {
-          assetDataUrl += `&asset_type=${asset_type}`
-        }
-        
-        const assetResponse = await fetch(assetDataUrl)
-        if (!assetResponse.ok) {
-          const errorText = await assetResponse.text()
-          return new Response(JSON.stringify({ error: 'Failed to fetch asset data', details: errorText }), {
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-        }
-        
-        const assetData: AssetData = await assetResponse.json()
-        const companyName = assetData.asset?.name || symbol
-        const todayDate = new Date().toISOString().split('T')[0]
-        
-        // Fetch additional fundamental data for deep research
-        if (asset_id) {
-          try {
-            const { data: quarterlyData } = await supabase
-              .from('equity_quarterly_fundamentals')
-              .select('*')
-              .eq('asset_id', asset_id)
-              .order('fiscal_date_ending', { ascending: false })
-              .limit(20)
+          
+          // ==================== CASCADE GENERATION (document_type: 'all') ====================
+          if (docType === 'all') {
+            console.log(`Starting Cascade Generation for ${symbol}...`)
+            const startTime = Date.now()
+            const results: { deep_research?: string; memo?: string; one_pager?: string } = {}
             
-            if (quarterlyData) {
-              assetData.quarterly_fundamentals = quarterlyData
+            // Fetch asset data first (shared across all documents)
+            let assetDataUrl = `${supabaseUrl}/functions/v1/control-api/dashboard/asset?symbol=${symbol}`
+            if (asset_type) {
+              assetDataUrl += `&asset_type=${asset_type}`
             }
             
-            const { data: annualData } = await supabase
-              .from('equity_annual_fundamentals')
-              .select('*')
-              .eq('asset_id', asset_id)
-              .order('fiscal_date_ending', { ascending: false })
-              .limit(10)
-            
-            if (annualData) {
-              assetData.annual_fundamentals = annualData
+            const assetResponse = await fetch(assetDataUrl)
+            if (!assetResponse.ok) {
+              const errorText = await assetResponse.text()
+              // FIX: Properly handle error in background task - update job status instead of returning Response
+              console.error(`Failed to fetch asset data for ${symbol}:`, errorText)
+              await supabase.from('document_jobs').update({
+                status: 'failed',
+                error: `Failed to fetch asset data: ${errorText}`,
+                completed_at: new Date().toISOString()
+              }).eq('id', job.id)
+              return // Exit the background task
             }
             
-            const { data: metadataData } = await supabase
-              .from('equity_metadata')
-              .select('*')
-              .eq('asset_id', asset_id)
-              .single()
+            const assetData: AssetData = await assetResponse.json()
+            const companyName = assetData.asset?.name || symbol
+            const todayDate = new Date().toISOString().split('T')[0]
             
-            if (metadataData) {
-              assetData.fundamentals = metadataData
+            // Fetch additional fundamental data for deep research
+            if (asset_id) {
+              try {
+                const { data: quarterlyData } = await supabase
+                  .from('equity_quarterly_fundamentals')
+                  .select('*')
+                  .eq('asset_id', asset_id)
+                  .order('fiscal_date_ending', { ascending: false })
+                  .limit(20)
+                
+                if (quarterlyData) {
+                  assetData.quarterly_fundamentals = quarterlyData
+                }
+                
+                const { data: annualData } = await supabase
+                  .from('equity_annual_fundamentals')
+                  .select('*')
+                  .eq('asset_id', asset_id)
+                  .order('fiscal_date_ending', { ascending: false })
+                  .limit(10)
+                
+                if (annualData) {
+                  assetData.annual_fundamentals = annualData
+                }
+                
+                const { data: metadataData } = await supabase
+                  .from('equity_metadata')
+                  .select('*')
+                  .eq('asset_id', asset_id)
+                  .single()
+                
+                if (metadataData) {
+                  assetData.fundamentals = metadataData
+                }
+              } catch (err) {
+                console.log('Note: Could not fetch additional fundamentals data:', err)
+              }
             }
-          } catch (err) {
-            console.log('Note: Could not fetch additional fundamentals data:', err)
-          }
-        }
-        
-        // --- PHASE 1: THE SOURCE OF TRUTH (Deep Research) ---
-        console.log('Phase 1: Generating Deep Research Report (with Google Search)...')
-        const researchContext = formatDeepResearchContext(assetData)
-        const researchPrompt = `
+            
+            // --- PHASE 1: THE SOURCE OF TRUTH (Deep Research) ---
+            console.log('Phase 1: Generating Deep Research Report (with Google Search)...')
+            await supabase.from('document_jobs').update({ 
+              progress: 'Phase 1/3: Generating Deep Research Report...'
+            }).eq('id', job.id)
+            
+            const researchContext = formatDeepResearchContext(assetData)
+            const researchPrompt = `
 # TASK: Generate Deep Research Report for ${symbol} (${companyName})
 
 ## CONTEXT
@@ -1344,54 +1252,62 @@ ${DEEP_RESEARCH_TEMPLATE}
 
 6. **OUTPUT**: Return the complete Deep Research Report in clean Markdown format following the template exactly.
 `
-        
-        const { text: deepResearchText, sources } = await callGeminiWithSearch(
-          researchPrompt,
-          geminiApiKey,
-          DEEP_RESEARCH_SYSTEM_PROMPT,
-          32768,
-          true // useSearch = TRUE
-        )
-        
-        if (!deepResearchText || deepResearchText.trim() === '') {
-          return new Response(JSON.stringify({ error: 'Failed to generate Deep Research Report' }), {
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-        }
-        
-        // Save Deep Research Report
-        const deepResearchFileName = `${symbol}_Deep_Research_Report_${todayDate}.md`
-        const deepResearchPath = `deep_research/${asset_id || symbol}/${deepResearchFileName}`
-        
-        await supabase.storage.from('asset-files').upload(deepResearchPath, deepResearchText, {
-          contentType: 'text/markdown',
-          upsert: true
-        })
-        
-        const { data: deepResearchUrl } = supabase.storage.from('asset-files').getPublicUrl(deepResearchPath)
-        results.deep_research = deepResearchUrl.publicUrl
-        
-        if (asset_id) {
-          await supabase.from('asset_files').delete().eq('asset_id', asset_id).eq('file_type', 'deep_research')
-          await supabase.from('asset_files').insert({
-            asset_id,
-            file_name: deepResearchFileName,
-            file_path: deepResearchUrl.publicUrl,
-            file_type: 'deep_research',
-            file_size: deepResearchText.length,
-            description: `Generated by Gemini AI (${sources.length} sources cited)`
-          })
-        }
-        
-        console.log('Phase 1 complete. Deep Research Report saved.')
-        await supabase.from('document_jobs').update({ 
-          progress: 'Phase 1/3: Deep Research complete. Synthesizing Memo...'
-        }).eq('id', job.id)
-        
-        // --- PHASE 2: THE SYNTHESIS (Memo) ---
-        console.log('Phase 2: Synthesizing Investment Memo (no search)...')
-        const memoPrompt = `
+            
+            const { text: deepResearchText, sources } = await callGeminiWithSearch(
+              researchPrompt,
+              geminiApiKey,
+              DEEP_RESEARCH_SYSTEM_PROMPT,
+              32768,
+              true // useSearch = TRUE
+            )
+            
+            if (!deepResearchText || deepResearchText.trim() === '') {
+              // FIX: Properly handle error in background task
+              console.error(`Failed to generate Deep Research Report for ${symbol}`)
+              await supabase.from('document_jobs').update({
+                status: 'failed',
+                error: 'Failed to generate Deep Research Report - Gemini returned empty response',
+                completed_at: new Date().toISOString()
+              }).eq('id', job.id)
+              return // Exit the background task
+            }
+            
+            // Save Deep Research Report
+            const deepResearchFileName = `${symbol}_Deep_Research_Report_${todayDate}.md`
+            const deepResearchPath = `deep_research/${asset_id || symbol}/${deepResearchFileName}`
+            
+            await supabase.storage.from('asset-files').upload(deepResearchPath, deepResearchText, {
+              contentType: 'text/markdown',
+              upsert: true
+            })
+            
+            const { data: deepResearchUrl } = supabase.storage.from('asset-files').getPublicUrl(deepResearchPath)
+            results.deep_research = deepResearchUrl.publicUrl
+            
+            if (asset_id) {
+              await supabase.from('asset_files').delete().eq('asset_id', asset_id).eq('file_type', 'deep_research')
+              await supabase.from('asset_files').insert({
+                asset_id,
+                file_name: deepResearchFileName,
+                file_path: deepResearchUrl.publicUrl,
+                file_type: 'deep_research',
+                file_size: deepResearchText.length,
+                description: `Generated by Gemini AI (${sources.length} sources cited)`
+              })
+            }
+            
+            console.log('Phase 1 complete. Deep Research Report saved.')
+            await supabase.from('document_jobs').update({ 
+              progress: 'Phase 1/3: Deep Research complete. Synthesizing Memo...'
+            }).eq('id', job.id)
+            
+            // --- PHASE 2: THE SYNTHESIS (Memo) ---
+            console.log('Phase 2: Synthesizing Investment Memo (no search)...')
+            await supabase.from('document_jobs').update({ 
+              progress: 'Phase 2/3: Synthesizing Investment Memo...'
+            }).eq('id', job.id)
+            
+            const memoPrompt = `
 You are the Stratos Brain Investment Committee Secretary.
 
 TASK: Convert the provided Deep Research Report into a standard Investment Memo.
@@ -1413,47 +1329,51 @@ ${MEMO_TEMPLATE}
 
 Generate the complete Investment Memo following the template structure. Use only information from the SOURCE_REPORT.
 `
-        
-        const { text: memoText } = await callGeminiWithSearch(
-          memoPrompt,
-          geminiApiKey,
-          "You are an expert financial synthesizer. Your job is to transform comprehensive research into concise investment documents. Use ONLY the provided source material - do not add external information.",
-          16384,
-          false // useSearch = FALSE
-        )
-        
-        // Save Memo
-        const memoFileName = `${symbol}_Investment_Memo_${todayDate}.md`
-        const memoPath = `memos/${asset_id || symbol}/${memoFileName}`
-        
-        await supabase.storage.from('asset-files').upload(memoPath, memoText, {
-          contentType: 'text/markdown',
-          upsert: true
-        })
-        
-        const { data: memoUrl } = supabase.storage.from('asset-files').getPublicUrl(memoPath)
-        results.memo = memoUrl.publicUrl
-        
-        if (asset_id) {
-          await supabase.from('asset_files').delete().eq('asset_id', asset_id).eq('file_type', 'memo')
-          await supabase.from('asset_files').insert({
-            asset_id,
-            file_name: memoFileName,
-            file_path: memoUrl.publicUrl,
-            file_type: 'memo',
-            file_size: memoText.length,
-            description: 'Synthesized from Deep Research Report'
-          })
-        }
-        
-        console.log('Phase 2 complete. Investment Memo saved.')
-        await supabase.from('document_jobs').update({ 
-          progress: 'Phase 2/3: Memo complete. Synthesizing One Pager...'
-        }).eq('id', job.id)
-        
-        // --- PHASE 3: THE SNAPSHOT (One Pager) ---
-        console.log('Phase 3: Synthesizing One Pager (no search)...')
-        const onePagerPrompt = `
+            
+            const { text: memoText } = await callGeminiWithSearch(
+              memoPrompt,
+              geminiApiKey,
+              "You are an expert financial synthesizer. Your job is to transform comprehensive research into concise investment documents. Use ONLY the provided source material - do not add external information.",
+              16384,
+              false // useSearch = FALSE
+            )
+            
+            // Save Memo
+            const memoFileName = `${symbol}_Investment_Memo_${todayDate}.md`
+            const memoPath = `memos/${asset_id || symbol}/${memoFileName}`
+            
+            await supabase.storage.from('asset-files').upload(memoPath, memoText, {
+              contentType: 'text/markdown',
+              upsert: true
+            })
+            
+            const { data: memoUrl } = supabase.storage.from('asset-files').getPublicUrl(memoPath)
+            results.memo = memoUrl.publicUrl
+            
+            if (asset_id) {
+              await supabase.from('asset_files').delete().eq('asset_id', asset_id).eq('file_type', 'memo')
+              await supabase.from('asset_files').insert({
+                asset_id,
+                file_name: memoFileName,
+                file_path: memoUrl.publicUrl,
+                file_type: 'memo',
+                file_size: memoText.length,
+                description: 'Synthesized from Deep Research Report'
+              })
+            }
+            
+            console.log('Phase 2 complete. Investment Memo saved.')
+            await supabase.from('document_jobs').update({ 
+              progress: 'Phase 2/3: Memo complete. Synthesizing One Pager...'
+            }).eq('id', job.id)
+            
+            // --- PHASE 3: THE SNAPSHOT (One Pager) ---
+            console.log('Phase 3: Synthesizing One Pager (no search)...')
+            await supabase.from('document_jobs').update({ 
+              progress: 'Phase 3/3: Synthesizing One Pager...'
+            }).eq('id', job.id)
+            
+            const onePagerPrompt = `
 You are the Stratos Brain Investment Committee Secretary.
 
 TASK: Synthesize the provided Deep Research Report into a high-impact One Pager.
@@ -1475,149 +1395,153 @@ ${ONE_PAGER_TEMPLATE}
 
 Generate the complete One Pager following the template structure. Use only information from the SOURCE_REPORT.
 `
-        
-        const { text: onePagerText } = await callGeminiWithSearch(
-          onePagerPrompt,
-          geminiApiKey,
-          "You are an expert financial synthesizer. Your job is to distill comprehensive research into a single-page investment snapshot. Be concise but impactful. Use ONLY the provided source material.",
-          8192,
-          false // useSearch = FALSE
-        )
-        
-        // Save One Pager
-        const onePagerFileName = `${symbol}_One_Pager_${todayDate}.md`
-        const onePagerPath = `one_pagers/${asset_id || symbol}/${onePagerFileName}`
-        
-        await supabase.storage.from('asset-files').upload(onePagerPath, onePagerText, {
-          contentType: 'text/markdown',
-          upsert: true
-        })
-        
-        const { data: onePagerUrl } = supabase.storage.from('asset-files').getPublicUrl(onePagerPath)
-        results.one_pager = onePagerUrl.publicUrl
-        
-        if (asset_id) {
-          await supabase.from('asset_files').delete().eq('asset_id', asset_id).eq('file_type', 'one_pager')
-          await supabase.from('asset_files').insert({
-            asset_id,
-            file_name: onePagerFileName,
-            file_path: onePagerUrl.publicUrl,
-            file_type: 'one_pager',
-            file_size: onePagerText.length,
-            description: 'Synthesized from Deep Research Report'
-          })
-        }
-        
-        console.log('Phase 3 complete. One Pager saved.')
-        
-        const totalTime = (Date.now() - startTime) / 1000
-        console.log(`Cascade generation complete in ${totalTime}s`)
-        
-        // Update job as completed
-        await supabase.from('document_jobs').update({
-          status: 'completed',
-          progress: 'All documents generated successfully',
-          result: {
-            files: results,
-            generation_time_seconds: totalTime,
-            sources_cited: sources.length
-          },
-          completed_at: new Date().toISOString()
-        }).eq('id', job.id)
-        
-        console.log(`Job ${job.id} completed successfully`)
-      }
-      
-      // ==================== SINGLE DOCUMENT GENERATION ====================
-      else {
-        // Update progress for single document
-        await supabase.from('document_jobs').update({ 
-          progress: `Generating ${docType}...`
-        }).eq('id', job.id)
-      
-      // Step 1: Fetch asset data from control-api
-      // Include asset_type if provided to disambiguate symbols like COMP (Compass equity vs Compound crypto)
-      let assetDataUrl = `${supabaseUrl}/functions/v1/control-api/dashboard/asset?symbol=${symbol}`
-      if (asset_type) {
-        assetDataUrl += `&asset_type=${asset_type}`
-      }
-      console.log(`Fetching asset data from: ${assetDataUrl}`)
-      
-      const assetResponse = await fetch(assetDataUrl)
-      if (!assetResponse.ok) {
-        const errorText = await assetResponse.text()
-        return new Response(JSON.stringify({ error: 'Failed to fetch asset data', details: errorText }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-      }
-      
-      const assetData: AssetData = await assetResponse.json()
-      const companyName = assetData.asset?.name || symbol
-      const todayDate = new Date().toISOString().split('T')[0]
-      
-      // For deep research, fetch additional fundamental data
-      if (docType === 'deep_research' && asset_id) {
-        try {
-          // Fetch quarterly fundamentals
-          const { data: quarterlyData } = await supabase
-            .from('equity_quarterly_fundamentals')
-            .select('*')
-            .eq('asset_id', asset_id)
-            .order('fiscal_date_ending', { ascending: false })
-            .limit(20)
-          
-          if (quarterlyData) {
-            assetData.quarterly_fundamentals = quarterlyData
+            
+            const { text: onePagerText } = await callGeminiWithSearch(
+              onePagerPrompt,
+              geminiApiKey,
+              "You are an expert financial synthesizer. Your job is to distill comprehensive research into a single-page investment snapshot. Be concise but impactful. Use ONLY the provided source material.",
+              8192,
+              false // useSearch = FALSE
+            )
+            
+            // Save One Pager
+            const onePagerFileName = `${symbol}_One_Pager_${todayDate}.md`
+            const onePagerPath = `one_pagers/${asset_id || symbol}/${onePagerFileName}`
+            
+            await supabase.storage.from('asset-files').upload(onePagerPath, onePagerText, {
+              contentType: 'text/markdown',
+              upsert: true
+            })
+            
+            const { data: onePagerUrl } = supabase.storage.from('asset-files').getPublicUrl(onePagerPath)
+            results.one_pager = onePagerUrl.publicUrl
+            
+            if (asset_id) {
+              await supabase.from('asset_files').delete().eq('asset_id', asset_id).eq('file_type', 'one_pager')
+              await supabase.from('asset_files').insert({
+                asset_id,
+                file_name: onePagerFileName,
+                file_path: onePagerUrl.publicUrl,
+                file_type: 'one_pager',
+                file_size: onePagerText.length,
+                description: 'Synthesized from Deep Research Report'
+              })
+            }
+            
+            console.log('Phase 3 complete. One Pager saved.')
+            
+            const totalTime = (Date.now() - startTime) / 1000
+            console.log(`Cascade generation complete in ${totalTime}s`)
+            
+            // Update job as completed
+            await supabase.from('document_jobs').update({
+              status: 'completed',
+              progress: 'All documents generated successfully',
+              result: {
+                files: results,
+                generation_time_seconds: totalTime,
+                sources_cited: sources.length
+              },
+              completed_at: new Date().toISOString()
+            }).eq('id', job.id)
+            
+            console.log(`Job ${job.id} completed successfully`)
           }
           
-          // Fetch annual fundamentals
-          const { data: annualData } = await supabase
-            .from('equity_annual_fundamentals')
-            .select('*')
-            .eq('asset_id', asset_id)
-            .order('fiscal_date_ending', { ascending: false })
-            .limit(10)
-          
-          if (annualData) {
-            assetData.annual_fundamentals = annualData
-          }
-          
-          // Fetch equity metadata
-          const { data: metadataData } = await supabase
-            .from('equity_metadata')
-            .select('*')
-            .eq('asset_id', asset_id)
-            .single()
-          
-          if (metadataData) {
-            assetData.fundamentals = metadataData
-          }
-        } catch (err) {
-          console.log('Note: Could not fetch additional fundamentals data:', err)
-        }
-      }
-      
-      // Step 2: Prepare the prompt based on document type
-      let databaseContext: string
-      let template: string
-      let systemPrompt: string
-      let maxTokens: number
-      
-      if (docType === 'deep_research') {
-        databaseContext = formatDeepResearchContext(assetData)
-        template = DEEP_RESEARCH_TEMPLATE
-        systemPrompt = DEEP_RESEARCH_SYSTEM_PROMPT
-        maxTokens = 32768 // Larger output for comprehensive report
-      } else {
-        databaseContext = formatDatabaseContext(assetData)
-        template = docType === 'memo' ? MEMO_TEMPLATE : ONE_PAGER_TEMPLATE
-        systemPrompt = SYSTEM_PROMPT
-        maxTokens = 16384
-      }
-      
-      const prompt = docType === 'deep_research' 
-        ? `
+          // ==================== SINGLE DOCUMENT GENERATION ====================
+          else {
+            // Update progress for single document
+            await supabase.from('document_jobs').update({ 
+              progress: `Generating ${docType}...`
+            }).eq('id', job.id)
+            
+            // Step 1: Fetch asset data from control-api
+            // Include asset_type if provided to disambiguate symbols like COMP (Compass equity vs Compound crypto)
+            let assetDataUrl = `${supabaseUrl}/functions/v1/control-api/dashboard/asset?symbol=${symbol}`
+            if (asset_type) {
+              assetDataUrl += `&asset_type=${asset_type}`
+            }
+            console.log(`Fetching asset data from: ${assetDataUrl}`)
+            
+            const assetResponse = await fetch(assetDataUrl)
+            if (!assetResponse.ok) {
+              const errorText = await assetResponse.text()
+              // FIX: Properly handle error in background task
+              console.error(`Failed to fetch asset data for ${symbol}:`, errorText)
+              await supabase.from('document_jobs').update({
+                status: 'failed',
+                error: `Failed to fetch asset data: ${errorText}`,
+                completed_at: new Date().toISOString()
+              }).eq('id', job.id)
+              return // Exit the background task
+            }
+            
+            const assetData: AssetData = await assetResponse.json()
+            const companyName = assetData.asset?.name || symbol
+            const todayDate = new Date().toISOString().split('T')[0]
+            
+            // For deep research, fetch additional fundamental data
+            if (docType === 'deep_research' && asset_id) {
+              try {
+                // Fetch quarterly fundamentals
+                const { data: quarterlyData } = await supabase
+                  .from('equity_quarterly_fundamentals')
+                  .select('*')
+                  .eq('asset_id', asset_id)
+                  .order('fiscal_date_ending', { ascending: false })
+                  .limit(20)
+                
+                if (quarterlyData) {
+                  assetData.quarterly_fundamentals = quarterlyData
+                }
+                
+                // Fetch annual fundamentals
+                const { data: annualData } = await supabase
+                  .from('equity_annual_fundamentals')
+                  .select('*')
+                  .eq('asset_id', asset_id)
+                  .order('fiscal_date_ending', { ascending: false })
+                  .limit(10)
+                
+                if (annualData) {
+                  assetData.annual_fundamentals = annualData
+                }
+                
+                // Fetch equity metadata
+                const { data: metadataData } = await supabase
+                  .from('equity_metadata')
+                  .select('*')
+                  .eq('asset_id', asset_id)
+                  .single()
+                
+                if (metadataData) {
+                  assetData.fundamentals = metadataData
+                }
+              } catch (err) {
+                console.log('Note: Could not fetch additional fundamentals data:', err)
+              }
+            }
+            
+            // Step 2: Prepare the prompt based on document type
+            let databaseContext: string
+            let template: string
+            let systemPrompt: string
+            let maxTokens: number
+            
+            if (docType === 'deep_research') {
+              databaseContext = formatDeepResearchContext(assetData)
+              template = DEEP_RESEARCH_TEMPLATE
+              systemPrompt = DEEP_RESEARCH_SYSTEM_PROMPT
+              maxTokens = 32768 // Larger output for comprehensive report
+            } else {
+              databaseContext = formatDatabaseContext(assetData)
+              template = docType === 'memo' ? MEMO_TEMPLATE : ONE_PAGER_TEMPLATE
+              systemPrompt = SYSTEM_PROMPT
+              maxTokens = 16384
+            }
+            
+            const prompt = docType === 'deep_research' 
+              ? `
 # TASK: Generate Deep Research Report for ${symbol} (${companyName})
 
 ## CONTEXT
@@ -1667,7 +1591,7 @@ ${template}
 
 6. **OUTPUT**: Return the complete Deep Research Report in clean Markdown format following the template exactly.
 `
-        : `
+              : `
 # TASK: Generate Investment ${docType === 'memo' ? 'Memo' : 'One Pager'} for ${symbol}
 
 ## INPUT DATA
@@ -1705,118 +1629,124 @@ ${template}
 
 4. **Output**: Return ONLY the completed document in clean Markdown format.
 `
-      
-      // Step 3: Call Gemini with Google Search
-      console.log(`Calling Gemini API for ${docType}...`)
-      const startTime = Date.now()
-      
-      const { text: documentContent, sources } = await callGeminiWithSearch(
-        prompt, 
-        geminiApiKey, 
-        systemPrompt,
-        maxTokens
-      )
-      
-      const generationTime = (Date.now() - startTime) / 1000
-      console.log(`Document generated in ${generationTime}s with ${sources.length} sources`)
-      
-      if (!documentContent || documentContent.trim() === '') {
-        return new Response(JSON.stringify({ error: 'Gemini returned empty response' }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-      }
-      
-      // Step 4: Save to Supabase Storage
-      let fileName: string
-      let storagePath: string
-      
-      if (docType === 'deep_research') {
-        fileName = `${symbol}_Deep_Research_Report_${todayDate}.md`
-        storagePath = `deep_research/${asset_id || symbol}/${fileName}`
-      } else if (docType === 'memo') {
-        fileName = `${symbol}_Investment_Memo_${todayDate}.md`
-        storagePath = `memos/${asset_id || symbol}/${fileName}`
-      } else {
-        fileName = `${symbol}_One_Pager_${todayDate}.md`
-        storagePath = `one_pagers/${asset_id || symbol}/${fileName}`
-      }
-      
-      const { error: uploadError } = await supabase.storage
-        .from('asset-files')
-        .upload(storagePath, documentContent, {
-          contentType: 'text/markdown',
-          upsert: true
-        })
-      
-      if (uploadError) {
-        console.error('Storage upload error:', uploadError)
-        return new Response(JSON.stringify({ error: 'Failed to upload to storage', details: uploadError.message }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-      }
-      
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('asset-files')
-        .getPublicUrl(storagePath)
-      
-      console.log(`File uploaded to: ${urlData.publicUrl}`)
-      
-      // Step 5: Save record to asset_files table
-      if (asset_id) {
-        // Delete any existing placeholder entries
-        await supabase
-          .from('asset_files')
-          .delete()
-          .eq('asset_id', asset_id)
-          .eq('file_type', docType)
-          .like('description', '%Generating%')
-        
-        // Insert new record
-        const { error: insertError } = await supabase
-          .from('asset_files')
-          .insert({
-            asset_id,
-            file_name: fileName,
-            file_path: urlData.publicUrl,
-            file_type: docType,
-            file_size: documentContent.length,
-            description: `Generated by Gemini AI (${sources.length} sources cited)`
-          })
-        
-        if (insertError) {
-          console.error('Database insert error:', insertError)
-          // Don't fail the request, file is already uploaded
-        }
-      }
-      
-      // Update job as completed
-        await supabase.from('document_jobs').update({
-          status: 'completed',
-          progress: 'Document generated successfully',
-          result: {
-            document_type: docType,
-            file_name: fileName,
-            file_url: urlData.publicUrl,
-            storage_path: storagePath,
-            generation_time_seconds: generationTime,
-            sources_cited: sources.length,
-            content_length: documentContent.length
-          },
-          completed_at: new Date().toISOString()
-        }).eq('id', job.id)
-        
-        console.log(`Job ${job.id} completed successfully`)
-      } // end single document else block
-      
+            
+            // Step 3: Call Gemini with Google Search
+            console.log(`Calling Gemini API for ${docType}...`)
+            const startTime = Date.now()
+            
+            const { text: documentContent, sources } = await callGeminiWithSearch(
+              prompt, 
+              geminiApiKey, 
+              systemPrompt,
+              maxTokens
+            )
+            
+            const generationTime = (Date.now() - startTime) / 1000
+            console.log(`Document generated in ${generationTime}s with ${sources.length} sources`)
+            
+            if (!documentContent || documentContent.trim() === '') {
+              // FIX: Properly handle error in background task
+              console.error(`Gemini returned empty response for ${symbol} ${docType}`)
+              await supabase.from('document_jobs').update({
+                status: 'failed',
+                error: 'Gemini returned empty response',
+                completed_at: new Date().toISOString()
+              }).eq('id', job.id)
+              return // Exit the background task
+            }
+            
+            // Step 4: Save to Supabase Storage
+            let fileName: string
+            let storagePath: string
+            
+            if (docType === 'deep_research') {
+              fileName = `${symbol}_Deep_Research_Report_${todayDate}.md`
+              storagePath = `deep_research/${asset_id || symbol}/${fileName}`
+            } else if (docType === 'memo') {
+              fileName = `${symbol}_Investment_Memo_${todayDate}.md`
+              storagePath = `memos/${asset_id || symbol}/${fileName}`
+            } else {
+              fileName = `${symbol}_One_Pager_${todayDate}.md`
+              storagePath = `one_pagers/${asset_id || symbol}/${fileName}`
+            }
+            
+            const { error: uploadError } = await supabase.storage
+              .from('asset-files')
+              .upload(storagePath, documentContent, {
+                contentType: 'text/markdown',
+                upsert: true
+              })
+            
+            if (uploadError) {
+              console.error('Storage upload error:', uploadError)
+              await supabase.from('document_jobs').update({
+                status: 'failed',
+                error: `Failed to upload to storage: ${uploadError.message}`,
+                completed_at: new Date().toISOString()
+              }).eq('id', job.id)
+              return // Exit the background task
+            }
+            
+            // Get public URL
+            const { data: urlData } = supabase.storage
+              .from('asset-files')
+              .getPublicUrl(storagePath)
+            
+            console.log(`File uploaded to: ${urlData.publicUrl}`)
+            
+            // Step 5: Save record to asset_files table
+            if (asset_id) {
+              // Delete any existing placeholder entries
+              await supabase
+                .from('asset_files')
+                .delete()
+                .eq('asset_id', asset_id)
+                .eq('file_type', docType)
+                .like('description', '%Generating%')
+              
+              // Insert new record
+              const { error: insertError } = await supabase
+                .from('asset_files')
+                .insert({
+                  asset_id,
+                  file_name: fileName,
+                  file_path: urlData.publicUrl,
+                  file_type: docType,
+                  file_size: documentContent.length,
+                  description: `Generated by Gemini AI (${sources.length} sources cited)`
+                })
+              
+              if (insertError) {
+                console.error('Database insert error:', insertError)
+                // Don't fail the request, file is already uploaded
+              }
+            }
+            
+            // Update job as completed
+            await supabase.from('document_jobs').update({
+              status: 'completed',
+              progress: 'Document generated successfully',
+              result: {
+                document_type: docType,
+                file_name: fileName,
+                file_url: urlData.publicUrl,
+                storage_path: storagePath,
+                generation_time_seconds: generationTime,
+                sources_cited: sources.length,
+                content_length: documentContent.length
+              },
+              completed_at: new Date().toISOString()
+            }).eq('id', job.id)
+            
+            console.log(`Job ${job.id} completed successfully`)
+          } // end single document else block
+          
         } catch (bgError) {
           // Background job failed
           console.error(`Job ${job.id} failed:`, bgError)
           await supabase.from('document_jobs').update({
             status: 'failed',
-            error: bgError.message || 'Unknown error during generation',
+            error: (bgError as Error).message || 'Unknown error during generation',
             completed_at: new Date().toISOString()
           }).eq('id', job.id)
         }
@@ -1839,7 +1769,7 @@ ${template}
       return new Response(JSON.stringify({
         status: 'ok',
         service: 'generate-document',
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-2.5-flash-preview-05-20',
         features: ['google_search_grounding', 'memo', 'one_pager', 'deep_research']
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -1855,11 +1785,10 @@ ${template}
     console.error('Error:', error)
     return new Response(JSON.stringify({ 
       error: 'Internal server error', 
-      details: error.message 
+      details: (error as Error).message 
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }
 })
-
