@@ -28,6 +28,8 @@ from datetime import datetime, date
 from typing import Dict, List, Optional, Tuple
 
 # Database configuration
+# Prefer DATABASE_URL (full connection string) over individual params
+DATABASE_URL = os.environ.get('DATABASE_URL')
 DB_HOST = os.environ.get('DB_HOST', 'db.wfogbaipiqootjrsprde.supabase.co')
 DB_PORT = os.environ.get('DB_PORT', '5432')
 DB_NAME = os.environ.get('DB_NAME', 'postgres')
@@ -69,6 +71,10 @@ VALUE_COMPONENT_WEIGHTS = {
 
 def get_db_connection():
     """Create and return a database connection."""
+    # Use DATABASE_URL if available (preferred for GitHub Actions)
+    if DATABASE_URL:
+        return psycopg2.connect(DATABASE_URL)
+    # Fallback to individual parameters
     return psycopg2.connect(
         host=DB_HOST,
         port=DB_PORT,
