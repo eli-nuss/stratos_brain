@@ -2,8 +2,8 @@
 """
 ETF Daily Scoring Job
 =====================
-Calculates composite scores for ETFs based on their technical features.
-Similar to Stage 4 scoring but simplified for ETFs.
+Calculates composite technical scores for all ETFs.
+Runs after ETF features are calculated to generate rankings.
 
 Usage:
     python jobs/etf_daily_scoring.py --date 2026-01-27
@@ -17,13 +17,12 @@ import os
 import sys
 import argparse
 import logging
-from datetime import datetime, timedelta
-from decimal import Decimal
+from datetime import datetime, date
 
 import numpy as np
 import pandas as pd
 import psycopg2
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import RealDictCursor, execute_values
 
 logging.basicConfig(
     level=logging.INFO,
@@ -78,28 +77,24 @@ def calculate_etf_scores(target_date: str) -> int:
         logger.info(f"Found {len(etfs)} ETFs with features")
         
         if not etfs:
+            logger.warning("No ETFs found with features for this date")
             return 0
         
         # Calculate scores
         scores = []
         for etf in etfs:
-            score = calculate_single_etf_score(etf)
+            score = calculate_single_etf_score(etf, target_date)
             scores.append(score)
         
         # Insert scores
         with conn.cursor() as insert_cur:
-            insert_cur.executemany("""
+            execute_values(insert_cur, """
                 INSERT INTO daily_asset_scores (
                     as_of_date, asset_id, universe_id, config_id,
                     weighted_score, inflection_score,
                     score_bullish, score_bearish,
                     components, created_at
-                ) VALUES (
-                    %(as_of_date)s, %(asset_id)s, 'etf_universe', 'etf_v1',
-                    %(weighted_score)s, %(inflection_score)s,
-                    %(score_bullish)s, %(score_bearish)s,
-                    %(components)s, NOW()
-                )
+                ) VALUES %s
                 ON CONFLICT (as_of_date, asset_id, universe_id, config_id) DO UPDATE SET
                     weighted_score = EXCLUDED.weighted_score,
                     inflection_score = EXCLUDED.inflection_score,
@@ -111,10 +106,25 @@ def calculate_etf_scores(target_date: str) -> int:
         
         conn.commit()
         logger.info(f"Inserted/updated {len(scores)} ETF scores")
+        
+        # Update latest_dates for etf_scores
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO latest_dates (asset_type, latest_date, updated_at)
+                    VALUES ('etf_scores', %s, NOW())
+                    ON CONFLICT (asset_type) 
+                    DO UPDATE SET latest_date = EXCLUDED.latest_date, updated_at = NOW()
+                    WHERE latest_dates.latest_date < EXCLUDED.latest_date
+                """, (target_date,))
+                logger.info(f"Updated latest_dates for etf_scores to {target_date}")
+        except Exception as e:
+            logger.warning(f"Failed to update latest_dates: {e}")
+        
         return len(scores)
 
 
-def calculate_single_etf_score(etf: dict) -> dict:
+def calculate_single_etf_score(etf: dict, target_date: str) -> tuple:
     """Calculate composite score for a single ETF."""
     components = {}
     
@@ -178,29 +188,43 @@ def calculate_single_etf_score(etf: dict) -> dict:
     inflection_score = abs(components['momentum'] - 50) + abs(components['mean_reversion'] - 50)
     inflection_score = min(inflection_score, 100)
     
-    return {
-        'as_of_date': etf.get('date', datetime.now().strftime('%Y-%m-%d')),
-        'asset_id': etf['asset_id'],
-        'weighted_score': round(weighted_score, 2),
-        'inflection_score': round(inflection_score, 2),
-        'score_bullish': round(weighted_score, 2) if weighted_score > 50 else 0,
-        'score_bearish': round(100 - weighted_score, 2) if weighted_score < 50 else 0,
-        'components': str(components)
-    }
+    return (
+        target_date,
+        etf['asset_id'],
+        'etf_universe',
+        'etf_v1',
+        round(weighted_score, 2),
+        round(inflection_score, 2),
+        round(weighted_score, 2) if weighted_score > 50 else 0,
+        round(100 - weighted_score, 2) if weighted_score < 50 else 0,
+        str(components),
+        datetime.now().isoformat()
+    )
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Calculate ETF scores')
+    parser = argparse.ArgumentParser(description='ETF Daily Scoring')
     parser.add_argument('--date', type=str, help='Target date (YYYY-MM-DD)')
     args = parser.parse_args()
     
     if args.date:
         target_date = args.date
     else:
-        target_date = datetime.utcnow().strftime('%Y-%m-%d')
+        target_date = date.today().isoformat()
+    
+    logger.info("=" * 60)
+    logger.info("ETF DAILY SCORING")
+    logger.info(f"Target Date: {target_date}")
+    logger.info("=" * 60)
     
     count = calculate_etf_scores(target_date)
-    logger.info(f"Complete: processed {count} ETFs")
+    
+    logger.info("=" * 60)
+    if count > 0:
+        logger.info(f"✅ Complete: Processed {count} ETFs")
+    else:
+        logger.info("⚠️ No ETFs processed")
+    logger.info("=" * 60)
 
 
 if __name__ == '__main__':

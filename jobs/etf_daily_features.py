@@ -32,7 +32,7 @@ from psycopg2.extras import execute_values, RealDictCursor
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s | %(levelname)s | %(message)s',
-    datefmt='%%Y-%m-%d %H:%M:%S'
+    datefmt='%Y-%m-%d %H:%M:%S'
 )
 logger = logging.getLogger(__name__)
 
@@ -130,7 +130,7 @@ def calculate_moving_averages(df: pd.DataFrame) -> pd.DataFrame:
     df['ma_dist_50'] = (df['close'] - df['sma_50']) / df['sma_50']
     df['ma_dist_200'] = (df['close'] - df['sma_200']) / df['sma_200']
     
-    # MA slopes (20-day rate of change)
+    # MA slopes
     df['ma_slope_20'] = df['sma_20'].pct_change(20)
     df['ma_slope_50'] = df['sma_50'].pct_change(50)
     df['ma_slope_200'] = df['sma_200'].pct_change(200)
@@ -229,7 +229,7 @@ def calculate_all_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def get_feature_record(row: pd.Series, asset_id: int, feature_version: str) -> tuple:
+def build_record(row: pd.Series, asset_id: int, target_date: str) -> tuple:
     """Convert a dataframe row to a database record tuple."""
     def safe_float(val):
         if pd.isna(val) or val is None:
@@ -241,10 +241,10 @@ def get_feature_record(row: pd.Series, asset_id: int, feature_version: str) -> t
     
     return (
         asset_id,
-        row['date'].strftime('%Y-%m-%d'),
-        feature_version,
+        target_date,
+        FEATURE_VERSION,
         'etf_features_v1',
-        None,  # asof_timestamp
+        datetime.now().isoformat(),  # asof_timestamp
         safe_float(row.get('close')),
         safe_float(row.get('return_1d')),
         safe_float(row.get('return_5d')),
@@ -258,13 +258,16 @@ def get_feature_record(row: pd.Series, asset_id: int, feature_version: str) -> t
         safe_float(row.get('ma_slope_50')),
         safe_float(row.get('ma_slope_200')),
         row.get('trend_regime', 'unknown'),
-        None, None, None, None,  # roc columns
+        safe_float(row.get('return_5d')),  # roc_5
+        None,  # roc_10
+        None,  # roc_20
+        None,  # roc_63
         safe_float(row.get('rsi_14')),
         safe_float(row.get('macd_histogram')),
         safe_float(row.get('atr_pct')),
-        None,  # realized_vol
+        None,  # realized_vol_20
         safe_float(row.get('bb_width')),
-        safe_float(row.get('bb_pct')),
+        None,  # bb_width_pctile
         safe_float(row.get('dollar_volume_sma_20')),
         safe_float(row.get('rvol_20')),
         safe_float(row.get('sma_20')),
@@ -275,57 +278,94 @@ def get_feature_record(row: pd.Series, asset_id: int, feature_version: str) -> t
     )
 
 
-def process_etf(etf: dict, target_date: str, feature_version: str) -> tuple:
-    """Process a single ETF and return (asset_id, success, record_count)."""
+def write_features_batch(records: list) -> int:
+    """Write a batch of feature records to the database."""
+    if not records:
+        return 0
+    
+    conn = get_connection()
+    query = """
+        INSERT INTO daily_features (
+            asset_id, date, feature_version, calc_version, asof_timestamp,
+            close, return_1d, return_5d, return_21d, return_63d, return_252d,
+            ma_dist_20, ma_dist_50, ma_dist_200, ma_slope_20, ma_slope_50, ma_slope_200,
+            trend_regime, roc_5, roc_10, roc_20, roc_63, rsi_14, macd_histogram,
+            atr_pct, realized_vol_20, bb_width, bb_width_pctile, dollar_volume_sma_20, rvol_20,
+            sma_20, sma_50, sma_200, above_ma200, ma50_above_ma200
+        ) VALUES %s
+        ON CONFLICT (asset_id, date) DO UPDATE SET
+            feature_version = EXCLUDED.feature_version,
+            calc_version = EXCLUDED.calc_version,
+            asof_timestamp = EXCLUDED.asof_timestamp,
+            close = EXCLUDED.close,
+            return_1d = EXCLUDED.return_1d,
+            rsi_14 = EXCLUDED.rsi_14,
+            macd_histogram = EXCLUDED.macd_histogram,
+            atr_pct = EXCLUDED.atr_pct,
+            bb_width = EXCLUDED.bb_width,
+            dollar_volume_sma_20 = EXCLUDED.dollar_volume_sma_20,
+            rvol_20 = EXCLUDED.rvol_20,
+            ma_dist_50 = EXCLUDED.ma_dist_50,
+            trend_regime = EXCLUDED.trend_regime,
+            sma_20 = EXCLUDED.sma_20,
+            sma_50 = EXCLUDED.sma_50,
+            sma_200 = EXCLUDED.sma_200,
+            above_ma200 = EXCLUDED.above_ma200,
+            ma50_above_ma200 = EXCLUDED.ma50_above_ma200
+    """
+    
+    with conn.cursor() as cur:
+        execute_values(cur, query, records)
+    
+    return len(records)
+
+
+def update_latest_date(target_date: str):
+    """Update the latest_dates table for dashboard display."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO latest_dates (asset_type, latest_date, updated_at)
+                VALUES (%s, %s, NOW())
+                ON CONFLICT (asset_type) 
+                DO UPDATE SET latest_date = EXCLUDED.latest_date, updated_at = NOW()
+                WHERE latest_dates.latest_date < EXCLUDED.latest_date
+            """, ('etf', target_date))
+            logger.info(f"Updated latest_dates for etf to {target_date}")
+    except Exception as e:
+        logger.warning(f"Failed to update latest_dates: {e}")
+
+
+def process_etf(etf: dict, target_date: str) -> dict:
+    """Process a single ETF and return result dict."""
     try:
         df = get_bars_for_etf(etf['asset_id'], target_date)
         if len(df) < 200:
-            return (etf['asset_id'], False, 0)
+            return {'status': 'skipped', 'reason': 'insufficient_data', 'asset_id': etf['asset_id']}
         
         df = calculate_all_features(df)
         if df.empty:
-            return (etf['asset_id'], False, 0)
+            return {'status': 'error', 'error': 'feature_calculation_failed', 'asset_id': etf['asset_id']}
         
         # Get the target date row
-        target_row = df[df['date'] == target_date]
+        target_row = df[df['date'] == pd.to_datetime(target_date)]
         if target_row.empty:
-            return (etf['asset_id'], False, 0)
+            return {'status': 'skipped', 'reason': 'no_data_for_target_date', 'asset_id': etf['asset_id']}
         
-        record = get_feature_record(target_row.iloc[0], etf['asset_id'], feature_version)
+        record = build_record(target_row.iloc[0], etf['asset_id'], target_date)
         
-        # Insert into database
-        conn = get_connection()
-        with conn.cursor() as cur:
-            cur.execute("""
-                INSERT INTO daily_features (
-                    asset_id, date, feature_version, calc_version, asof_timestamp,
-                    close, return_1d, return_5d, return_21d, return_63d, return_252d,
-                    ma_dist_20, ma_dist_50, ma_dist_200, ma_slope_20, ma_slope_50, ma_slope_200,
-                    trend_regime, roc_5, roc_10, roc_20, roc_63, rsi_14, macd_histogram,
-                    atr_pct, realized_vol_20, bb_width, bb_pct, dollar_volume_sma_20, rvol_20,
-                    sma_20, sma_50, sma_200, above_ma200, ma50_above_ma200
-                ) VALUES %s
-                ON CONFLICT (asset_id, date) DO UPDATE SET
-                    feature_version = EXCLUDED.feature_version,
-                    calc_version = EXCLUDED.calc_version,
-                    close = EXCLUDED.close,
-                    return_1d = EXCLUDED.return_1d,
-                    rsi_14 = EXCLUDED.rsi_14,
-                    ma_dist_50 = EXCLUDED.ma_dist_50,
-                    trend_regime = EXCLUDED.trend_regime
-            """, (record,))
-        
-        return (etf['asset_id'], True, 1)
+        return {'status': 'success', 'record': record, 'asset_id': etf['asset_id'], 'symbol': etf['symbol']}
         
     except Exception as e:
-        logger.error(f"Error processing ETF {etf['asset_id']}: {e}")
-        return (etf['asset_id'], False, 0)
+        return {'status': 'error', 'error': str(e), 'asset_id': etf['asset_id']}
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Calculate daily features for ETFs')
-    parser.add_argument('--date', type=str, help='Target date (YYYY-MM-DD), default: today')
-    parser.add_argument('--workers', type=int, default=4, help='Number of parallel workers')
+    parser = argparse.ArgumentParser(description='ETF Daily Features Calculation')
+    parser.add_argument('--date', type=str, help='Target date (YYYY-MM-DD). Defaults to today.')
+    parser.add_argument('--workers', type=int, default=8, help='Number of parallel workers')
+    parser.add_argument('--batch-size', type=int, default=50, help='Batch size for DB writes')
     parser.add_argument('--limit', type=int, help='Limit number of ETFs (for testing)')
     args = parser.parse_args()
     
@@ -333,46 +373,80 @@ def main():
     if args.date:
         target_date = args.date
     else:
-        target_date = datetime.utcnow().strftime('%Y-%m-%d')
+        target_date = date.today().isoformat()
     
-    logger.info(f"Starting ETF feature calculation for {target_date}")
+    logger.info("=" * 60)
+    logger.info("ETF DAILY FEATURES CALCULATION")
+    logger.info(f"Target Date: {target_date}")
+    logger.info(f"Workers: {args.workers}")
+    logger.info("=" * 60)
     
-    # Get ETFs needing calculation
+    # Get stale ETFs
+    logger.info("Fetching ETF assets needing features...")
     etfs = get_stale_etfs(target_date)
+    
     if args.limit:
         etfs = etfs[:args.limit]
     
-    logger.info(f"Found {len(etfs)} ETFs to process")
+    total = len(etfs)
+    logger.info(f"Found {total} ETFs needing features for {target_date}")
     
-    if not etfs:
-        logger.info("No ETFs to process. Exiting.")
+    if total == 0:
+        logger.info("No ETFs to process - all features up to date!")
+        update_latest_date(target_date)
         return
     
-    # Process ETFs in parallel
-    success_count = 0
-    fail_count = 0
+    # Process in parallel
+    start_time = time.time()
+    processed = 0
+    success = 0
+    skipped = 0
+    errors = 0
+    batch = []
     
     with ThreadPoolExecutor(max_workers=args.workers) as executor:
-        futures = {
-            executor.submit(process_etf, etf, target_date, FEATURE_VERSION): etf 
-            for etf in etfs
-        }
+        futures = {executor.submit(process_etf, etf, target_date): etf 
+                   for etf in etfs}
         
         for future in as_completed(futures):
-            etf = futures[future]
-            try:
-                asset_id, success, count = future.result()
-                if success:
-                    success_count += 1
-                    logger.info(f"✓ ETF {asset_id}: {count} records")
-                else:
-                    fail_count += 1
-                    logger.warning(f"✗ ETF {asset_id}: failed")
-            except Exception as e:
-                fail_count += 1
-                logger.error(f"✗ ETF {etf['asset_id']}: {e}")
+            result = future.result()
+            processed += 1
+            
+            if result['status'] == 'success':
+                success += 1
+                batch.append(result['record'])
+                
+                # Write batch when full
+                if len(batch) >= args.batch_size:
+                    written = write_features_batch(batch)
+                    elapsed = time.time() - start_time
+                    rate = processed / elapsed if elapsed > 0 else 0
+                    logger.info(f"Progress: {processed}/{total} ({100*processed/total:.1f}%) | "
+                              f"Success: {success} | Skipped: {skipped} | Errors: {errors} | "
+                              f"Rate: {rate:.1f}/s")
+                    batch = []
+                    
+            elif result['status'] == 'skipped':
+                skipped += 1
+            else:
+                errors += 1
+                if errors <= 5:
+                    logger.warning(f"Error processing ETF {result['asset_id']}: {result.get('error', 'unknown')}")
     
-    logger.info(f"Complete: {success_count} succeeded, {fail_count} failed")
+    # Write remaining batch
+    if batch:
+        write_features_batch(batch)
+    
+    # Update latest_dates
+    update_latest_date(target_date)
+    
+    # Summary
+    elapsed = time.time() - start_time
+    logger.info("=" * 60)
+    logger.info("ETF FEATURES CALCULATION COMPLETE")
+    logger.info(f"Total: {total} | Success: {success} | Skipped: {skipped} | Errors: {errors}")
+    logger.info(f"Time: {elapsed:.1f}s ({elapsed/60:.1f} min)")
+    logger.info("=" * 60)
 
 
 if __name__ == '__main__':

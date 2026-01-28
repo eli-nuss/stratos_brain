@@ -1,49 +1,98 @@
+# ETF Daily Features Calculation
+# ==============================
+# Calculates technical features for all ETF assets.
+# Runs after ETF OHLCV data is ingested.
+#
+# TRIGGERS:
+# - Scheduled daily at 06:00 UTC
+# - Manual trigger
+#
+# OUTPUT: Writes technical features to daily_features table
+
 name: ETF Daily Features
 
 on:
+  # Scheduled run: Daily at 06:00 UTC (after overnight data ingestion)
   schedule:
-    # Run daily at 7:00 AM UTC (after OHLCV fetch)
-    - cron: '0 7 * * *'
+    - cron: '0 6 * * *'
+  
+  # Manual trigger
   workflow_dispatch:
     inputs:
-      date:
-        description: 'Target date (YYYY-MM-DD)'
+      target_date:
+        description: 'Target date (YYYY-MM-DD). Leave empty for today.'
         required: false
-        default: ''
+        type: string
       limit:
-        description: 'Limit number of ETFs (for testing)'
+        description: 'Limit number of ETFs (for testing). Leave empty for all.'
         required: false
-        default: ''
+        type: string
+
+env:
+  PYTHON_VERSION: '3.11'
 
 jobs:
-  etf-features:
+  calculate-features:
+    name: Calculate ETF Features
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
       
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-        
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install numpy pandas psycopg2-binary
-        
-    - name: Run ETF feature calculation
-      env:
-        DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      run: |
-        cd ${{ github.workspace }}
-        if [ -n "${{ github.event.inputs.date }}" ]; then
-          if [ -n "${{ github.event.inputs.limit }}" ]; then
-            python jobs/etf_daily_features.py --date ${{ github.event.inputs.date }} --limit ${{ github.event.inputs.limit }}
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install psycopg2-binary pandas numpy
+      
+      - name: Determine target date
+        id: date
+        run: |
+          if [ -n "${{ github.event.inputs.target_date }}" ]; then
+            echo "date=${{ github.event.inputs.target_date }}" >> $GITHUB_OUTPUT
           else
-            python jobs/etf_daily_features.py --date ${{ github.event.inputs.date }}
+            echo "date=$(date -u +%Y-%m-%d)" >> $GITHUB_OUTPUT
           fi
-        else
-          python jobs/etf_daily_features.py
-        fi
+      
+      - name: Build command arguments
+        id: args
+        run: |
+          ARGS="--date ${{ steps.date.outputs.date }}"
+          if [ -n "${{ github.event.inputs.limit }}" ]; then
+            ARGS="$ARGS --limit ${{ github.event.inputs.limit }}"
+          fi
+          echo "args=$ARGS" >> $GITHUB_OUTPUT
+      
+      - name: Run ETF features calculation
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          echo "🚀 Starting ETF features calculation"
+          echo "📅 Target date: ${{ steps.date.outputs.date }}"
+          python jobs/etf_daily_features.py ${{ steps.args.outputs.args }}
+      
+      - name: Report success
+        if: success()
+        run: |
+          echo "✅ ETF features calculation completed successfully"
+          echo "📅 Date: ${{ steps.date.outputs.date }}"
+          echo ""
+          echo "Features calculated:"
+          echo "  - Moving averages (20/50/200) and distances"
+          echo "  - RSI, MACD, Bollinger Bands"
+          echo "  - ATR (volatility), volume metrics"
+          echo "  - Trend regime detection"
+      
+      - name: Report failure
+        if: failure()
+        run: |
+          echo "❌ ETF features calculation failed"
+          echo "📅 Date: ${{ steps.date.outputs.date }}"
+          echo "Check the logs above for details"

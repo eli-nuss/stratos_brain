@@ -1,43 +1,91 @@
+# ETF Daily Scoring
+# =================
+# Calculates composite technical scores for all ETFs.
+# Runs after ETF features are calculated to generate rankings.
+#
+# TRIGGERS:
+# - After ETF Daily Features completes
+# - Manual trigger
+#
+# OUTPUT: Writes scores to daily_asset_scores table
+
 name: ETF Daily Scoring
 
 on:
+  # Run after ETF features workflow completes
   workflow_run:
     workflows: ["ETF Daily Features"]
     types:
       - completed
+  
+  # Allow manual trigger
   workflow_dispatch:
     inputs:
-      date:
-        description: 'Target date (YYYY-MM-DD)'
+      target_date:
+        description: 'Target date (YYYY-MM-DD). Leave empty for today.'
         required: false
-        default: ''
+        type: string
+
+env:
+  PYTHON_VERSION: '3.11'
 
 jobs:
-  etf-scoring:
+  calculate-scores:
+    name: Calculate ETF Scores
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    # Only run if the triggering workflow succeeded (or if manually triggered)
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    timeout-minutes: 15
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
       
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-        
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install numpy pandas psycopg2-binary
-        
-    - name: Run ETF scoring
-      env:
-        DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      run: |
-        cd ${{ github.workspace }}
-        if [ -n "${{ github.event.inputs.date }}" ]; then
-          python jobs/etf_daily_scoring.py --date ${{ github.event.inputs.date }}
-        else
-          python jobs/etf_daily_scoring.py
-        fi
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install psycopg2-binary pandas numpy
+      
+      - name: Determine target date
+        id: date
+        run: |
+          if [ -n "${{ github.event.inputs.target_date }}" ]; then
+            echo "date=${{ github.event.inputs.target_date }}" >> $GITHUB_OUTPUT
+          else
+            echo "date=$(date -u +%Y-%m-%d)" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Run ETF scoring
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          echo "🎯 Starting ETF scoring"
+          echo "📅 Target date: ${{ steps.date.outputs.date }}"
+          python jobs/etf_daily_scoring.py --date ${{ steps.date.outputs.date }}
+      
+      - name: Report success
+        if: success()
+        run: |
+          echo "✅ ETF scoring completed successfully"
+          echo "📅 Date: ${{ steps.date.outputs.date }}"
+          echo ""
+          echo "Score components:"
+          echo "  - Trend score (35%): MA alignment, trend regime"
+          echo "  - Momentum score (25%): 21-day returns, MACD"
+          echo "  - Mean reversion (25%): RSI oversold/overbought"
+          echo "  - Volume score (15%): Relative volume, interest"
+          echo ""
+          echo "ETFs can now be ranked by weighted_score and inflection_score"
+      
+      - name: Report failure
+        if: failure()
+        run: |
+          echo "❌ ETF scoring failed"
+          echo "📅 Date: ${{ steps.date.outputs.date }}"
+          echo "Check the logs above for details"
