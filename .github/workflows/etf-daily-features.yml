@@ -1,7 +1,7 @@
-# ETF Daily Features Calculation
-# ==============================
-# Calculates technical features for all ETF assets.
-# Runs after ETF OHLCV data is ingested via index_commodity_etf_daily_ohlcv.py
+# ETF/Index/Commodity Daily Features Calculation
+# ===============================================
+# Calculates technical features for all ETF, Index, and Commodity assets.
+# Runs after OHLCV data is ingested via index_commodity_etf_daily_ohlcv.py
 #
 # TRIGGERS:
 # - After Index/Commodity/ETF Daily OHLCV completes
@@ -9,7 +9,7 @@
 #
 # OUTPUT: Writes technical features to daily_features table
 
-name: ETF Daily Features
+name: ETF/Index/Commodity Daily Features
 
 on:
   # Run after Index/Commodity/ETF OHLCV workflow completes
@@ -26,11 +26,11 @@ on:
         required: false
         type: string
       limit:
-        description: 'Limit number of ETFs (for testing). Leave empty for all.'
+        description: 'Limit number of assets (for testing). Leave empty for all.'
         required: false
         type: string
       force:
-        description: 'Force reprocess all ETFs (ignore existing features)'
+        description: 'Force reprocess all assets (ignore existing features)'
         required: false
         type: boolean
         default: false
@@ -40,7 +40,7 @@ env:
 
 jobs:
   calculate-features:
-    name: Calculate ETF Features
+    name: Calculate ETF/Index/Commodity Features
     runs-on: ubuntu-latest
     # Only run if the triggering workflow succeeded (or if manually triggered)
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
@@ -82,18 +82,18 @@ jobs:
           fi
           echo "args=$ARGS" >> $GITHUB_OUTPUT
       
-      - name: Run ETF features calculation
+      - name: Run ETF/Index/Commodity features calculation
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          echo "🚀 Starting ETF features calculation"
+          echo "🚀 Starting ETF/Index/Commodity features calculation"
           echo "📅 Target date: ${{ steps.date.outputs.date }}"
           python jobs/etf_daily_features.py ${{ steps.args.outputs.args }}
       
       - name: Report success
         if: success()
         run: |
-          echo "✅ ETF features calculation completed successfully"
+          echo "✅ ETF/Index/Commodity features calculation completed successfully"
           echo "📅 Date: ${{ steps.date.outputs.date }}"
           echo ""
           echo "Features calculated:"
@@ -105,6 +105,6 @@ jobs:
       - name: Report failure
         if: failure()
         run: |
-          echo "❌ ETF features calculation failed"
+          echo "❌ ETF/Index/Commodity features calculation failed"
           echo "📅 Date: ${{ steps.date.outputs.date }}"
           echo "Check the logs above for details"
