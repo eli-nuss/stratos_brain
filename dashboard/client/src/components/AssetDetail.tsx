@@ -24,6 +24,7 @@ import { DocumentsSection } from "./DocumentsSection";
 import { InlineOnePager } from "./InlineOnePager";
 import AddToPortfolioButton from "./AddToPortfolioButton";
 import AssetTagButton from "./AssetTagButton";
+import AssetDetailSkeleton from "./AssetDetailSkeleton";
 import { apiFetcher } from "@/lib/api-config";
 
 interface AssetDetailProps {
@@ -130,11 +131,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
+    return <AssetDetailSkeleton />;
   }
 
   if (!data || !data.asset) return null;
