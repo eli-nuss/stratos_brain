@@ -3,8 +3,8 @@
 This document tracks all changes made to the Stratos Brain codebase with AI assistance.
 
 ## Quick Stats
-- **Total Changes:** 5
-- **Files Created:** 6
+- **Total Changes:** 6
+- **Files Created:** 11
 - **Files Modified:** 3
 - **Status:** ✅ All deployed
 
@@ -101,43 +101,57 @@ Sub-agents can now safely query the database for analysis without risk of accide
 
 ## Infrastructure / Backend
 
-### 2026-01-28 — ETF Feature Calculation & Scoring Pipeline
+### 2026-01-28 — Complete ETF Analysis Pipeline
 **Status:** ✅ Deployed (GitHub Actions)  
-**Commits:** `7a43531`, `3fc8a31`
+**Commits:** `7a43531`, `3fc8a31`, `6b49f45`
 
 **Description:**
-Built complete data pipeline to enable technical analysis and ranking of ETFs (sector, index, commodity ETFs). Follows same patterns as equity/crypto pipelines.
+Built complete ETF analysis pipeline matching the equity workflow structure. Enables technical analysis, setup detection, and AI-powered insights for ETFs.
+
+**Pipeline Flow:**
+```
+ETF OHLCV → ETF Features → ETF Setup Scanner → ETF AI Signals
+```
 
 **Components Created:**
 
-1. **jobs/etf_daily_features.py** (400+ lines)
-   - Calculates 30+ technical indicators for ETFs
-   - RSI, MACD, Bollinger Bands, moving averages (20/50/200)
-   - ATR (volatility), volume metrics, trend regime detection
-   - Parallel processing with ThreadPoolExecutor (8 workers)
-   - Batch inserts with execute_values for performance
-   - Updates `latest_dates` table for dashboard tracking
+**1. ETF Daily Features** (`jobs/etf_daily_features.py`)
+   - Calculates 30+ technical indicators (RSI, MACD, Bollinger, MAs)
+   - Trend regime detection (bullish/bearish/sideways)
+   - Parallel processing with ThreadPoolExecutor
+   - `--force` flag for reprocessing existing data
 
-2. **jobs/etf_daily_scoring.py** (200+ lines)
-   - Composite scoring algorithm for ETFs
-   - Trend score (35%), Momentum (25%), Mean reversion (25%), Volume (15%)
-   - Generates weighted_score and inflection_score for ranking
-   - Updates `latest_dates` table with 'etf_scores'
+**2. ETF Daily Setup Scanner** (`jobs/etf_daily_setup_scanner.py`)
+   - **Separate ETF-only workflow** (not shared with equities)
+   - 4 ETF-specific setups with tuned parameters:
+     - `etf_trend_pullback_50ma` — Pullback to 50MA in uptrend
+     - `etf_oversold_bounce` — RSI < 35 mean reversion
+     - `etf_breakout_confirmed` — Volume-confirmed breakout
+     - `etf_golden_cross` — 50MA crosses above 200MA
+   - Parallel processing, writes to `setup_signals` table
 
-3. **GitHub Actions Workflows**
-   - `.github/workflows/etf-daily-features.yml` — runs daily at 6am UTC, 30min timeout
-   - `.github/workflows/etf-daily-scoring.yml` — triggers after features complete, 15min timeout
-   - Both have detailed logging, success/failure reporting, pip caching
+**3. ETF AI Signals** (E2B Parallel Pattern)
+   - `scripts/run_etf_ai_analysis_batch.py` — Batch AI analysis with Gemini
+   - `scripts/e2b_etf_orchestrator.py` — Parallel sandbox orchestration
+   - Uses **same E2B/Gemini pattern as equity AI signals**
+   - Analyzes sector/macro themes for ETFs
+   - Configurable sandboxes (default 10, vs 50 for equities)
 
-**Prerequisites Met:**
-- ETFs already have OHLCV data (from index_commodity_etf_daily_ohlcv.py)
-- daily_features table already accepts ETF asset_ids
-- daily_asset_scores table already supports ETF universe
+**4. ETF Daily Scoring** (`jobs/etf_daily_scoring.py`)
+   - Composite scoring: Trend (35%), Momentum (25%), Mean Reversion (25%), Volume (15%)
+   - Generates `weighted_score` and `inflection_score`
+   - Null-safe handling for missing data
+
+**Workflows:**
+| Workflow | Triggers After | Purpose |
+|----------|----------------|---------|
+| `etf-daily-features.yml` | ETF OHLCV | Calculate technical indicators |
+| `etf-daily-setup-scanner.yml` | ETF Features | Detect ETF-specific setups |
+| `etf-ai-signals-parallel.yml` | ETF Setup Scanner | Gemini AI sector analysis |
+| `etf-daily-scoring.yml` | (Manual/scheduled) | Generate composite scores |
 
 **Impact:**
-Enables the todo item #48: "rank order all the sector ETFs based on their technical score to search for ideas." Frontend can now query `daily_asset_scores` for ETFs and display ranked lists.
-
-**Next Step:** Run the workflows to populate historical ETF features, then build the frontend ETF ranking UI.
+Enables todo item #48 — complete ETF ranking system with technicals, setups, and AI insights. Matches equity workflow architecture while being ETF-optimized.
 
 ---
 
