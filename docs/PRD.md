@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 28, 2026 (v11.1.5 - Fix: Document Generation Error Handling)  
+**Last Updated: January 28, 2026 (v11.1.6 - Fix: Chat Authentication Header Forwarding)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -375,3 +375,4 @@ The AI agents have access to the following tools:
 - **Data Latency:** There is a 24-hour delay in the daily data pipeline.
 - **Backtesting:** The current backtesting capabilities are limited.
 - **[Resolved] Document Generation Failures:** Previously, document generation jobs could get stuck in a "processing" state indefinitely due to improper error handling in the background task. This has been fixed by implementing robust error handling that updates the job status to "failed" with a clear error message.
+- **[Resolved] Chat Authentication Errors (401):** Users were experiencing "Authentication required" errors in the Brain Chat and Company Chat even when logged in. This was caused by Vercel rewrites not forwarding custom headers (`x-user-id`, `Authorization`) to the Supabase Edge Functions. Fixed by updating the frontend to use direct Supabase URLs with proper auth headers via the centralized `api-config.ts` module.
