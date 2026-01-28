@@ -1,0 +1,43 @@
+name: ETF Daily Scoring
+
+on:
+  workflow_run:
+    workflows: ["ETF Daily Features"]
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Target date (YYYY-MM-DD)'
+        required: false
+        default: ''
+
+jobs:
+  etf-scoring:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install numpy pandas psycopg2-binary
+        
+    - name: Run ETF scoring
+      env:
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      run: |
+        cd ${{ github.workspace }}
+        if [ -n "${{ github.event.inputs.date }}" ]; then
+          python jobs/etf_daily_scoring.py --date ${{ github.event.inputs.date }}
+        else
+          python jobs/etf_daily_scoring.py
+        fi

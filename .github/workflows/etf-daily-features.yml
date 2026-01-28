@@ -1,0 +1,49 @@
+name: ETF Daily Features
+
+on:
+  schedule:
+    # Run daily at 7:00 AM UTC (after OHLCV fetch)
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Target date (YYYY-MM-DD)'
+        required: false
+        default: ''
+      limit:
+        description: 'Limit number of ETFs (for testing)'
+        required: false
+        default: ''
+
+jobs:
+  etf-features:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install numpy pandas psycopg2-binary
+        
+    - name: Run ETF feature calculation
+      env:
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      run: |
+        cd ${{ github.workspace }}
+        if [ -n "${{ github.event.inputs.date }}" ]; then
+          if [ -n "${{ github.event.inputs.limit }}" ]; then
+            python jobs/etf_daily_features.py --date ${{ github.event.inputs.date }} --limit ${{ github.event.inputs.limit }}
+          else
+            python jobs/etf_daily_features.py --date ${{ github.event.inputs.date }}
+          fi
+        else
+          python jobs/etf_daily_features.py
+        fi
