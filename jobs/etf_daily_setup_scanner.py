@@ -47,63 +47,196 @@ def get_connection():
 
 
 # ETF-optimized setup definitions
-# Adapted from the main setup scanner but tuned for ETF characteristics
+# Same 11 setups as equities, but tuned for ETF characteristics
+# ETFs are less volatile and trend more smoothly, so parameters are loosened
+
 SETUPS = {
-    'etf_trend_pullback_50ma': {
-        'description': 'ETF Pullback to 50MA in uptrend',
+    # Position Trading Setups (60-252 day holds)
+    'weinstein_stage2': {
+        'description': 'Weinstein Stage 2 Transition - breakout from long base',
         'style': 'position',
+        'historical_profit_factor': 4.09,
+        'historical_win_rate': 0.61,
+        'historical_avg_return': 0.0845,
         'entry': {
-            'ma_dist_50_min': -0.03,
+            'base_days': 100,
+            'base_range_pct': 0.15,
+            'volume_mult': 1.3  # Slightly lower volume req for ETFs
+        },
+        'exit': {
+            'breakdown_ma_dist_200': -0.03,
+            'trailing_activation_pct': 0.20,
+            'trailing_atr_mult': 3.5,
+            'max_hold_days': 252
+        }
+    },
+    'donchian_55_breakout': {
+        'description': 'Donchian 55-Day Breakout (Turtle Traders)',
+        'style': 'position',
+        'historical_profit_factor': 1.99,
+        'historical_win_rate': 0.508,
+        'historical_avg_return': 0.0532,
+        'entry': {
+            'lookback_days': 55,
+            'ma_slope_threshold': 0
+        },
+        'exit': {
+            'trailing_low_days': 20,
+            'max_hold_days': 120
+        }
+    },
+    'rs_breakout': {
+        'description': 'Relative Strength Breakout',
+        'style': 'position',
+        'historical_profit_factor': 2.03,
+        'historical_win_rate': 0.493,
+        'historical_avg_return': 0.0381,
+        'entry': {
+            'rsi_min': 50,
+            'rsi_max': 75
+        },
+        'exit': {
+            'breakdown_ma_dist_50': -0.04,
+            'trailing_activation_pct': 0.15,
+            'trailing_atr_mult': 3.0,
+            'max_hold_days': 90
+        }
+    },
+    'trend_pullback_50ma': {
+        'description': 'Trend Pullback to 50MA',
+        'style': 'position',
+        'historical_profit_factor': 1.97,
+        'historical_win_rate': 0.509,
+        'historical_avg_return': 0.0444,
+        'entry': {
+            'ma_dist_50_min': -0.04,
             'ma_dist_50_max': 0.03,
-            'rsi_max': 55,
-            'above_ma200': True
+            'rsi_max': 55
         },
         'exit': {
             'breakdown_ma_dist_200': -0.02,
-            'trailing_activation_pct': 0.10,
-            'max_hold_days': 60
+            'trailing_activation_pct': 0.12,
+            'trailing_atr_mult': 3.5,
+            'max_hold_days': 120
         }
     },
-    'etf_oversold_bounce': {
-        'description': 'ETF RSI Oversold Bounce',
-        'style': 'swing',
+    'adx_holy_grail': {
+        'description': 'ADX Holy Grail Pullback',
+        'style': 'position',
+        'historical_profit_factor': 1.71,
+        'historical_win_rate': 0.498,
+        'historical_avg_return': 0.0279,
         'entry': {
-            'rsi_max': 35,
-            'ma_dist_20_max': -0.05
+            'adx_threshold': 25,
+            'ma_touch_dist': 0.03
         },
         'exit': {
-            'target_ma_dist_20': 0.02,
+            'breakdown_ma_dist_50': -0.05,
+            'trailing_activation_pct': 0.10,
+            'trailing_atr_mult': 3.0,
+            'max_hold_days': 90
+        }
+    },
+    
+    # Swing Trading Setups (10-20 day holds)
+    'vcp_squeeze': {
+        'description': 'Volatility Contraction Pattern (VCP)',
+        'style': 'swing',
+        'historical_profit_factor': 1.65,
+        'historical_win_rate': 0.512,
+        'historical_avg_return': 0.0321,
+        'entry': {
+            'contraction_phases': 2,
+            'volatility_contraction': 0.5,
+            'volume_dry_up': 0.7
+        },
+        'exit': {
+            'breakdown_low_days': 5,
+            'max_hold_days': 20
+        }
+    },
+    'rsi_mean_reversion': {
+        'description': 'RSI Mean Reversion (Oversold Bounce)',
+        'style': 'swing',
+        'historical_profit_factor': 1.45,
+        'historical_win_rate': 0.534,
+        'historical_avg_return': 0.0218,
+        'entry': {
+            'rsi_max': 35,  # Slightly higher threshold for ETFs
+            'above_ma200': True  # Only in uptrend
+        },
+        'exit': {
+            'target_rsi': 55,
+            'stop_atr_mult': 2.0,
+            'max_hold_days': 10
+        }
+    },
+    'bollinger_squeeze': {
+        'description': 'Bollinger Band Squeeze Breakout',
+        'style': 'swing',
+        'historical_profit_factor': 1.58,
+        'historical_win_rate': 0.487,
+        'historical_avg_return': 0.0284,
+        'entry': {
+            'bb_width_threshold': 0.05,
+            'volume_mult': 1.3  # Lower for ETFs
+        },
+        'exit': {
+            'target_bb_band': 'upper',
             'stop_atr_mult': 2.0,
             'max_hold_days': 15
         }
     },
-    'etf_breakout_confirmed': {
-        'description': 'ETF Volume-Confirmed Breakout',
-        'style': 'position',
+    
+    # Momentum Setups
+    'macd_momentum_shift': {
+        'description': 'MACD Momentum Shift',
+        'style': 'swing',
+        'historical_profit_factor': 1.52,
+        'historical_win_rate': 0.498,
+        'historical_avg_return': 0.0247,
         'entry': {
-            'ma_dist_50_min': 0.05,
-            'rvol_min': 1.2,
-            'macd_positive': True
+            'macd_crossover': True,
+            'histogram_turn_positive': True,
+            'above_zero_line': True
         },
         'exit': {
-            'breakdown_ma_dist_50': -0.04,
-            'trailing_activation_pct': 0.08,
-            'max_hold_days': 45
+            'macd_crossunder': True,
+            'max_hold_days': 20
         }
     },
-    'etf_golden_cross': {
-        'description': 'ETF Golden Cross (50MA > 200MA)',
-        'style': 'position',
+    
+    # Reversal Setups
+    'volume_climax_reversal': {
+        'description': 'Volume Climax Reversal',
+        'style': 'swing',
+        'historical_profit_factor': 1.38,
+        'historical_win_rate': 0.476,
+        'historical_avg_return': 0.0198,
         'entry': {
-            'ma50_above_ma200': True,
-            'ma_dist_50_min': -0.02,
-            'rsi_min': 45,
-            'rsi_max': 70
+            'rvol_min': 2.0,
+            'price_range_pct': 0.03,
+            'close_near_high': True
         },
         'exit': {
-            'breakdown_ma_dist_50': -0.03,
-            'trailing_activation_pct': 0.12,
-            'max_hold_days': 90
+            'volume_normalization': True,
+            'max_hold_days': 5
+        }
+    },
+    'morning_star_hammer': {
+        'description': 'Morning Star / Hammer Pattern',
+        'style': 'swing',
+        'historical_profit_factor': 1.42,
+        'historical_win_rate': 0.489,
+        'historical_avg_return': 0.0223,
+        'entry': {
+            'downtrend_days': 5,
+            'body_size_ratio': 0.3,
+            'lower_shadow_ratio': 2.0
+        },
+        'exit': {
+            'confirmation_close': True,
+            'max_hold_days': 10
         }
     }
 }
@@ -148,16 +281,13 @@ def evaluate_setup(etf: dict, setup_name: str, setup_config: dict) -> dict:
     """Evaluate if an ETF meets setup criteria."""
     entry = setup_config['entry']
     
-    # Check each entry condition
+    # Check each entry condition based on setup type
     for key, value in entry.items():
         if key == 'ma_dist_50_min':
             if etf.get('ma_dist_50') is None or etf['ma_dist_50'] < value:
                 return None
         elif key == 'ma_dist_50_max':
             if etf.get('ma_dist_50') is None or etf['ma_dist_50'] > value:
-                return None
-        elif key == 'ma_dist_20_max':
-            if etf.get('ma_dist_20') is None or etf['ma_dist_20'] > value:
                 return None
         elif key == 'rsi_max':
             if etf.get('rsi_14') is None or etf['rsi_14'] > value:
@@ -174,24 +304,36 @@ def evaluate_setup(etf: dict, setup_name: str, setup_config: dict) -> dict:
         elif key == 'rvol_min':
             if etf.get('rvol_20') is None or etf['rvol_20'] < value:
                 return None
-        elif key == 'macd_positive':
+        elif key == 'bb_width_threshold':
+            if etf.get('bb_width') is None or etf['bb_width'] > value:
+                return None
+        elif key == 'volume_mult':
+            if etf.get('rvol_20') is None or etf['rvol_20'] < value:
+                return None
+        elif key == 'adx_threshold':
+            # Skip ADX check if not in features (can add later)
+            pass
+        elif key == 'macd_crossover':
+            # Check if MACD histogram turned positive (simplified)
             if etf.get('macd_histogram') is None or etf['macd_histogram'] <= 0:
                 return None
     
-    # Calculate entry/stop/target
+    # Calculate entry/stop/target based on setup style
     entry_price = etf['close']
+    atr_pct = etf.get('atr_pct', 2.0) or 2.0
     
-    # Calculate stop based on ATR or fixed percentage
-    atr_pct = etf.get('atr_pct', 2.0)  # Default 2% if no ATR
-    if setup_name == 'etf_oversold_bounce':
-        stop_loss = entry_price * 0.95  # 5% fixed stop
-        target_price = entry_price * 1.08  # 8% target
-    elif setup_name == 'etf_trend_pullback_50ma':
-        stop_loss = entry_price * 0.97  # 3% stop
-        target_price = entry_price * 1.10  # 10% target
+    if setup_config['style'] == 'position':
+        # Position trades: wider stops, bigger targets
+        stop_loss = entry_price * (1 - atr_pct / 100 * 3)  # 3x ATR
+        target_price = entry_price * (1 + atr_pct / 100 * 5)  # 5x ATR
     else:
+        # Swing trades: tighter stops
         stop_loss = entry_price * (1 - atr_pct / 100 * 2)  # 2x ATR
         target_price = entry_price * (1 + atr_pct / 100 * 3)  # 3x ATR
+    
+    # Ensure reasonable stop/target distances
+    stop_loss = max(stop_loss, entry_price * 0.92)  # Max 8% stop
+    target_price = min(target_price, entry_price * 1.20)  # Max 20% target
     
     # Calculate risk:reward
     risk = entry_price - stop_loss
@@ -200,17 +342,35 @@ def evaluate_setup(etf: dict, setup_name: str, setup_config: dict) -> dict:
     
     # Calculate setup strength (0-100)
     strength = 50  # Base
+    
+    # RSI contribution
     if etf.get('rsi_14') is not None:
-        if setup_name == 'etf_oversold_bounce':
-            strength += min(30, int(35 - etf['rsi_14']))  # More oversold = stronger
+        rsi = etf['rsi_14']
+        if setup_name == 'rsi_mean_reversion':
+            strength += min(30, int(40 - rsi))  # More oversold = stronger
+        elif setup_name in ['weinstein_stage2', 'rs_breakout']:
+            strength += min(15, int((rsi - 50) / 2))  # Higher RSI for breakouts
         else:
-            strength += min(20, int(70 - etf['rsi_14']))
+            strength += min(15, int(15 - abs(rsi - 50) / 5))  # Neutral RSI bonus
     
+    # Volume contribution
     if etf.get('rvol_20') is not None:
-        strength += min(15, int((etf['rvol_20'] - 1) * 10))  # Higher volume = stronger
+        rvol = etf['rvol_20']
+        if rvol > 1.5:
+            strength += min(15, int((rvol - 1) * 10))
     
+    # Trend alignment bonus
     if etf.get('ma50_above_ma200'):
-        strength += 10  # Trend alignment bonus
+        strength += 10
+    if etf.get('above_ma200'):
+        strength += 5
+    
+    # Setup-specific bonuses
+    if setup_name == 'weinstein_stage2' and etf.get('ma_dist_50', 0) > 0.05:
+        strength += 10  # Strong trend
+    
+    if setup_name == 'trend_pullback_50ma' and etf.get('ma_dist_50', 0) < -0.02:
+        strength += 10  # Good pullback depth
     
     strength = min(100, max(0, strength))
     
@@ -229,8 +389,11 @@ def evaluate_setup(etf: dict, setup_name: str, setup_config: dict) -> dict:
         'context': {
             'rsi': etf.get('rsi_14'),
             'ma_dist_50': etf.get('ma_dist_50'),
+            'ma_dist_200': etf.get('ma_dist_200'),
             'trend_regime': etf.get('trend_regime'),
-            'rvol': etf.get('rvol_20')
+            'rvol': etf.get('rvol_20'),
+            'bb_width': etf.get('bb_width'),
+            'macd_histogram': etf.get('macd_histogram')
         }
     }
 

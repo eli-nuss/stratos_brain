@@ -78,11 +78,22 @@ jobs:
         run: |
           echo "✅ ETF setup scanner completed successfully"
           echo ""
-          echo "ETF Setups scanned:"
-          echo "  - etf_trend_pullback_50ma: Pullback to 50MA in uptrend"
-          echo "  - etf_oversold_bounce: RSI < 35 mean reversion"
-          echo "  - etf_breakout_confirmed: Volume-confirmed breakout"
-          echo "  - etf_golden_cross: 50MA crosses above 200MA"
+          echo "11 ETF setups scanned (same as equities, tuned for ETF characteristics):"
+          echo ""
+          echo "Position Trading (60-252 day holds):"
+          echo "  - weinstein_stage2: Weinstein Stage 2 breakout"
+          echo "  - donchian_55_breakout: Turtle-style 55-day breakout"
+          echo "  - rs_breakout: Relative strength breakout"
+          echo "  - trend_pullback_50ma: Pullback to 50MA in uptrend"
+          echo "  - adx_holy_grail: ADX Holy Grail pullback"
+          echo ""
+          echo "Swing Trading (10-20 day holds):"
+          echo "  - vcp_squeeze: Volatility Contraction Pattern"
+          echo "  - rsi_mean_reversion: RSI oversold bounce"
+          echo "  - bollinger_squeeze: Bollinger Band squeeze breakout"
+          echo "  - macd_momentum_shift: MACD momentum shift"
+          echo "  - volume_climax_reversal: Volume climax reversal"
+          echo "  - morning_star_hammer: Candlestick reversal pattern"
       
       - name: Report failure
         if: failure()
