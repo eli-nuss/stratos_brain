@@ -1,17 +1,17 @@
-# ETF AI Signals (Direct)
-# =======================
-# Processes ETFs using Gemini AI directly in GitHub Actions.
+# ETF/Index/Commodity AI Signals (Direct)
+# ========================================
+# Processes ETFs, Indices, and Commodities using Gemini AI directly in GitHub Actions.
 # Simpler than E2B version - runs sequentially but more reliable.
 #
 # TRIGGERS:
 # - Manual dispatch
-# - After ETF setup scanner completes
+# - After setup scanner completes
 
-name: ETF AI Signals (Direct)
+name: ETF/Index/Commodity AI Signals (Direct)
 
 on:
   workflow_run:
-    workflows: ["ETF Daily Setup Scanner"]
+    workflows: ["ETF/Index/Commodity Daily Setup Scanner"]
     types:
       - completed
   
@@ -22,7 +22,7 @@ on:
         required: false
         type: string
       batch_size:
-        description: 'Number of ETFs per batch (default: 10)'
+        description: 'Number of assets per batch (default: 10)'
         required: false
         default: '10'
         type: string
@@ -36,8 +36,8 @@ env:
   PYTHON_VERSION: '3.11'
 
 jobs:
-  etf-ai-analysis:
-    name: ETF AI Analysis
+  ai-analysis:
+    name: ETF/Index/Commodity AI Analysis
     runs-on: ubuntu-latest
     timeout-minutes: 60
     
@@ -65,18 +65,18 @@ jobs:
             echo "date=$(date -u +%Y-%m-%d)" >> $GITHUB_OUTPUT
           fi
       
-      - name: Run ETF AI analysis
+      - name: Run AI analysis
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          echo "🚀 Starting ETF AI Analysis (Direct)"
+          echo "🚀 Starting ETF/Index/Commodity AI Analysis (Direct)"
           echo "📅 Date: ${{ steps.date.outputs.date }}"
           echo "🔢 Batch Size: ${{ github.event.inputs.batch_size || '10' }}"
           echo "🤖 Model: ${{ github.event.inputs.model || 'gemini-3-flash-preview' }}"
           echo ""
           
-          # Get ETF count
+          # Get asset count
           python3 -c "
 import psycopg2
 import os
@@ -84,9 +84,9 @@ import os
 db_url = os.environ['DATABASE_URL']
 conn = psycopg2.connect(db_url)
 cur = conn.cursor()
-cur.execute(\"SELECT COUNT(*) FROM assets WHERE asset_type = 'etf' AND is_active = TRUE\")
+cur.execute(\"SELECT COUNT(*) FROM assets WHERE asset_type IN ('etf', 'index', 'commodity') AND is_active = TRUE\")
 count = cur.fetchone()[0]
-print(f'Total ETFs to process: {count}')
+print(f'Total ETF/Index/Commodity assets to process: {count}')
 conn.close()
 "
           
@@ -115,9 +115,9 @@ conn.close()
             
             offset=$((offset + batch_size))
             
-            # Stop after processing 120 ETFs (safety limit)
-            if [ $offset -ge 120 ]; then
-              echo "Reached safety limit (120 ETFs)"
+            # Stop after processing 180 assets (safety limit for ETF+Index+Commodity)
+            if [ $offset -ge 180 ]; then
+              echo "Reached safety limit (180 assets)"
               break
             fi
             
@@ -126,13 +126,13 @@ conn.close()
           done
           
           echo ""
-          echo "✅ ETF AI analysis completed"
-          echo "Total ETFs attempted: $total_processed"
+          echo "✅ ETF/Index/Commodity AI analysis completed"
+          echo "Total assets attempted: $total_processed"
       
       - name: Report results
         run: |
-          echo "📊 ETF AI Analysis Summary"
-          echo "=========================="
+          echo "📊 ETF/Index/Commodity AI Analysis Summary"
+          echo "=========================================="
           
           # Count reviews created
           python3 -c "
@@ -146,30 +146,33 @@ cur = conn.cursor()
 
 target_date = '${{ steps.date.outputs.date }}'
 
-# Count ETF reviews
+# Count reviews by asset type
 cur.execute('''
-    SELECT COUNT(*) FROM asset_ai_reviews aar
+    SELECT a.asset_type, COUNT(*) FROM asset_ai_reviews aar
     JOIN assets a ON aar.asset_id = a.asset_id
-    WHERE aar.as_of_date = %s AND a.asset_type = 'etf'
+    WHERE aar.as_of_date = %s AND a.asset_type IN ('etf', 'index', 'commodity')
+    GROUP BY a.asset_type
 ''', (target_date,))
 
-count = cur.fetchone()[0]
-print(f'ETF AI reviews created: {count}')
+print('AI reviews created by type:')
+for row in cur.fetchall():
+    print(f'  {row[0]}: {row[1]}')
 
-# Show sample
-if count > 0:
-    cur.execute('''
-        SELECT a.symbol, aar.ai_attention_level, aar.ai_direction_score
-        FROM asset_ai_reviews aar
-        JOIN assets a ON aar.asset_id = a.asset_id
-        WHERE aar.as_of_date = %s AND a.asset_type = 'etf'
-        ORDER BY aar.ai_direction_score DESC NULLS LAST
-        LIMIT 10
-    ''', (target_date,))
-    
+# Show top by direction score
+cur.execute('''
+    SELECT a.symbol, a.asset_type, aar.ai_attention_level, aar.ai_direction_score
+    FROM asset_ai_reviews aar
+    JOIN assets a ON aar.asset_id = a.asset_id
+    WHERE aar.as_of_date = %s AND a.asset_type IN ('etf', 'index', 'commodity')
+    ORDER BY aar.ai_direction_score DESC NULLS LAST
+    LIMIT 10
+''', (target_date,))
+
+rows = cur.fetchall()
+if rows:
     print('\nTop 10 by direction score:')
-    for row in cur.fetchall():
-        print(f'  {row[0]}: {row[1]} (score: {row[2]})')
+    for row in rows:
+        print(f'  {row[0]} ({row[1]}): {row[2]} (score: {row[3]})')
 
 conn.close()
 " || echo "Could not fetch summary"
