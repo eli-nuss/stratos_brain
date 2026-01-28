@@ -39,6 +39,7 @@ jobs:
   ai-analysis:
     name: ETF/Index/Commodity AI Analysis
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     timeout-minutes: 60
     
     steps:
