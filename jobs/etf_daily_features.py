@@ -4,6 +4,7 @@ ETF Daily Features Calculation Job
 ==================================
 Calculates technical features for all ETF assets for a given date.
 Designed to run after ETF OHLCV data is available.
+Matches the equity_daily_features.py pattern.
 
 Usage:
     python jobs/etf_daily_features.py --date 2026-01-27
@@ -26,7 +27,7 @@ import threading
 import numpy as np
 import pandas as pd
 import psycopg2
-from psycopg2.extras import execute_values, RealDictCursor
+from psycopg2.extras import RealDictCursor
 
 # Configure logging
 logging.basicConfig(
@@ -38,9 +39,7 @@ logger = logging.getLogger(__name__)
 
 # Constants
 FEATURE_VERSION = "2.0"
-MAX_LOOKBACK = 300
 ASSET_TYPE = 'etf'
-ANN_FACTOR = 252
 
 # Thread-local storage for connections
 thread_local = threading.local()
@@ -80,7 +79,7 @@ def get_stale_etfs(target_date: str) -> list:
         return cur.fetchall()
 
 
-def get_bars_for_etf(etf_id: int, end_date: str, lookback_days: int = 600) -> pd.DataFrame:
+def get_bars_for_etf(etf_id: int, end_date: str, lookback_days: int = 300) -> pd.DataFrame:
     """Fetch daily bars for an ETF directly from PostgreSQL."""
     conn = get_connection()
     start_date = (datetime.strptime(end_date, '%Y-%m-%d') - timedelta(days=lookback_days)).strftime('%Y-%m-%d')
@@ -105,198 +104,136 @@ def get_bars_for_etf(etf_id: int, end_date: str, lookback_days: int = 600) -> pd
     return df
 
 
-def calculate_returns(df: pd.DataFrame) -> pd.DataFrame:
-    """Calculate various return metrics."""
-    df = df.copy()
-    df['return_1d'] = df['close'].pct_change()
+def compute_features(bars: pd.DataFrame) -> pd.DataFrame:
+    """Compute technical features for a single ETF - matching equity pattern."""
+    if bars.empty or len(bars) < 20:
+        return pd.DataFrame()
+    
+    df = bars.copy()
+    df = df.sort_values('date').reset_index(drop=True)
+    
+    # Basic price features
+    df['log_return'] = np.log(df['close'] / df['close'].shift(1))
+    df['return_1d'] = df['close'].pct_change(1)
     df['return_5d'] = df['close'].pct_change(5)
     df['return_21d'] = df['close'].pct_change(21)
     df['return_63d'] = df['close'].pct_change(63)
     df['return_252d'] = df['close'].pct_change(252)
-    return df
-
-
-def calculate_moving_averages(df: pd.DataFrame) -> pd.DataFrame:
-    """Calculate moving averages and distances."""
-    df = df.copy()
     
-    # Simple moving averages
-    df['sma_20'] = df['close'].rolling(window=20).mean()
-    df['sma_50'] = df['close'].rolling(window=50).mean()
-    df['sma_200'] = df['close'].rolling(window=200).mean()
+    # Moving averages
+    df['sma_20'] = df['close'].rolling(20).mean()
+    df['sma_50'] = df['close'].rolling(50).mean()
+    df['sma_200'] = df['close'].rolling(200).mean()
     
-    # Distance from MAs
-    df['ma_dist_20'] = (df['close'] - df['sma_20']) / df['sma_20']
-    df['ma_dist_50'] = (df['close'] - df['sma_50']) / df['sma_50']
-    df['ma_dist_200'] = (df['close'] - df['sma_200']) / df['sma_200']
+    # MA distances
+    df['ma_dist_20'] = (df['close'] - df['sma_20']) / df['sma_20'] * 100
+    df['ma_dist_50'] = (df['close'] - df['sma_50']) / df['sma_50'] * 100
+    df['ma_dist_200'] = (df['close'] - df['sma_200']) / df['sma_200'] * 100
     
     # MA slopes
-    df['ma_slope_20'] = df['sma_20'].pct_change(20)
-    df['ma_slope_50'] = df['sma_50'].pct_change(50)
-    df['ma_slope_200'] = df['sma_200'].pct_change(200)
+    df['ma_slope_20'] = df['sma_20'].pct_change(5) * 100
+    df['ma_slope_50'] = df['sma_50'].pct_change(5) * 100
+    df['ma_slope_200'] = df['sma_200'].pct_change(5) * 100
     
-    return df
-
-
-def calculate_rsi(df: pd.DataFrame, period: int = 14) -> pd.DataFrame:
-    """Calculate RSI."""
-    df = df.copy()
+    # Trend regime
+    df['above_ma200'] = df['close'] > df['sma_200']
+    df['ma50_above_ma200'] = df['sma_50'] > df['sma_200']
+    
+    # Calculate trend_regime based on MA alignment
+    df['trend_regime'] = 'sideways'
+    bullish = (df['close'] > df['sma_50']) & (df['sma_50'] > df['sma_200'])
+    bearish = (df['close'] < df['sma_50']) & (df['sma_50'] < df['sma_200'])
+    df.loc[bullish, 'trend_regime'] = 'bullish'
+    df.loc[bearish, 'trend_regime'] = 'bearish'
+    
+    # ROC (Rate of Change)
+    df['roc_5'] = df['close'].pct_change(5) * 100
+    df['roc_10'] = df['close'].pct_change(10) * 100
+    df['roc_20'] = df['close'].pct_change(20) * 100
+    df['roc_63'] = df['close'].pct_change(63) * 100
+    
+    # RSI
     delta = df['close'].diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
     rs = gain / loss
     df['rsi_14'] = 100 - (100 / (1 + rs))
-    return df
-
-
-def calculate_macd(df: pd.DataFrame) -> pd.DataFrame:
-    """Calculate MACD."""
-    df = df.copy()
-    exp1 = df['close'].ewm(span=12, adjust=False).mean()
-    exp2 = df['close'].ewm(span=26, adjust=False).mean()
-    df['macd_line'] = exp1 - exp2
-    df['macd_signal'] = df['macd_line'].ewm(span=9, adjust=False).mean()
-    df['macd_histogram'] = df['macd_line'] - df['macd_signal']
-    return df
-
-
-def calculate_bollinger_bands(df: pd.DataFrame) -> pd.DataFrame:
-    """Calculate Bollinger Bands."""
-    df = df.copy()
+    
+    # Bollinger Bands
     df['bb_middle'] = df['close'].rolling(window=20).mean()
     bb_std = df['close'].rolling(window=20).std()
     df['bb_upper'] = df['bb_middle'] + (bb_std * 2)
     df['bb_lower'] = df['bb_middle'] - (bb_std * 2)
-    df['bb_width'] = (df['bb_upper'] - df['bb_lower']) / df['bb_middle']
+    df['bb_width'] = (df['bb_upper'] - df['bb_lower']) / df['bb_middle'] * 100
     df['bb_pct'] = (df['close'] - df['bb_lower']) / (df['bb_upper'] - df['bb_lower'])
-    return df
-
-
-def calculate_atr(df: pd.DataFrame, period: int = 14) -> pd.DataFrame:
-    """Calculate Average True Range."""
-    df = df.copy()
+    
+    # ATR
     high_low = df['high'] - df['low']
     high_close = np.abs(df['high'] - df['close'].shift())
     low_close = np.abs(df['low'] - df['close'].shift())
     ranges = pd.concat([high_low, high_close, low_close], axis=1)
     true_range = np.max(ranges, axis=1)
-    df['atr_14'] = true_range.rolling(period).mean()
-    df['atr_pct'] = df['atr_14'] / df['close']
-    return df
-
-
-def calculate_volume_metrics(df: pd.DataFrame) -> pd.DataFrame:
-    """Calculate volume-based metrics."""
-    df = df.copy()
+    df['atr_14'] = true_range.rolling(14).mean()
+    df['atr_pct'] = df['atr_14'] / df['close'] * 100
+    
+    # MACD
+    exp1 = df['close'].ewm(span=12, adjust=False).mean()
+    exp2 = df['close'].ewm(span=26, adjust=False).mean()
+    df['macd_line'] = exp1 - exp2
+    df['macd_signal'] = df['macd_line'].ewm(span=9, adjust=False).mean()
+    df['macd_histogram'] = df['macd_line'] - df['macd_signal']
+    
+    # Volume metrics
     df['volume_sma_20'] = df['volume'].rolling(window=20).mean()
     df['dollar_volume'] = df['close'] * df['volume']
     df['dollar_volume_sma_20'] = df['dollar_volume'].rolling(window=20).mean()
     df['rvol_20'] = df['volume'] / df['volume_sma_20']
-    return df
-
-
-def calculate_trend_regime(df: pd.DataFrame) -> pd.DataFrame:
-    """Determine trend regime based on MA alignment."""
-    df = df.copy()
     
-    # Initialize with default values
-    df['trend_regime'] = 'sideways'
-    df['above_ma200'] = False
-    df['ma50_above_ma200'] = False
-    
-    # Only calculate if we have valid SMA data
-    valid_sma = df['sma_50'].notna() & df['sma_200'].notna()
-    
-    if valid_sma.any():
-        # Bullish: price > 50MA > 200MA
-        bullish = (df['close'] > df['sma_50']) & (df['sma_50'] > df['sma_200'])
-        df.loc[bullish & valid_sma, 'trend_regime'] = 'bullish'
-        
-        # Bearish: price < 50MA < 200MA
-        bearish = (df['close'] < df['sma_50']) & (df['sma_50'] < df['sma_200'])
-        df.loc[bearish & valid_sma, 'trend_regime'] = 'bearish'
-        
-        # Boolean flags
-        df.loc[valid_sma, 'above_ma200'] = df.loc[valid_sma, 'close'] > df.loc[valid_sma, 'sma_200']
-        df.loc[valid_sma, 'ma50_above_ma200'] = df.loc[valid_sma, 'sma_50'] > df.loc[valid_sma, 'sma_200']
+    # Distance from 52-week highs/lows
+    df['dist_52w_high'] = (df['close'] - df['close'].rolling(252).max()) / df['close'].rolling(252).max()
+    df['dist_52w_low'] = (df['close'] - df['close'].rolling(252).min()) / df['close'].rolling(252).min()
     
     return df
 
 
-def calculate_all_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Calculate all technical features."""
-    if len(df) < 200:
-        return pd.DataFrame()  # Not enough data
-    
-    df = calculate_returns(df)
-    df = calculate_moving_averages(df)
-    df = calculate_rsi(df)
-    df = calculate_macd(df)
-    df = calculate_bollinger_bands(df)
-    df = calculate_atr(df)
-    df = calculate_volume_metrics(df)
-    df = calculate_trend_regime(df)
-    
-    return df
+def clean_value(v):
+    """Clean a value for database insertion."""
+    if pd.isna(v) or (isinstance(v, float) and (np.isinf(v) or np.isnan(v))):
+        return None
+    if isinstance(v, (np.bool_, bool)):
+        return bool(v)
+    if isinstance(v, (np.integer, np.floating)):
+        return float(v)
+    if isinstance(v, Decimal):
+        return float(v)
+    return v
 
 
-def build_record(row: pd.Series, asset_id: int, target_date: str) -> tuple:
-    """Convert a dataframe row to a database record tuple."""
-    def safe_float(val):
-        if pd.isna(val) or val is None:
-            return None
-        try:
-            return float(val)
-        except:
-            return None
+def build_record(row: pd.Series, asset_id: int, target_date: str) -> dict:
+    """Build a record dict for database insertion - matching equity pattern."""
+    feature_cols = [
+        'close', 'log_return', 'return_1d', 'return_5d', 'return_21d', 'return_63d', 'return_252d',
+        'sma_20', 'sma_50', 'sma_200', 'ma_dist_20', 'ma_dist_50', 'ma_dist_200',
+        'ma_slope_20', 'ma_slope_50', 'ma_slope_200', 'above_ma200', 'ma50_above_ma200',
+        'trend_regime', 'roc_5', 'roc_10', 'roc_20', 'roc_63',
+        'rsi_14', 'bb_middle', 'bb_upper', 'bb_lower', 'bb_width', 'bb_pct',
+        'atr_14', 'atr_pct', 'macd_line', 'macd_signal', 'macd_histogram',
+        'volume_sma_20', 'rvol_20', 'dollar_volume', 'dollar_volume_sma_20',
+        'dist_52w_high', 'dist_52w_low'
+    ]
     
-    def safe_bool(val):
-        if pd.isna(val) or val is None:
-            return False
-        return bool(val)
+    record = {
+        'asset_id': asset_id,
+        'date': target_date,
+        'feature_version': FEATURE_VERSION,
+        'calc_version': 'etf_v1',
+    }
     
-    # Get trend_regime with proper default
-    trend_regime = row.get('trend_regime')
-    if pd.isna(trend_regime) or trend_regime is None:
-        trend_regime = 'sideways'
+    for col in feature_cols:
+        if col in row.index:
+            record[col] = clean_value(row[col])
     
-    return (
-        asset_id,
-        target_date,
-        FEATURE_VERSION,
-        'etf_features_v1',
-        datetime.now().isoformat(),  # asof_timestamp
-        safe_float(row.get('close')),
-        safe_float(row.get('return_1d')),
-        safe_float(row.get('return_5d')),
-        safe_float(row.get('return_21d')),
-        safe_float(row.get('return_63d')),
-        safe_float(row.get('return_252d')),
-        safe_float(row.get('ma_dist_20')),
-        safe_float(row.get('ma_dist_50')),
-        safe_float(row.get('ma_dist_200')),
-        safe_float(row.get('ma_slope_20')),
-        safe_float(row.get('ma_slope_50')),
-        safe_float(row.get('ma_slope_200')),
-        trend_regime,
-        safe_float(row.get('return_5d')),  # roc_5
-        None,  # roc_10
-        None,  # roc_20
-        None,  # roc_63
-        safe_float(row.get('rsi_14')),
-        safe_float(row.get('macd_histogram')),
-        safe_float(row.get('atr_pct')),
-        None,  # realized_vol_20
-        safe_float(row.get('bb_width')),
-        None,  # bb_width_pctile
-        safe_float(row.get('dollar_volume_sma_20')),
-        safe_float(row.get('rvol_20')),
-        safe_float(row.get('sma_20')),
-        safe_float(row.get('sma_50')),
-        safe_float(row.get('sma_200')),
-        safe_bool(row.get('above_ma200')),
-        safe_bool(row.get('ma50_above_ma200'))
-    )
+    return record
 
 
 def write_features_batch(records: list) -> int:
@@ -305,67 +242,38 @@ def write_features_batch(records: list) -> int:
         return 0
     
     conn = get_connection()
-    query = """
-        INSERT INTO daily_features (
-            asset_id, date, feature_version, calc_version, asof_timestamp,
-            close, return_1d, return_5d, return_21d, return_63d, return_252d,
-            ma_dist_20, ma_dist_50, ma_dist_200, ma_slope_20, ma_slope_50, ma_slope_200,
-            trend_regime, roc_5, roc_10, roc_20, roc_63, rsi_14, macd_histogram,
-            atr_pct, realized_vol_20, bb_width, bb_width_pctile, dollar_volume_sma_20, rvol_20,
-            sma_20, sma_50, sma_200, above_ma200, ma50_above_ma200
-        ) VALUES %s
-        ON CONFLICT (asset_id, date) DO UPDATE SET
-            feature_version = EXCLUDED.feature_version,
-            calc_version = EXCLUDED.calc_version,
-            asof_timestamp = EXCLUDED.asof_timestamp,
-            close = EXCLUDED.close,
-            return_1d = EXCLUDED.return_1d,
-            rsi_14 = EXCLUDED.rsi_14,
-            macd_histogram = EXCLUDED.macd_histogram,
-            atr_pct = EXCLUDED.atr_pct,
-            bb_width = EXCLUDED.bb_width,
-            dollar_volume_sma_20 = EXCLUDED.dollar_volume_sma_20,
-            rvol_20 = EXCLUDED.rvol_20,
-            ma_dist_50 = EXCLUDED.ma_dist_50,
-            trend_regime = EXCLUDED.trend_regime,
-            sma_20 = EXCLUDED.sma_20,
-            sma_50 = EXCLUDED.sma_50,
-            sma_200 = EXCLUDED.sma_200,
-            above_ma200 = EXCLUDED.above_ma200,
-            ma50_above_ma200 = EXCLUDED.ma50_above_ma200
+    
+    # Get column names from first record
+    columns = list(records[0].keys())
+    
+    # Build upsert query
+    cols_str = ', '.join(columns)
+    placeholders = ', '.join(['%s'] * len(columns))
+    update_cols = [c for c in columns if c not in ['asset_id', 'date']]
+    update_str = ', '.join([f"{c} = EXCLUDED.{c}" for c in update_cols])
+    
+    query = f"""
+        INSERT INTO daily_features ({cols_str})
+        VALUES ({placeholders})
+        ON CONFLICT (asset_id, date) DO UPDATE SET {update_str}
     """
     
     with conn.cursor() as cur:
-        execute_values(cur, query, records)
+        for record in records:
+            values = [record.get(c) for c in columns]
+            cur.execute(query, values)
     
     return len(records)
-
-
-def update_latest_date(target_date: str):
-    """Update the latest_dates table for dashboard display."""
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                INSERT INTO latest_dates (asset_type, latest_date, updated_at)
-                VALUES (%s, %s, NOW())
-                ON CONFLICT (asset_type) 
-                DO UPDATE SET latest_date = EXCLUDED.latest_date, updated_at = NOW()
-                WHERE latest_dates.latest_date < EXCLUDED.latest_date
-            """, ('etf', target_date))
-            logger.info(f"Updated latest_dates for etf to {target_date}")
-    except Exception as e:
-        logger.warning(f"Failed to update latest_dates: {e}")
 
 
 def process_etf(etf: dict, target_date: str) -> dict:
     """Process a single ETF and return result dict."""
     try:
         df = get_bars_for_etf(etf['asset_id'], target_date)
-        if len(df) < 200:
+        if len(df) < 50:  # Need at least 50 days for 50MA
             return {'status': 'skipped', 'reason': 'insufficient_data', 'asset_id': etf['asset_id']}
         
-        df = calculate_all_features(df)
+        df = compute_features(df)
         if df.empty:
             return {'status': 'error', 'error': 'feature_calculation_failed', 'asset_id': etf['asset_id']}
         
@@ -380,6 +288,23 @@ def process_etf(etf: dict, target_date: str) -> dict:
         
     except Exception as e:
         return {'status': 'error', 'error': str(e), 'asset_id': etf['asset_id']}
+
+
+def update_latest_date(target_date: str):
+    """Update the latest_dates table for dashboard display."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO latest_dates (asset_type, latest_date, updated_at)
+                VALUES ('etf', %s, NOW())
+                ON CONFLICT (asset_type) 
+                DO UPDATE SET latest_date = EXCLUDED.latest_date, updated_at = NOW()
+                WHERE latest_dates.latest_date < EXCLUDED.latest_date
+            """, (target_date,))
+            logger.info(f"Updated latest_dates for etf to {target_date}")
+    except Exception as e:
+        logger.warning(f"Failed to update latest_dates: {e}")
 
 
 def main():
@@ -459,7 +384,8 @@ def main():
         write_features_batch(batch)
     
     # Update latest_dates
-    update_latest_date(target_date)
+    if success > 0:
+        update_latest_date(target_date)
     
     # Summary
     elapsed = time.time() - start_time

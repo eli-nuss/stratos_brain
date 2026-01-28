@@ -1,10 +1,10 @@
 # ETF Daily Scoring
 # =================
 # Calculates composite technical scores for all ETFs.
-# Runs after ETF features are calculated to generate rankings.
+# Runs after ETF setups are detected to generate rankings.
 #
 # TRIGGERS:
-# - After ETF Daily Features completes
+# - After ETF Setup Scanner completes
 # - Manual trigger
 #
 # OUTPUT: Writes scores to daily_asset_scores table
@@ -12,9 +12,9 @@
 name: ETF Daily Scoring
 
 on:
-  # Run after ETF features workflow completes
+  # Run after ETF Setup Scanner workflow completes
   workflow_run:
-    workflows: ["ETF Daily Features"]
+    workflows: ["ETF Setup Scanner"]
     types:
       - completed
   

@@ -1,10 +1,10 @@
 # ETF Daily Features Calculation
 # ==============================
 # Calculates technical features for all ETF assets.
-# Runs after ETF OHLCV data is ingested.
+# Runs after ETF OHLCV data is ingested via index_commodity_etf_daily_ohlcv.py
 #
 # TRIGGERS:
-# - Scheduled daily at 06:00 UTC
+# - After Index/Commodity/ETF Daily OHLCV completes
 # - Manual trigger
 #
 # OUTPUT: Writes technical features to daily_features table
@@ -12,9 +12,15 @@
 name: ETF Daily Features
 
 on:
-  # Scheduled run: Daily at 06:00 UTC (after overnight data ingestion)
+  # Run after ETF OHLCV workflow completes
+  workflow_run:
+    workflows: ["Index Commodity ETF Daily OHLCV"]
+    types:
+      - completed
+  
+  # Scheduled run: Daily at 06:30 UTC (after OHLCV at 06:00)
   schedule:
-    - cron: '0 6 * * *'
+    - cron: '30 6 * * *'
   
   # Manual trigger
   workflow_dispatch:
@@ -35,6 +41,8 @@ jobs:
   calculate-features:
     name: Calculate ETF Features
     runs-on: ubuntu-latest
+    # Only run if the triggering workflow succeeded (or if manually triggered)
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     timeout-minutes: 30
     
     steps:
@@ -88,7 +96,7 @@ jobs:
           echo "  - Moving averages (20/50/200) and distances"
           echo "  - RSI, MACD, Bollinger Bands"
           echo "  - ATR (volatility), volume metrics"
-          echo "  - Trend regime detection"
+          echo "  - Trend regime detection (bullish/bearish/sideways)"
       
       - name: Report failure
         if: failure()
