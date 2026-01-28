@@ -128,50 +128,66 @@ def calculate_single_etf_score(etf: dict, target_date: str) -> tuple:
     """Calculate composite score for a single ETF."""
     components = {}
     
-    # Trend score (0-100)
+    # Trend score (0-100) - handle null values
     trend_score = 50
-    if etf['trend_regime'] == 'bullish':
+    trend_regime = etf.get('trend_regime')
+    above_ma200 = etf.get('above_ma200') if etf.get('above_ma200') is not None else False
+    ma50_above_ma200 = etf.get('ma50_above_ma200') if etf.get('ma50_above_ma200') is not None else False
+    
+    if trend_regime == 'bullish':
         trend_score = 80
-    elif etf['trend_regime'] == 'bearish':
+    elif trend_regime == 'bearish':
         trend_score = 20
+    else:
+        # Fallback: calculate from MA distances if available
+        ma_dist_50 = etf.get('ma_dist_50')
+        ma_dist_200 = etf.get('ma_dist_200')
+        if ma_dist_50 is not None and ma_dist_200 is not None:
+            if ma_dist_50 > 0 and ma_dist_200 > 0:
+                trend_score = 75  # Bullish-ish
+            elif ma_dist_50 < 0 and ma_dist_200 < 0:
+                trend_score = 25  # Bearish-ish
     
     # MA alignment bonus
-    if etf['above_ma200'] and etf['ma50_above_ma200']:
+    if above_ma200 and ma50_above_ma200:
         trend_score += 10
-    elif not etf['above_ma200'] and not etf['ma50_above_ma200']:
+    elif not above_ma200 and not ma50_above_ma200:
         trend_score -= 10
     
     components['trend'] = min(max(trend_score, 0), 100)
     
-    # Momentum score based on returns
+    # Momentum score based on returns - handle nulls
     mom_score = 50
-    if etf['return_21d']:
-        if etf['return_21d'] > 0.05:
+    return_21d = etf.get('return_21d')
+    if return_21d is not None:
+        if return_21d > 0.05:
             mom_score += 20
-        elif etf['return_21d'] > 0.02:
+        elif return_21d > 0.02:
             mom_score += 10
-        elif etf['return_21d'] < -0.05:
+        elif return_21d < -0.05:
             mom_score -= 20
-        elif etf['return_21d'] < -0.02:
+        elif return_21d < -0.02:
             mom_score -= 10
     
     components['momentum'] = min(max(mom_score, 0), 100)
     
-    # Mean reversion / RSI
+    # Mean reversion / RSI - handle nulls
     rsi_score = 50
-    if etf['rsi_14']:
-        if etf['rsi_14'] < 30:  # Oversold - bullish
+    rsi_14 = etf.get('rsi_14')
+    if rsi_14 is not None:
+        if rsi_14 < 30:  # Oversold - bullish
             rsi_score = 70
-        elif etf['rsi_14'] > 70:  # Overbought - bearish
+        elif rsi_14 > 70:  # Overbought - bearish
             rsi_score = 30
         else:
             rsi_score = 50
     
     components['mean_reversion'] = rsi_score
     
-    # Volume / attention
+    # Volume / attention - handle nulls
     vol_score = 50
-    if etf['rvol_20'] and etf['rvol_20'] > 1.5:
+    rvol_20 = etf.get('rvol_20')
+    if rvol_20 is not None and rvol_20 > 1.5:
         vol_score = 70  # High volume interest
     
     components['volume'] = vol_score
