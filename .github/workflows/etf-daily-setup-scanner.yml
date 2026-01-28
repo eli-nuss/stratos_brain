@@ -1,20 +1,19 @@
-# ETF Daily Setup Scanner
-# =======================
-# Scans ETFs for trading setups based on technical features.
-# Separate workflow for ETFs to allow ETF-specific tuning.
+# ETF/Index/Commodity Daily Setup Scanner
+# ========================================
+# Scans ETFs, Indices, and Commodities for trading setups based on technical features.
 #
 # TRIGGERS:
-# - After ETF Daily Features completes
+# - After ETF/Index/Commodity Daily Features completes
 # - Manual trigger
 #
-# OUTPUT: Writes ETF-specific setups to setup_signals table
+# OUTPUT: Writes setups to setup_signals table
 
-name: ETF Daily Setup Scanner
+name: ETF/Index/Commodity Daily Setup Scanner
 
 on:
-  # Run after ETF features workflow completes
+  # Run after features workflow completes
   workflow_run:
-    workflows: ["ETF Daily Features"]
+    workflows: ["ETF/Index/Commodity Daily Features"]
     types:
       - completed
   
@@ -35,8 +34,8 @@ env:
   PYTHON_VERSION: '3.11'
 
 jobs:
-  scan-etf-setups:
-    name: Scan ETF Setups
+  scan-setups:
+    name: Scan ETF/Index/Commodity Setups
     runs-on: ubuntu-latest
     # Only run if the triggering workflow succeeded (or if manually triggered)
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
@@ -57,11 +56,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install psycopg2-binary pandas numpy
       
-      - name: Run ETF setup scanner
+      - name: Run setup scanner
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          echo "🔍 Starting ETF setup scanner"
+          echo "🔍 Starting ETF/Index/Commodity setup scanner"
           if [ -n "${{ github.event.inputs.target_date }}" ]; then
             echo "📅 Target date: ${{ github.event.inputs.target_date }}"
             python jobs/etf_daily_setup_scanner.py \
@@ -76,9 +75,9 @@ jobs:
       - name: Report success
         if: success()
         run: |
-          echo "✅ ETF setup scanner completed successfully"
+          echo "✅ ETF/Index/Commodity setup scanner completed successfully"
           echo ""
-          echo "11 ETF setups scanned (aligned with crypto/equity scanner):"
+          echo "11 setups scanned (aligned with crypto/equity scanner):"
           echo ""
           echo "Position Trading (60-252 day holds):"
           echo "  - weinstein_stage2: Weinstein Stage 2 breakout"
@@ -98,5 +97,5 @@ jobs:
       - name: Report failure
         if: failure()
         run: |
-          echo "❌ ETF setup scanner failed"
+          echo "❌ ETF/Index/Commodity setup scanner failed"
           echo "Check the logs above for details"
