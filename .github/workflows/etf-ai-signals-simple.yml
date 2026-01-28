@@ -1,0 +1,43 @@
+# ETF AI Signals (Simple)
+# =======================
+# Simple non-parallel ETF AI analysis.
+# Runs sequentially, no E2B sandboxes.
+
+name: ETF AI Signals (Simple)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_date:
+        description: 'Target date (YYYY-MM-DD)'
+        required: true
+        type: string
+      model:
+        description: 'Gemini model'
+        required: false
+        default: 'gemini-3-flash-preview'
+        type: string
+
+jobs:
+  analyze-etfs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install psycopg2-binary google-genai
+      
+      - name: Run ETF AI Analysis
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          echo "Starting ETF AI analysis for ${{ github.event.inputs.target_date }}"
+          python scripts/etf_ai_simple.py ${{ github.event.inputs.target_date }} ${{ github.event.inputs.model }}
