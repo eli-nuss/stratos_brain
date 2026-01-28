@@ -12,6 +12,7 @@ import {
   getSignalTooltip 
 } from "@/lib/signalDefinitions";
 import { getSetupDefinition, SETUP_DEFINITIONS } from "@/lib/setupDefinitions";
+import { toast } from 'sonner';
 
 import { NotesHistory } from "./NotesHistory";
 import { FilesSection } from "./FilesSection";
@@ -111,7 +112,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               new ClipboardItem({ 'image/png': blob })
             ]);
             // Show brief success feedback
-            alert('Chart copied to clipboard!');
+            toast.success('Chart copied to clipboard!');
           } catch (err) {
             // Fallback: download the image
             const url = URL.createObjectURL(blob);
@@ -124,8 +125,8 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
         }
       }, 'image/png');
     } catch (err) {
-      console.error('Failed to capture chart:', err);
-    } finally {
+                console.error('Failed to capture chart:', err);
+                toast.error('Error generating chart image. Please try again.');    } finally {
       setIsCapturing(false);
     }
   };
