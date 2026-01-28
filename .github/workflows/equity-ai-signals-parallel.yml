@@ -19,9 +19,12 @@
 name: Equity AI Signals (Parallel E2B)
 
 on:
-  # Run Mon-Fri at 22:30 UTC (5:30 PM ET, 1h after features)
-  schedule:
-    - cron: '30 22 * * 1-5'
+  # Run after Equity Daily Setup Scanner completes
+  workflow_run:
+    workflows: ["Equity Daily Setup Scanner"]
+    types:
+      - completed
+
   
   workflow_dispatch:
     inputs:
