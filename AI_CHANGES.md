@@ -103,27 +103,31 @@ Sub-agents can now safely query the database for analysis without risk of accide
 
 ### 2026-01-28 — ETF Feature Calculation & Scoring Pipeline
 **Status:** ✅ Deployed (GitHub Actions)  
-**Commit:** `7a43531`
+**Commits:** `7a43531`, `3fc8a31`
 
 **Description:**
-Built complete data pipeline to enable technical analysis and ranking of ETFs (sector, index, commodity ETFs).
+Built complete data pipeline to enable technical analysis and ranking of ETFs (sector, index, commodity ETFs). Follows same patterns as equity/crypto pipelines.
 
 **Components Created:**
 
-1. **jobs/etf_daily_features.py** (350 lines)
+1. **jobs/etf_daily_features.py** (400+ lines)
    - Calculates 30+ technical indicators for ETFs
    - RSI, MACD, Bollinger Bands, moving averages (20/50/200)
    - ATR (volatility), volume metrics, trend regime detection
-   - Parallel processing with ThreadPoolExecutor
+   - Parallel processing with ThreadPoolExecutor (8 workers)
+   - Batch inserts with execute_values for performance
+   - Updates `latest_dates` table for dashboard tracking
 
-2. **jobs/etf_daily_scoring.py** (180 lines)
+2. **jobs/etf_daily_scoring.py** (200+ lines)
    - Composite scoring algorithm for ETFs
    - Trend score (35%), Momentum (25%), Mean reversion (25%), Volume (15%)
    - Generates weighted_score and inflection_score for ranking
+   - Updates `latest_dates` table with 'etf_scores'
 
 3. **GitHub Actions Workflows**
-   - `.github/workflows/etf-daily-features.yml` — runs daily at 7am UTC
-   - `.github/workflows/etf-daily-scoring.yml` — triggers after features complete
+   - `.github/workflows/etf-daily-features.yml` — runs daily at 6am UTC, 30min timeout
+   - `.github/workflows/etf-daily-scoring.yml` — triggers after features complete, 15min timeout
+   - Both have detailed logging, success/failure reporting, pip caching
 
 **Prerequisites Met:**
 - ETFs already have OHLCV data (from index_commodity_etf_daily_ohlcv.py)
