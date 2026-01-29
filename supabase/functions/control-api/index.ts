@@ -3407,7 +3407,7 @@ If asked about something not in the data, acknowledge the limitation.`
         const { data: holdings, error } = await supabase
           .from('v_core_portfolio_holdings')
           .select('*')
-          .order('id', { ascending: true })
+          .order('current_value', { ascending: false, nullsFirst: false })
         
         if (error) {
           return new Response(JSON.stringify({ error: error.message }), {

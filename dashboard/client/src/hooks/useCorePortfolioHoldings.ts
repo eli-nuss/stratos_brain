@@ -146,8 +146,10 @@ export function useCorePortfolioByCategory() {
     other: [],
   };
   
-  // Sort holdings by id for stable ordering (id is auto-incrementing)
-  const sortedHoldings = [...safeHoldings].sort((a, b) => a.id - b.id);
+  // Sort holdings by current_value descending (largest positions first)
+  const sortedHoldings = [...safeHoldings].sort((a, b) => 
+    (b.current_value || 0) - (a.current_value || 0)
+  );
   
   sortedHoldings.forEach((h) => {
     if (h.category && categories[h.category]) {
