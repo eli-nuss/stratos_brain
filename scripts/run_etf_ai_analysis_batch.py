@@ -626,6 +626,7 @@ def save_ai_review(db_url: str, review: Dict) -> bool:
                 # Required fields
                 "scope": "v3_constrained_autonomy",
                 "source_scope": "v3_constrained_autonomy",
+                "input_hash": review.get("input_hash", f"{review['asset_id']}_{review['as_of_date']}"),
                 
                 # Legacy compatibility
                 "attention_level": review.get("attention_level"),
