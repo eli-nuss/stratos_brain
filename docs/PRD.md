@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 28, 2026 (v11.1.6 - Fix: Chat Authentication Header Forwarding)  
+**Last Updated: January 28, 2026 (v11.1.7 - Feature: Setups and R:R columns for ETF, Indices, Commodities tables)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -195,6 +195,9 @@ The Signal Engine is the quantitative backbone of Stratos Brain, responsible for
 | Watchlist | Personal asset tracking | Custom notes, alerts |
 | Equities | US stock universe | Filtering, multi-sort |
 | Crypto | Cryptocurrency universe | Real-time signals |
+| ETFs | ETF universe | Setups, R:R ratios, filtering |
+| Indices | Global market indices | Setups, R:R ratios, regional grouping |
+| Commodities | Commodities overview | Setups, R:R ratios, category grouping |
 | Company Chat | Asset-specific AI assistant | Code execution, search |
 | Global Brain | Cross-market AI analysis | Market screening |
 | Smart Money | Institutional tracking | 13F filings, guru portfolios |
@@ -244,8 +247,23 @@ A daily summary of market activity, including:
 | `gurus` | List of tracked institutional investors |
 | `document_jobs` | Tracks the status of asynchronous document generation jobs |
 | `asset_files` | Stores generated documents (memos, one-pagers) |
+| `setup_signals` | Trading setup signals with entry/exit parameters |
+| `etf_assets` | Master list of tracked ETFs |
+| `market_indices` | Master list of tracked market indices |
+| `commodities` | Master list of tracked commodities |
+| `etf_daily_bars` | OHLCV data for ETFs |
+| `index_daily_bars` | OHLCV data for market indices |
+| `commodity_daily_bars` | OHLCV data for commodities |
 
-### 5.2 ERD (Entity Relationship Diagram)
+### 5.2 Database Views
+
+| View | Description |
+|---|---|
+| `v_etf_overview_with_setups` | ETF overview with setup signals and R:R ratios |
+| `v_index_overview_with_setups` | Index overview with setup signals and R:R ratios |
+| `v_commodity_overview_with_setups` | Commodity overview with setup signals and R:R ratios |
+
+### 5.3 ERD (Entity Relationship Diagram)
 
 (Diagram to be added)
 
