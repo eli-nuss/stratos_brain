@@ -5115,7 +5115,7 @@ If asked about something not in the data, acknowledge the limitation.`
         const category = url.searchParams.get('category')
         
         let query = supabase
-          .from('v_etf_overview')
+          .from('v_etf_overview_with_setups')
           .select('*', { count: 'exact' })
           .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1)
         
@@ -5137,6 +5137,8 @@ If asked about something not in the data, acknowledge the limitation.`
           case 'return_7d': query = query.order('return_7d', { ascending, nullsFirst: false }); break
           case 'return_30d': query = query.order('return_30d', { ascending, nullsFirst: false }); break
           case 'return_365d': query = query.order('return_365d', { ascending, nullsFirst: false }); break
+          case 'setup_count': query = query.order('setup_count', { ascending, nullsFirst: false }); break
+          case 'best_risk_reward': query = query.order('best_risk_reward', { ascending, nullsFirst: false }); break
           default: query = query.order('dollar_volume', { ascending: false, nullsFirst: false })
         }
         
@@ -5164,7 +5166,7 @@ If asked about something not in the data, acknowledge the limitation.`
         const region = url.searchParams.get('region')
         
         let query = supabase
-          .from('v_index_overview')
+          .from('v_index_overview_with_setups')
           .select('*', { count: 'exact' })
         
         if (region) {
@@ -5179,6 +5181,8 @@ If asked about something not in the data, acknowledge the limitation.`
           case 'close': query = query.order('close', { ascending, nullsFirst: false }); break
           case 'return_1d': query = query.order('return_1d', { ascending, nullsFirst: false }); break
           case 'return_7d': query = query.order('return_7d', { ascending, nullsFirst: false }); break
+          case 'setup_count': query = query.order('setup_count', { ascending, nullsFirst: false }); break
+          case 'best_risk_reward': query = query.order('best_risk_reward', { ascending, nullsFirst: false }); break
           default: query = query.order('symbol', { ascending: true })
         }
         
@@ -5204,7 +5208,7 @@ If asked about something not in the data, acknowledge the limitation.`
         const category = url.searchParams.get('category')
         
         let query = supabase
-          .from('v_commodity_overview')
+          .from('v_commodity_overview_with_setups')
           .select('*', { count: 'exact' })
         
         if (category) {
@@ -5220,6 +5224,8 @@ If asked about something not in the data, acknowledge the limitation.`
           case 'return_1d': query = query.order('return_1d', { ascending, nullsFirst: false }); break
           case 'return_7d': query = query.order('return_7d', { ascending, nullsFirst: false }); break
           case 'category': query = query.order('category', { ascending }); break
+          case 'setup_count': query = query.order('setup_count', { ascending, nullsFirst: false }); break
+          case 'best_risk_reward': query = query.order('best_risk_reward', { ascending, nullsFirst: false }); break
           default: query = query.order('symbol', { ascending: true })
         }
         
