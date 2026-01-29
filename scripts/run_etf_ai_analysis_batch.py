@@ -354,7 +354,6 @@ def get_active_setups(db_url: str, asset_id: int, signal_date: str) -> List[Dict
                     stop_loss,
                     target_price,
                     risk_reward,
-                    setup_strength,
                     historical_profit_factor
                 FROM setup_signals
                 WHERE asset_id = %s 
