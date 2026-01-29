@@ -880,3 +880,4 @@ export default function CorePortfolioHoldings({ onAssetClick }: { onAssetClick: 
     </div>
   );
 }
+
