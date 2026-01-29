@@ -146,14 +146,8 @@ export function useCorePortfolioByCategory() {
     other: [],
   };
   
-  // Sort holdings by display_order then added_at for stable ordering
-  const sortedHoldings = [...safeHoldings].sort((a, b) => {
-    // First sort by display_order
-    const orderDiff = (a.display_order || 0) - (b.display_order || 0);
-    if (orderDiff !== 0) return orderDiff;
-    // Then by added_at for stable ordering
-    return new Date(a.added_at).getTime() - new Date(b.added_at).getTime();
-  });
+  // Sort holdings by id for stable ordering (id is auto-incrementing)
+  const sortedHoldings = [...safeHoldings].sort((a, b) => a.id - b.id);
   
   sortedHoldings.forEach((h) => {
     if (h.category && categories[h.category]) {
