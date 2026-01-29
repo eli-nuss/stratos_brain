@@ -224,11 +224,11 @@ export default function Home() {
             onAssetClick={handleAssetClick}
           />
         ) : activeTab === "etfs" ? (
-          <ETFTable key="etfs" />
+          <ETFTable key="etfs" onAssetClick={handleAssetClick} />
         ) : activeTab === "indices" ? (
-          <IndicesTable key="indices" />
+          <IndicesTable key="indices" onAssetClick={handleAssetClick} />
         ) : activeTab === "commodities" ? (
-          <CommoditiesTable key="commodities" />
+          <CommoditiesTable key="commodities" onAssetClick={handleAssetClick} />
         ) : isStockListTab && currentList ? (
           <CustomizableStockListTable
             key={`list-${currentListId}`}

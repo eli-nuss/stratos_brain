@@ -7,6 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 
 interface Commodity {
   commodity_id: number;
+  asset_id: number;
   symbol: string;
   name: string;
   category: string;
@@ -26,6 +27,10 @@ interface Commodity {
   setup_names: string[];
   best_risk_reward: number;
   avg_profit_factor: number;
+}
+
+interface CommoditiesTableProps {
+  onAssetClick?: (assetId: string) => void;
 }
 
 type SortField = "symbol" | "name" | "close" | "return_1d" | "return_7d" | "category" | "setup_count" | "best_risk_reward";
@@ -52,7 +57,7 @@ const setupDisplayNames: Record<string, string> = {
   oversold_bounce: "Oversold Bounce",
 };
 
-export default function CommoditiesTable() {
+export default function CommoditiesTable({ onAssetClick }: CommoditiesTableProps) {
   const [sortBy, setSortBy] = useState<SortField>("category");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
@@ -67,6 +72,12 @@ export default function CommoditiesTable() {
     } else {
       setSortBy(field);
       setSortOrder("desc");
+    }
+  };
+
+  const handleRowClick = (commodity: Commodity) => {
+    if (onAssetClick && commodity.asset_id) {
+      onAssetClick(String(commodity.asset_id));
     }
   };
 
@@ -200,11 +211,16 @@ export default function CommoditiesTable() {
               data?.data?.map((commodity: Commodity) => {
                 const setupNames = getSetupDisplay(commodity.setup_names);
                 const hasSetups = commodity.setup_count > 0;
+                const isClickable = !!onAssetClick && !!commodity.asset_id;
                 
                 return (
                   <tr
                     key={commodity.commodity_id}
-                    className="border-b border-border/50 hover:bg-muted/30 transition-colors"
+                    className={cn(
+                      "border-b border-border/50 hover:bg-muted/30 transition-colors",
+                      isClickable && "cursor-pointer"
+                    )}
+                    onClick={() => handleRowClick(commodity)}
                   >
                     <td className="px-3 py-2 text-sm font-medium">{commodity.symbol}</td>
                     <td className="px-3 py-2 text-sm text-muted-foreground truncate max-w-[200px]">{commodity.name}</td>

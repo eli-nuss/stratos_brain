@@ -7,6 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 
 interface MarketIndex {
   index_id: number;
+  asset_id: number;
   symbol: string;
   name: string;
   region: string;
@@ -29,6 +30,10 @@ interface MarketIndex {
   avg_profit_factor: number;
 }
 
+interface IndicesTableProps {
+  onAssetClick?: (assetId: string) => void;
+}
+
 type SortField = "symbol" | "name" | "close" | "return_1d" | "return_7d" | "setup_count" | "best_risk_reward";
 
 // Setup name display mapping
@@ -41,7 +46,7 @@ const setupDisplayNames: Record<string, string> = {
   oversold_bounce: "Oversold Bounce",
 };
 
-export default function IndicesTable() {
+export default function IndicesTable({ onAssetClick }: IndicesTableProps) {
   const [sortBy, setSortBy] = useState<SortField>("symbol");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
@@ -56,6 +61,12 @@ export default function IndicesTable() {
     } else {
       setSortBy(field);
       setSortOrder("desc");
+    }
+  };
+
+  const handleRowClick = (idx: MarketIndex) => {
+    if (onAssetClick && idx.asset_id) {
+      onAssetClick(String(idx.asset_id));
     }
   };
 
@@ -176,11 +187,16 @@ export default function IndicesTable() {
               data?.data?.map((idx: MarketIndex) => {
                 const setupNames = getSetupDisplay(idx.setup_names);
                 const hasSetups = idx.setup_count > 0;
+                const isClickable = !!onAssetClick && !!idx.asset_id;
                 
                 return (
                   <tr
                     key={idx.index_id}
-                    className="border-b border-border/50 hover:bg-muted/30 transition-colors"
+                    className={cn(
+                      "border-b border-border/50 hover:bg-muted/30 transition-colors",
+                      isClickable && "cursor-pointer"
+                    )}
+                    onClick={() => handleRowClick(idx)}
                   >
                     <td className="px-3 py-2 text-sm font-medium">{idx.symbol}</td>
                     <td className="px-3 py-2 text-sm text-muted-foreground truncate max-w-[250px]">{idx.name}</td>
