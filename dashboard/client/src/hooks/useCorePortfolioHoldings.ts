@@ -146,7 +146,16 @@ export function useCorePortfolioByCategory() {
     other: [],
   };
   
-  safeHoldings.forEach((h) => {
+  // Sort holdings by display_order then added_at for stable ordering
+  const sortedHoldings = [...safeHoldings].sort((a, b) => {
+    // First sort by display_order
+    const orderDiff = (a.display_order || 0) - (b.display_order || 0);
+    if (orderDiff !== 0) return orderDiff;
+    // Then by added_at for stable ordering
+    return new Date(a.added_at).getTime() - new Date(b.added_at).getTime();
+  });
+  
+  sortedHoldings.forEach((h) => {
     if (h.category && categories[h.category]) {
       categories[h.category].push(h);
     } else {
