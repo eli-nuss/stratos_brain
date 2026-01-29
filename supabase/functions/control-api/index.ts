@@ -14,7 +14,7 @@ import { MEMO_TEMPLATE, ONE_PAGER_TEMPLATE, SYSTEM_PROMPT, formatDatabaseContext
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-stratos-key, x-user-id',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
 }
 
 // Simple markdown to HTML converter
