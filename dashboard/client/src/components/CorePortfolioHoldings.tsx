@@ -44,6 +44,7 @@ export default function CorePortfolioHoldings({ onAssetClick }: { onAssetClick: 
     new Set(CATEGORY_ORDER)
   );
   const [editing, setEditing] = useState<EditingState | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   
   // Add entry state
   const [showAddMenu, setShowAddMenu] = useState(false);
@@ -209,18 +210,30 @@ export default function CorePortfolioHoldings({ onAssetClick }: { onAssetClick: 
   };
 
   const saveEditing = async () => {
-    if (!editing) return;
+    if (!editing || isSaving) return;
     
+    setIsSaving(true);
     try {
+      let fieldValue: string | number | null;
+      if (editing.field === 'notes') {
+        fieldValue = editing.value;
+      } else {
+        // Handle numeric fields - allow 0 as a valid value
+        const parsed = parseFloat(editing.value);
+        fieldValue = isNaN(parsed) ? null : parsed;
+      }
+      
       const updateData: Record<string, unknown> = {
         id: editing.id,
-        [editing.field]: editing.field === 'notes' ? editing.value : parseFloat(editing.value) || null,
+        [editing.field]: fieldValue,
       };
       await updateHolding(updateData as any);
-      mutate();
+      await mutate();
       setEditing(null);
     } catch (error) {
       console.error('Failed to update holding:', error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -409,7 +422,14 @@ export default function CorePortfolioHoldings({ onAssetClick }: { onAssetClick: 
                               value={editing.value}
                               onChange={(e) => setEditing({ ...editing, value: e.target.value })}
                               onBlur={saveEditing}
-                              onKeyDown={(e) => e.key === 'Enter' && saveEditing()}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  saveEditing();
+                                } else if (e.key === 'Escape') {
+                                  setEditing(null);
+                                }
+                              }}
                               className="w-24 px-1 py-0.5 bg-background border border-primary rounded text-sm text-right font-mono"
                               autoFocus
                             />
@@ -429,7 +449,14 @@ export default function CorePortfolioHoldings({ onAssetClick }: { onAssetClick: 
                               value={editing.value}
                               onChange={(e) => setEditing({ ...editing, value: e.target.value })}
                               onBlur={saveEditing}
-                              onKeyDown={(e) => e.key === 'Enter' && saveEditing()}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  saveEditing();
+                                } else if (e.key === 'Escape') {
+                                  setEditing(null);
+                                }
+                              }}
                               className="w-24 px-1 py-0.5 bg-background border border-primary rounded text-sm text-right font-mono"
                               autoFocus
                             />
@@ -453,7 +480,14 @@ export default function CorePortfolioHoldings({ onAssetClick }: { onAssetClick: 
                                 value={editing.value}
                                 onChange={(e) => setEditing({ ...editing, value: e.target.value })}
                                 onBlur={saveEditing}
-                                onKeyDown={(e) => e.key === 'Enter' && saveEditing()}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    saveEditing();
+                                  } else if (e.key === 'Escape') {
+                                    setEditing(null);
+                                  }
+                                }}
                                 className="w-24 px-1 py-0.5 bg-background border border-primary rounded text-sm text-right font-mono"
                                 autoFocus
                               />
@@ -488,7 +522,14 @@ export default function CorePortfolioHoldings({ onAssetClick }: { onAssetClick: 
                               value={editing.value}
                               onChange={(e) => setEditing({ ...editing, value: e.target.value })}
                               onBlur={saveEditing}
-                              onKeyDown={(e) => e.key === 'Enter' && saveEditing()}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  saveEditing();
+                                } else if (e.key === 'Escape') {
+                                  setEditing(null);
+                                }
+                              }}
                               className="w-full px-1 py-0.5 bg-background border border-primary rounded text-sm"
                               autoFocus
                             />
