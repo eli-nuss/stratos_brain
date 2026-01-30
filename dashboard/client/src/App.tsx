@@ -33,6 +33,7 @@ const ResearchNotes = lazy(() => import("./pages/ResearchNotes"));
 const DailyBrief = lazy(() => import("./pages/DailyBrief"));
 const DailyBriefV2 = lazy(() => import("./pages/DailyBriefV2"));
 const DailyBriefV3 = lazy(() => import("./pages/DailyBriefV3"));
+const DailyBriefV4 = lazy(() => import("./pages/DailyBriefV4"));
 const SetupGuide = lazy(() => import("./pages/SetupGuide"));
 const AssetPage = lazy(() => import("./pages/AssetPage"));
 
@@ -119,6 +120,9 @@ function Router() {
       </Route>
       <Route path={"/daily-brief-old"}>
         <LazyPage component={DailyBrief} />
+      </Route>
+      <Route path={"/daily-brief-v4"}>
+        <LazyPage component={DailyBriefV4} />
       </Route>
       <Route path={"/setup-guide"}>
         <LazyPage component={SetupGuide} />
