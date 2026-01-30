@@ -310,6 +310,10 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                   <ETFHoldingsTab 
                     symbol={asset.symbol} 
                     assetId={parseInt(assetId)}
+                    onHoldingClick={(holdingAssetId) => {
+                      // Navigate to the holding's asset page
+                      window.location.href = `/asset/${holdingAssetId}`;
+                    }}
                   />
                 </div>
               ) : (
