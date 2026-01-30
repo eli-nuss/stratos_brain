@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, lazy, Suspense } from "react";
+import { useState, useMemo, lazy, Suspense } from "react";
 import { Link, useLocation } from "wouter";
 import useSWR from "swr";
 import { motion, AnimatePresence } from "framer-motion";
@@ -28,7 +28,10 @@ import {
   ChevronsUpDown,
   Flame,
   Thermometer,
-  Activity
+  Activity,
+  Play,
+  Box,
+  GitBranch
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,8 +43,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { apiFetcher } from "@/lib/api-config";
 import { formatCurrency, formatPercent } from "@/lib/formatters";
 
-// Lazy load the flow visualization component
+// Lazy load visualization components
 const SupplyChainFlow = lazy(() => import("@/components/SupplyChainFlow"));
+const SupplyChain3D = lazy(() => import("@/components/SupplyChain3D"));
+const SupplyChainSankey = lazy(() => import("@/components/SupplyChainSankey"));
+const SupplyChainJourney = lazy(() => import("@/components/SupplyChainJourney"));
 
 // Helper to format large numbers compactly
 function formatLargeNumber(value: number): string {
@@ -933,7 +939,7 @@ export default function SupplyChainMap() {
   const [selectedCompany, setSelectedCompany] = useState<SupplyChainCompany | null>(null);
   const [activeTier, setActiveTier] = useState<number | null>(null);
   const [heatMapPeriod, setHeatMapPeriod] = useState<HeatMapPeriod>('off');
-  const [viewMode, setViewMode] = useState<'tree' | 'flow'>('tree');
+  const [viewMode, setViewMode] = useState<'tree' | 'flow' | '3d' | 'sankey' | 'journey'>('tree');
   
   // Fetch supply chain data
   const { data: tiers, error, isLoading } = useSWR<SupplyChainTier[]>(
@@ -1100,7 +1106,7 @@ export default function SupplyChainMap() {
                   className="text-xs h-7"
                 >
                   <Layers className="h-3 w-3 mr-1" />
-                  Tree View
+                  Tree
                 </Button>
                 <Button
                   variant={viewMode === 'flow' ? 'default' : 'ghost'}
@@ -1109,7 +1115,34 @@ export default function SupplyChainMap() {
                   className="text-xs h-7"
                 >
                   <Activity className="h-3 w-3 mr-1" />
-                  Flow View
+                  Network
+                </Button>
+                <Button
+                  variant={viewMode === 'sankey' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('sankey')}
+                  className="text-xs h-7"
+                >
+                  <GitBranch className="h-3 w-3 mr-1" />
+                  Flow
+                </Button>
+                <Button
+                  variant={viewMode === '3d' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('3d')}
+                  className="text-xs h-7"
+                >
+                  <Box className="h-3 w-3 mr-1" />
+                  3D
+                </Button>
+                <Button
+                  variant={viewMode === 'journey' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('journey')}
+                  className="text-xs h-7"
+                >
+                  <Play className="h-3 w-3 mr-1" />
+                  Journey
                 </Button>
               </div>
               
@@ -1142,16 +1175,58 @@ export default function SupplyChainMap() {
         </div>
       </header>
       
-      {/* Flow View */}
+      {/* Flow View (Network Graph) */}
       {viewMode === 'flow' && (
         <main className="container mx-auto px-4 py-8">
           <Suspense fallback={
             <div className="flex items-center justify-center h-[600px] bg-black/50 rounded-lg">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-              <span className="ml-2 text-muted-foreground">Loading flow visualization...</span>
+              <span className="ml-2 text-muted-foreground">Loading network visualization...</span>
             </div>
           }>
             <SupplyChainFlow />
+          </Suspense>
+        </main>
+      )}
+
+      {/* Sankey Flow View */}
+      {viewMode === 'sankey' && (
+        <main className="container mx-auto px-4 py-8">
+          <Suspense fallback={
+            <div className="flex items-center justify-center h-[700px] bg-black/50 rounded-lg">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              <span className="ml-2 text-muted-foreground">Loading flow diagram...</span>
+            </div>
+          }>
+            <SupplyChainSankey />
+          </Suspense>
+        </main>
+      )}
+
+      {/* 3D View */}
+      {viewMode === '3d' && (
+        <main className="container mx-auto px-4 py-8">
+          <Suspense fallback={
+            <div className="flex items-center justify-center h-[700px] bg-black rounded-lg">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              <span className="ml-2 text-muted-foreground">Loading 3D visualization...</span>
+            </div>
+          }>
+            <SupplyChain3D />
+          </Suspense>
+        </main>
+      )}
+
+      {/* Journey View */}
+      {viewMode === 'journey' && (
+        <main className="container mx-auto px-4 py-8">
+          <Suspense fallback={
+            <div className="flex items-center justify-center h-[600px] bg-black/50 rounded-lg">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              <span className="ml-2 text-muted-foreground">Loading journey...</span>
+            </div>
+          }>
+            <SupplyChainJourney />
           </Suspense>
         </main>
       )}
