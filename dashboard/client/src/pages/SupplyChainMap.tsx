@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import useSWR from "swr";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -127,8 +127,19 @@ function CompanyCard({
   tierNumber: number;
   onClick: () => void;
 }) {
+  const [, setLocation] = useLocation();
   const colors = tierColors[tierNumber] || tierColors[0];
   const isPrivate = company.company_type === 'private';
+  
+  const handleClick = () => {
+    // For public companies with asset_id, navigate directly to asset page
+    if (!isPrivate && company.asset_id) {
+      setLocation(`/asset/${company.asset_id}`);
+    } else {
+      // For private companies, show the detail sheet
+      onClick();
+    }
+  };
   
   return (
     <motion.div
@@ -136,7 +147,7 @@ function CompanyCard({
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
       whileHover={{ scale: 1.02 }}
-      onClick={onClick}
+      onClick={handleClick}
       className={cn(
         "cursor-pointer rounded-lg border p-3 transition-all",
         "hover:shadow-lg hover:shadow-black/20",
