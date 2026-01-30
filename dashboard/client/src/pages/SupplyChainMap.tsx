@@ -78,6 +78,7 @@ interface SupplyChainCategory {
   cagr_percent: number;
   public_company_count: number;
   private_company_count: number;
+  parent_category_id: number | null;
   companies: SupplyChainCompany[];
 }
 
@@ -634,17 +635,41 @@ function TierSection({
             transition={{ duration: 0.3 }}
           >
             <CardContent className="pt-4 space-y-3">
-              {tier.categories?.map((category) => (
-                <CategorySection
-                  key={category.category_id}
-                  category={category}
-                  tierNumber={tier.tier_number}
-                  isExpanded={expandedCategories.has(category.category_id)}
-                  onToggle={() => onCategoryToggle(category.category_id)}
-                  onCompanyClick={onCompanyClick}
-                  heatMapPeriod={heatMapPeriod}
-                />
-              ))}
+              {/* Render parent categories (no parent_category_id) first */}
+              {tier.categories?.filter(c => !c.parent_category_id).map((category) => {
+                // Find child categories for this parent
+                const childCategories = tier.categories?.filter(c => c.parent_category_id === category.category_id) || [];
+                const hasChildren = childCategories.length > 0;
+                
+                return (
+                  <div key={category.category_id} className="space-y-2">
+                    <CategorySection
+                      category={category}
+                      tierNumber={tier.tier_number}
+                      isExpanded={expandedCategories.has(category.category_id)}
+                      onToggle={() => onCategoryToggle(category.category_id)}
+                      onCompanyClick={onCompanyClick}
+                      heatMapPeriod={heatMapPeriod}
+                    />
+                    {/* Render child categories nested under parent */}
+                    {hasChildren && expandedCategories.has(category.category_id) && (
+                      <div className="ml-6 space-y-2 border-l-2 border-muted/30 pl-3">
+                        {childCategories.map((childCat) => (
+                          <CategorySection
+                            key={childCat.category_id}
+                            category={childCat}
+                            tierNumber={tier.tier_number}
+                            isExpanded={expandedCategories.has(childCat.category_id)}
+                            onToggle={() => onCategoryToggle(childCat.category_id)}
+                            onCompanyClick={onCompanyClick}
+                            heatMapPeriod={heatMapPeriod}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </CardContent>
           </motion.div>
         )}

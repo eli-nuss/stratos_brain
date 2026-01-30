@@ -150,6 +150,7 @@ serve(async (req) => {
               
               return {
                 ...cat,
+                parent_category_id: cat.parent_category_id || null,
                 public_company_count: publicCompanies.length,
                 private_company_count: privateComps.length,
                 companies: [...publicCompanies, ...privateComps].sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
