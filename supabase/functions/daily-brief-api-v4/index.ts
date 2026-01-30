@@ -127,7 +127,7 @@ async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = 5000
   }
 }
 
-// Fetch live market data from FMP API
+// Fetch live market data from FMP API (using new stable endpoints)
 async function fetchLiveMarketData(): Promise<MarketTicker> {
   const defaultTicker: MarketTicker = {
     spy_price: 0, spy_change: 0,
@@ -142,37 +142,43 @@ async function fetchLiveMarketData(): Promise<MarketTicker> {
   try {
     console.log('[DailyBrief v4] Fetching live market data...')
     
-    // Fetch SPY, QQQ, IWM, VIX quotes in parallel
-    const symbols = ['SPY', 'QQQ', 'IWM', '^VIX']
-    const quoteUrl = `https://financialmodelingprep.com/api/v3/quote/${symbols.join(',')}?apikey=${FMP_API_KEY}`
-    
-    const [quoteRes, btcRes, treasuryRes] = await Promise.all([
-      fetchWithTimeout(quoteUrl, {}, 4000),
-      fetchWithTimeout(`https://financialmodelingprep.com/api/v3/quote/BTCUSD?apikey=${FMP_API_KEY}`, {}, 4000),
-      fetchWithTimeout(`https://financialmodelingprep.com/api/v3/treasury?from=${new Date().toISOString().split('T')[0]}&to=${new Date().toISOString().split('T')[0]}&apikey=${FMP_API_KEY}`, {}, 4000)
+    // Use new stable API endpoints
+    const [spyRes, qqqRes, iwmRes, vixRes, btcRes] = await Promise.all([
+      fetchWithTimeout(`https://financialmodelingprep.com/stable/quote?symbol=SPY&apikey=${FMP_API_KEY}`, {}, 4000),
+      fetchWithTimeout(`https://financialmodelingprep.com/stable/quote?symbol=QQQ&apikey=${FMP_API_KEY}`, {}, 4000),
+      fetchWithTimeout(`https://financialmodelingprep.com/stable/quote?symbol=IWM&apikey=${FMP_API_KEY}`, {}, 4000),
+      fetchWithTimeout(`https://financialmodelingprep.com/stable/quote?symbol=VIX&apikey=${FMP_API_KEY}`, {}, 4000),
+      fetchWithTimeout(`https://financialmodelingprep.com/stable/quote?symbol=BTCUSD&apikey=${FMP_API_KEY}`, {}, 4000)
     ])
     
-    if (quoteRes?.ok) {
-      const quotes = await quoteRes.json()
-      const spy = quotes.find((q: any) => q.symbol === 'SPY')
-      const qqq = quotes.find((q: any) => q.symbol === 'QQQ')
-      const iwm = quotes.find((q: any) => q.symbol === 'IWM')
-      const vix = quotes.find((q: any) => q.symbol === '^VIX')
-      
-      if (spy) {
-        defaultTicker.spy_price = spy.price || 0
-        defaultTicker.spy_change = spy.changesPercentage || 0
+    if (spyRes?.ok) {
+      const data = await spyRes.json()
+      if (data?.[0]) {
+        defaultTicker.spy_price = data[0].price || 0
+        defaultTicker.spy_change = data[0].changePercentage || 0
       }
-      if (qqq) {
-        defaultTicker.qqq_price = qqq.price || 0
-        defaultTicker.qqq_change = qqq.changesPercentage || 0
+    }
+    
+    if (qqqRes?.ok) {
+      const data = await qqqRes.json()
+      if (data?.[0]) {
+        defaultTicker.qqq_price = data[0].price || 0
+        defaultTicker.qqq_change = data[0].changePercentage || 0
       }
-      if (iwm) {
-        defaultTicker.iwm_price = iwm.price || 0
-        defaultTicker.iwm_change = iwm.changesPercentage || 0
+    }
+    
+    if (iwmRes?.ok) {
+      const data = await iwmRes.json()
+      if (data?.[0]) {
+        defaultTicker.iwm_price = data[0].price || 0
+        defaultTicker.iwm_change = data[0].changePercentage || 0
       }
-      if (vix) {
-        defaultTicker.vix = vix.price || 14
+    }
+    
+    if (vixRes?.ok) {
+      const data = await vixRes.json()
+      if (data?.[0]) {
+        defaultTicker.vix = data[0].price || 14
       }
     }
     
@@ -180,14 +186,7 @@ async function fetchLiveMarketData(): Promise<MarketTicker> {
       const btcData = await btcRes.json()
       if (btcData?.[0]) {
         defaultTicker.btc_price = btcData[0].price || 0
-        defaultTicker.btc_change = btcData[0].changesPercentage || 0
-      }
-    }
-    
-    if (treasuryRes?.ok) {
-      const treasuryData = await treasuryRes.json()
-      if (treasuryData?.[0]?.year10) {
-        defaultTicker.yield_10y = treasuryData[0].year10
+        defaultTicker.btc_change = btcData[0].changePercentage || 0
       }
     }
     
@@ -207,31 +206,19 @@ async function fetchLiveMarketData(): Promise<MarketTicker> {
   }
 }
 
-// Fetch live price for a symbol
+// Fetch live price for a symbol (using new stable API)
 async function fetchLivePrice(symbol: string, assetType: string): Promise<{ price: number, change: number }> {
   try {
-    // For crypto, use different endpoint
-    if (assetType === 'crypto') {
-      const res = await fetchWithTimeout(
-        `https://financialmodelingprep.com/api/v3/quote/${symbol}USD?apikey=${FMP_API_KEY}`,
-        {}, 3000
-      )
-      if (res?.ok) {
-        const data = await res.json()
-        if (data?.[0]) {
-          return { price: data[0].price || 0, change: data[0].changesPercentage || 0 }
-        }
-      }
-    } else {
-      const res = await fetchWithTimeout(
-        `https://financialmodelingprep.com/api/v3/quote/${symbol}?apikey=${FMP_API_KEY}`,
-        {}, 3000
-      )
-      if (res?.ok) {
-        const data = await res.json()
-        if (data?.[0]) {
-          return { price: data[0].price || 0, change: data[0].changesPercentage || 0 }
-        }
+    // For crypto, append USD to symbol
+    const querySymbol = assetType === 'crypto' ? `${symbol}USD` : symbol
+    const res = await fetchWithTimeout(
+      `https://financialmodelingprep.com/stable/quote?symbol=${querySymbol}&apikey=${FMP_API_KEY}`,
+      {}, 3000
+    )
+    if (res?.ok) {
+      const data = await res.json()
+      if (data?.[0]) {
+        return { price: data[0].price || 0, change: data[0].changePercentage || 0 }
       }
     }
   } catch (e) {
