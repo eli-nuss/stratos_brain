@@ -82,7 +82,7 @@ function ConfidenceMeter({ confidence }: { confidence: number }) {
 
 
 export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
-  const { data, isLoading } = useSWR(`/api/dashboard/asset?asset_id=${assetId}`, apiFetcher);
+  const { data, isLoading, mutate } = useSWR(`/api/dashboard/asset?asset_id=${assetId}`, apiFetcher);
 
   const [chartView, setChartView] = useState<'tradingview' | 'financials' | 'holdings'>('tradingview');
   const [isChartFullscreen, setIsChartFullscreen] = useState(false);
@@ -150,8 +150,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          asset_id: parseInt(assetId),
-          save_to_db: false // Don't save by default, just show results
+          asset_id: parseInt(assetId)
         })
       });
       
@@ -162,7 +161,12 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
       }
       
       setLiveAnalysisResult(result);
-      toast.success(`Live analysis complete! Price: $${result.live_price?.toFixed(2)}`);
+      
+      // Refresh the asset data from the database to update all components
+      // The live analysis has been saved to DB, so this will fetch the updated data
+      await mutate();
+      
+      toast.success(`Live analysis complete! Price: $${result.live_price?.toFixed(2)} - All data updated`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to run live analysis';
       setLiveAnalysisError(errorMessage);
@@ -605,8 +609,8 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                 
                 {/* Content */}
                 <div className="p-4 space-y-3">
-                  {/* Direction & Scores */}
-                  <div className="flex items-center gap-4">
+                  {/* Direction, Setup Type & Attention Level */}
+                  <div className="flex flex-wrap items-center gap-3">
                     <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${
                       liveAnalysisResult.analysis?.direction === 'bullish' 
                         ? 'bg-emerald-500/20 text-emerald-400' 
@@ -623,6 +627,25 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                         {liveAnalysisResult.analysis?.direction}
                       </span>
                     </div>
+                    {liveAnalysisResult.analysis?.setup_type && (
+                      <span className="px-2.5 py-1 bg-blue-500/20 text-blue-400 rounded-full text-xs font-medium capitalize">
+                        {liveAnalysisResult.analysis.setup_type}
+                      </span>
+                    )}
+                    {liveAnalysisResult.analysis?.attention_level && (
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase ${
+                        liveAnalysisResult.analysis.attention_level === 'URGENT' ? 'bg-red-500/30 text-red-400 animate-pulse' :
+                        liveAnalysisResult.analysis.attention_level === 'FOCUS' ? 'bg-amber-500/30 text-amber-400' :
+                        liveAnalysisResult.analysis.attention_level === 'WATCH' ? 'bg-blue-500/20 text-blue-400' :
+                        'bg-muted/30 text-muted-foreground'
+                      }`}>
+                        {liveAnalysisResult.analysis.attention_level}
+                      </span>
+                    )}
+                  </div>
+                  
+                  {/* Scores Row */}
+                  <div className="flex flex-wrap items-center gap-4">
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground">Direction Score:</span>
                       <span className={`font-mono text-sm font-bold ${
@@ -677,18 +700,46 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                     </div>
                   )}
                   
-                  {/* Why Now & Risks */}
-                  {(liveAnalysisResult.analysis?.why_now || liveAnalysisResult.analysis?.risks) && (
+                  {/* Key Levels - Support/Resistance */}
+                  {(liveAnalysisResult.analysis?.key_levels?.support?.length > 0 || liveAnalysisResult.analysis?.key_levels?.resistance?.length > 0) && (
+                    <div className="grid grid-cols-2 gap-3 pt-3 border-t border-emerald-500/20">
+                      {liveAnalysisResult.analysis?.key_levels?.support?.length > 0 && (
+                        <div className="bg-emerald-500/5 rounded-lg p-2">
+                          <span className="text-[10px] text-emerald-400/70 uppercase tracking-wide">Support Levels</span>
+                          <div className="font-mono text-sm font-bold text-emerald-400">
+                            {liveAnalysisResult.analysis.key_levels.support.map((s: number) => `$${s?.toFixed(2)}`).join(' / ')}
+                          </div>
+                        </div>
+                      )}
+                      {liveAnalysisResult.analysis?.key_levels?.resistance?.length > 0 && (
+                        <div className="bg-red-500/5 rounded-lg p-2">
+                          <span className="text-[10px] text-red-400/70 uppercase tracking-wide">Resistance Levels</span>
+                          <div className="font-mono text-sm font-bold text-red-400">
+                            {liveAnalysisResult.analysis.key_levels.resistance.map((r: number) => `$${r?.toFixed(2)}`).join(' / ')}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Why Now, What to Watch & Risks */}
+                  {(liveAnalysisResult.analysis?.why_now || liveAnalysisResult.analysis?.risks || liveAnalysisResult.analysis?.what_to_watch) && (
                     <div className="space-y-2 pt-2">
                       {liveAnalysisResult.analysis?.why_now && (
                         <div className="flex items-start gap-2">
-                          <span className="text-[10px] text-emerald-400 uppercase tracking-wide w-16 flex-shrink-0">Why Now</span>
+                          <span className="text-[10px] text-emerald-400 uppercase tracking-wide w-20 flex-shrink-0">Why Now</span>
                           <span className="text-xs text-foreground/80">{liveAnalysisResult.analysis.why_now}</span>
+                        </div>
+                      )}
+                      {liveAnalysisResult.analysis?.what_to_watch && (
+                        <div className="flex items-start gap-2">
+                          <span className="text-[10px] text-blue-400 uppercase tracking-wide w-20 flex-shrink-0">Watch</span>
+                          <span className="text-xs text-foreground/80">{liveAnalysisResult.analysis.what_to_watch}</span>
                         </div>
                       )}
                       {liveAnalysisResult.analysis?.risks && (
                         <div className="flex items-start gap-2">
-                          <span className="text-[10px] text-amber-400 uppercase tracking-wide w-16 flex-shrink-0">Risks</span>
+                          <span className="text-[10px] text-amber-400 uppercase tracking-wide w-20 flex-shrink-0">Risks</span>
                           <span className="text-xs text-foreground/80">
                             {Array.isArray(liveAnalysisResult.analysis.risks) 
                               ? liveAnalysisResult.analysis.risks.join(', ') 
@@ -699,9 +750,14 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                     </div>
                   )}
                   
-                  {/* Timestamp */}
+                  {/* Timestamp & Saved Status */}
                   <div className="flex items-center justify-between pt-2 text-[10px] text-muted-foreground/60">
-                    <span>Model: {liveAnalysisResult.model}</span>
+                    <div className="flex items-center gap-2">
+                      <span>Model: {liveAnalysisResult.model}</span>
+                      {liveAnalysisResult.saved_to_db && (
+                        <span className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded text-[9px]">SAVED</span>
+                      )}
+                    </div>
                     <span>Updated: {new Date(liveAnalysisResult.timestamp).toLocaleTimeString()}</span>
                   </div>
                 </div>

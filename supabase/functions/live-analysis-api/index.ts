@@ -499,40 +499,42 @@ serve(async (req) => {
 
     console.log(`[Live Analysis] Analysis complete for ${asset.symbol}: ${analysis.direction} (${analysis.ai_direction_score})`)
 
-    // Optionally save to database
-    if (save_to_db) {
-      const today = new Date().toISOString().split('T')[0]
-      
-      const { error: insertError } = await supabase
-        .from('asset_ai_reviews')
-        .upsert({
-          asset_id: asset_id,
-          as_of_date: today,
-          direction: analysis.direction,
-          ai_direction_score: analysis.ai_direction_score,
-          ai_setup_quality_score: analysis.ai_setup_quality_score,
-          setup_type: analysis.setup_type,
-          ai_attention_level: analysis.attention_level,
-          ai_confidence: analysis.confidence,
-          ai_summary_text: analysis.summary_text,
-          ai_key_levels: analysis.key_levels,
-          ai_entry: analysis.entry_zone,
-          ai_targets: analysis.targets,
-          ai_why_now: analysis.why_now ? { text: analysis.why_now } : null,
-          ai_risks: analysis.risks,
-          ai_what_to_watch_next: analysis.what_to_watch ? { text: analysis.what_to_watch } : null,
-          model_id: GEMINI_MODEL,
-          review_version: 'live-v1.0',
-          is_live_update: true
-        }, {
-          onConflict: 'asset_id,as_of_date'
-        })
+    // Always save to database so it persists until next automated run
+    const today = new Date().toISOString().split('T')[0]
+    const now = new Date().toISOString()
+    
+    const { error: insertError } = await supabase
+      .from('asset_ai_reviews')
+      .upsert({
+        asset_id: asset_id,
+        as_of_date: today,
+        direction: analysis.direction,
+        ai_direction_score: analysis.ai_direction_score,
+        ai_setup_quality_score: analysis.ai_setup_quality_score,
+        setup_type: analysis.setup_type,
+        ai_attention_level: analysis.attention_level,
+        ai_confidence: analysis.confidence,
+        ai_summary_text: analysis.summary_text,
+        ai_key_levels: analysis.key_levels,
+        ai_entry: analysis.entry_zone,
+        ai_targets: analysis.targets,
+        ai_why_now: analysis.why_now ? { text: analysis.why_now } : null,
+        ai_risks: analysis.risks,
+        ai_what_to_watch_next: analysis.what_to_watch ? { text: analysis.what_to_watch } : null,
+        model_id: GEMINI_MODEL,
+        review_version: 'live-v1.0',
+        is_live_update: true,
+        live_update_price: currentPrice,
+        live_update_timestamp: now
+      }, {
+        onConflict: 'asset_id,as_of_date'
+      })
 
-      if (insertError) {
-        console.error('[Live Analysis] Error saving to database:', insertError)
-      } else {
-        console.log(`[Live Analysis] Saved analysis to database for ${asset.symbol}`)
-      }
+    if (insertError) {
+      console.error('[Live Analysis] Error saving to database:', insertError)
+      // Don't fail the request, just log the error
+    } else {
+      console.log(`[Live Analysis] Saved analysis to database for ${asset.symbol}`)
     }
 
     // Return the analysis result
@@ -565,8 +567,8 @@ serve(async (req) => {
       },
       features: features,
       model: GEMINI_MODEL,
-      timestamp: new Date().toISOString(),
-      saved_to_db: save_to_db
+      timestamp: now,
+      saved_to_db: true
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
