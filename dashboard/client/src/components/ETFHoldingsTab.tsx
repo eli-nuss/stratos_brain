@@ -1,6 +1,6 @@
 import useSWR from "swr";
 import { useState } from "react";
-import { ArrowUpDown, TrendingUp, ExternalLink, Package, PieChart, DollarSign, Percent, Building2 } from "lucide-react";
+import { ArrowUpDown, TrendingUp, TrendingDown, Package, PieChart, DollarSign, Percent, Building2, BarChart3, Activity, Calculator } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { apiFetcher } from "@/lib/api-config";
 
@@ -29,6 +29,26 @@ interface ETFInfo {
   sector_weightings: Record<string, number> | null;
 }
 
+interface StatMetric {
+  weighted_avg: number | null;
+  median: number | null;
+  count: number;
+}
+
+interface HoldingsStats {
+  pe_ratio: StatMetric;
+  ps_ratio: StatMetric;
+  dividend_yield: StatMetric;
+  revenue_growth_yoy: StatMetric;
+  return_1d: StatMetric;
+  return_5d: StatMetric;
+  return_21d: StatMetric;
+  return_63d: StatMetric;
+  holdings_with_fundamentals: number;
+  holdings_with_features: number;
+  total_linked_holdings: number;
+}
+
 export function ETFHoldingsTab({ symbol, assetId, onHoldingClick }: ETFHoldingsTabProps) {
   const [sortBy, setSortBy] = useState<'weight' | 'name' | 'value'>('weight');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -44,10 +64,16 @@ export function ETFHoldingsTab({ symbol, assetId, onHoldingClick }: ETFHoldingsT
     apiFetcher
   );
 
+  const { data: statsData, isLoading: statsLoading } = useSWR(
+    `/api/dashboard/etf-holdings-stats/${symbol}`,
+    apiFetcher
+  );
+
   const holdings: Holding[] = holdingsData?.holdings || [];
   const info: ETFInfo | null = infoData?.info || null;
   const holdingsCount = infoData?.holdingsCount || holdings.length;
   const top10Concentration = infoData?.top10Concentration || 0;
+  const stats: HoldingsStats | null = statsData?.stats || null;
 
   // Sort holdings
   const sortedHoldings = [...holdings].sort((a, b) => {
@@ -98,6 +124,19 @@ export function ETFHoldingsTab({ symbol, assetId, onHoldingClick }: ETFHoldingsT
     const numValue = typeof value === 'string' ? parseFloat(value) : value;
     if (isNaN(numValue)) return '-';
     return `${numValue.toFixed(2)}%`;
+  };
+
+  const formatRatio = (value: number | null | undefined) => {
+    if (value === null || value === undefined) return '-';
+    if (isNaN(value)) return '-';
+    return value.toFixed(2);
+  };
+
+  const formatReturnPercent = (value: number | null | undefined) => {
+    if (value === null || value === undefined) return '-';
+    if (isNaN(value)) return '-';
+    const formatted = value.toFixed(2);
+    return value >= 0 ? `+${formatted}%` : `${formatted}%`;
   };
 
   if (holdingsLoading || infoLoading) {
@@ -162,6 +201,144 @@ export function ETFHoldingsTab({ symbol, assetId, onHoldingClick }: ETFHoldingsT
           <div className="text-lg font-semibold">{formatCurrency(info?.aum || null)}</div>
         </div>
       </div>
+
+      {/* Aggregated Holdings Stats */}
+      {stats && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Valuation Metrics */}
+          <div className="bg-muted/10 rounded-lg p-4 border border-border">
+            <div className="flex items-center gap-2 mb-3">
+              <Calculator className="w-4 h-4 text-primary" />
+              <h4 className="font-semibold text-sm">Valuation Metrics</h4>
+              <span className="text-xs text-muted-foreground ml-auto">
+                {stats.holdings_with_fundamentals} holdings with data
+              </span>
+            </div>
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-2 text-sm">
+                <div className="text-muted-foreground">Metric</div>
+                <div className="text-muted-foreground text-right">Wtd Avg</div>
+                <div className="text-muted-foreground text-right">Median</div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-sm border-t border-border/50 pt-2">
+                <div className="flex items-center gap-1">
+                  <span>P/E Ratio</span>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <span className="text-xs text-muted-foreground">({stats.pe_ratio.count})</span>
+                    </TooltipTrigger>
+                    <TooltipContent>Based on {stats.pe_ratio.count} holdings</TooltipContent>
+                  </Tooltip>
+                </div>
+                <div className="text-right font-mono">{formatRatio(stats.pe_ratio.weighted_avg)}</div>
+                <div className="text-right font-mono text-muted-foreground">{formatRatio(stats.pe_ratio.median)}</div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-sm">
+                <div className="flex items-center gap-1">
+                  <span>P/S Ratio</span>
+                  <span className="text-xs text-muted-foreground">({stats.ps_ratio.count})</span>
+                </div>
+                <div className="text-right font-mono">{formatRatio(stats.ps_ratio.weighted_avg)}</div>
+                <div className="text-right font-mono text-muted-foreground">{formatRatio(stats.ps_ratio.median)}</div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-sm">
+                <div className="flex items-center gap-1">
+                  <span>Div Yield</span>
+                  <span className="text-xs text-muted-foreground">({stats.dividend_yield.count})</span>
+                </div>
+                <div className="text-right font-mono">{formatPercent(stats.dividend_yield.weighted_avg)}</div>
+                <div className="text-right font-mono text-muted-foreground">{formatPercent(stats.dividend_yield.median)}</div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-sm">
+                <div className="flex items-center gap-1">
+                  <span>Rev Growth YoY</span>
+                  <span className="text-xs text-muted-foreground">({stats.revenue_growth_yoy.count})</span>
+                </div>
+                <div className={`text-right font-mono ${(stats.revenue_growth_yoy.weighted_avg || 0) >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                  {formatReturnPercent(stats.revenue_growth_yoy.weighted_avg)}
+                </div>
+                <div className={`text-right font-mono ${(stats.revenue_growth_yoy.median || 0) >= 0 ? 'text-emerald-500/70' : 'text-red-500/70'}`}>
+                  {formatReturnPercent(stats.revenue_growth_yoy.median)}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Performance Metrics */}
+          <div className="bg-muted/10 rounded-lg p-4 border border-border">
+            <div className="flex items-center gap-2 mb-3">
+              <Activity className="w-4 h-4 text-primary" />
+              <h4 className="font-semibold text-sm">Holdings Performance</h4>
+              <span className="text-xs text-muted-foreground ml-auto">
+                {stats.holdings_with_features} holdings with data
+              </span>
+            </div>
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-2 text-sm">
+                <div className="text-muted-foreground">Timeframe</div>
+                <div className="text-muted-foreground text-right">Wtd Avg</div>
+                <div className="text-muted-foreground text-right">Median</div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-sm border-t border-border/50 pt-2">
+                <div className="flex items-center gap-1">
+                  <span>1 Day</span>
+                  <span className="text-xs text-muted-foreground">({stats.return_1d.count})</span>
+                </div>
+                <div className={`text-right font-mono ${(stats.return_1d.weighted_avg || 0) >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                  {formatReturnPercent(stats.return_1d.weighted_avg)}
+                </div>
+                <div className={`text-right font-mono ${(stats.return_1d.median || 0) >= 0 ? 'text-emerald-500/70' : 'text-red-500/70'}`}>
+                  {formatReturnPercent(stats.return_1d.median)}
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-sm">
+                <div className="flex items-center gap-1">
+                  <span>5 Days</span>
+                  <span className="text-xs text-muted-foreground">({stats.return_5d.count})</span>
+                </div>
+                <div className={`text-right font-mono ${(stats.return_5d.weighted_avg || 0) >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                  {formatReturnPercent(stats.return_5d.weighted_avg)}
+                </div>
+                <div className={`text-right font-mono ${(stats.return_5d.median || 0) >= 0 ? 'text-emerald-500/70' : 'text-red-500/70'}`}>
+                  {formatReturnPercent(stats.return_5d.median)}
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-sm">
+                <div className="flex items-center gap-1">
+                  <span>1 Month</span>
+                  <span className="text-xs text-muted-foreground">({stats.return_21d.count})</span>
+                </div>
+                <div className={`text-right font-mono ${(stats.return_21d.weighted_avg || 0) >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                  {formatReturnPercent(stats.return_21d.weighted_avg)}
+                </div>
+                <div className={`text-right font-mono ${(stats.return_21d.median || 0) >= 0 ? 'text-emerald-500/70' : 'text-red-500/70'}`}>
+                  {formatReturnPercent(stats.return_21d.median)}
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-sm">
+                <div className="flex items-center gap-1">
+                  <span>3 Months</span>
+                  <span className="text-xs text-muted-foreground">({stats.return_63d.count})</span>
+                </div>
+                <div className={`text-right font-mono ${(stats.return_63d.weighted_avg || 0) >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                  {formatReturnPercent(stats.return_63d.weighted_avg)}
+                </div>
+                <div className={`text-right font-mono ${(stats.return_63d.median || 0) >= 0 ? 'text-emerald-500/70' : 'text-red-500/70'}`}>
+                  {formatReturnPercent(stats.return_63d.median)}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading state for stats */}
+      {statsLoading && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="h-48 bg-muted/30 rounded-lg animate-pulse" />
+          <div className="h-48 bg-muted/30 rounded-lg animate-pulse" />
+        </div>
+      )}
 
       {/* Sector Breakdown (if available) */}
       {Object.keys(sectorWeightings).length > 0 && (
