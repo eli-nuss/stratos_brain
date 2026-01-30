@@ -732,38 +732,468 @@ export default function DailyBriefV4() {
   };
   
   const handleExportPDF = async () => {
-    if (!contentRef.current) return;
+    if (!data) return;
     
-    // Create a simple text export for now
-    const briefText = `
-STRATOS BRAIN DAILY BRIEF
-${format(new Date(), "EEEE, MMMM d, yyyy")}
-
-MARKET REGIME: ${data?.market_regime || 'NEUTRAL'}
-${data?.macro_summary || ''}
-
-PORTFOLIO (${data?.portfolio?.length || 0} positions)
-${data?.portfolio?.map(h => `${h.symbol}: ${h.action} | Price: $${formatPrice(h.current_price || 0)} | Change: ${formatChange(h.change_pct || 0)} | RSI: ${h.rsi}`).join('\n') || 'No holdings'}
-
-ALERTS (${data?.alerts?.length || 0})
-${data?.alerts?.map(a => `${a.symbol}: ${a.message}`).join('\n') || 'No alerts'}
-
-MARKET INTEL
-${data?.intel_items?.map(i => `[${i.category}] ${i.headline}`).join('\n') || 'No intel'}
-
-Generated: ${format(new Date(), "h:mm a")}
-    `.trim();
+    const ticker = data.market_ticker;
+    const regimeColor = data.market_regime === 'BULLISH' ? '#22c55e' : 
+                        data.market_regime === 'BEARISH' ? '#ef4444' : 
+                        data.market_regime === 'VOLATILE' ? '#eab308' : '#3b82f6';
     
-    // Create blob and download
-    const blob = new Blob([briefText], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `daily-brief-${format(new Date(), "yyyy-MM-dd")}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    // Generate rich HTML for PDF
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0a0a0a;
+      color: #e5e5e5;
+      padding: 40px;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #262626;
+    }
+    
+    .logo {
+      font-size: 24px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.5px;
+    }
+    
+    .logo span { color: #22c55e; }
+    
+    .date {
+      color: #a3a3a3;
+      font-size: 13px;
+    }
+    
+    .regime-badge {
+      display: inline-block;
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 12px;
+      background: ${regimeColor}20;
+      color: ${regimeColor};
+      border: 1px solid ${regimeColor}40;
+    }
+    
+    .market-ticker {
+      display: flex;
+      gap: 24px;
+      margin-bottom: 30px;
+      padding: 16px 20px;
+      background: #141414;
+      border-radius: 8px;
+      border: 1px solid #262626;
+    }
+    
+    .ticker-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    
+    .ticker-label { color: #737373; font-size: 10px; text-transform: uppercase; }
+    .ticker-value { font-weight: 600; font-size: 13px; }
+    .positive { color: #22c55e; }
+    .negative { color: #ef4444; }
+    
+    .section {
+      margin-bottom: 28px;
+    }
+    
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .section-title .count {
+      font-size: 11px;
+      color: #737373;
+      font-weight: 400;
+    }
+    
+    .alerts-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    
+    .alert-card {
+      padding: 10px 14px;
+      background: #141414;
+      border-radius: 6px;
+      border-left: 3px solid;
+    }
+    
+    .alert-high { border-color: #ef4444; background: #ef444410; }
+    .alert-medium { border-color: #eab308; background: #eab30810; }
+    
+    .alert-symbol { font-weight: 600; color: #fff; }
+    .alert-type { font-size: 9px; color: #737373; text-transform: uppercase; margin-left: 8px; }
+    .alert-message { color: #a3a3a3; font-size: 10px; margin-top: 4px; }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #141414;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    
+    th {
+      text-align: left;
+      padding: 10px 12px;
+      background: #1a1a1a;
+      color: #737373;
+      font-size: 9px;
+      text-transform: uppercase;
+      font-weight: 500;
+      border-bottom: 1px solid #262626;
+    }
+    
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #1f1f1f;
+      vertical-align: middle;
+    }
+    
+    tr:last-child td { border-bottom: none; }
+    
+    .symbol { font-weight: 600; color: #fff; }
+    .name { color: #737373; font-size: 9px; }
+    
+    .action-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 9px;
+      font-weight: 600;
+    }
+    
+    .action-hold { background: #3b82f620; color: #3b82f6; }
+    .action-add { background: #22c55e20; color: #22c55e; }
+    .action-trim { background: #eab30820; color: #eab308; }
+    
+    .setup-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    
+    .setup-card {
+      background: #141414;
+      border-radius: 8px;
+      padding: 14px;
+      border: 1px solid #262626;
+    }
+    
+    .setup-card-title {
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 10px;
+      font-size: 12px;
+    }
+    
+    .setup-card.momentum { border-top: 3px solid #f97316; }
+    .setup-card.trend { border-top: 3px solid #3b82f6; }
+    .setup-card.compression { border-top: 3px solid #a855f7; }
+    
+    .setup-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid #1f1f1f;
+    }
+    
+    .setup-item:last-child { border-bottom: none; }
+    
+    .conviction-high { color: #22c55e; }
+    .conviction-medium { color: #eab308; }
+    .conviction-low { color: #737373; }
+    
+    .intel-list {
+      display: grid;
+      gap: 10px;
+    }
+    
+    .intel-item {
+      padding: 12px 14px;
+      background: #141414;
+      border-radius: 6px;
+      border: 1px solid #262626;
+    }
+    
+    .intel-meta {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    
+    .intel-category {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+    
+    .cat-policy { background: #ef444420; color: #ef4444; }
+    .cat-tech { background: #3b82f620; color: #3b82f6; }
+    .cat-econ { background: #22c55e20; color: #22c55e; }
+    .cat-geopol { background: #f9731620; color: #f97316; }
+    .cat-earnings { background: #a855f720; color: #a855f7; }
+    .cat-crypto { background: #eab30820; color: #eab308; }
+    
+    .intel-source { color: #525252; font-size: 9px; }
+    .intel-headline { color: #e5e5e5; font-weight: 500; }
+    .intel-summary { color: #a3a3a3; font-size: 10px; margin-top: 4px; }
+    
+    .insights-card {
+      background: #141414;
+      border-radius: 8px;
+      padding: 16px;
+      border: 1px solid #262626;
+      margin-bottom: 12px;
+    }
+    
+    .insights-title {
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+    
+    .insights-text {
+      color: #a3a3a3;
+      font-size: 10px;
+      line-height: 1.6;
+    }
+    
+    .footer {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #262626;
+      display: flex;
+      justify-content: space-between;
+      color: #525252;
+      font-size: 10px;
+    }
+    
+    .page-break { page-break-before: always; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="logo">STRATOS<span>BRAIN</span></div>
+      <div class="date">${format(new Date(), "EEEE, MMMM d, yyyy")}</div>
+    </div>
+    <div class="regime-badge">${data.market_regime || 'NEUTRAL'}</div>
+  </div>
+  
+  <div class="market-ticker">
+    <div class="ticker-item">
+      <span class="ticker-label">SPY</span>
+      <span class="ticker-value ${(ticker?.spy_change || 0) >= 0 ? 'positive' : 'negative'}">
+        $${ticker?.spy_price?.toFixed(2) || '-'} ${formatChange(ticker?.spy_change || 0)}
+      </span>
+    </div>
+    <div class="ticker-item">
+      <span class="ticker-label">QQQ</span>
+      <span class="ticker-value ${(ticker?.qqq_change || 0) >= 0 ? 'positive' : 'negative'}">
+        $${ticker?.qqq_price?.toFixed(2) || '-'} ${formatChange(ticker?.qqq_change || 0)}
+      </span>
+    </div>
+    <div class="ticker-item">
+      <span class="ticker-label">IWM</span>
+      <span class="ticker-value ${(ticker?.iwm_change || 0) >= 0 ? 'positive' : 'negative'}">
+        $${ticker?.iwm_price?.toFixed(2) || '-'} ${formatChange(ticker?.iwm_change || 0)}
+      </span>
+    </div>
+    <div class="ticker-item">
+      <span class="ticker-label">BTC</span>
+      <span class="ticker-value ${(ticker?.btc_change || 0) >= 0 ? 'positive' : 'negative'}">
+        $${ticker?.btc_price?.toLocaleString() || '-'} ${formatChange(ticker?.btc_change || 0)}
+      </span>
+    </div>
+    <div class="ticker-item">
+      <span class="ticker-label">VIX</span>
+      <span class="ticker-value">${ticker?.vix?.toFixed(1) || '-'}</span>
+    </div>
+    <div class="ticker-item">
+      <span class="ticker-label">10Y</span>
+      <span class="ticker-value">${ticker?.yield_10y?.toFixed(2) || '-'}%</span>
+    </div>
+  </div>
+  
+  ${data.alerts && data.alerts.length > 0 ? `
+  <div class="section">
+    <div class="section-title">Portfolio Alerts <span class="count">${data.alerts.length}</span></div>
+    <div class="alerts-grid">
+      ${data.alerts.slice(0, 8).map(a => `
+        <div class="alert-card ${a.severity === 'HIGH' ? 'alert-high' : 'alert-medium'}">
+          <span class="alert-symbol">${a.symbol}</span>
+          <span class="alert-type">${a.type}</span>
+          <div class="alert-message">${a.message}</div>
+        </div>
+      `).join('')}
+    </div>
+  </div>
+  ` : ''}
+  
+  <div class="section">
+    <div class="section-title">Active Portfolio <span class="count">${data.portfolio?.length || 0} positions</span></div>
+    <table>
+      <thead>
+        <tr>
+          <th>Action</th>
+          <th>Asset</th>
+          <th>Price</th>
+          <th>Change</th>
+          <th>AI Dir</th>
+          <th>RSI</th>
+          <th>Setup</th>
+          <th>Intel</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${data.portfolio?.map(h => `
+          <tr>
+            <td><span class="action-badge action-${h.action.toLowerCase()}">${h.action}</span></td>
+            <td>
+              <div class="symbol">${h.symbol}</div>
+              <div class="name">${h.name}</div>
+            </td>
+            <td>$${formatPrice(h.current_price || 0)}</td>
+            <td class="${(h.change_pct || 0) >= 0 ? 'positive' : 'negative'}">${formatChange(h.change_pct || 0)}</td>
+            <td>${h.ai_direction}</td>
+            <td class="${h.rsi > 70 ? 'negative' : h.rsi < 30 ? 'positive' : ''}">${h.rsi}</td>
+            <td>${h.setup || '-'}</td>
+            <td style="max-width: 150px; font-size: 9px; color: #a3a3a3;">${h.news && h.news !== 'No recent news' ? smartTruncate(decodeHtmlEntities(h.news), 50) : '-'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  </div>
+  
+  <div class="section">
+    <div class="section-title">Setup Opportunities</div>
+    <div class="setup-grid">
+      <div class="setup-card momentum">
+        <div class="setup-card-title">Momentum Breakouts</div>
+        ${data.categories?.momentum_breakouts?.picks?.slice(0, 5).map(p => `
+          <div class="setup-item">
+            <span class="symbol">${p.symbol}</span>
+            <span class="conviction-${p.conviction?.toLowerCase() || 'medium'}">${p.score || '-'}</span>
+          </div>
+        `).join('') || '<div style="color: #525252;">No setups</div>'}
+      </div>
+      <div class="setup-card trend">
+        <div class="setup-card-title">Trend Continuation</div>
+        ${data.categories?.trend_continuation?.picks?.slice(0, 5).map(p => `
+          <div class="setup-item">
+            <span class="symbol">${p.symbol}</span>
+            <span class="conviction-${p.conviction?.toLowerCase() || 'medium'}">${p.score || '-'}</span>
+          </div>
+        `).join('') || '<div style="color: #525252;">No setups</div>'}
+      </div>
+      <div class="setup-card compression">
+        <div class="setup-card-title">Compression / Reversion</div>
+        ${data.categories?.compression_reversion?.picks?.slice(0, 5).map(p => `
+          <div class="setup-item">
+            <span class="symbol">${p.symbol}</span>
+            <span class="conviction-${p.conviction?.toLowerCase() || 'medium'}">${p.score || '-'}</span>
+          </div>
+        `).join('') || '<div style="color: #525252;">No setups</div>'}
+      </div>
+    </div>
+  </div>
+  
+  <div class="page-break"></div>
+  
+  <div class="section">
+    <div class="section-title">Market Intel <span class="count">${data.intel_items?.length || 0} items</span></div>
+    <div class="intel-list">
+      ${data.intel_items?.slice(0, 8).map(i => `
+        <div class="intel-item">
+          <div class="intel-meta">
+            <span class="intel-category cat-${i.category?.toLowerCase() || 'econ'}">${i.category || 'NEWS'}</span>
+            <span class="intel-source">${i.source || 'Unknown'}</span>
+          </div>
+          <div class="intel-headline">${decodeHtmlEntities(i.headline || '')}</div>
+          ${i.summary ? `<div class="intel-summary">${decodeHtmlEntities(i.summary)}</div>` : ''}
+        </div>
+      `).join('')}
+    </div>
+  </div>
+  
+  ${data.morning_intel ? `
+  <div class="section">
+    <div class="section-title">Macro Insights</div>
+    ${data.morning_intel.market_pulse ? `
+    <div class="insights-card">
+      <div class="insights-title">Market Pulse</div>
+      <div class="insights-text">${data.morning_intel.market_pulse}</div>
+    </div>
+    ` : ''}
+    ${data.morning_intel.liquidity_flows ? `
+    <div class="insights-card">
+      <div class="insights-title">Liquidity & Flows</div>
+      <div class="insights-text">${data.morning_intel.liquidity_flows}</div>
+    </div>
+    ` : ''}
+    ${data.morning_intel.calendar ? `
+    <div class="insights-card">
+      <div class="insights-title">Calendar</div>
+      <div class="insights-text">${data.morning_intel.calendar}</div>
+    </div>
+    ` : ''}
+  </div>
+  ` : ''}
+  
+  <div class="footer">
+    <div>Generated by Stratos Brain • ${format(new Date(), "h:mm a")}</div>
+    <div>stratosbrain.com</div>
+  </div>
+</body>
+</html>
+    `;
+    
+    // Open print dialog with styled HTML
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      
+      // Wait for fonts to load then trigger print
+      setTimeout(() => {
+        printWindow.print();
+      }, 500);
+    }
   };
   
   // Error state
