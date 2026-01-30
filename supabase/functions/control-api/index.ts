@@ -5245,7 +5245,7 @@ If asked about something not in the data, acknowledge the limitation.`
         })
       }
 
-      // GET /dashboard/etf-holdings/:symbol - Get holdings for a specific ETF
+      // GET /dashboard/etf-holdings/:symbol - Get holdings for a specific ETF with enriched data
       case req.method === 'GET' && path.startsWith('/dashboard/etf-holdings/'): {
         const symbol = path.replace('/dashboard/etf-holdings/', '').toUpperCase()
         
@@ -5290,11 +5290,16 @@ If asked about something not in the data, acknowledge the limitation.`
           throw holdingsError
         }
         
-        // Get asset symbols for holdings that have asset_id
+        // Get asset symbols and sectors for holdings that have asset_id
         const assetIds = (holdings || []).filter(h => h.asset_id).map(h => h.asset_id)
         let assetMap: Record<number, { symbol: string; asset_type: string }> = {}
+        let sectorMap: Record<number, string> = {}
+        let featuresMap: Record<number, { return_1d: number | null; return_5d: number | null; return_21d: number | null; return_63d: number | null; rs_vs_benchmark: number | null }> = {}
+        let valuationsMap: Record<number, { pe_ratio: number | null; price_to_sales_ttm: number | null; sector: string | null }> = {}
+        let setupsMap: Record<number, { count: number; names: string[] }> = {}
         
         if (assetIds.length > 0) {
+          // Get asset info
           const { data: assets } = await supabase
             .from('assets')
             .select('asset_id, symbol, asset_type')
@@ -5303,20 +5308,91 @@ If asked about something not in the data, acknowledge the limitation.`
           if (assets) {
             assetMap = Object.fromEntries(assets.map(a => [a.asset_id, { symbol: a.symbol, asset_type: a.asset_type }]))
           }
+          
+          // Get equity metadata (valuations and sectors)
+          const { data: metadata } = await supabase
+            .from('equity_metadata')
+            .select('asset_id, pe_ratio, price_to_sales_ttm, sector')
+            .in('asset_id', assetIds)
+          
+          if (metadata) {
+            valuationsMap = Object.fromEntries(metadata.map(m => [m.asset_id, { 
+              pe_ratio: m.pe_ratio ? parseFloat(m.pe_ratio) : null, 
+              price_to_sales_ttm: m.price_to_sales_ttm ? parseFloat(m.price_to_sales_ttm) : null,
+              sector: m.sector
+            }]))
+            sectorMap = Object.fromEntries(metadata.filter(m => m.sector).map(m => [m.asset_id, m.sector]))
+          }
+          
+          // Get latest daily features (performance and RS)
+          const { data: features } = await supabase
+            .rpc('get_latest_features_for_assets', { asset_ids: assetIds })
+          
+          if (features) {
+            featuresMap = Object.fromEntries(features.map((f: any) => [f.asset_id, {
+              return_1d: f.return_1d,
+              return_5d: f.return_5d,
+              return_21d: f.return_21d,
+              return_63d: f.return_63d,
+              rs_vs_benchmark: f.rs_vs_benchmark
+            }]))
+          }
+          
+          // Get active setups (last 30 days)
+          const thirtyDaysAgo = new Date()
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+          const { data: setups } = await supabase
+            .from('setup_signals')
+            .select('asset_id, setup_name')
+            .in('asset_id', assetIds)
+            .gte('signal_date', thirtyDaysAgo.toISOString().split('T')[0])
+          
+          if (setups) {
+            // Group setups by asset_id
+            const setupsByAsset: Record<number, string[]> = {}
+            setups.forEach((s: any) => {
+              if (!setupsByAsset[s.asset_id]) setupsByAsset[s.asset_id] = []
+              if (!setupsByAsset[s.asset_id].includes(s.setup_name)) {
+                setupsByAsset[s.asset_id].push(s.setup_name)
+              }
+            })
+            setupsMap = Object.fromEntries(
+              Object.entries(setupsByAsset).map(([id, names]) => [parseInt(id), { count: names.length, names }])
+            )
+          }
         }
         
-        // Enrich holdings with symbol info
+        // Build unique sectors list for filtering
+        const sectors = [...new Set(Object.values(sectorMap).filter(Boolean))].sort()
+        
+        // Enrich holdings with all data
         const enrichedHoldings = (holdings || []).map(h => ({
           ...h,
           symbol: h.asset_id ? assetMap[h.asset_id]?.symbol : null,
           asset_type: h.asset_id ? assetMap[h.asset_id]?.asset_type : null,
-          is_tracked: !!h.asset_id
+          is_tracked: !!h.asset_id,
+          // Sector
+          sector: h.asset_id ? sectorMap[h.asset_id] || null : null,
+          // Valuations
+          pe_ratio: h.asset_id ? valuationsMap[h.asset_id]?.pe_ratio || null : null,
+          ps_ratio: h.asset_id ? valuationsMap[h.asset_id]?.price_to_sales_ttm || null : null,
+          // Performance
+          return_1d: h.asset_id ? featuresMap[h.asset_id]?.return_1d || null : null,
+          return_5d: h.asset_id ? featuresMap[h.asset_id]?.return_5d || null : null,
+          return_21d: h.asset_id ? featuresMap[h.asset_id]?.return_21d || null : null,
+          return_63d: h.asset_id ? featuresMap[h.asset_id]?.return_63d || null : null,
+          // Relative Strength
+          rs_vs_spy: h.asset_id ? featuresMap[h.asset_id]?.rs_vs_benchmark || null : null,
+          // Setups
+          setup_count: h.asset_id ? setupsMap[h.asset_id]?.count || 0 : 0,
+          setup_names: h.asset_id ? setupsMap[h.asset_id]?.names || [] : []
         }))
         
         return new Response(JSON.stringify({
           symbol,
           holdings: enrichedHoldings,
-          total: enrichedHoldings.length
+          total: enrichedHoldings.length,
+          sectors
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
