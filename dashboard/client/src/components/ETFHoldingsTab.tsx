@@ -75,23 +75,29 @@ export function ETFHoldingsTab({ symbol, assetId, onHoldingClick }: ETFHoldingsT
     }
   };
 
-  const formatCurrency = (value: number | null) => {
-    if (value === null || value === undefined) return '-';
-    if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`;
-    if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
-    if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
-    if (value >= 1e3) return `$${(value / 1e3).toFixed(2)}K`;
-    return `$${value.toFixed(2)}`;
+  const formatCurrency = (value: number | null | undefined | string) => {
+    if (value === null || value === undefined || value === '') return '-';
+    const numValue = typeof value === 'string' ? parseFloat(value) : value;
+    if (isNaN(numValue)) return '-';
+    if (numValue >= 1e12) return `$${(numValue / 1e12).toFixed(2)}T`;
+    if (numValue >= 1e9) return `$${(numValue / 1e9).toFixed(2)}B`;
+    if (numValue >= 1e6) return `$${(numValue / 1e6).toFixed(2)}M`;
+    if (numValue >= 1e3) return `$${(numValue / 1e3).toFixed(2)}K`;
+    return `$${numValue.toFixed(2)}`;
   };
 
-  const formatNumber = (value: number | null) => {
-    if (value === null || value === undefined) return '-';
-    return value.toLocaleString();
+  const formatNumber = (value: number | null | undefined | string) => {
+    if (value === null || value === undefined || value === '') return '-';
+    const numValue = typeof value === 'string' ? parseFloat(value) : value;
+    if (isNaN(numValue)) return '-';
+    return numValue.toLocaleString();
   };
 
-  const formatPercent = (value: number | null) => {
-    if (value === null || value === undefined) return '-';
-    return `${value.toFixed(2)}%`;
+  const formatPercent = (value: number | null | undefined | string) => {
+    if (value === null || value === undefined || value === '') return '-';
+    const numValue = typeof value === 'string' ? parseFloat(value) : value;
+    if (isNaN(numValue)) return '-';
+    return `${numValue.toFixed(2)}%`;
   };
 
   if (holdingsLoading || infoLoading) {
@@ -142,7 +148,9 @@ export function ETFHoldingsTab({ symbol, assetId, onHoldingClick }: ETFHoldingsT
             Expense Ratio
           </div>
           <div className="text-lg font-semibold">
-            {info?.expense_ratio ? `${(info.expense_ratio * 100).toFixed(2)}%` : '-'}
+            {info?.expense_ratio != null && !isNaN(Number(info.expense_ratio)) 
+              ? `${(Number(info.expense_ratio) * 100).toFixed(2)}%` 
+              : '-'}
           </div>
         </div>
         
