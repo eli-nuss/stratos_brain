@@ -15,7 +15,8 @@ import {
   ChevronDown,
   Settings,
   Sparkles,
-  Target
+  Target,
+  Layers
 } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
 import { MobileNav } from "@/components/MobileNav";
@@ -64,6 +65,7 @@ const navGroups = [
 // Standalone nav items
 const standaloneNavItems = [
   { href: '/smart-money', label: 'Smart Money', icon: Users },
+  { href: '/supply-chain', label: 'AI Supply Chain', icon: Layers },
 ];
 
 export default function DashboardLayout({ 

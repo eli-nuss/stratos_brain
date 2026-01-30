@@ -35,6 +35,7 @@ const DailyBriefV2 = lazy(() => import("./pages/DailyBriefV2"));
 const DailyBriefV3 = lazy(() => import("./pages/DailyBriefV3"));
 const DailyBriefV4 = lazy(() => import("./pages/DailyBriefV4"));
 const SetupGuide = lazy(() => import("./pages/SetupGuide"));
+const SupplyChainMap = lazy(() => import("./pages/SupplyChainMap"));
 const AssetPage = lazy(() => import("./pages/AssetPage"));
 
 // Wrapper component for lazy-loaded pages with error boundary
@@ -126,6 +127,9 @@ function Router() {
       </Route>
       <Route path={"/setup-guide"}>
         <LazyPage component={SetupGuide} />
+      </Route>
+      <Route path={"/supply-chain"}>
+        <LazyPage component={SupplyChainMap} />
       </Route>
       
       {/* 404 routes */}
