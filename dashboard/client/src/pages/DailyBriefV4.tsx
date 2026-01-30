@@ -1,7 +1,7 @@
-// Daily Brief v4 - Unified Web + PDF Architecture
-// Feature-flagged: Can revert to V3 via UI toggle
+// Daily Brief v4 - Redesigned to match site style
+// Dark theme, green/red color coding, information-dense layout
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import DashboardLayout from "@/components/DashboardLayout";
 import { 
@@ -10,25 +10,21 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  Collapsible, CollapsibleContent, CollapsibleTrigger 
-} from "@/components/ui/collapsible";
-import { 
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger 
-} from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
 } from "@/components/ui/select";
 import { 
-  RefreshCw, Zap, TrendingUp, ChevronRight, ChevronDown, 
-  Target, Shield, Calendar, Globe, Landmark, PieChart, 
-  Droplets, Activity, Sparkles, ArrowUpRight, Layers, 
+  RefreshCw, Zap, TrendingUp, TrendingDown, ChevronRight, ChevronDown, 
+  Target, Calendar, Globe, Landmark, PieChart, 
+  Droplets, Activity, Sparkles, ArrowUpRight, ArrowDownRight, Layers, 
   Flag, FileDown, Eye, AlertTriangle, ArrowUp, ArrowDown, 
-  Minus, ExternalLink, Clock
+  Minus, ExternalLink, Clock, BarChart3, Briefcase, Newspaper,
+  AlertCircle, CheckCircle2, Info
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import useSWR from "swr";
-import { getApiUrl, getJsonApiHeaders } from "@/lib/api-config";
+import { getApiUrl, getJsonApiHeaders, apiFetcher, API_BASE } from "@/lib/api-config";
 import { format } from "date-fns";
 
 // --- Types ---
@@ -106,151 +102,170 @@ interface DailyBriefData {
   tokens?: { in: number; out: number };
 }
 
+// --- Helper Functions ---
+
+const formatPercent = (value: number) => {
+  const formatted = value.toFixed(2);
+  return value >= 0 ? `+${formatted}%` : `${formatted}%`;
+};
+
+const formatNumber = (value: number, decimals = 2) => {
+  return value.toFixed(decimals);
+};
+
 // --- Components ---
 
-function TickerCard({ symbol, value, suffix = "" }: { symbol: string; value: number; suffix?: string }) {
-  const isPositive = value >= 0;
-  return (
-    <Card className={cn(
-      "border-l-4",
-      isPositive ? "border-l-green-500" : "border-l-red-500"
-    )}>
-      <CardContent className="p-3">
-        <div className="text-xs font-medium text-muted-foreground">{symbol}</div>
-        <div className={cn(
-          "text-xl font-bold",
-          isPositive ? "text-green-600" : "text-red-600"
-        )}>
-          {isPositive ? "+" : ""}{value.toFixed(2)}{suffix}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function MarketTickerHeader({ ticker }: { ticker?: MarketTicker }) {
+function MarketTickerBar({ ticker }: { ticker?: MarketTicker }) {
   if (!ticker) return null;
   
+  const items = [
+    { symbol: "SPY", value: ticker.spy_change, suffix: "%" },
+    { symbol: "QQQ", value: ticker.qqq_change, suffix: "%" },
+    { symbol: "IWM", value: ticker.iwm_change, suffix: "%" },
+    { symbol: "BTC", value: ticker.btc_change, suffix: "%" },
+    { symbol: "VIX", value: ticker.vix, suffix: "", isNeutral: true },
+    { symbol: "10Y", value: ticker.yield_10y, suffix: "%", isNeutral: true },
+  ];
+  
   const regimeColors: Record<string, string> = {
-    "BULLISH": "bg-green-500",
-    "BEARISH": "bg-red-500",
-    "NEUTRAL": "bg-yellow-500",
-    "HIGH VOLATILITY": "bg-orange-500"
+    "BULLISH": "text-green-400 bg-green-500/20 border-green-500/30",
+    "BEARISH": "text-red-400 bg-red-500/20 border-red-500/30",
+    "NEUTRAL": "text-yellow-400 bg-yellow-500/20 border-yellow-500/30",
+    "HIGH VOLATILITY": "text-orange-400 bg-orange-500/20 border-orange-500/30",
+    "Risk-On": "text-green-400 bg-green-500/20 border-green-500/30",
+    "Risk-Off": "text-red-400 bg-red-500/20 border-red-500/30",
   };
   
   return (
-    <div className="mb-6">
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-3">
-        <TickerCard symbol="SPY" value={ticker.spy_change} suffix="%" />
-        <TickerCard symbol="QQQ" value={ticker.qqq_change} suffix="%" />
-        <TickerCard symbol="IWM" value={ticker.iwm_change} suffix="%" />
-        <TickerCard symbol="10Y" value={ticker.yield_10y} />
-        <TickerCard symbol="BTC" value={ticker.btc_change} suffix="%" />
-        <Card className="border-l-4 border-l-purple-500">
-          <CardContent className="p-3">
-            <div className="text-xs font-medium text-muted-foreground">VIX</div>
-            <div className="text-xl font-bold">{ticker.vix}</div>
-          </CardContent>
-        </Card>
-      </div>
-      <div className="flex items-center gap-3">
-        <Badge className={cn("text-white", regimeColors[ticker.regime] || "bg-gray-500")}>
-          {ticker.regime}
-        </Badge>
-        <span className="text-sm text-muted-foreground">
-          10Y at {ticker.yield_10y}% • VIX at {ticker.vix}
-        </span>
+    <div className="bg-card/50 border border-border rounded-lg p-4 mb-6">
+      <div className="flex flex-wrap items-center gap-4 md:gap-6">
+        {/* Market Regime Badge */}
+        <div className={cn(
+          "px-3 py-1.5 rounded-md border text-sm font-semibold",
+          regimeColors[ticker.regime] || "text-muted-foreground bg-muted border-border"
+        )}>
+          {ticker.regime || "NEUTRAL"}
+        </div>
+        
+        {/* Ticker Items */}
+        <div className="flex flex-wrap items-center gap-4 md:gap-6">
+          {items.map((item) => (
+            <div key={item.symbol} className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground font-medium">{item.symbol}</span>
+              <span className={cn(
+                "font-mono text-sm font-semibold",
+                item.isNeutral ? "text-foreground" :
+                item.value >= 0 ? "text-green-400" : "text-red-400"
+              )}>
+                {item.isNeutral ? formatNumber(item.value) : formatPercent(item.value)}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
-function PortfolioTable({ holdings }: { holdings: PortfolioHolding[] }) {
-  const [, navigate] = useLocation();
+function PortfolioSection({ holdings, onAssetClick }: { 
+  holdings: PortfolioHolding[];
+  onAssetClick: (assetId: string) => void;
+}) {
+  if (!holdings || holdings.length === 0) {
+    return (
+      <Card className="bg-card/50 border-border">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Briefcase className="w-4 h-4 text-primary" />
+            Active Portfolio
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm text-muted-foreground text-center py-4">
+            No active portfolio holdings found
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
   
-  const getActionIcon = (action: string) => {
+  const getActionBadge = (action: string) => {
     switch (action) {
-      case "ADD": return <ArrowDown className="w-4 h-4 text-green-600" />;
-      case "TRIM": return <ArrowUp className="w-4 h-4 text-red-600" />;
-      default: return <Minus className="w-4 h-4 text-yellow-600" />;
-    }
-  };
-  
-  const getActionColor = (action: string) => {
-    switch (action) {
-      case "ADD": return "bg-green-100 text-green-700 border-green-300";
-      case "TRIM": return "bg-red-100 text-red-700 border-red-300";
-      default: return "bg-yellow-100 text-yellow-700 border-yellow-300";
+      case "ADD":
+        return <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs">ADD</Badge>;
+      case "TRIM":
+        return <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-xs">TRIM</Badge>;
+      default:
+        return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-xs">HOLD</Badge>;
     }
   };
   
   return (
-    <Card>
+    <Card className="bg-card/50 border-border">
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <PieChart className="w-5 h-5" />
-          Active Portfolio ({holdings.length} positions)
+        <CardTitle className="text-base flex items-center gap-2">
+          <Briefcase className="w-4 h-4 text-primary" />
+          Active Portfolio
+          <span className="text-xs text-muted-foreground font-normal">({holdings.length} positions)</span>
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-0">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b text-muted-foreground">
-                <th className="text-left py-2 px-2">Action</th>
-                <th className="text-left py-2 px-2">Asset</th>
-                <th className="text-right py-2 px-2">AI</th>
-                <th className="text-right py-2 px-2">RSI</th>
-                <th className="text-left py-2 px-2">Setup</th>
-                <th className="text-left py-2 px-2 hidden md:table-cell">Intel</th>
+              <tr className="border-b border-border text-muted-foreground text-xs">
+                <th className="text-left py-2 px-4 font-medium">Action</th>
+                <th className="text-left py-2 px-4 font-medium">Asset</th>
+                <th className="text-right py-2 px-4 font-medium">AI Dir</th>
+                <th className="text-right py-2 px-4 font-medium">RSI</th>
+                <th className="text-left py-2 px-4 font-medium">Setup</th>
+                <th className="text-left py-2 px-4 font-medium hidden lg:table-cell">Intel</th>
               </tr>
             </thead>
             <tbody>
               {holdings.map((h) => (
                 <tr 
                   key={h.asset_id}
-                  className="border-b last:border-0 hover:bg-muted/50 cursor-pointer"
-                  onClick={() => navigate(`/asset/${h.asset_id}`)}
+                  className="border-b border-border/50 last:border-0 hover:bg-muted/30 cursor-pointer transition-colors"
+                  onClick={() => onAssetClick(String(h.asset_id))}
                 >
-                  <td className="py-2 px-2">
-                    <div className="flex items-center gap-1">
-                      {getActionIcon(h.action)}
-                      <Badge variant="outline" className={cn("text-xs", getActionColor(h.action))}>
-                        {h.action}
-                      </Badge>
+                  <td className="py-2.5 px-4">
+                    {getActionBadge(h.action)}
+                  </td>
+                  <td className="py-2.5 px-4">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-foreground">{h.symbol}</span>
+                      <span className="text-xs text-muted-foreground truncate max-w-[100px]">
+                        {h.name}
+                      </span>
                     </div>
                   </td>
-                  <td className="py-2 px-2">
-                    <div className="font-medium">{h.symbol}</div>
-                    <div className="text-xs text-muted-foreground truncate max-w-[120px]">
-                      {h.name}
-                    </div>
-                  </td>
-                  <td className="text-right py-2 px-2">
+                  <td className="text-right py-2.5 px-4">
                     <span className={cn(
-                      "font-medium",
-                      typeof h.ai_direction === 'number' && h.ai_direction > 60 ? "text-green-600" :
-                      typeof h.ai_direction === 'number' && h.ai_direction < 40 ? "text-red-600" : ""
+                      "font-mono font-medium",
+                      typeof h.ai_direction === 'number' && h.ai_direction > 60 ? "text-green-400" :
+                      typeof h.ai_direction === 'number' && h.ai_direction < 40 ? "text-red-400" : "text-foreground"
                     )}>
                       {typeof h.ai_direction === 'number' ? h.ai_direction : 'N/A'}
                     </span>
                   </td>
-                  <td className="text-right py-2 px-2">
+                  <td className="text-right py-2.5 px-4">
                     <span className={cn(
-                      h.rsi > 70 ? "text-red-600" : h.rsi < 30 ? "text-green-600" : ""
+                      "font-mono",
+                      h.rsi > 70 ? "text-red-400" : h.rsi < 30 ? "text-green-400" : "text-foreground"
                     )}>
                       {h.rsi}
                     </span>
                   </td>
-                  <td className="py-2 px-2">
-                    <span className="text-xs bg-muted px-2 py-1 rounded">
+                  <td className="py-2.5 px-4">
+                    <Badge variant="outline" className="text-xs font-normal">
                       {h.setup}
-                    </span>
+                    </Badge>
                   </td>
-                  <td className="py-2 px-2 hidden md:table-cell">
-                    <div className="text-xs text-muted-foreground truncate max-w-[200px]">
-                      {h.news}
-                    </div>
+                  <td className="py-2.5 px-4 hidden lg:table-cell">
+                    <span className="text-xs text-muted-foreground truncate block max-w-[200px]">
+                      {h.news || "No recent news"}
+                    </span>
                   </td>
                 </tr>
               ))}
@@ -262,143 +277,180 @@ function PortfolioTable({ holdings }: { holdings: PortfolioHolding[] }) {
   );
 }
 
-function SetupCategory({ 
+function SetupOpportunities({ 
   title, 
   icon: Icon, 
   data,
-  color
+  colorClass,
+  onAssetClick
 }: { 
   title: string; 
   icon: any; 
   data?: CategoryData;
-  color: string;
+  colorClass: string;
+  onAssetClick: (symbol: string) => void;
 }) {
-  if (!data || data.picks.length === 0) return null;
+  const [isExpanded, setIsExpanded] = useState(true);
+  
+  if (!data || data.picks.length === 0) {
+    return (
+      <Card className={cn("bg-card/50 border-border border-l-2", colorClass)}>
+        <CardHeader className="pb-2 pt-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Icon className="w-4 h-4" />
+            {title}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0 pb-3">
+          <p className="text-xs text-muted-foreground">No setups detected</p>
+        </CardContent>
+      </Card>
+    );
+  }
   
   const convictionColors = {
-    HIGH: "bg-green-500",
-    MEDIUM: "bg-yellow-500",
-    LOW: "bg-gray-400"
+    HIGH: "bg-green-500/20 text-green-400 border-green-500/30",
+    MEDIUM: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+    LOW: "bg-muted text-muted-foreground border-border"
   };
   
   return (
-    <Card className={cn("border-t-4", color)}>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Icon className="w-5 h-5" />
-          {title}
+    <Card className={cn("bg-card/50 border-border border-l-2", colorClass)}>
+      <CardHeader 
+        className="pb-2 pt-3 cursor-pointer"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <CardTitle className="text-sm flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Icon className="w-4 h-4" />
+            {title}
+            <span className="text-xs text-muted-foreground font-normal">
+              ({data.picks.length})
+            </span>
+          </div>
+          {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
         </CardTitle>
-        <CardDescription>{data.theme_summary}</CardDescription>
+        {data.theme_summary && (
+          <CardDescription className="text-xs">{data.theme_summary}</CardDescription>
+        )}
       </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
+      {isExpanded && (
+        <CardContent className="pt-0 pb-3 space-y-2">
           {data.picks.map((pick, i) => (
-            <div key={i} className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
-              <Badge className={cn("shrink-0", convictionColors[pick.conviction])}>
+            <div 
+              key={i} 
+              className="flex items-start gap-2 p-2 bg-muted/30 rounded hover:bg-muted/50 cursor-pointer transition-colors"
+              onClick={() => onAssetClick(pick.symbol)}
+            >
+              <Badge className={cn("text-xs shrink-0", convictionColors[pick.conviction])}>
                 {pick.conviction}
               </Badge>
               <div className="flex-1 min-w-0">
-                <div className="font-medium">{pick.symbol}</div>
-                <div className="text-sm text-muted-foreground">{pick.one_liner}</div>
-                {pick.rationale && (
-                  <div className="text-xs text-muted-foreground mt-1">{pick.rationale}</div>
-                )}
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm">{pick.symbol}</span>
+                  {pick.name && (
+                    <span className="text-xs text-muted-foreground truncate">{pick.name}</span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">{pick.one_liner}</p>
               </div>
             </div>
           ))}
-        </div>
-      </CardContent>
+        </CardContent>
+      )}
     </Card>
   );
 }
 
-function IntelGrid({ items }: { items: IntelItem[] }) {
+function IntelSection({ items }: { items: IntelItem[] }) {
+  if (!items || items.length === 0) {
+    return (
+      <Card className="bg-card/50 border-border">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Newspaper className="w-4 h-4 text-primary" />
+            Market Intel
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground text-center py-4">
+            No intel items available
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+  
   const categoryIcons: Record<string, any> = {
     GEOPOL: Globe,
     POLICY: Landmark,
     TECH: Zap,
-    EARNINGS: PieChart,
+    EARNINGS: BarChart3,
     ECON: Activity,
     CRYPTO: Layers,
     DEFAULT: Flag
   };
   
   const categoryColors: Record<string, string> = {
-    GEOPOL: "border-red-400",
-    POLICY: "border-blue-400",
-    TECH: "border-purple-400",
-    EARNINGS: "border-green-400",
-    ECON: "border-yellow-400",
-    CRYPTO: "border-orange-400",
-    DEFAULT: "border-gray-400"
+    GEOPOL: "border-l-red-500",
+    POLICY: "border-l-blue-500",
+    TECH: "border-l-purple-500",
+    EARNINGS: "border-l-green-500",
+    ECON: "border-l-yellow-500",
+    CRYPTO: "border-l-orange-500",
+    DEFAULT: "border-l-muted-foreground"
   };
   
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-      {items.map((item, i) => {
-        const Icon = categoryIcons[item.category] || Flag;
-        return (
-          <Card key={i} className={cn("border-l-4", categoryColors[item.category])}>
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3">
-                <Icon className="w-4 h-4 mt-0.5 shrink-0 text-muted-foreground" />
-                <div className="flex-1 min-w-0">
-                  <Badge variant="secondary" className="text-xs mb-2">
-                    {item.category}
-                  </Badge>
-                  <div className="font-medium text-sm">{item.headline}</div>
-                  <div className="text-xs text-muted-foreground mt-1">{item.impact}</div>
-                  {item.url && (
-                    <a 
-                      href={item.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-xs text-blue-600 hover:underline flex items-center gap-1 mt-2"
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                      {item.source}
-                    </a>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
-  );
-}
-
-function MacroLiquidityPanel({ intel }: { intel?: MorningIntel }) {
-  if (!intel) return null;
-  
-  const sections = [
-    { key: 'market_pulse', label: 'Market Pulse', icon: Activity },
-    { key: 'liquidity_flows', label: 'Liquidity & Flows', icon: Droplets },
-    { key: 'sector_themes', label: 'Sector Themes', icon: PieChart },
-    { key: 'geopolitical', label: 'Geopolitical', icon: Globe },
-  ];
-  
-  return (
-    <Card>
+    <Card className="bg-card/50 border-border">
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Landmark className="w-5 h-5" />
-          Macro & Liquidity
+        <CardTitle className="text-base flex items-center gap-2">
+          <Newspaper className="w-4 h-4 text-primary" />
+          Market Intel
+          <span className="text-xs text-muted-foreground font-normal">({items.length} items)</span>
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {sections.map(({ key, label, icon: Icon }) => {
-            const content = (intel as any)[key];
-            if (!content) return null;
+      <CardContent className="pt-0">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {items.map((item, i) => {
+            const Icon = categoryIcons[item.category] || Flag;
             return (
-              <div key={key}>
-                <div className="flex items-center gap-2 text-sm font-medium mb-1">
-                  <Icon className="w-4 h-4" />
-                  {label}
+              <div 
+                key={i} 
+                className={cn(
+                  "p-3 bg-muted/30 rounded border-l-2 hover:bg-muted/50 transition-colors",
+                  categoryColors[item.category] || "border-l-muted-foreground"
+                )}
+              >
+                <div className="flex items-start gap-2">
+                  <Icon className="w-4 h-4 mt-0.5 shrink-0 text-muted-foreground" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant="secondary" className="text-xs">
+                        {item.category}
+                      </Badge>
+                      {item.source && (
+                        <span className="text-xs text-muted-foreground">{item.source}</span>
+                      )}
+                    </div>
+                    <p className="text-sm font-medium leading-tight">{item.headline}</p>
+                    {item.impact && (
+                      <p className="text-xs text-muted-foreground mt-1">{item.impact}</p>
+                    )}
+                    {item.url && (
+                      <a 
+                        href={item.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline flex items-center gap-1 mt-2"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        Read more
+                      </a>
+                    )}
+                  </div>
                 </div>
-                <p className="text-sm text-muted-foreground">{content}</p>
               </div>
             );
           })}
@@ -408,165 +460,130 @@ function MacroLiquidityPanel({ intel }: { intel?: MorningIntel }) {
   );
 }
 
-function MarketCalendar({ intel }: { intel?: MorningIntel }) {
-  if (!intel?.macro_calendar) return null;
+function MacroInsights({ intel }: { intel?: MorningIntel }) {
+  const [isExpanded, setIsExpanded] = useState(true);
+  
+  if (!intel) return null;
+  
+  const sections = [
+    { key: 'market_pulse', label: 'Market Pulse', icon: Activity },
+    { key: 'liquidity_flows', label: 'Liquidity & Flows', icon: Droplets },
+    { key: 'macro_calendar', label: 'Calendar', icon: Calendar },
+  ];
+  
+  const hasContent = sections.some(s => (intel as any)[s.key]);
+  if (!hasContent) return null;
   
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Calendar className="w-5 h-5" />
-          Market Calendar
+    <Card className="bg-card/50 border-border">
+      <CardHeader 
+        className="pb-2 cursor-pointer"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <CardTitle className="text-base flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Landmark className="w-4 h-4 text-primary" />
+            Macro Insights
+          </div>
+          {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <pre className="text-sm text-muted-foreground whitespace-pre-wrap font-sans">
-          {intel.macro_calendar}
-        </pre>
-      </CardContent>
+      {isExpanded && (
+        <CardContent className="pt-0 space-y-4">
+          {sections.map(({ key, label, icon: Icon }) => {
+            const content = (intel as any)[key];
+            if (!content || content === 'Search timeout' || content === 'Search unavailable') return null;
+            return (
+              <div key={key}>
+                <div className="flex items-center gap-2 text-sm font-medium mb-1">
+                  <Icon className="w-4 h-4 text-muted-foreground" />
+                  {label}
+                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed">{content}</p>
+              </div>
+            );
+          })}
+        </CardContent>
+      )}
     </Card>
-  );
-}
-
-// --- PDF Preview Dialog ---
-
-function PDFPreviewDialog({ onGenerate }: { onGenerate: () => Promise<string> }) {
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  
-  const handleGenerate = async () => {
-    setLoading(true);
-    try {
-      const url = await onGenerate();
-      setPdfUrl(url);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Eye className="w-4 h-4 mr-2" />
-          Preview PDF
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-4xl h-[80vh]">
-        <DialogHeader>
-          <DialogTitle>Daily Brief PDF Preview</DialogTitle>
-        </DialogHeader>
-        {!pdfUrl ? (
-          <div className="flex flex-col items-center justify-center h-64 gap-4">
-            <Button onClick={handleGenerate} disabled={loading}>
-              {loading ? "Generating..." : "Generate PDF"}
-            </Button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4 h-full">
-            <iframe src={pdfUrl} className="flex-1 w-full border rounded" />
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setPdfUrl(null)}>
-                Regenerate
-              </Button>
-              <Button asChild>
-                <a href={pdfUrl} download={`stratos-brief-${new Date().toISOString().split('T')[0]}.pdf`}>
-                  <FileDown className="w-4 h-4 mr-2" />
-                  Download
-                </a>
-              </Button>
-            </div>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
   );
 }
 
 // --- Main Page ---
 
 export default function DailyBriefV4() {
-  const [version, setVersion] = useState<"v3" | "v4">("v4");
+  const [, navigate] = useLocation();
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   
+  // Fetch daily brief data
   const { data, error, isLoading, mutate } = useSWR<DailyBriefData>(
-    version === "v4" ? "daily-brief-v4" : "daily-brief-v3",
+    "daily-brief-v4",
     async () => {
-      const endpoint = version === "v4" ? getApiUrl("DAILY_BRIEF_V4") : getApiUrl("DAILY_BRIEF_V3");
+      const endpoint = getApiUrl("DAILY_BRIEF_V4");
+      if (!endpoint) {
+        throw new Error("Daily Brief API endpoint not configured");
+      }
       const res = await fetch(endpoint, { headers: getJsonApiHeaders() });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`HTTP ${res.status}: ${errorText}`);
+      }
       return res.json();
     },
-    { refreshInterval: 0, revalidateOnFocus: false }
+    { 
+      refreshInterval: 0, 
+      revalidateOnFocus: false,
+      errorRetryCount: 2,
+      errorRetryInterval: 3000
+    }
   );
   
-  // Auto-refresh at 6am PT
-  useEffect(() => {
-    const scheduleRefresh = () => {
-      const now = new Date();
-      const ptNow = new Date(now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
-      const target = new Date(ptNow);
-      target.setHours(6, 0, 0, 0);
-      
-      if (target <= ptNow) target.setDate(target.getDate() + 1);
-      
-      const msUntil = target.getTime() - ptNow.getTime() + (now.getTime() - ptNow.getTime());
-      
-      console.log(`[DailyBrief] Next refresh scheduled in ${Math.round(msUntil / 1000 / 60)} minutes`);
-      
-      return setTimeout(() => {
-        mutate();
-        setLastRefresh(new Date());
-      }, msUntil);
-    };
-    
-    const timeout = scheduleRefresh();
-    return () => clearTimeout(timeout);
-  }, [mutate]);
+  // Handle asset click - navigate to asset detail
+  const handleAssetClick = (assetId: string) => {
+    navigate(`/asset/${assetId}`);
+  };
+  
+  // Handle symbol click - search for asset and navigate
+  const handleSymbolClick = async (symbol: string) => {
+    try {
+      // Try to find the asset by symbol
+      const res = await fetch(`${API_BASE}/dashboard/all-assets?search=${encodeURIComponent(symbol)}&limit=1`, {
+        headers: getJsonApiHeaders()
+      });
+      if (res.ok) {
+        const result = await res.json();
+        if (result.data && result.data.length > 0) {
+          navigate(`/asset/${result.data[0].asset_id}`);
+          return;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to find asset:", e);
+    }
+    // Fallback: just show a message
+    console.log(`Could not find asset for symbol: ${symbol}`);
+  };
   
   const handleManualRefresh = () => {
     mutate();
     setLastRefresh(new Date());
   };
   
-  const generatePDF = async (): Promise<string> => {
-    const res = await fetch(getApiUrl("PDF_GENERATE"), {
-      method: "POST",
-      headers: getJsonApiHeaders(),
-      body: JSON.stringify({ briefData: data })
-    });
-    if (!res.ok) throw new Error("PDF generation failed");
-    const { url } = await res.json();
-    return url;
-  };
-  
-  if (version === "v3") {
-    // Redirect to V3 component
-    window.location.href = "/daily-brief-v3";
-    return null;
-  }
-  
+  // Error state
   if (error) {
     return (
       <DashboardLayout>
-        <div className="p-8">
-          <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
-          <h1 className="text-xl font-bold mb-2">Failed to load Daily Brief</h1>
-          <p className="text-muted-foreground mb-4">{error.message}</p>
-          <Button onClick={handleManualRefresh}>
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Retry
-          </Button>
-          <div className="mt-4">
-            <Select value={version} onValueChange={(v) => setVersion(v as any)}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="v4">Daily Brief v4 (New)</SelectItem>
-                <SelectItem value="v3">Daily Brief v3 (Classic)</SelectItem>
-              </SelectContent>
-            </Select>
+        <div className="p-6 max-w-7xl mx-auto">
+          <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+            <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
+            <h1 className="text-xl font-bold mb-2">Failed to Load Daily Brief</h1>
+            <p className="text-muted-foreground mb-4 max-w-md">
+              {error.message || "Unable to fetch daily brief data. Please try again."}
+            </p>
+            <Button onClick={handleManualRefresh} variant="outline">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Retry
+            </Button>
           </div>
         </div>
       </DashboardLayout>
@@ -575,12 +592,12 @@ export default function DailyBriefV4() {
   
   return (
     <DashboardLayout>
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="p-4 md:p-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Sparkles className="w-6 h-6 text-blue-500" />
+            <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2">
+              <Sparkles className="w-5 h-5 md:w-6 md:h-6 text-primary" />
               Stratos Brain Daily Brief
             </h1>
             <p className="text-sm text-muted-foreground">
@@ -589,81 +606,116 @@ export default function DailyBriefV4() {
           </div>
           
           <div className="flex items-center gap-2">
-            <Select value={version} onValueChange={(v) => setVersion(v as any)}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="v4">v4 (New)</SelectItem>
-                <SelectItem value="v3">v3 (Classic)</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <PDFPreviewDialog onGenerate={generatePDF} />
-            
-            <Button variant="outline" size="sm" onClick={handleManualRefresh} disabled={isLoading}>
-              <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleManualRefresh} 
+              disabled={isLoading}
+            >
+              <RefreshCw className={cn("w-4 h-4 mr-2", isLoading && "animate-spin")} />
+              Refresh
             </Button>
           </div>
         </div>
         
+        {/* Loading State */}
         {isLoading && !data ? (
-          <div className="flex items-center justify-center h-64">
-            <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
+          <div className="flex flex-col items-center justify-center min-h-[400px]">
+            <RefreshCw className="w-8 h-8 animate-spin text-primary mb-4" />
+            <p className="text-muted-foreground">Loading daily brief...</p>
           </div>
         ) : data ? (
           <div className="space-y-6">
-            {/* Market Ticker */}
-            <MarketTickerHeader ticker={data.market_ticker} />
+            {/* Market Ticker Bar */}
+            <MarketTickerBar ticker={data.market_ticker} />
             
-            {/* Portfolio */}
-            <PortfolioTable holdings={data.portfolio} />
-            
-            {/* Setup Opportunities */}
-            <div>
-              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <Target className="w-5 h-5" />
-                Setup Opportunities
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <SetupCategory 
-                  title="Momentum Breakouts" 
-                  icon={Zap} 
-                  data={data.categories.momentum_breakouts}
-                  color="border-t-orange-500"
+            {/* Main Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left Column - Portfolio & Setups */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Portfolio Holdings */}
+                <PortfolioSection 
+                  holdings={data.portfolio} 
+                  onAssetClick={handleAssetClick}
                 />
-                <SetupCategory 
-                  title="Trend Continuation" 
-                  icon={TrendingUp} 
-                  data={data.categories.trend_continuation}
-                  color="border-t-blue-500"
-                />
-                <SetupCategory 
-                  title="Compression & Reversion" 
-                  icon={Activity} 
-                  data={data.categories.compression_reversion}
-                  color="border-t-purple-500"
-                />
+                
+                {/* Setup Opportunities */}
+                <div>
+                  <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
+                    <Target className="w-4 h-4 text-primary" />
+                    Setup Opportunities
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <SetupOpportunities 
+                      title="Momentum" 
+                      icon={Zap} 
+                      data={data.categories.momentum_breakouts}
+                      colorClass="border-l-orange-500"
+                      onAssetClick={handleSymbolClick}
+                    />
+                    <SetupOpportunities 
+                      title="Trend" 
+                      icon={TrendingUp} 
+                      data={data.categories.trend_continuation}
+                      colorClass="border-l-blue-500"
+                      onAssetClick={handleSymbolClick}
+                    />
+                    <SetupOpportunities 
+                      title="Compression" 
+                      icon={Activity} 
+                      data={data.categories.compression_reversion}
+                      colorClass="border-l-purple-500"
+                      onAssetClick={handleSymbolClick}
+                    />
+                  </div>
+                </div>
+                
+                {/* Intel Section */}
+                <IntelSection items={data.intel_items} />
+              </div>
+              
+              {/* Right Column - Macro Insights */}
+              <div className="space-y-6">
+                <MacroInsights intel={data.morning_intel} />
+                
+                {/* Quick Stats Card */}
+                <Card className="bg-card/50 border-border">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Info className="w-4 h-4 text-primary" />
+                      Quick Stats
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Portfolio Positions</span>
+                      <span className="font-mono font-medium">{data.portfolio?.length || 0}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Active Setups</span>
+                      <span className="font-mono font-medium">
+                        {(data.categories.momentum_breakouts?.picks?.length || 0) +
+                         (data.categories.trend_continuation?.picks?.length || 0) +
+                         (data.categories.compression_reversion?.picks?.length || 0)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Intel Items</span>
+                      <span className="font-mono font-medium">{data.intel_items?.length || 0}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Market Regime</span>
+                      <Badge variant="outline" className="text-xs">
+                        {data.market_regime || "Unknown"}
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             </div>
             
-            {/* Macro & Calendar */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <MacroLiquidityPanel intel={data.morning_intel} />
-              <MarketCalendar intel={data.morning_intel} />
-            </div>
-            
-            {/* Intel Grid */}
-            <div>
-              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <Flag className="w-5 h-5" />
-                Intel & News
-              </h2>
-              <IntelGrid items={data.intel_items} />
-            </div>
-            
             {/* Footer */}
-            <div className="flex items-center justify-between text-xs text-muted-foreground pt-4 border-t">
+            <div className="flex items-center justify-between text-xs text-muted-foreground pt-4 border-t border-border">
               <div className="flex items-center gap-2">
                 <Clock className="w-3 h-3" />
                 Last refreshed: {format(lastRefresh, "h:mm a")}
@@ -675,7 +727,19 @@ export default function DailyBriefV4() {
               )}
             </div>
           </div>
-        ) : null}
+        ) : (
+          <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+            <AlertCircle className="w-12 h-12 text-muted-foreground mb-4" />
+            <h2 className="text-lg font-semibold mb-2">No Data Available</h2>
+            <p className="text-muted-foreground mb-4">
+              The daily brief data could not be loaded.
+            </p>
+            <Button onClick={handleManualRefresh} variant="outline">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Try Again
+            </Button>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );
