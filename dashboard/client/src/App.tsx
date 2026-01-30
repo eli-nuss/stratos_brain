@@ -2,7 +2,7 @@ import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Route, Switch, Redirect } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -30,9 +30,6 @@ const TodoList = lazy(() => import("./pages/TodoList"));
 const StratosBrain = lazy(() => import("./pages/StratosBrain"));
 const InvestorWatchlist = lazy(() => import("./pages/InvestorWatchlist"));
 const ResearchNotes = lazy(() => import("./pages/ResearchNotes"));
-const DailyBrief = lazy(() => import("./pages/DailyBrief"));
-const DailyBriefV2 = lazy(() => import("./pages/DailyBriefV2"));
-const DailyBriefV3 = lazy(() => import("./pages/DailyBriefV3"));
 const DailyBriefV4 = lazy(() => import("./pages/DailyBriefV4"));
 const SetupGuide = lazy(() => import("./pages/SetupGuide"));
 const SupplyChainMap = lazy(() => import("./pages/SupplyChainMap"));
@@ -113,17 +110,19 @@ function Router() {
       <Route path={"/notes"}>
         <LazyPage component={ResearchNotes} />
       </Route>
-      <Route path={"/daily-brief"}>
-        <LazyPage component={DailyBriefV3} />
-      </Route>
-      <Route path={"/daily-brief-v2"}>
-        <LazyPage component={DailyBriefV2} />
-      </Route>
-      <Route path={"/daily-brief-old"}>
-        <LazyPage component={DailyBrief} />
-      </Route>
+      {/* Daily Brief - V4 is the current version */}
       <Route path={"/daily-brief-v4"}>
         <LazyPage component={DailyBriefV4} />
+      </Route>
+      {/* Redirect old routes to V4 */}
+      <Route path={"/daily-brief"}>
+        <Redirect to="/daily-brief-v4" />
+      </Route>
+      <Route path={"/daily-brief-v2"}>
+        <Redirect to="/daily-brief-v4" />
+      </Route>
+      <Route path={"/daily-brief-old"}>
+        <Redirect to="/daily-brief-v4" />
       </Route>
       <Route path={"/setup-guide"}>
         <LazyPage component={SetupGuide} />
