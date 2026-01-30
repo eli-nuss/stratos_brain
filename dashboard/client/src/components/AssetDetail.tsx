@@ -241,36 +241,6 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
             {/* Asset Tag button */}
             <AssetTagButton assetId={parseInt(assetId)} />
             
-            {/* Live Update button */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={runLiveAnalysis}
-                  disabled={isRunningLiveAnalysis}
-                  className={`p-2 rounded-full transition-colors ${
-                    isRunningLiveAnalysis 
-                      ? 'bg-primary/20 text-primary cursor-wait' 
-                      : liveAnalysisResult 
-                        ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
-                        : 'text-muted-foreground hover:text-primary hover:bg-primary/10'
-                  }`}
-                >
-                  {isRunningLiveAnalysis ? (
-                    <RefreshCw className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <Zap className="w-5 h-5" />
-                  )}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {isRunningLiveAnalysis 
-                  ? 'Running live analysis...' 
-                  : liveAnalysisResult 
-                    ? `Live analysis updated (${liveAnalysisResult.live_price ? '$' + liveAnalysisResult.live_price.toFixed(2) : 'click to refresh'})` 
-                    : 'Run live analysis with current price'}
-              </TooltipContent>
-            </Tooltip>
-            
             {/* Research Chat button */}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -529,7 +499,26 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                       </div>
                       <span className="text-sm font-semibold">AI Analysis</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
+                      {/* Live Update Button */}
+                      <button
+                        onClick={runLiveAnalysis}
+                        disabled={isRunningLiveAnalysis}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                          isRunningLiveAnalysis 
+                            ? 'bg-primary/20 text-primary cursor-wait' 
+                            : liveAnalysisResult 
+                              ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30'
+                              : 'bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20'
+                        }`}
+                      >
+                        {isRunningLiveAnalysis ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Zap className="w-3.5 h-3.5" />
+                        )}
+                        <span>{isRunningLiveAnalysis ? 'Updating...' : liveAnalysisResult ? 'Updated' : 'Live Update'}</span>
+                      </button>
                       <span className="text-[10px] text-muted-foreground/70 font-mono px-2 py-0.5 bg-muted/30 rounded">
                         {review.model_id || "gemini-3-pro-preview"}
                       </span>

@@ -382,9 +382,12 @@ async function callGeminiAPI(prompt: string): Promise<AIAnalysisResult | null> {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
+  // Handle CORS preflight - must return 200 status
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { 
+      status: 200,
+      headers: corsHeaders 
+    })
   }
 
   try {
