@@ -462,20 +462,22 @@ serve(async (req) => {
 
     console.log(`[Live Analysis] Loaded ${bars.length} historical bars`)
 
-    // Try to fetch current intraday price from FMP
-    let currentPrice: number
-    let priceSource: 'live' | 'database' = 'live'
-    
+    // Fetch current intraday price from FMP - no fallback, we want live price or error
     const intradayData = await fetchIntradayPrice(asset.symbol, asset.asset_type)
-    if (intradayData && intradayData.price > 0) {
-      currentPrice = intradayData.price
-      console.log(`[Live Analysis] Using live price for ${asset.symbol}: $${currentPrice}`)
-    } else {
-      // Fallback to latest database close price
-      currentPrice = bars[bars.length - 1].close
-      priceSource = 'database'
-      console.log(`[Live Analysis] FMP unavailable, using latest DB close for ${asset.symbol}: $${currentPrice}`)
+    if (!intradayData || intradayData.price <= 0) {
+      return new Response(JSON.stringify({ 
+        error: 'Could not fetch live price',
+        message: `Unable to retrieve real-time price data for ${asset.symbol}. The FMP API may not support this symbol, or the market may be closed.`,
+        symbol: asset.symbol,
+        asset_type: asset.asset_type
+      }), {
+        status: 503,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
     }
+    
+    const currentPrice = intradayData.price
+    console.log(`[Live Analysis] Using live price for ${asset.symbol}: $${currentPrice}`)
 
     // Calculate technical features
     const features = calculateFeatures(bars, currentPrice)
@@ -543,7 +545,6 @@ serve(async (req) => {
         asset_type: asset.asset_type
       },
       live_price: currentPrice,
-      price_source: priceSource,
       last_close: bars[bars.length - 1].close,
       price_change_pct: ((currentPrice - bars[bars.length - 1].close) / bars[bars.length - 1].close * 100).toFixed(2),
       analysis: {
