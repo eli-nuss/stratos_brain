@@ -1,8 +1,6 @@
 import { useEffect, useRef, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import useSWR from "swr";
-import * as d3 from "d3";
-import { sankey, sankeyLinkHorizontal, SankeyNode, SankeyLink } from "d3-sankey";
 import { apiFetcher } from "@/lib/api-config";
 
 // Types
@@ -26,22 +24,6 @@ interface Relationship {
   description: string;
 }
 
-interface SankeyNodeData {
-  id: string;
-  name: string;
-  symbol: string | null;
-  tier: number;
-  asset_id: number | null;
-  is_private: boolean;
-}
-
-interface SankeyLinkData {
-  source: string;
-  target: string;
-  value: number;
-  strength: string;
-}
-
 // Tier colors
 const tierColors: Record<number, string> = {
   [-1]: "#f59e0b",
@@ -54,70 +36,39 @@ const tierColors: Record<number, string> = {
   [6]: "#06b6d4",
 };
 
+const tierNames: Record<number, string> = {
+  [-1]: "Raw Materials",
+  [0]: "Wafer-Level",
+  [1]: "Chip Integration",
+  [2]: "System Integration",
+  [3]: "Data Center",
+  [4]: "Cloud",
+  [5]: "Application",
+  [6]: "Physical AI",
+};
+
+interface NodePosition {
+  id: string;
+  name: string;
+  symbol: string | null;
+  tier: number;
+  asset_id: number | null;
+  is_private: boolean;
+  x: number;
+  y: number;
+}
+
 export default function SupplyChainSankey() {
-  const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [, setLocation] = useLocation();
   const [dimensions, setDimensions] = useState({ width: 1200, height: 800 });
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const [selectedTier, setSelectedTier] = useState<number | null>(null);
 
-  const { data: relationships } = useSWR<Relationship[]>(
+  const { data: relationships, isLoading } = useSWR<Relationship[]>(
     "/api/supply-chain/relationships",
     apiFetcher
   );
-
-  const { nodes, links } = useMemo(() => {
-    if (!relationships || relationships.length === 0) {
-      return { nodes: [], links: [] };
-    }
-
-    const nodeMap = new Map<string, SankeyNodeData>();
-    const linkList: SankeyLinkData[] = [];
-
-    relationships.forEach((rel) => {
-      const supplierId = rel.supplier.asset_id 
-        ? `public_${rel.supplier.asset_id}` 
-        : `private_${rel.supplier.private_id}`;
-      
-      if (!nodeMap.has(supplierId)) {
-        nodeMap.set(supplierId, {
-          id: supplierId,
-          name: rel.supplier.name,
-          symbol: rel.supplier.symbol,
-          tier: rel.supplier.tier_number,
-          asset_id: rel.supplier.asset_id,
-          is_private: rel.supplier.is_private,
-        });
-      }
-
-      const customerId = rel.customer.asset_id 
-        ? `public_${rel.customer.asset_id}` 
-        : `private_${rel.customer.private_id}`;
-      
-      if (!nodeMap.has(customerId)) {
-        nodeMap.set(customerId, {
-          id: customerId,
-          name: rel.customer.name,
-          symbol: rel.customer.symbol,
-          tier: rel.customer.tier_number,
-          asset_id: rel.customer.asset_id,
-          is_private: rel.customer.is_private,
-        });
-      }
-
-      linkList.push({
-        source: supplierId,
-        target: customerId,
-        value: rel.relationship_strength === "critical" ? 3 : rel.relationship_strength === "strong" ? 2 : 1,
-        strength: rel.relationship_strength,
-      });
-    });
-
-    return {
-      nodes: Array.from(nodeMap.values()),
-      links: linkList,
-    };
-  }, [relationships]);
 
   useEffect(() => {
     const updateDimensions = () => {
@@ -132,130 +83,310 @@ export default function SupplyChainSankey() {
     return () => window.removeEventListener("resize", updateDimensions);
   }, []);
 
-  useEffect(() => {
-    if (!svgRef.current || nodes.length === 0 || links.length === 0) return;
+  const { nodes, links, tierGroups } = useMemo(() => {
+    if (!relationships || relationships.length === 0) {
+      return { nodes: [], links: [], tierGroups: {} };
+    }
 
-    const svg = d3.select(svgRef.current);
-    svg.selectAll("*").remove();
+    const nodeMap = new Map<string, NodePosition>();
+    const linkList: { source: string; target: string; strength: string }[] = [];
+    const tierCounts: Record<number, number> = {};
 
-    const { width, height } = dimensions;
+    // First pass: collect all nodes and count per tier
+    relationships.forEach((rel) => {
+      const supplierId = rel.supplier.asset_id 
+        ? `public_${rel.supplier.asset_id}` 
+        : `private_${rel.supplier.private_id}`;
+      
+      if (!nodeMap.has(supplierId)) {
+        tierCounts[rel.supplier.tier_number] = (tierCounts[rel.supplier.tier_number] || 0) + 1;
+        nodeMap.set(supplierId, {
+          id: supplierId,
+          name: rel.supplier.name,
+          symbol: rel.supplier.symbol,
+          tier: rel.supplier.tier_number,
+          asset_id: rel.supplier.asset_id,
+          is_private: rel.supplier.is_private,
+          x: 0,
+          y: 0,
+        });
+      }
 
-    const sankeyGenerator = sankey<SankeyNodeData, SankeyLinkData>()
-      .nodeId((d) => d.id)
-      .nodeWidth(20)
-      .nodePadding(15)
-      .extent([[150, 20], [width - 150, height - 20]])
-      .nodeSort((a, b) => a.tier - b.tier);
+      const customerId = rel.customer.asset_id 
+        ? `public_${rel.customer.asset_id}` 
+        : `private_${rel.customer.private_id}`;
+      
+      if (!nodeMap.has(customerId)) {
+        tierCounts[rel.customer.tier_number] = (tierCounts[rel.customer.tier_number] || 0) + 1;
+        nodeMap.set(customerId, {
+          id: customerId,
+          name: rel.customer.name,
+          symbol: rel.customer.symbol,
+          tier: rel.customer.tier_number,
+          asset_id: rel.customer.asset_id,
+          is_private: rel.customer.is_private,
+          x: 0,
+          y: 0,
+        });
+      }
 
-    const sankeyData = sankeyGenerator({
-      nodes: nodes.map(d => ({ ...d })),
-      links: links.map(d => ({ 
-        source: d.source, 
-        target: d.target, 
-        value: d.value,
-        strength: d.strength 
-      })),
+      linkList.push({
+        source: supplierId,
+        target: customerId,
+        strength: rel.relationship_strength,
+      });
     });
 
-    const g = svg.append("g");
+    // Calculate positions
+    const { width, height } = dimensions;
+    const tiers = Array.from(new Set(Array.from(nodeMap.values()).map(n => n.tier))).sort((a, b) => a - b);
+    const tierWidth = (width - 200) / (tiers.length - 1 || 1);
+    const tierPositions: Record<number, number> = {};
+    tiers.forEach((tier, i) => {
+      tierPositions[tier] = 100 + i * tierWidth;
+    });
 
-    // Links
-    g.append("g")
-      .attr("fill", "none")
-      .selectAll("path")
-      .data(sankeyData.links)
-      .join("path")
-      .attr("d", sankeyLinkHorizontal())
-      .attr("stroke", (d: any) => {
-        const sourceNode = d.source as SankeyNode<SankeyNodeData, SankeyLinkData>;
-        return tierColors[sourceNode.tier] || "#666";
-      })
-      .attr("stroke-opacity", (d: any) => {
-        if (hoveredNode) {
-          const sourceNode = d.source as SankeyNode<SankeyNodeData, SankeyLinkData>;
-          const targetNode = d.target as SankeyNode<SankeyNodeData, SankeyLinkData>;
-          return sourceNode.id === hoveredNode || targetNode.id === hoveredNode ? 0.7 : 0.1;
-        }
-        return d.strength === "critical" ? 0.6 : d.strength === "strong" ? 0.4 : 0.25;
-      })
-      .attr("stroke-width", (d: any) => Math.max(1, d.width));
+    // Position nodes within tiers
+    const tierNodeCounts: Record<number, number> = {};
+    const nodes = Array.from(nodeMap.values()).map(node => {
+      const tierIndex = tierNodeCounts[node.tier] || 0;
+      tierNodeCounts[node.tier] = tierIndex + 1;
+      const nodesInTier = tierCounts[node.tier] || 1;
+      const ySpacing = (height - 100) / (nodesInTier + 1);
+      
+      return {
+        ...node,
+        x: tierPositions[node.tier] || 100,
+        y: 50 + (tierIndex + 1) * ySpacing,
+      };
+    });
 
-    // Nodes
-    const node = g.append("g")
-      .selectAll("g")
-      .data(sankeyData.nodes)
-      .join("g")
-      .attr("transform", (d: any) => `translate(${d.x0},${d.y0})`)
-      .style("cursor", "pointer")
-      .on("mouseenter", (_: any, d: any) => setHoveredNode(d.id))
-      .on("mouseleave", () => setHoveredNode(null))
-      .on("click", (_: any, d: any) => {
-        if (d.asset_id && !d.is_private) {
-          setLocation(`/asset/${d.asset_id}`);
-        }
-      });
+    // Group nodes by tier for labels
+    const tierGroups: Record<number, NodePosition[]> = {};
+    nodes.forEach(node => {
+      if (!tierGroups[node.tier]) tierGroups[node.tier] = [];
+      tierGroups[node.tier].push(node);
+    });
 
-    node.append("rect")
-      .attr("height", (d: any) => Math.max(d.y1 - d.y0, 4))
-      .attr("width", (d: any) => d.x1 - d.x0)
-      .attr("fill", (d: any) => tierColors[d.tier] || "#666")
-      .attr("opacity", (d: any) => hoveredNode ? (d.id === hoveredNode ? 1 : 0.3) : 0.9)
-      .attr("rx", 3);
+    return { nodes, links: linkList, tierGroups };
+  }, [relationships, dimensions]);
 
-    node.append("text")
-      .attr("x", (d: any) => d.x0 < width / 2 ? (d.x1 - d.x0) + 8 : -8)
-      .attr("y", (d: any) => (d.y1 - d.y0) / 2)
-      .attr("dy", "0.35em")
-      .attr("text-anchor", (d: any) => d.x0 < width / 2 ? "start" : "end")
-      .attr("fill", "#e5e5e5")
-      .attr("font-size", "11px")
-      .attr("font-weight", "500")
-      .text((d: any) => d.symbol || d.name.split(" ")[0]);
+  const getNodeById = (id: string) => nodes.find(n => n.id === id);
 
-  }, [nodes, links, dimensions, hoveredNode, setLocation]);
-
-  if (!relationships || relationships.length === 0) {
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-[600px] text-gray-400">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400 mx-auto mb-4"></div>
-          <p>Loading supply chain relationships...</p>
-        </div>
+      <div className="flex items-center justify-center h-[600px] bg-black/50 rounded-lg">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        <span className="ml-2 text-muted-foreground">Loading relationships...</span>
       </div>
     );
   }
 
+  if (!relationships || relationships.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-[600px] bg-black/50 rounded-lg">
+        <span className="text-muted-foreground">No relationship data available</span>
+      </div>
+    );
+  }
+
+  const filteredNodes = selectedTier !== null 
+    ? nodes.filter(n => n.tier === selectedTier || 
+        links.some(l => {
+          const source = getNodeById(l.source);
+          const target = getNodeById(l.target);
+          return (source?.tier === selectedTier && target?.id === n.id) ||
+                 (target?.tier === selectedTier && source?.id === n.id) ||
+                 n.tier === selectedTier;
+        }))
+    : nodes;
+
+  const filteredLinks = selectedTier !== null
+    ? links.filter(l => {
+        const source = getNodeById(l.source);
+        const target = getNodeById(l.target);
+        return source?.tier === selectedTier || target?.tier === selectedTier;
+      })
+    : links;
+
   return (
-    <div ref={containerRef} className="w-full h-[calc(100vh-200px)] min-h-[600px] relative">
-      <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-sm rounded-lg p-3 z-10">
-        <div className="text-xs text-gray-400 mb-2 font-medium">Supply Chain Tiers</div>
-        <div className="space-y-1">
-          {Object.entries(tierColors).map(([tier, color]) => (
-            <div key={tier} className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded" style={{ backgroundColor: color }}></div>
-              <span className="text-xs text-gray-300">
-                {tier === "-1" ? "Raw Materials" : 
-                 tier === "0" ? "Equipment" :
-                 tier === "1" ? "Chips" :
-                 tier === "2" ? "Systems" :
-                 tier === "3" ? "Data Centers" :
-                 tier === "4" ? "Cloud" :
-                 tier === "5" ? "Apps" : "Physical AI"}
-              </span>
-            </div>
-          ))}
+    <div className="space-y-4">
+      {/* Tier Filter */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-sm text-muted-foreground">Filter by tier:</span>
+        <button
+          onClick={() => setSelectedTier(null)}
+          className={`px-3 py-1 text-xs rounded-full transition-colors ${
+            selectedTier === null 
+              ? 'bg-primary text-primary-foreground' 
+              : 'bg-muted hover:bg-muted/80'
+          }`}
+        >
+          All
+        </button>
+        {Object.entries(tierNames).map(([tier, name]) => {
+          const tierNum = parseInt(tier);
+          if (!tierGroups[tierNum]) return null;
+          return (
+            <button
+              key={tier}
+              onClick={() => setSelectedTier(tierNum)}
+              className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                selectedTier === tierNum 
+                  ? 'text-white' 
+                  : 'bg-muted hover:bg-muted/80'
+              }`}
+              style={{ 
+                backgroundColor: selectedTier === tierNum ? tierColors[tierNum] : undefined 
+              }}
+            >
+              {name}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-4 text-xs">
+        <span className="text-muted-foreground">Relationship strength:</span>
+        <div className="flex items-center gap-1">
+          <div className="w-8 h-1 bg-red-500 rounded" />
+          <span>Critical</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-8 h-1 bg-yellow-500 rounded" />
+          <span>Strong</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-8 h-1 bg-gray-500 rounded" />
+          <span>Medium</span>
         </div>
       </div>
 
-      <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-sm rounded-lg p-3 z-10">
-        <div className="text-xs text-gray-400">
-          <p>• Hover over nodes to highlight connections</p>
-          <p>• Click on public companies to view details</p>
-          <p>• Flow: Left (suppliers) → Right (customers)</p>
-        </div>
+      {/* SVG Visualization */}
+      <div 
+        ref={containerRef} 
+        className="bg-black/30 rounded-lg border border-border overflow-hidden"
+        style={{ height: '700px' }}
+      >
+        <svg width={dimensions.width} height={dimensions.height}>
+          {/* Tier Labels */}
+          {Object.entries(tierGroups).map(([tier, tierNodes]) => {
+            const tierNum = parseInt(tier);
+            if (tierNodes.length === 0) return null;
+            const x = tierNodes[0].x;
+            return (
+              <g key={tier}>
+                <text
+                  x={x}
+                  y={25}
+                  textAnchor="middle"
+                  fill={tierColors[tierNum]}
+                  fontSize="12"
+                  fontWeight="bold"
+                >
+                  {tierNames[tierNum]}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Links */}
+          <g>
+            {filteredLinks.map((link, i) => {
+              const source = getNodeById(link.source);
+              const target = getNodeById(link.target);
+              if (!source || !target) return null;
+              
+              const isHighlighted = hoveredNode === link.source || hoveredNode === link.target;
+              const strokeColor = link.strength === 'critical' 
+                ? '#ef4444' 
+                : link.strength === 'strong' 
+                  ? '#eab308' 
+                  : '#6b7280';
+              
+              // Create curved path
+              const midX = (source.x + target.x) / 2;
+              const path = `M ${source.x} ${source.y} C ${midX} ${source.y}, ${midX} ${target.y}, ${target.x} ${target.y}`;
+              
+              return (
+                <path
+                  key={i}
+                  d={path}
+                  fill="none"
+                  stroke={strokeColor}
+                  strokeWidth={link.strength === 'critical' ? 3 : link.strength === 'strong' ? 2 : 1}
+                  strokeOpacity={hoveredNode ? (isHighlighted ? 0.8 : 0.1) : 0.4}
+                  className="transition-opacity duration-200"
+                />
+              );
+            })}
+          </g>
+
+          {/* Nodes */}
+          <g>
+            {filteredNodes.map((node) => {
+              const isHovered = hoveredNode === node.id;
+              const isConnected = hoveredNode && links.some(
+                l => (l.source === hoveredNode && l.target === node.id) ||
+                     (l.target === hoveredNode && l.source === node.id)
+              );
+              const opacity = hoveredNode ? (isHovered || isConnected ? 1 : 0.3) : 1;
+              
+              return (
+                <g
+                  key={node.id}
+                  transform={`translate(${node.x}, ${node.y})`}
+                  style={{ cursor: node.is_private ? 'default' : 'pointer', opacity }}
+                  className="transition-opacity duration-200"
+                  onMouseEnter={() => setHoveredNode(node.id)}
+                  onMouseLeave={() => setHoveredNode(null)}
+                  onClick={() => {
+                    if (node.asset_id && !node.is_private) {
+                      setLocation(`/asset/${node.asset_id}`);
+                    }
+                  }}
+                >
+                  <circle
+                    r={isHovered ? 28 : 24}
+                    fill={tierColors[node.tier]}
+                    fillOpacity={0.2}
+                    stroke={tierColors[node.tier]}
+                    strokeWidth={2}
+                    className="transition-all duration-200"
+                  />
+                  <text
+                    textAnchor="middle"
+                    dy="0.35em"
+                    fill="white"
+                    fontSize={isHovered ? "11" : "10"}
+                    fontWeight="bold"
+                  >
+                    {node.symbol || node.name.slice(0, 4)}
+                  </text>
+                  {node.is_private && (
+                    <text
+                      textAnchor="middle"
+                      dy="2.5em"
+                      fill="#9ca3af"
+                      fontSize="8"
+                    >
+                      (Private)
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+          </g>
+        </svg>
       </div>
 
-      <svg ref={svgRef} width={dimensions.width} height={dimensions.height} className="mx-auto" />
+      {/* Stats */}
+      <div className="flex items-center gap-6 text-sm text-muted-foreground">
+        <span>{filteredNodes.length} companies</span>
+        <span>{filteredLinks.length} relationships</span>
+        <span>{Object.keys(tierGroups).length} tiers</span>
+      </div>
     </div>
   );
 }
