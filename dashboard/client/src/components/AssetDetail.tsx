@@ -1,9 +1,10 @@
 import useSWR from "swr";
 import { useState, useRef, useEffect } from "react";
-import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, Activity, MessageCircle, Info, ExternalLink, Tag, FileText, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera, RefreshCw, Zap, Brain, Send, Loader2 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { createBrainChat, useSendBrainMessage, useBrainMessages, BrainMessage } from "@/hooks/useBrainChats";
-import { MarkdownRenderer } from "./MarkdownRenderer";
+import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, Activity, MessageCircle, Info, ExternalLink, Tag, FileText, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera, RefreshCw, Zap, Brain, Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { createBrainChat, useBrainChats, BrainChat } from "@/hooks/useBrainChats";
+import { BrainChatInterfaceNew as BrainChatInterface } from "./BrainChatInterfaceNew";
+import { useAuth } from "@/contexts/AuthContext";
 import html2canvas from "html2canvas";
 import { Area, Line, ComposedChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis, Legend } from "recharts";
 import { format } from "date-fns";
@@ -105,10 +106,12 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
   
   // Live Analysis Chat state
   const [liveAnalysisChatOpen, setLiveAnalysisChatOpen] = useState(false);
-  const [liveAnalysisChatId, setLiveAnalysisChatId] = useState<string | null>(null);
-  const [chatInput, setChatInput] = useState('');
+  const [liveAnalysisChat, setLiveAnalysisChat] = useState<BrainChat | null>(null);
   const [isCreatingChat, setIsCreatingChat] = useState(false);
-  const chatMessagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Auth for chat
+  const { user } = useAuth();
+  const { refresh: refreshBrainChats } = useBrainChats();
 
   const captureChart = async () => {
     if (!chartRef.current) return;
@@ -186,33 +189,21 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
     }
   };
 
-  // Chat hooks for live analysis discussion
-  const { messages: chatMessages, refresh: refreshMessages } = useBrainMessages(liveAnalysisChatId);
-  const { sendMessage, isSending, streamingText, isStreaming } = useSendBrainMessage(liveAnalysisChatId);
-
-  // Scroll to bottom when new messages arrive
-  useEffect(() => {
-    if (chatMessagesEndRef.current) {
-      chatMessagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [chatMessages, streamingText]);
-
-  // Create or open chat for live analysis discussion
+  // Create chat for live analysis discussion
   const openLiveAnalysisChat = async () => {
     if (!liveAnalysisResult) return;
     
-    setLiveAnalysisChatOpen(true);
-    
     // If we already have a chat for this analysis, just open it
-    if (liveAnalysisChatId) return;
+    if (liveAnalysisChat) {
+      setLiveAnalysisChatOpen(true);
+      return;
+    }
     
     setIsCreatingChat(true);
+    setLiveAnalysisChatOpen(true);
+    
     try {
-      // Create a new chat with the analysis context
-      const chat = await createBrainChat(`${asset?.symbol} Live Analysis Discussion`);
-      setLiveAnalysisChatId(chat.chat_id);
-      
-      // Send the context as the first message
+      // Build the context message with all the analysis data
       const contextMessage = `I'm looking at a live technical analysis for ${asset?.symbol} (${asset?.name}). Here's the current analysis:\n\n` +
         `**Live Price:** $${liveAnalysisResult.live_price?.toFixed(2)} (${liveAnalysisResult.price_change_pct}% from last close)\n` +
         `**Direction:** ${liveAnalysisResult.analysis?.direction} (Score: ${liveAnalysisResult.analysis?.ai_direction_score})\n` +
@@ -228,29 +219,22 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
         `**Risks:** ${Array.isArray(liveAnalysisResult.analysis?.risks) ? liveAnalysisResult.analysis.risks.join(', ') : liveAnalysisResult.analysis?.risks || 'N/A'}\n\n` +
         `Please help me understand this analysis. I may have follow-up questions.`;
       
-      await sendMessage(contextMessage);
-      await refreshMessages();
+      // Create a new chat with the analysis context as the title
+      const chat = await createBrainChat(`${asset?.symbol} Live Analysis - ${new Date().toLocaleDateString()}`, user?.id || null);
+      setLiveAnalysisChat(chat);
+      
+      // Refresh the brain chats list so it appears in the sidebar
+      await refreshBrainChats();
+      
+      // Note: The first message will be sent by the user in the chat interface
+      // We store the context so it can be used as a suggested first message
+      toast.success('Chat created! Ask your questions about the analysis.');
     } catch (err) {
       console.error('Failed to create chat:', err);
       toast.error('Failed to start chat');
+      setLiveAnalysisChatOpen(false);
     } finally {
       setIsCreatingChat(false);
-    }
-  };
-
-  // Send a follow-up message in the chat
-  const handleSendChatMessage = async () => {
-    if (!chatInput.trim() || !liveAnalysisChatId || isSending) return;
-    
-    const message = chatInput.trim();
-    setChatInput('');
-    
-    try {
-      await sendMessage(message);
-      await refreshMessages();
-    } catch (err) {
-      console.error('Failed to send message:', err);
-      toast.error('Failed to send message');
     }
   };
 
@@ -851,91 +835,24 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                           Ask Brain About This Analysis
                         </button>
                       </DialogTrigger>
-                      <DialogContent className="sm:max-w-2xl max-h-[80vh] flex flex-col" showCloseButton={true}>
-                        <DialogHeader>
-                          <DialogTitle className="flex items-center gap-2">
-                            <Brain className="w-5 h-5 text-purple-400" />
-                            {asset?.symbol} Analysis Discussion
-                          </DialogTitle>
-                        </DialogHeader>
-                        
-                        {/* Chat Messages */}
-                        <div className="flex-1 overflow-y-auto min-h-[300px] max-h-[50vh] space-y-4 py-4">
-                          {isCreatingChat ? (
-                            <div className="flex items-center justify-center py-8">
-                              <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
-                              <span className="ml-2 text-muted-foreground">Starting conversation...</span>
-                            </div>
-                          ) : (
-                            <>
-                              {chatMessages.map((msg: BrainMessage) => (
-                                <div
-                                  key={msg.message_id}
-                                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                                >
-                                  <div
-                                    className={`max-w-[85%] rounded-lg px-4 py-2.5 ${
-                                      msg.role === 'user'
-                                        ? 'bg-primary text-primary-foreground'
-                                        : 'bg-muted'
-                                    }`}
-                                  >
-                                    {msg.role === 'user' ? (
-                                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                                    ) : (
-                                      <div className="text-sm prose prose-sm dark:prose-invert max-w-none">
-                                        <MarkdownRenderer content={msg.content || ''} />
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
-                              {/* Streaming response */}
-                              {isStreaming && streamingText && (
-                                <div className="flex justify-start">
-                                  <div className="max-w-[85%] rounded-lg px-4 py-2.5 bg-muted">
-                                    <div className="text-sm prose prose-sm dark:prose-invert max-w-none">
-                                      <MarkdownRenderer content={streamingText} />
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                              {/* Loading indicator */}
-                              {isSending && !streamingText && (
-                                <div className="flex justify-start">
-                                  <div className="bg-muted rounded-lg px-4 py-2.5">
-                                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                                  </div>
-                                </div>
-                              )}
-                              <div ref={chatMessagesEndRef} />
-                            </>
-                          )}
-                        </div>
-                        
-                        {/* Chat Input */}
-                        <div className="flex items-center gap-2 pt-4 border-t">
-                          <input
-                            type="text"
-                            value={chatInput}
-                            onChange={(e) => setChatInput(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendChatMessage()}
-                            placeholder="Ask a follow-up question..."
-                            className="flex-1 px-4 py-2.5 bg-muted border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-                            disabled={isSending || isCreatingChat}
-                          />
-                          <button
-                            onClick={handleSendChatMessage}
-                            disabled={!chatInput.trim() || isSending || isCreatingChat}
-                            className="px-4 py-2.5 bg-purple-500 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white transition-colors"
-                          >
-                            {isSending ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Send className="w-4 h-4" />
-                            )}
-                          </button>
-                        </div>
+                      <DialogContent className="sm:max-w-4xl h-[80vh] p-0 overflow-hidden" showCloseButton={true}>
+                        {isCreatingChat ? (
+                          <div className="flex items-center justify-center h-full">
+                            <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
+                            <span className="ml-2 text-muted-foreground">Creating chat...</span>
+                          </div>
+                        ) : liveAnalysisChat ? (
+                          <div className="h-full">
+                            <BrainChatInterface 
+                              chat={liveAnalysisChat} 
+                              onRefresh={refreshBrainChats}
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center h-full">
+                            <span className="text-muted-foreground">No chat available</span>
+                          </div>
+                        )}
                       </DialogContent>
                     </Dialog>
                   </div>
