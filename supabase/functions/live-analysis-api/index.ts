@@ -506,12 +506,12 @@ serve(async (req) => {
     const { error: insertError } = await supabase
       .from('asset_ai_reviews')
       .upsert({
-        asset_id: asset_id,
+        asset_id: String(asset_id),  // asset_id is text type in DB
         as_of_date: today,
         direction: analysis.direction,
         ai_direction_score: analysis.ai_direction_score,
         ai_setup_quality_score: analysis.ai_setup_quality_score,
-        setup_type: analysis.setup_type,
+        ai_setup_type: analysis.setup_type,  // correct column name
         ai_attention_level: analysis.attention_level,
         ai_confidence: analysis.confidence,
         ai_summary_text: analysis.summary_text,
@@ -519,13 +519,11 @@ serve(async (req) => {
         ai_entry: analysis.entry_zone,
         ai_targets: analysis.targets,
         ai_why_now: analysis.why_now ? { text: analysis.why_now } : null,
-        ai_risks: analysis.risks,
+        ai_risks: Array.isArray(analysis.risks) ? { items: analysis.risks } : analysis.risks,
         ai_what_to_watch_next: analysis.what_to_watch ? { text: analysis.what_to_watch } : null,
-        model_id: GEMINI_MODEL,
-        review_version: 'live-v1.0',
-        is_live_update: true,
-        live_update_price: currentPrice,
-        live_update_timestamp: now
+        model: GEMINI_MODEL,  // correct column name (not model_id)
+        ai_review_version: 'live-v1.0',  // correct column name
+        updated_at: now
       }, {
         onConflict: 'asset_id,as_of_date'
       })
