@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 30, 2026 (v11.4.0 - Feature: Daily Brief V4 redesign with improved UI and data connectivity)  
+**Last Updated: January 30, 2026 (v11.5.0 - Feature: Daily Brief V4 enhanced with live market data, alerts, and visual polish)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
