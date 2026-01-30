@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useCallback, useMemo, lazy, Suspense } from "react";
 import { Link, useLocation } from "wouter";
 import useSWR from "swr";
 import { motion, AnimatePresence } from "framer-motion";
@@ -39,6 +39,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { apiFetcher } from "@/lib/api-config";
 import { formatCurrency, formatPercent } from "@/lib/formatters";
+
+// Lazy load the flow visualization component
+const SupplyChainFlow = lazy(() => import("@/components/SupplyChainFlow"));
 
 // Helper to format large numbers compactly
 function formatLargeNumber(value: number): string {
@@ -930,6 +933,7 @@ export default function SupplyChainMap() {
   const [selectedCompany, setSelectedCompany] = useState<SupplyChainCompany | null>(null);
   const [activeTier, setActiveTier] = useState<number | null>(null);
   const [heatMapPeriod, setHeatMapPeriod] = useState<HeatMapPeriod>('off');
+  const [viewMode, setViewMode] = useState<'tree' | 'flow'>('tree');
   
   // Fetch supply chain data
   const { data: tiers, error, isLoading } = useSWR<SupplyChainTier[]>(
@@ -1086,81 +1090,127 @@ export default function SupplyChainMap() {
           
           {/* Controls Row */}
           <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/10">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={expandAll}
-                className="text-xs"
-              >
-                <ChevronsUpDown className="h-3 w-3 mr-1" />
-                Expand All
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={collapseAll}
-                className="text-xs"
-              >
-                <ChevronUp className="h-3 w-3 mr-1" />
-                Collapse All
-              </Button>
+            <div className="flex items-center gap-4">
+              {/* View Mode Toggle */}
+              <div className="flex items-center gap-1 bg-muted/30 rounded-lg p-1">
+                <Button
+                  variant={viewMode === 'tree' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('tree')}
+                  className="text-xs h-7"
+                >
+                  <Layers className="h-3 w-3 mr-1" />
+                  Tree View
+                </Button>
+                <Button
+                  variant={viewMode === 'flow' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('flow')}
+                  className="text-xs h-7"
+                >
+                  <Activity className="h-3 w-3 mr-1" />
+                  Flow View
+                </Button>
+              </div>
+              
+              {/* Tree View Controls */}
+              {viewMode === 'tree' && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={expandAll}
+                    className="text-xs"
+                  >
+                    <ChevronsUpDown className="h-3 w-3 mr-1" />
+                    Expand All
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={collapseAll}
+                    className="text-xs"
+                  >
+                    <ChevronUp className="h-3 w-3 mr-1" />
+                    Collapse All
+                  </Button>
+                </div>
+              )}
             </div>
-            <HeatMapToggle period={heatMapPeriod} onChange={setHeatMapPeriod} />
+            {viewMode === 'tree' && <HeatMapToggle period={heatMapPeriod} onChange={setHeatMapPeriod} />}
           </div>
         </div>
       </header>
       
-      {/* Heat Map Legend */}
-      {heatMapPeriod !== 'off' && (
-        <div className="container mx-auto px-4 py-2">
-          <div className="flex items-center justify-center gap-2 text-xs">
-            <span className="text-muted-foreground">Performance:</span>
-            <div className="flex items-center gap-1">
-              <div className="w-6 h-4 rounded bg-red-500/60" />
-              <span>&lt;-10%</span>
+      {/* Flow View */}
+      {viewMode === 'flow' && (
+        <main className="container mx-auto px-4 py-8">
+          <Suspense fallback={
+            <div className="flex items-center justify-center h-[600px] bg-black/50 rounded-lg">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              <span className="ml-2 text-muted-foreground">Loading flow visualization...</span>
             </div>
-            <div className="flex items-center gap-1">
-              <div className="w-6 h-4 rounded bg-red-500/25" />
-              <span>-5%</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-6 h-4 rounded bg-muted/30" />
-              <span>0%</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-6 h-4 rounded bg-green-500/25" />
-              <span>+5%</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-6 h-4 rounded bg-green-500/60" />
-              <span>&gt;+10%</span>
-            </div>
-          </div>
-        </div>
+          }>
+            <SupplyChainFlow />
+          </Suspense>
+        </main>
       )}
       
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8 pr-20 lg:pr-24">
-        <div className="space-y-6">
-          {tiers?.map((tier) => (
-            <div key={tier.tier_id} id={`tier-${tier.tier_number}`}>
-              <TierSection
-                tier={tier}
-                isExpanded={expandedTiers.has(tier.tier_number)}
-                onToggle={() => toggleTier(tier.tier_number)}
-                expandedCategories={expandedCategories}
-                onCategoryToggle={toggleCategory}
-                onCompanyClick={setSelectedCompany}
-                heatMapPeriod={heatMapPeriod}
-              />
+      {/* Tree View */}
+      {viewMode === 'tree' && (
+        <>
+          {/* Heat Map Legend */}
+          {heatMapPeriod !== 'off' && (
+            <div className="container mx-auto px-4 py-2">
+              <div className="flex items-center justify-center gap-2 text-xs">
+                <span className="text-muted-foreground">Performance:</span>
+                <div className="flex items-center gap-1">
+                  <div className="w-6 h-4 rounded bg-red-500/60" />
+                  <span>&lt;-10%</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-6 h-4 rounded bg-red-500/25" />
+                  <span>-5%</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-6 h-4 rounded bg-muted/30" />
+                  <span>0%</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-6 h-4 rounded bg-green-500/25" />
+                  <span>+5%</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-6 h-4 rounded bg-green-500/60" />
+                  <span>&gt;+10%</span>
+                </div>
+              </div>
             </div>
-          ))}
-        </div>
-      </main>
-      
-      {/* Tier Navigation */}
-      {tiers && <TierNavigation tiers={tiers} activeTier={activeTier} onTierClick={handleTierNavClick} />}
+          )}
+          
+          {/* Main Content */}
+          <main className="container mx-auto px-4 py-8 pr-20 lg:pr-24">
+            <div className="space-y-6">
+              {tiers?.map((tier) => (
+                <div key={tier.tier_id} id={`tier-${tier.tier_number}`}>
+                  <TierSection
+                    tier={tier}
+                    isExpanded={expandedTiers.has(tier.tier_number)}
+                    onToggle={() => toggleTier(tier.tier_number)}
+                    expandedCategories={expandedCategories}
+                    onCategoryToggle={toggleCategory}
+                    onCompanyClick={setSelectedCompany}
+                    heatMapPeriod={heatMapPeriod}
+                  />
+                </div>
+              ))}
+            </div>
+          </main>
+          
+          {/* Tier Navigation */}
+          {tiers && <TierNavigation tiers={tiers} activeTier={activeTier} onTierClick={handleTierNavClick} />}
+        </>
+      )}
       
       {/* Company Detail Sheet */}
       <CompanyDetailSheet

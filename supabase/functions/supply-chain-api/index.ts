@@ -20,7 +20,8 @@ serve(async (req) => {
   }
 
   try {
-    // Create Supabase client
+    // Create Supabase client using service role key for public read-only access
+    // This endpoint serves public supply chain data - no auth required
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
@@ -154,6 +155,197 @@ serve(async (req) => {
                 companies: [...publicCompanies, ...privateComps].sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
               }
             })
+          }
+        })
+        
+        return new Response(JSON.stringify(result), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /relationships - Get all supply chain relationships for flow visualization
+      case req.method === 'GET' && path === '/relationships': {
+        // Fetch all relationships
+        const { data: relationships, error: relError } = await supabase
+          .from('supply_chain_relationships')
+          .select('*')
+          .eq('is_active', true)
+        
+        if (relError) throw relError
+        
+        // Get all asset IDs involved
+        const assetIds = new Set<number>()
+        const privateIds = new Set<number>()
+        
+        relationships?.forEach((rel: any) => {
+          if (rel.supplier_asset_id) assetIds.add(rel.supplier_asset_id)
+          if (rel.customer_asset_id) assetIds.add(rel.customer_asset_id)
+          if (rel.supplier_private_id) privateIds.add(rel.supplier_private_id)
+          if (rel.customer_private_id) privateIds.add(rel.customer_private_id)
+        })
+        
+        // Fetch asset details
+        const { data: assets, error: assetsError } = await supabase
+          .from('assets')
+          .select('asset_id, symbol, name')
+          .in('asset_id', Array.from(assetIds))
+        
+        if (assetsError) throw assetsError
+        
+        const assetMap = new Map(assets?.map((a: any) => [a.asset_id, a]) || [])
+        
+        // Fetch private company details
+        const { data: privateComps, error: privError } = await supabase
+          .from('private_companies')
+          .select('company_id, name')
+          .in('company_id', Array.from(privateIds))
+        
+        if (privError) throw privError
+        
+        const privateMap = new Map(privateComps?.map((p: any) => [p.company_id, p]) || [])
+        
+        // Fetch supply chain mappings to get tier info
+        const { data: mappings, error: mapError } = await supabase
+          .from('asset_supply_chain_mapping')
+          .select(`
+            asset_id,
+            category:category_id (
+              category_id,
+              category_name,
+              tier:tier_id (
+                tier_id,
+                tier_number,
+                tier_name
+              )
+            )
+          `)
+          .in('asset_id', Array.from(assetIds))
+        
+        if (mapError) throw mapError
+        
+        const assetTierMap = new Map(mappings?.map((m: any) => [
+          m.asset_id, 
+          {
+            tier_number: m.category?.tier?.tier_number,
+            tier_name: m.category?.tier?.tier_name,
+            category_name: m.category?.category_name
+          }
+        ]) || [])
+        
+        // Fetch private company tier info
+        const { data: privateWithTier, error: privTierError } = await supabase
+          .from('private_companies')
+          .select(`
+            company_id,
+            category:category_id (
+              category_id,
+              category_name,
+              tier:tier_id (
+                tier_id,
+                tier_number,
+                tier_name
+              )
+            )
+          `)
+          .in('company_id', Array.from(privateIds))
+        
+        if (privTierError) throw privTierError
+        
+        const privateTierMap = new Map(privateWithTier?.map((p: any) => [
+          p.company_id,
+          {
+            tier_number: p.category?.tier?.tier_number,
+            tier_name: p.category?.tier?.tier_name,
+            category_name: p.category?.category_name
+          }
+        ]) || [])
+        
+        // Fetch equity metadata for market cap
+        const symbols = assets?.map((a: any) => a.symbol).filter(Boolean) || []
+        const { data: equityData, error: eqError } = await supabase
+          .from('equity_metadata')
+          .select('symbol, market_cap')
+          .in('symbol', symbols)
+        
+        if (eqError) throw eqError
+        
+        const equityMap = new Map(equityData?.map((e: any) => [e.symbol, e.market_cap]) || [])
+        
+        // Build response
+        const result = relationships?.map((rel: any) => {
+          // Build supplier info
+          let supplier: any
+          if (rel.supplier_asset_id) {
+            const asset = assetMap.get(rel.supplier_asset_id)
+            const tierInfo = assetTierMap.get(rel.supplier_asset_id) || {}
+            supplier = {
+              asset_id: rel.supplier_asset_id,
+              private_id: null,
+              symbol: asset?.symbol,
+              name: asset?.name,
+              tier_number: tierInfo.tier_number,
+              tier_name: tierInfo.tier_name,
+              category_name: tierInfo.category_name,
+              market_cap: equityMap.get(asset?.symbol),
+              is_private: false
+            }
+          } else {
+            const priv = privateMap.get(rel.supplier_private_id)
+            const tierInfo = privateTierMap.get(rel.supplier_private_id) || {}
+            supplier = {
+              asset_id: null,
+              private_id: rel.supplier_private_id,
+              symbol: null,
+              name: priv?.name,
+              tier_number: tierInfo.tier_number,
+              tier_name: tierInfo.tier_name,
+              category_name: tierInfo.category_name,
+              market_cap: null,
+              is_private: true
+            }
+          }
+          
+          // Build customer info
+          let customer: any
+          if (rel.customer_asset_id) {
+            const asset = assetMap.get(rel.customer_asset_id)
+            const tierInfo = assetTierMap.get(rel.customer_asset_id) || {}
+            customer = {
+              asset_id: rel.customer_asset_id,
+              private_id: null,
+              symbol: asset?.symbol,
+              name: asset?.name,
+              tier_number: tierInfo.tier_number,
+              tier_name: tierInfo.tier_name,
+              category_name: tierInfo.category_name,
+              market_cap: equityMap.get(asset?.symbol),
+              is_private: false
+            }
+          } else {
+            const priv = privateMap.get(rel.customer_private_id)
+            const tierInfo = privateTierMap.get(rel.customer_private_id) || {}
+            customer = {
+              asset_id: null,
+              private_id: rel.customer_private_id,
+              symbol: null,
+              name: priv?.name,
+              tier_number: tierInfo.tier_number,
+              tier_name: tierInfo.tier_name,
+              category_name: tierInfo.category_name,
+              market_cap: null,
+              is_private: true
+            }
+          }
+          
+          return {
+            relationship_id: rel.relationship_id,
+            supplier,
+            customer,
+            relationship_type: rel.relationship_type,
+            relationship_strength: rel.relationship_strength,
+            description: rel.description,
+            products_services: rel.products_services,
+            revenue_dependency_percent: rel.revenue_dependency_percent
           }
         })
         
