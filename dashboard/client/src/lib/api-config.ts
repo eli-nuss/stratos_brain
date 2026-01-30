@@ -290,8 +290,8 @@ export async function apiFetcher<T = unknown>(url: string): Promise<T> {
   } else if (url.startsWith('/api/dashboard')) {
     fullUrl = url.replace('/api/dashboard', API_BASE + '/dashboard');
   } else if (url.startsWith('/api/supply-chain')) {
-    // Supply chain API is served directly by the Express server
-    fullUrl = url;
+    // Supply chain API is served by Supabase Edge Function
+    fullUrl = url.replace('/api/supply-chain', 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/supply-chain-api');
   } else if (url.startsWith('/api/')) {
     fullUrl = url.replace('/api/', API_BASE + '/');
   }
@@ -404,8 +404,8 @@ export async function apiPost<T = unknown>(url: string, body: unknown): Promise<
   } else if (url.startsWith('/api/dashboard')) {
     fullUrl = url.replace('/api/dashboard', API_BASE + '/dashboard');
   } else if (url.startsWith('/api/supply-chain')) {
-    // Supply chain API is served directly by the Express server
-    fullUrl = url;
+    // Supply chain API is served by Supabase Edge Function
+    fullUrl = url.replace('/api/supply-chain', 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/supply-chain-api');
   } else if (url.startsWith('/api/')) {
     fullUrl = url.replace('/api/', API_BASE + '/');
   }
@@ -450,8 +450,8 @@ export async function apiPut<T = unknown>(url: string, body: unknown): Promise<T
   } else if (url.startsWith('/api/dashboard')) {
     fullUrl = url.replace('/api/dashboard', API_BASE + '/dashboard');
   } else if (url.startsWith('/api/supply-chain')) {
-    // Supply chain API is served directly by the Express server
-    fullUrl = url;
+    // Supply chain API is served by Supabase Edge Function
+    fullUrl = url.replace('/api/supply-chain', 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/supply-chain-api');
   } else if (url.startsWith('/api/')) {
     fullUrl = url.replace('/api/', API_BASE + '/');
   }
@@ -496,8 +496,8 @@ export async function apiPatch<T = unknown>(url: string, body: unknown): Promise
   } else if (url.startsWith('/api/dashboard')) {
     fullUrl = url.replace('/api/dashboard', API_BASE + '/dashboard');
   } else if (url.startsWith('/api/supply-chain')) {
-    // Supply chain API is served directly by the Express server
-    fullUrl = url;
+    // Supply chain API is served by Supabase Edge Function
+    fullUrl = url.replace('/api/supply-chain', 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/supply-chain-api');
   } else if (url.startsWith('/api/')) {
     fullUrl = url.replace('/api/', API_BASE + '/');
   }
@@ -542,8 +542,8 @@ export async function apiDelete<T = unknown>(url: string): Promise<T> {
   } else if (url.startsWith('/api/dashboard')) {
     fullUrl = url.replace('/api/dashboard', API_BASE + '/dashboard');
   } else if (url.startsWith('/api/supply-chain')) {
-    // Supply chain API is served directly by the Express server
-    fullUrl = url;
+    // Supply chain API is served by Supabase Edge Function
+    fullUrl = url.replace('/api/supply-chain', 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/supply-chain-api');
   } else if (url.startsWith('/api/')) {
     fullUrl = url.replace('/api/', API_BASE + '/');
   }
