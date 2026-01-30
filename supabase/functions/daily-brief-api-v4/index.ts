@@ -279,7 +279,7 @@ async function fetchPortfolioHoldings(supabase: SupabaseClient): Promise<Portfol
       .from('core_portfolio_holdings')
       .select('asset_id, cost_basis, quantity, assets!inner(symbol, name, asset_type)')
       .eq('is_active', true)
-      .order('created_at', { ascending: false })
+      .order('added_at', { ascending: false })
     
     if (holdingsError) {
       console.log('[DailyBrief v4] Holdings query error:', holdingsError.message)
