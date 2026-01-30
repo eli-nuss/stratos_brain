@@ -163,22 +163,26 @@ def save_holdings(conn, etf_id: int, holdings: list, asset_id_map: dict):
     if not rows:
         return 0
     
-    with conn.cursor() as cur:
-        # Delete existing holdings for this ETF
-        cur.execute("DELETE FROM etf_holdings WHERE etf_id = %s", (etf_id,))
-        
-        # Insert new holdings
-        execute_values(
-            cur,
-            """
-            INSERT INTO etf_holdings 
-                (etf_id, asset_id, weight_percent, shares_held, market_value, as_of_date, holding_name, isin, cusip)
-            VALUES %s
-            """,
-            rows
-        )
-        conn.commit()
-        return len(rows)
+    try:
+        with conn.cursor() as cur:
+            # Delete existing holdings for this ETF
+            cur.execute("DELETE FROM etf_holdings WHERE etf_id = %s", (etf_id,))
+            
+            # Insert new holdings
+            execute_values(
+                cur,
+                """
+                INSERT INTO etf_holdings 
+                    (etf_id, asset_id, weight_percent, shares_held, market_value, as_of_date, holding_name, isin, cusip)
+                VALUES %s
+                """,
+                rows
+            )
+            conn.commit()
+            return len(rows)
+    except Exception as e:
+        conn.rollback()
+        raise e
 
 
 def save_etf_info(conn, symbol: str, asset_id: int, info: dict, sector_weightings: Optional[list]):
@@ -189,39 +193,43 @@ def save_etf_info(conn, symbol: str, asset_id: int, info: dict, sector_weighting
     # Calculate top 10 concentration if we have holdings
     top_10_concentration = None
     
-    with conn.cursor() as cur:
-        cur.execute("""
-            INSERT INTO etf_info (
-                symbol, asset_id, name, expense_ratio, aum, avg_volume, 
-                holdings_count, inception_date, description, sector_weightings,
-                top_10_concentration, updated_at
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
-            ON CONFLICT (symbol) DO UPDATE SET
-                name = EXCLUDED.name,
-                expense_ratio = EXCLUDED.expense_ratio,
-                aum = EXCLUDED.aum,
-                avg_volume = EXCLUDED.avg_volume,
-                holdings_count = EXCLUDED.holdings_count,
-                inception_date = EXCLUDED.inception_date,
-                description = EXCLUDED.description,
-                sector_weightings = EXCLUDED.sector_weightings,
-                top_10_concentration = EXCLUDED.top_10_concentration,
-                updated_at = NOW()
-        """, (
-            symbol,
-            asset_id,
-            info.get('name') or info.get('companyName'),
-            info.get('expenseRatio'),
-            info.get('aum') or info.get('netAssets'),
-            info.get('avgVolume'),
-            info.get('holdingsCount'),
-            info.get('inceptionDate'),
-            info.get('description'),
-            psycopg2.extras.Json(sector_weightings) if sector_weightings else None,
-            top_10_concentration
-        ))
-        conn.commit()
-        return True
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO etf_info (
+                    symbol, asset_id, name, expense_ratio, aum, avg_volume, 
+                    holdings_count, inception_date, description, sector_weightings,
+                    top_10_concentration, updated_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                ON CONFLICT (symbol) DO UPDATE SET
+                    name = EXCLUDED.name,
+                    expense_ratio = EXCLUDED.expense_ratio,
+                    aum = EXCLUDED.aum,
+                    avg_volume = EXCLUDED.avg_volume,
+                    holdings_count = EXCLUDED.holdings_count,
+                    inception_date = EXCLUDED.inception_date,
+                    description = EXCLUDED.description,
+                    sector_weightings = EXCLUDED.sector_weightings,
+                    top_10_concentration = EXCLUDED.top_10_concentration,
+                    updated_at = NOW()
+            """, (
+                symbol,
+                asset_id,
+                info.get('name') or info.get('companyName'),
+                info.get('expenseRatio'),
+                info.get('aum') or info.get('netAssets'),
+                info.get('avgVolume'),
+                info.get('holdingsCount'),
+                info.get('inceptionDate'),
+                info.get('description'),
+                psycopg2.extras.Json(sector_weightings) if sector_weightings else None,
+                top_10_concentration
+            ))
+            conn.commit()
+            return True
+    except Exception as e:
+        conn.rollback()
+        raise e
 
 
 def calculate_top_10_concentration(conn, etf_id: int) -> Optional[float]:
