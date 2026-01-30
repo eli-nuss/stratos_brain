@@ -5373,16 +5373,16 @@ If asked about something not in the data, acknowledge the limitation.`
           })
         }
         
-        // Get fundamentals for linked holdings
+        // Get fundamentals for linked holdings from fundamental_snapshot table
         const { data: fundamentals, error: fundError } = await supabase
-          .from('v_equity_fundamentals')
-          .select('asset_id, pe_ratio_live, price_to_sales_ttm, quarterly_revenue_growth_yoy, market_cap, dividend_yield')
+          .from('fundamental_snapshot')
+          .select('asset_id, pe_ratio, ps_ratio, revenue_growth_yoy, market_cap, dividend_yield')
           .in('asset_id', linkedAssetIds)
         
         if (fundError) {
           console.error('Fundamentals query error:', fundError)
         }
-        console.log('Fundamentals query result:', { count: fundamentals?.length, linkedAssetIds: linkedAssetIds.slice(0, 5) })
+        console.log('Fundamentals query result:', { count: fundamentals?.length, error: fundError, linkedAssetIds: linkedAssetIds.slice(0, 5) })
         
         // Get latest daily features (returns) for linked holdings
         const { data: features } = await supabase
@@ -5430,34 +5430,34 @@ If asked about something not in the data, acknowledge the limitation.`
         if (fundamentals && fundamentals.length > 0) {
           stats.holdings_with_fundamentals = fundamentals.length
           
-          // P/E ratios (filter outliers)
+          // P/E ratios (filter outliers) - using pe_ratio from fundamental_snapshot
           const peValues = fundamentals
-            .filter(f => f.pe_ratio_live && f.pe_ratio_live > 0 && f.pe_ratio_live < 500)
-            .map(f => ({ value: f.pe_ratio_live, weight: weightMap[f.asset_id] || 1 }))
+            .filter(f => f.pe_ratio && f.pe_ratio > 0 && f.pe_ratio < 500)
+            .map(f => ({ value: f.pe_ratio, weight: weightMap[f.asset_id] || 1 }))
           stats.pe_ratio.weighted_avg = calculateWeightedAvg(peValues)
           stats.pe_ratio.median = calculateMedian(peValues.map(v => v.value))
           stats.pe_ratio.count = peValues.length
           
-          // P/S ratios
+          // P/S ratios - using ps_ratio from fundamental_snapshot
           const psValues = fundamentals
-            .filter(f => f.price_to_sales_ttm && f.price_to_sales_ttm > 0 && f.price_to_sales_ttm < 500)
-            .map(f => ({ value: f.price_to_sales_ttm, weight: weightMap[f.asset_id] || 1 }))
+            .filter(f => f.ps_ratio && f.ps_ratio > 0 && f.ps_ratio < 500)
+            .map(f => ({ value: f.ps_ratio, weight: weightMap[f.asset_id] || 1 }))
           stats.ps_ratio.weighted_avg = calculateWeightedAvg(psValues)
           stats.ps_ratio.median = calculateMedian(psValues.map(v => v.value))
           stats.ps_ratio.count = psValues.length
           
-          // Dividend yield
+          // Dividend yield (already in percentage in fundamental_snapshot)
           const divValues = fundamentals
             .filter(f => f.dividend_yield !== null && f.dividend_yield >= 0)
-            .map(f => ({ value: f.dividend_yield, weight: weightMap[f.asset_id] || 1 }))
+            .map(f => ({ value: f.dividend_yield * 100, weight: weightMap[f.asset_id] || 1 }))
           stats.dividend_yield.weighted_avg = calculateWeightedAvg(divValues)
           stats.dividend_yield.median = calculateMedian(divValues.map(v => v.value))
           stats.dividend_yield.count = divValues.length
           
-          // Revenue growth YoY (convert to percentage)
+          // Revenue growth YoY (already in decimal, convert to percentage)
           const revGrowthValues = fundamentals
-            .filter(f => f.quarterly_revenue_growth_yoy !== null)
-            .map(f => ({ value: f.quarterly_revenue_growth_yoy * 100, weight: weightMap[f.asset_id] || 1 }))
+            .filter(f => f.revenue_growth_yoy !== null)
+            .map(f => ({ value: f.revenue_growth_yoy * 100, weight: weightMap[f.asset_id] || 1 }))
           stats.revenue_growth_yoy.weighted_avg = calculateWeightedAvg(revGrowthValues)
           stats.revenue_growth_yoy.median = calculateMedian(revGrowthValues.map(v => v.value))
           stats.revenue_growth_yoy.count = revGrowthValues.length
