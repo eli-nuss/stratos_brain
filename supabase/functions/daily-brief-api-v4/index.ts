@@ -19,6 +19,8 @@ interface PortfolioHolding {
   rsi: number
   setup: string
   news: string
+  news_full: string  // Full description for tooltip
+  news_url: string   // Link to the news article
   catalysts: string
   asset_url: string
 }
@@ -164,45 +166,96 @@ function generateIntelFromRSS(rssItems: any[]): IntelItem[] {
   }))
 }
 
-// Match news to portfolio holdings
-function matchNewsToHoldings(holdings: PortfolioHolding[], rssItems: any[]): void {
-  const symbolKeywords: Record<string, string[]> = {
-    'MSTR': ['microstrategy', 'strategy inc', 'bitcoin', 'btc', 'saylor'],
-    'NVDA': ['nvidia', 'gpu', 'ai chip', 'jensen'],
-    'AAPL': ['apple', 'iphone', 'tim cook'],
-    'GOOGL': ['google', 'alphabet', 'search', 'youtube'],
-    'AMZN': ['amazon', 'aws', 'bezos', 'jassy'],
-    'TSLA': ['tesla', 'ev', 'musk', 'electric vehicle'],
-    'META': ['meta', 'facebook', 'instagram', 'zuckerberg'],
-    'MSFT': ['microsoft', 'azure', 'windows', 'nadella'],
-    'COPX': ['copper', 'mining', 'commodities'],
-    'GDXJ': ['gold', 'miners', 'precious metals'],
-    'URA': ['uranium', 'nuclear', 'energy'],
-    'SILJ': ['silver', 'miners', 'precious metals'],
-    'PLTM': ['platinum', 'precious metals'],
-    'ENLT': ['renewable', 'energy', 'solar', 'wind'],
-    'IREN': ['bitcoin', 'mining', 'crypto'],
-    'RKLB': ['rocket lab', 'space', 'satellite', 'launch'],
-    'RDW': ['redwire', 'space', 'satellite'],
-    'SIDU': ['sidus', 'space'],
-    'MU': ['micron', 'memory', 'dram', 'nand', 'semiconductor'],
-    'USAR': ['rare earth', 'mining'],
-    'FARTCOIN': ['fartcoin', 'meme', 'crypto'],
+// Search for news for a single holding using Gemini with Google Search
+async function searchNewsForHolding(symbol: string, name: string): Promise<{ headline: string, description: string, url: string }> {
+  const apiKey = Deno.env.get('GEMINI_API_KEY')
+  if (!apiKey) {
+    return { headline: '', description: '', url: '' }
   }
   
-  holdings.forEach(h => {
-    const keywords = symbolKeywords[h.symbol] || [h.symbol.toLowerCase(), h.name.toLowerCase()]
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 8000)
+  
+  try {
+    const query = `Find the most important recent news (last 7 days) about ${symbol} (${name}) stock. Return ONLY a JSON object with these fields: headline (max 80 chars), description (2-3 sentence summary of why this matters for investors), url (source link). If no recent news, return empty strings.`
     
-    for (const item of rssItems) {
-      const searchText = `${item.title} ${item.description}`.toLowerCase()
-      const matched = keywords.some(kw => searchText.includes(kw))
-      
-      if (matched) {
-        h.news = decodeHtmlEntities(item.title?.slice(0, 100) || '')
-        break
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: query }] }],
+          tools: [{ googleSearch: {} }],
+          generationConfig: { temperature: 0.3, maxOutputTokens: 500 }
+        }),
+        signal: controller.signal
       }
+    )
+    
+    clearTimeout(timeout)
+    
+    if (!response.ok) {
+      console.log(`[DailyBrief v4] Gemini search error for ${symbol}: ${response.status}`)
+      return { headline: '', description: '', url: '' }
     }
-  })
+    
+    const data = await response.json()
+    const text = data.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') || ''
+    
+    // Try to parse JSON from the response
+    try {
+      // Extract JSON from the response (it might be wrapped in markdown code blocks)
+      const jsonMatch = text.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0])
+        return {
+          headline: parsed.headline || '',
+          description: parsed.description || '',
+          url: parsed.url || ''
+        }
+      }
+    } catch (parseError) {
+      console.log(`[DailyBrief v4] JSON parse error for ${symbol}:`, parseError)
+    }
+    
+    return { headline: '', description: '', url: '' }
+  } catch (e) {
+    clearTimeout(timeout)
+    console.log(`[DailyBrief v4] News search error for ${symbol}:`, e)
+    return { headline: '', description: '', url: '' }
+  }
+}
+
+// Search news for all holdings in parallel (with batching to avoid rate limits)
+async function searchNewsForAllHoldings(holdings: PortfolioHolding[]): Promise<void> {
+  console.log(`[DailyBrief v4] Searching news for ${holdings.length} holdings...`)
+  
+  // Process in batches of 5 to avoid rate limits
+  const batchSize = 5
+  for (let i = 0; i < holdings.length; i += batchSize) {
+    const batch = holdings.slice(i, i + batchSize)
+    
+    const results = await Promise.all(
+      batch.map(h => searchNewsForHolding(h.symbol, h.name))
+    )
+    
+    results.forEach((result, idx) => {
+      const holding = batch[idx]
+      if (result.headline) {
+        holding.news = result.headline
+        holding.news_full = result.description
+        holding.news_url = result.url
+      }
+    })
+    
+    // Small delay between batches to avoid rate limits
+    if (i + batchSize < holdings.length) {
+      await new Promise(resolve => setTimeout(resolve, 200))
+    }
+  }
+  
+  console.log(`[DailyBrief v4] News search complete`)
 }
 
 // Call Gemini with timeout
@@ -324,7 +377,9 @@ async function fetchPortfolioHoldings(supabase: SupabaseClient): Promise<Portfol
           ai_direction: assetData?.ai_direction_score ?? 'N/A',
           rsi: Math.round(rsi),
           setup: setupData?.setup_name?.replace(/_/g, ' ') || 'No Setup',
-          news: '', // Will be populated by matchNewsToHoldings
+          news: '', // Will be populated by searchNewsForAllHoldings
+          news_full: '',
+          news_url: '',
           catalysts: '',
           asset_url: `/asset/${h.asset_id}`
         } as PortfolioHolding
@@ -340,6 +395,8 @@ async function fetchPortfolioHoldings(supabase: SupabaseClient): Promise<Portfol
           rsi: 50,
           setup: 'No Setup',
           news: '',
+          news_full: '',
+          news_url: '',
           catalysts: '',
           asset_url: `/asset/${h.asset_id}`
         } as PortfolioHolding
@@ -500,11 +557,10 @@ Deno.serve(async (req) => {
     console.log(`[DailyBrief v4] Initial fetch completed in ${Date.now() - startTime}ms`)
     console.log(`[DailyBrief v4] Portfolio: ${portfolioHoldings.length}, RSS: ${rssItems.length}`)
     
-    // Match news to holdings BEFORE generating intel
-    matchNewsToHoldings(portfolioHoldings, rssItems)
-    
-    // Generate intel and RSS items in parallel
-    const [morningIntel, intelItems] = await Promise.all([
+    // Search for news for each holding using Gemini with Google Search
+    // Run this in parallel with generating morning intel
+    const [_, morningIntel, intelItems] = await Promise.all([
+      searchNewsForAllHoldings(portfolioHoldings),
       generateMorningIntel(),
       Promise.resolve(generateIntelFromRSS(rssItems))
     ])

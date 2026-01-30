@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { 
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
 } from "@/components/ui/select";
@@ -49,6 +49,8 @@ interface PortfolioHolding {
   rsi: number;
   setup: string;
   news: string;
+  news_full?: string;  // Full description for tooltip
+  news_url?: string;   // Link to the news article
   catalysts: string;
   asset_url: string;
 }
@@ -273,9 +275,52 @@ function PortfolioSection({ holdings, onAssetClick }: {
                     </Badge>
                   </td>
                   <td className="py-2.5 px-4 hidden lg:table-cell">
-                    <span className="text-xs text-muted-foreground truncate block max-w-[200px]">
-                      {h.news ? decodeHtmlEntities(h.news) : "No recent news"}
-                    </span>
+                    {h.news ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center gap-1 cursor-pointer group">
+                            <span className="text-xs text-muted-foreground truncate block max-w-[180px] group-hover:text-foreground transition-colors">
+                              {decodeHtmlEntities(h.news)}
+                            </span>
+                            {h.news_url && (
+                              <a 
+                                href={h.news_url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <ExternalLink className="h-3 w-3 text-muted-foreground hover:text-primary" />
+                              </a>
+                            )}
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-[350px] p-3">
+                          <div className="space-y-2">
+                            <p className="font-medium text-sm">{decodeHtmlEntities(h.news)}</p>
+                            {h.news_full && (
+                              <p className="text-xs text-muted-foreground">
+                                {decodeHtmlEntities(h.news_full)}
+                              </p>
+                            )}
+                            {h.news_url && (
+                              <a 
+                                href={h.news_url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-xs text-primary hover:underline flex items-center gap-1"
+                              >
+                                Read full article <ExternalLink className="h-3 w-3" />
+                              </a>
+                            )}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <span className="text-xs text-muted-foreground/50 italic">
+                        No recent news
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -601,6 +646,7 @@ export default function DailyBriefV4() {
   }
   
   return (
+    <TooltipProvider>
     <DashboardLayout>
       <div className="p-4 md:p-6 max-w-7xl mx-auto">
         {/* Header */}
@@ -752,5 +798,6 @@ export default function DailyBriefV4() {
         )}
       </div>
     </DashboardLayout>
+    </TooltipProvider>
   );
 }
