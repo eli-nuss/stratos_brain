@@ -1,4 +1,4 @@
-// Daily Brief API v4 - Optimized for speed with better error handling
+// Daily Brief API v4 - Enhanced with live data, alerts, and better formatting
 // Parallel fetching, shorter timeouts, graceful degradation
 
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -8,31 +8,52 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-stratos-key, x-user-id',
 }
 
+// API Keys for live data
+const FMP_API_KEY = 'DlFKwOV9d0ccK6jJy7LBUCwjk50Y0DCe'
+const ALPHA_VANTAGE_KEY = 'PLZVWIJQFOVHT4WL'
+
 // Types
 interface PortfolioHolding {
   asset_id: number
   symbol: string
   name: string
+  asset_type: string
   action: "ADD" | "TRIM" | "HOLD"
-  price: number
+  cost_basis: number
+  current_price: number
+  change_pct: number
   ai_direction: number | string
   rsi: number
   setup: string
   news: string
-  news_full: string  // Full description for tooltip
-  news_url: string   // Link to the news article
-  catalysts: string
+  news_full: string
+  news_url: string
+  news_time: string
   asset_url: string
 }
 
 interface MarketTicker {
+  spy_price: number
   spy_change: number
+  qqq_price: number
   qqq_change: number
+  iwm_price: number
   iwm_change: number
-  yield_10y: number
+  btc_price: number
   btc_change: number
+  yield_10y: number
   vix: number
   regime: string
+  last_updated: string
+}
+
+interface Alert {
+  symbol: string
+  name: string
+  alert_type: 'RSI_OVERBOUGHT' | 'RSI_OVERSOLD' | 'NEW_HIGH' | 'NEW_LOW' | 'BREAKOUT' | 'BREAKDOWN'
+  message: string
+  severity: 'HIGH' | 'MEDIUM' | 'LOW'
+  asset_url: string
 }
 
 interface IntelItem {
@@ -42,13 +63,13 @@ interface IntelItem {
   url: string
   source: string
   date: string
+  time_ago: string
 }
 
-// RSS Feeds - expanded list for better coverage
+// RSS Feeds
 const RSS_FEEDS = [
   { url: 'https://www.marketwatch.com/rss/topstories', source: 'MarketWatch' },
   { url: 'https://seekingalpha.com/market_currents.xml', source: 'Seeking Alpha' },
-  { url: 'https://feeds.bloomberg.com/markets/news.rss', source: 'Bloomberg' },
 ]
 
 // HTML entity decoder
@@ -71,6 +92,26 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&ldquo;/g, '"')
 }
 
+// Calculate time ago string
+function getTimeAgo(dateStr: string): string {
+  if (!dateStr) return ''
+  try {
+    const date = new Date(dateStr)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMins / 60)
+    const diffDays = Math.floor(diffHours / 24)
+    
+    if (diffMins < 60) return `${diffMins}m ago`
+    if (diffHours < 24) return `${diffHours}h ago`
+    if (diffDays < 7) return `${diffDays}d ago`
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  } catch {
+    return ''
+  }
+}
+
 // Fetch with timeout helper
 async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = 5000): Promise<Response | null> {
   const controller = new AbortController()
@@ -82,9 +123,121 @@ async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = 5000
     return response
   } catch (e) {
     clearTimeout(timeout)
-    console.log(`[DailyBrief v4] Fetch timeout for ${url}`)
     return null
   }
+}
+
+// Fetch live market data from FMP API
+async function fetchLiveMarketData(): Promise<MarketTicker> {
+  const defaultTicker: MarketTicker = {
+    spy_price: 0, spy_change: 0,
+    qqq_price: 0, qqq_change: 0,
+    iwm_price: 0, iwm_change: 0,
+    btc_price: 0, btc_change: 0,
+    yield_10y: 4.26, vix: 14,
+    regime: 'NEUTRAL',
+    last_updated: new Date().toISOString()
+  }
+  
+  try {
+    console.log('[DailyBrief v4] Fetching live market data...')
+    
+    // Fetch SPY, QQQ, IWM, VIX quotes in parallel
+    const symbols = ['SPY', 'QQQ', 'IWM', '^VIX']
+    const quoteUrl = `https://financialmodelingprep.com/api/v3/quote/${symbols.join(',')}?apikey=${FMP_API_KEY}`
+    
+    const [quoteRes, btcRes, treasuryRes] = await Promise.all([
+      fetchWithTimeout(quoteUrl, {}, 4000),
+      fetchWithTimeout(`https://financialmodelingprep.com/api/v3/quote/BTCUSD?apikey=${FMP_API_KEY}`, {}, 4000),
+      fetchWithTimeout(`https://financialmodelingprep.com/api/v3/treasury?from=${new Date().toISOString().split('T')[0]}&to=${new Date().toISOString().split('T')[0]}&apikey=${FMP_API_KEY}`, {}, 4000)
+    ])
+    
+    if (quoteRes?.ok) {
+      const quotes = await quoteRes.json()
+      const spy = quotes.find((q: any) => q.symbol === 'SPY')
+      const qqq = quotes.find((q: any) => q.symbol === 'QQQ')
+      const iwm = quotes.find((q: any) => q.symbol === 'IWM')
+      const vix = quotes.find((q: any) => q.symbol === '^VIX')
+      
+      if (spy) {
+        defaultTicker.spy_price = spy.price || 0
+        defaultTicker.spy_change = spy.changesPercentage || 0
+      }
+      if (qqq) {
+        defaultTicker.qqq_price = qqq.price || 0
+        defaultTicker.qqq_change = qqq.changesPercentage || 0
+      }
+      if (iwm) {
+        defaultTicker.iwm_price = iwm.price || 0
+        defaultTicker.iwm_change = iwm.changesPercentage || 0
+      }
+      if (vix) {
+        defaultTicker.vix = vix.price || 14
+      }
+    }
+    
+    if (btcRes?.ok) {
+      const btcData = await btcRes.json()
+      if (btcData?.[0]) {
+        defaultTicker.btc_price = btcData[0].price || 0
+        defaultTicker.btc_change = btcData[0].changesPercentage || 0
+      }
+    }
+    
+    if (treasuryRes?.ok) {
+      const treasuryData = await treasuryRes.json()
+      if (treasuryData?.[0]?.year10) {
+        defaultTicker.yield_10y = treasuryData[0].year10
+      }
+    }
+    
+    // Determine market regime based on data
+    const avgChange = (defaultTicker.spy_change + defaultTicker.qqq_change) / 2
+    if (avgChange > 1) defaultTicker.regime = 'BULLISH'
+    else if (avgChange < -1) defaultTicker.regime = 'BEARISH'
+    else if (defaultTicker.vix > 25) defaultTicker.regime = 'VOLATILE'
+    else defaultTicker.regime = 'NEUTRAL'
+    
+    console.log('[DailyBrief v4] Live market data fetched:', defaultTicker.regime)
+    return defaultTicker
+    
+  } catch (e) {
+    console.log('[DailyBrief v4] Live market data error:', e)
+    return defaultTicker
+  }
+}
+
+// Fetch live price for a symbol
+async function fetchLivePrice(symbol: string, assetType: string): Promise<{ price: number, change: number }> {
+  try {
+    // For crypto, use different endpoint
+    if (assetType === 'crypto') {
+      const res = await fetchWithTimeout(
+        `https://financialmodelingprep.com/api/v3/quote/${symbol}USD?apikey=${FMP_API_KEY}`,
+        {}, 3000
+      )
+      if (res?.ok) {
+        const data = await res.json()
+        if (data?.[0]) {
+          return { price: data[0].price || 0, change: data[0].changesPercentage || 0 }
+        }
+      }
+    } else {
+      const res = await fetchWithTimeout(
+        `https://financialmodelingprep.com/api/v3/quote/${symbol}?apikey=${FMP_API_KEY}`,
+        {}, 3000
+      )
+      if (res?.ok) {
+        const data = await res.json()
+        if (data?.[0]) {
+          return { price: data[0].price || 0, change: data[0].changesPercentage || 0 }
+        }
+      }
+    }
+  } catch (e) {
+    console.log(`[DailyBrief v4] Price fetch error for ${symbol}:`, e)
+  }
+  return { price: 0, change: 0 }
 }
 
 // Fetch RSS feed with better parsing
@@ -99,7 +252,6 @@ async function fetchRSSFeed(url: string, source: string): Promise<any[]> {
     const xml = await response.text()
     const items: any[] = []
     
-    // Simple regex parsing
     const itemRegex = /<item>(.*?)<\/item>/gs
     const titleRegex = /<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/i
     const linkRegex = /<link>(.*?)<\/link>/i
@@ -121,7 +273,6 @@ async function fetchRSSFeed(url: string, source: string): Promise<any[]> {
     
     return items
   } catch (e) {
-    console.log(`[DailyBrief v4] RSS fetch error for ${source}:`, e)
     return []
   }
 }
@@ -151,10 +302,10 @@ function categorizeNews(title: string, description: string): string {
   if (text.match(/china|russia|ukraine|tariff|trade war|geopolitical|sanctions/)) return 'GEOPOL'
   if (text.match(/ai|tech|nvidia|apple|microsoft|google|amazon|semiconductor/)) return 'TECH'
   
-  return 'ECON' // Default category
+  return 'ECON'
 }
 
-// Generate intel from RSS with better categorization
+// Generate intel from RSS with time stamps
 function generateIntelFromRSS(rssItems: any[]): IntelItem[] {
   return rssItems.slice(0, 10).map((item) => ({
     category: categorizeNews(item.title || '', item.description || ''),
@@ -162,7 +313,8 @@ function generateIntelFromRSS(rssItems: any[]): IntelItem[] {
     impact: item.description?.slice(0, 180) || 'Market news and analysis',
     url: item.link || '',
     source: item.source || 'News',
-    date: item.pubDate || new Date().toISOString()
+    date: item.pubDate || new Date().toISOString(),
+    time_ago: getTimeAgo(item.pubDate)
   }))
 }
 
@@ -196,16 +348,13 @@ async function searchNewsForHolding(symbol: string, name: string): Promise<{ hea
     clearTimeout(timeout)
     
     if (!response.ok) {
-      console.log(`[DailyBrief v4] Gemini search error for ${symbol}: ${response.status}`)
       return { headline: '', description: '', url: '' }
     }
     
     const data = await response.json()
     const text = data.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') || ''
     
-    // Try to parse JSON from the response
     try {
-      // Extract JSON from the response (it might be wrapped in markdown code blocks)
       const jsonMatch = text.match(/\{[\s\S]*\}/)
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0])
@@ -216,22 +365,20 @@ async function searchNewsForHolding(symbol: string, name: string): Promise<{ hea
         }
       }
     } catch (parseError) {
-      console.log(`[DailyBrief v4] JSON parse error for ${symbol}:`, parseError)
+      // Ignore parse errors
     }
     
     return { headline: '', description: '', url: '' }
   } catch (e) {
     clearTimeout(timeout)
-    console.log(`[DailyBrief v4] News search error for ${symbol}:`, e)
     return { headline: '', description: '', url: '' }
   }
 }
 
-// Search news for all holdings in parallel (with batching to avoid rate limits)
+// Search news for all holdings in parallel
 async function searchNewsForAllHoldings(holdings: PortfolioHolding[]): Promise<void> {
   console.log(`[DailyBrief v4] Searching news for ${holdings.length} holdings...`)
   
-  // Process in batches of 5 to avoid rate limits
   const batchSize = 5
   for (let i = 0; i < holdings.length; i += batchSize) {
     const batch = holdings.slice(i, i + batchSize)
@@ -246,23 +393,20 @@ async function searchNewsForAllHoldings(holdings: PortfolioHolding[]): Promise<v
         holding.news = result.headline
         holding.news_full = result.description
         holding.news_url = result.url
+        holding.news_time = 'Recent'
       }
     })
     
-    // Small delay between batches to avoid rate limits
     if (i + batchSize < holdings.length) {
       await new Promise(resolve => setTimeout(resolve, 200))
     }
   }
-  
-  console.log(`[DailyBrief v4] News search complete`)
 }
 
 // Call Gemini with timeout
 async function callGeminiWithTimeout(query: string, timeoutMs = 12000): Promise<{ text: string }> {
   const apiKey = Deno.env.get('GEMINI_API_KEY')
   if (!apiKey) {
-    console.log('[DailyBrief v4] GEMINI_API_KEY not set')
     return { text: 'AI insights unavailable' }
   }
   
@@ -287,16 +431,14 @@ async function callGeminiWithTimeout(query: string, timeoutMs = 12000): Promise<
     clearTimeout(timeout)
     
     if (!response.ok) {
-      console.log(`[DailyBrief v4] Gemini API error: ${response.status}`)
       return { text: 'AI insights temporarily unavailable' }
     }
     
     const data = await response.json()
-    const text = data.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') || 'No insights available'
+    const text = data.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') || ''
     return { text }
   } catch (e) {
     clearTimeout(timeout)
-    console.log('[DailyBrief v4] Gemini timeout or error:', e)
     return { text: 'AI insights loading...' }
   }
 }
@@ -323,7 +465,7 @@ async function generateMorningIntel() {
   return intel
 }
 
-// Fetch ALL portfolio holdings (removed the slice limit)
+// Fetch portfolio holdings with live prices
 async function fetchPortfolioHoldings(supabase: SupabaseClient): Promise<PortfolioHolding[]> {
   try {
     console.log('[DailyBrief v4] Fetching portfolio holdings...')
@@ -334,24 +476,19 @@ async function fetchPortfolioHoldings(supabase: SupabaseClient): Promise<Portfol
       .eq('is_active', true)
       .order('added_at', { ascending: false })
     
-    if (holdingsError) {
-      console.log('[DailyBrief v4] Holdings query error:', holdingsError.message)
+    if (holdingsError || !holdings || holdings.length === 0) {
       return []
     }
     
-    if (!holdings || holdings.length === 0) {
-      console.log('[DailyBrief v4] No active holdings found')
-      return []
-    }
+    console.log(`[DailyBrief v4] Found ${holdings.length} holdings - enriching with live data`)
     
-    console.log(`[DailyBrief v4] Found ${holdings.length} holdings - processing ALL`)
-    
-    // Process ALL holdings in parallel (no slice limit)
+    // Process holdings in parallel
     const enrichmentPromises = holdings.map(async (h) => {
       const asset = h.assets as any
       
       try {
-        const [assetResult, setupResult] = await Promise.all([
+        // Fetch DB data and live price in parallel
+        const [assetResult, setupResult, priceData] = await Promise.all([
           supabase.from('mv_dashboard_all_assets')
             .select('ai_direction_score, rsi_14')
             .eq('asset_id', h.asset_id)
@@ -361,43 +498,49 @@ async function fetchPortfolioHoldings(supabase: SupabaseClient): Promise<Portfol
             .eq('asset_id', h.asset_id)
             .order('signal_date', { ascending: false })
             .limit(1)
-            .maybeSingle()
+            .maybeSingle(),
+          fetchLivePrice(asset.symbol, asset.asset_type)
         ])
         
         const assetData = assetResult.data
         const setupData = setupResult.data
-        
         const rsi = assetData?.rsi_14 || 50
+        
         return {
           asset_id: h.asset_id,
           symbol: asset.symbol,
-          name: asset.name?.slice(0, 30) || asset.symbol,
+          name: asset.name?.slice(0, 25) || asset.symbol,
+          asset_type: asset.asset_type || 'equity',
           action: rsi > 70 ? 'TRIM' : rsi < 30 ? 'ADD' : 'HOLD',
-          price: h.cost_basis || 0,
+          cost_basis: h.cost_basis || 0,
+          current_price: priceData.price,
+          change_pct: priceData.change,
           ai_direction: assetData?.ai_direction_score ?? 'N/A',
           rsi: Math.round(rsi),
           setup: setupData?.setup_name?.replace(/_/g, ' ') || 'No Setup',
-          news: '', // Will be populated by searchNewsForAllHoldings
+          news: '',
           news_full: '',
           news_url: '',
-          catalysts: '',
+          news_time: '',
           asset_url: `/asset/${h.asset_id}`
         } as PortfolioHolding
       } catch (e) {
-        console.log(`[DailyBrief v4] Error enriching holding ${h.asset_id}:`, e)
         return {
           asset_id: h.asset_id,
           symbol: asset.symbol,
-          name: asset.name?.slice(0, 30) || asset.symbol,
+          name: asset.name?.slice(0, 25) || asset.symbol,
+          asset_type: asset.asset_type || 'equity',
           action: 'HOLD',
-          price: h.cost_basis || 0,
+          cost_basis: h.cost_basis || 0,
+          current_price: 0,
+          change_pct: 0,
           ai_direction: 'N/A',
           rsi: 50,
           setup: 'No Setup',
           news: '',
           news_full: '',
           news_url: '',
-          catalysts: '',
+          news_time: '',
           asset_url: `/asset/${h.asset_id}`
         } as PortfolioHolding
       }
@@ -412,46 +555,80 @@ async function fetchPortfolioHoldings(supabase: SupabaseClient): Promise<Portfol
   }
 }
 
-// Fetch market ticker with better error handling
-async function fetchMarketTicker(supabase: SupabaseClient): Promise<MarketTicker> {
-  try {
-    console.log('[DailyBrief v4] Fetching market ticker...')
-    
-    const { data: macro, error } = await supabase
-      .from('daily_macro_metrics')
-      .select('spy_change_pct, qqq_change_pct, iwm_change_pct, us10y_yield, btc_change_pct, vix_close, market_regime')
-      .order('date', { ascending: false })
-      .limit(1)
-      .single()
-    
-    if (error) {
-      console.log('[DailyBrief v4] Macro query error:', error.message)
-      throw new Error('No macro data')
+// Generate alerts from portfolio holdings
+function generateAlerts(holdings: PortfolioHolding[]): Alert[] {
+  const alerts: Alert[] = []
+  
+  for (const h of holdings) {
+    // RSI alerts
+    if (h.rsi >= 80) {
+      alerts.push({
+        symbol: h.symbol,
+        name: h.name,
+        alert_type: 'RSI_OVERBOUGHT',
+        message: `${h.symbol} RSI at ${h.rsi} - extremely overbought, consider taking profits`,
+        severity: 'HIGH',
+        asset_url: h.asset_url
+      })
+    } else if (h.rsi >= 70) {
+      alerts.push({
+        symbol: h.symbol,
+        name: h.name,
+        alert_type: 'RSI_OVERBOUGHT',
+        message: `${h.symbol} RSI at ${h.rsi} - overbought territory`,
+        severity: 'MEDIUM',
+        asset_url: h.asset_url
+      })
+    } else if (h.rsi <= 20) {
+      alerts.push({
+        symbol: h.symbol,
+        name: h.name,
+        alert_type: 'RSI_OVERSOLD',
+        message: `${h.symbol} RSI at ${h.rsi} - extremely oversold, potential buying opportunity`,
+        severity: 'HIGH',
+        asset_url: h.asset_url
+      })
+    } else if (h.rsi <= 30) {
+      alerts.push({
+        symbol: h.symbol,
+        name: h.name,
+        alert_type: 'RSI_OVERSOLD',
+        message: `${h.symbol} RSI at ${h.rsi} - oversold territory`,
+        severity: 'MEDIUM',
+        asset_url: h.asset_url
+      })
     }
     
-    if (!macro) throw new Error('No macro data')
-    
-    console.log('[DailyBrief v4] Macro data fetched:', macro.market_regime)
-    
-    return {
-      spy_change: macro.spy_change_pct || 0,
-      qqq_change: macro.qqq_change_pct || 0,
-      iwm_change: macro.iwm_change_pct || 0,
-      yield_10y: macro.us10y_yield || 4.26,
-      btc_change: macro.btc_change_pct || 0,
-      vix: macro.vix_close || 14,
-      regime: macro.market_regime || 'NEUTRAL'
-    }
-  } catch (e) {
-    console.log('[DailyBrief v4] Market ticker fallback:', e)
-    return {
-      spy_change: 0, qqq_change: 0, iwm_change: 0,
-      yield_10y: 4.26, btc_change: 0, vix: 14, regime: 'NEUTRAL'
+    // Big movers
+    if (h.change_pct >= 5) {
+      alerts.push({
+        symbol: h.symbol,
+        name: h.name,
+        alert_type: 'BREAKOUT',
+        message: `${h.symbol} up ${h.change_pct.toFixed(1)}% today - strong momentum`,
+        severity: 'HIGH',
+        asset_url: h.asset_url
+      })
+    } else if (h.change_pct <= -5) {
+      alerts.push({
+        symbol: h.symbol,
+        name: h.name,
+        alert_type: 'BREAKDOWN',
+        message: `${h.symbol} down ${Math.abs(h.change_pct).toFixed(1)}% today - review position`,
+        severity: 'HIGH',
+        asset_url: h.asset_url
+      })
     }
   }
+  
+  // Sort by severity
+  const severityOrder = { HIGH: 0, MEDIUM: 1, LOW: 2 }
+  alerts.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity])
+  
+  return alerts.slice(0, 8)
 }
 
-// Fetch setup candidates with better error handling
+// Fetch setup candidates with deduplication
 async function fetchSetupCandidates(supabase: SupabaseClient, setupTypes: string[]): Promise<any[]> {
   try {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
@@ -462,18 +639,22 @@ async function fetchSetupCandidates(supabase: SupabaseClient, setupTypes: string
       .in('setup_name', setupTypes)
       .gte('signal_date', thirtyDaysAgo)
       .order('signal_date', { ascending: false })
-      .limit(15)
+      .limit(20)
     
-    if (error) {
-      console.log('[DailyBrief v4] Setup signals error:', error.message)
-      return []
-    }
+    if (error || !signals || signals.length === 0) return []
     
-    if (!signals || signals.length === 0) return []
+    // Deduplicate by symbol - keep only the most recent setup per symbol
+    const seenSymbols = new Set<string>()
+    const dedupedSignals = signals.filter(s => {
+      const symbol = (s.assets as any)?.symbol
+      if (!symbol || seenSymbols.has(symbol)) return false
+      seenSymbols.add(symbol)
+      return true
+    }).slice(0, 10)
     
-    // Enrich with AI scores in parallel
+    // Enrich with AI scores
     const enriched = await Promise.all(
-      signals.slice(0, 10).map(async (s) => {
+      dedupedSignals.map(async (s) => {
         try {
           const { data: assetData } = await supabase
             .from('mv_dashboard_all_assets')
@@ -482,6 +663,7 @@ async function fetchSetupCandidates(supabase: SupabaseClient, setupTypes: string
             .single()
           
           return {
+            asset_id: s.asset_id,
             symbol: (s.assets as any)?.symbol || 'N/A',
             name: (s.assets as any)?.name || '',
             setup: s.setup_name,
@@ -490,6 +672,7 @@ async function fetchSetupCandidates(supabase: SupabaseClient, setupTypes: string
           }
         } catch {
           return {
+            asset_id: s.asset_id,
             symbol: (s.assets as any)?.symbol || 'N/A',
             name: (s.assets as any)?.name || '',
             setup: s.setup_name,
@@ -502,7 +685,6 @@ async function fetchSetupCandidates(supabase: SupabaseClient, setupTypes: string
     
     return enriched
   } catch (e) {
-    console.log('[DailyBrief v4] Setup candidates error:', e)
     return []
   }
 }
@@ -511,25 +693,24 @@ async function fetchSetupCandidates(supabase: SupabaseClient, setupTypes: string
 function generatePicks(candidates: any[]): any[] {
   if (candidates.length === 0) return []
   
-  // Sort by composite score (direction + purity) / 2
   const sorted = candidates
     .map(c => ({ ...c, score: (c.direction + c.purity) / 2 }))
     .sort((a, b) => b.score - a.score)
     .slice(0, 5)
   
   return sorted.map(c => ({
+    asset_id: c.asset_id,
     symbol: c.symbol,
     name: c.name,
     conviction: c.score > 70 ? 'HIGH' : c.score > 55 ? 'MEDIUM' : 'LOW',
     setup_type: c.setup?.replace(/_/g, ' ') || 'Setup',
-    one_liner: `${c.setup?.replace(/_/g, ' ')} - Score: ${Math.round(c.score)}`,
-    rationale: `Direction: ${Math.round(c.direction)}, Purity: ${Math.round(c.purity)}`
+    score: Math.round(c.score),
+    asset_url: `/asset/${c.asset_id}`
   }))
 }
 
 // Main handler
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -547,25 +728,26 @@ Deno.serve(async (req) => {
     console.log('[DailyBrief v4] Starting request...')
     const startTime = Date.now()
     
-    // Fetch all data in parallel for speed
+    // Fetch all data in parallel
     const [marketTicker, portfolioHoldings, rssItems] = await Promise.all([
-      fetchMarketTicker(supabase),
+      fetchLiveMarketData(),
       fetchPortfolioHoldings(supabase),
       fetchAllRSS()
     ])
     
     console.log(`[DailyBrief v4] Initial fetch completed in ${Date.now() - startTime}ms`)
-    console.log(`[DailyBrief v4] Portfolio: ${portfolioHoldings.length}, RSS: ${rssItems.length}`)
     
-    // Search for news for each holding using Gemini with Google Search
-    // Run this in parallel with generating morning intel
+    // Search news and generate intel in parallel
     const [_, morningIntel, intelItems] = await Promise.all([
       searchNewsForAllHoldings(portfolioHoldings),
       generateMorningIntel(),
       Promise.resolve(generateIntelFromRSS(rssItems))
     ])
     
-    // Fetch setups for each category in parallel
+    // Generate alerts from portfolio
+    const alerts = generateAlerts(portfolioHoldings)
+    
+    // Fetch setups for each category
     const setupTypes = {
       momentum_breakouts: ['weinstein_stage2_breakout', 'donchian_55_breakout', 'rs_breakout', 'breakout_participation'],
       trend_continuation: ['golden_cross', 'adx_holy_grail', 'acceleration_turn', 'trend_ignition'],
@@ -585,9 +767,10 @@ Deno.serve(async (req) => {
       date: new Date().toISOString().split('T')[0],
       market_ticker: marketTicker,
       market_regime: marketTicker.regime,
-      macro_summary: `10Y at ${marketTicker.yield_10y}%. VIX at ${marketTicker.vix}.`,
+      macro_summary: `10Y at ${marketTicker.yield_10y.toFixed(2)}%. VIX at ${marketTicker.vix.toFixed(1)}.`,
       morning_intel: morningIntel,
       portfolio: portfolioHoldings,
+      alerts: alerts,
       categories: {
         momentum_breakouts: {
           theme_summary: `${generatePicks(momentum).length} momentum breakout setups detected`,
@@ -603,8 +786,6 @@ Deno.serve(async (req) => {
         }
       },
       intel_items: intelItems,
-      portfolio_alerts: [],
-      action_items: [],
       tokens: { in: 0, out: 0 },
       _meta: {
         generated_at: new Date().toISOString(),
@@ -619,12 +800,13 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('[DailyBrief v4] Error:', error)
     
-    // Return a valid response even on error
     const fallbackBrief = {
       date: new Date().toISOString().split('T')[0],
       market_ticker: { 
-        spy_change: 0, qqq_change: 0, iwm_change: 0, 
-        yield_10y: 4.26, btc_change: 0, vix: 14, regime: 'NEUTRAL' 
+        spy_price: 0, spy_change: 0, qqq_price: 0, qqq_change: 0,
+        iwm_price: 0, iwm_change: 0, btc_price: 0, btc_change: 0,
+        yield_10y: 4.26, vix: 14, regime: 'NEUTRAL',
+        last_updated: new Date().toISOString()
       },
       market_regime: 'NEUTRAL',
       macro_summary: 'Market data temporarily unavailable',
@@ -635,6 +817,7 @@ Deno.serve(async (req) => {
         generated_at: new Date().toISOString()
       },
       portfolio: [],
+      alerts: [],
       categories: {
         momentum_breakouts: { theme_summary: 'Loading setups...', picks: [] },
         trend_continuation: { theme_summary: 'Loading setups...', picks: [] },
@@ -649,9 +832,8 @@ Deno.serve(async (req) => {
     }
     
     return new Response(JSON.stringify(fallbackBrief), {
-      status: 200, // Return 200 even on error to prevent frontend crashes
+      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }
 })
-// Deployment trigger: Fri Jan 30 04:34:23 EST 2026

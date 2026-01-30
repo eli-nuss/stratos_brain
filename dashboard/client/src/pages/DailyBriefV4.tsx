@@ -1,40 +1,58 @@
-// Daily Brief v4 - Redesigned to match site style
+// Daily Brief V4 - Enhanced with live data, alerts, visual polish, and PDF export
 // Dark theme, green/red color coding, information-dense layout
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useRef } from "react";
 import { useLocation } from "wouter";
 import DashboardLayout from "@/components/DashboardLayout";
 import { 
-  Card, CardContent, CardDescription, CardHeader, CardTitle 
+  Card, CardContent, CardHeader, CardTitle 
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { 
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
-} from "@/components/ui/select";
-import { 
-  RefreshCw, Zap, TrendingUp, TrendingDown, ChevronRight, ChevronDown, 
-  Target, Calendar, Globe, Landmark, PieChart, 
-  Droplets, Activity, Sparkles, ArrowUpRight, ArrowDownRight, Layers, 
-  Flag, FileDown, Eye, AlertTriangle, ArrowUp, ArrowDown, 
-  Minus, ExternalLink, Clock, BarChart3, Briefcase, Newspaper,
-  AlertCircle, CheckCircle2, Info
+  RefreshCw, TrendingUp, TrendingDown, ChevronDown, 
+  Landmark, Sparkles, ArrowUpRight, ArrowDownRight,
+  ExternalLink, Clock, Briefcase, Newspaper,
+  AlertCircle, Info, Bell, FileDown, Zap, Target, Activity,
+  Plus, Minus, Hand, AlertTriangle, CheckCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import useSWR from "swr";
-import { getApiUrl, getJsonApiHeaders, apiFetcher, API_BASE } from "@/lib/api-config";
+import { getApiUrl } from "@/lib/api-config";
 import { format } from "date-fns";
 
 // --- Helper Functions ---
 
-// Decode HTML entities that may come from RSS feeds
 const decodeHtmlEntities = (text: string): string => {
   if (!text) return '';
   const textarea = document.createElement('textarea');
   textarea.innerHTML = text;
   return textarea.value;
+};
+
+// Smart truncation at word boundaries
+const smartTruncate = (text: string, maxLength: number): string => {
+  if (!text || text.length <= maxLength) return text;
+  const truncated = text.slice(0, maxLength);
+  const lastSpace = truncated.lastIndexOf(' ');
+  return lastSpace > maxLength * 0.7 ? truncated.slice(0, lastSpace) + '...' : truncated + '...';
+};
+
+// Format price with appropriate decimals
+const formatPrice = (price: number): string => {
+  if (!price || price === 0) return '-';
+  if (price < 1) return price.toFixed(4);
+  if (price < 10) return price.toFixed(3);
+  if (price < 100) return price.toFixed(2);
+  return price.toFixed(2);
+};
+
+// Format percentage change
+const formatChange = (change: number): string => {
+  if (change === 0 || change === undefined) return '0.00%';
+  const sign = change > 0 ? '+' : '';
+  return `${sign}${change.toFixed(2)}%`;
 };
 
 // --- Types ---
@@ -43,44 +61,63 @@ interface PortfolioHolding {
   asset_id: number;
   symbol: string;
   name: string;
+  asset_type?: string;
   action: "ADD" | "TRIM" | "HOLD";
-  price: number;
+  cost_basis?: number;
+  current_price?: number;
+  change_pct?: number;
   ai_direction: number | string;
   rsi: number;
   setup: string;
   news: string;
-  news_full?: string;  // Full description for tooltip
-  news_url?: string;   // Link to the news article
-  catalysts: string;
+  news_full?: string;
+  news_url?: string;
+  news_time?: string;
   asset_url: string;
 }
 
 interface MarketTicker {
+  spy_price?: number;
   spy_change: number;
+  qqq_price?: number;
   qqq_change: number;
+  iwm_price?: number;
   iwm_change: number;
-  yield_10y: number;
+  btc_price?: number;
   btc_change: number;
+  yield_10y: number;
   vix: number;
   regime: string;
+  last_updated?: string;
+}
+
+interface Alert {
+  symbol: string;
+  name: string;
+  alert_type: string;
+  message: string;
+  severity: 'HIGH' | 'MEDIUM' | 'LOW';
+  asset_url: string;
 }
 
 interface IntelItem {
-  category: "GEOPOL" | "POLICY" | "TECH" | "EARNINGS" | "ECON" | "CRYPTO" | "DEFAULT";
+  category: string;
   headline: string;
   impact: string;
   url: string;
   source: string;
   date: string;
+  time_ago?: string;
 }
 
 interface AssetPick {
+  asset_id?: number;
   symbol: string;
   name?: string;
   conviction: "HIGH" | "MEDIUM" | "LOW";
   setup_type: string;
-  one_liner: string;
-  rationale?: string;
+  score?: number;
+  asset_url?: string;
 }
 
 interface CategoryData {
@@ -91,10 +128,7 @@ interface CategoryData {
 interface MorningIntel {
   market_pulse: string;
   macro_calendar: string;
-  geopolitical: string;
-  sector_themes: string;
   liquidity_flows: string;
-  risk_factors: string;
   generated_at: string;
 }
 
@@ -103,8 +137,9 @@ interface DailyBriefData {
   market_ticker: MarketTicker;
   market_regime: string;
   macro_summary: string;
-  morning_intel?: MorningIntel;
+  morning_intel: MorningIntel;
   portfolio: PortfolioHolding[];
+  alerts?: Alert[];
   categories: {
     momentum_breakouts: CategoryData;
     trend_continuation: CategoryData;
@@ -114,74 +149,134 @@ interface DailyBriefData {
   tokens?: { in: number; out: number };
 }
 
-// --- Helper Functions ---
-
-const formatPercent = (value: number) => {
-  const formatted = value.toFixed(2);
-  return value >= 0 ? `+${formatted}%` : `${formatted}%`;
-};
-
-const formatNumber = (value: number, decimals = 2) => {
-  return value.toFixed(decimals);
-};
-
 // --- Components ---
 
-function MarketTickerBar({ ticker }: { ticker?: MarketTicker }) {
-  if (!ticker) return null;
-  
-  const items = [
-    { symbol: "SPY", value: ticker.spy_change, suffix: "%" },
-    { symbol: "QQQ", value: ticker.qqq_change, suffix: "%" },
-    { symbol: "IWM", value: ticker.iwm_change, suffix: "%" },
-    { symbol: "BTC", value: ticker.btc_change, suffix: "%" },
-    { symbol: "VIX", value: ticker.vix, suffix: "", isNeutral: true },
-    { symbol: "10Y", value: ticker.yield_10y, suffix: "%", isNeutral: true },
-  ];
-  
+function MarketTickerBar({ ticker }: { ticker: MarketTicker }) {
   const regimeColors: Record<string, string> = {
-    "BULLISH": "text-green-400 bg-green-500/20 border-green-500/30",
-    "BEARISH": "text-red-400 bg-red-500/20 border-red-500/30",
-    "NEUTRAL": "text-yellow-400 bg-yellow-500/20 border-yellow-500/30",
-    "HIGH VOLATILITY": "text-orange-400 bg-orange-500/20 border-orange-500/30",
-    "Risk-On": "text-green-400 bg-green-500/20 border-green-500/30",
-    "Risk-Off": "text-red-400 bg-red-500/20 border-red-500/30",
+    BULLISH: "text-green-400 bg-green-500/10 border-green-500/30",
+    BEARISH: "text-red-400 bg-red-500/10 border-red-500/30",
+    VOLATILE: "text-yellow-400 bg-yellow-500/10 border-yellow-500/30",
+    NEUTRAL: "text-blue-400 bg-blue-500/10 border-blue-500/30",
+    Neutral: "text-blue-400 bg-blue-500/10 border-blue-500/30",
   };
+  
+  const ChangeDisplay = ({ label, price, change }: { label: string, price?: number, change: number }) => (
+    <div className="flex items-center gap-2">
+      <span className="text-muted-foreground text-sm">{label}</span>
+      {price && price > 0 && (
+        <span className="font-mono text-sm">${formatPrice(price)}</span>
+      )}
+      <span className={cn(
+        "font-mono text-sm font-medium",
+        change > 0 ? "text-green-400" : change < 0 ? "text-red-400" : "text-muted-foreground"
+      )}>
+        {formatChange(change)}
+      </span>
+    </div>
+  );
   
   return (
     <div className="bg-card/50 border border-border rounded-lg p-4 mb-6">
       <div className="flex flex-wrap items-center gap-4 md:gap-6">
-        {/* Market Regime Badge */}
         <div className={cn(
           "px-3 py-1.5 rounded-md border text-sm font-semibold",
           regimeColors[ticker.regime] || "text-muted-foreground bg-muted border-border"
         )}>
-          {ticker.regime || "NEUTRAL"}
+          {ticker.regime?.toUpperCase() || "NEUTRAL"}
         </div>
         
-        {/* Ticker Items */}
-        <div className="flex flex-wrap items-center gap-4 md:gap-6">
-          {items.map((item) => (
-            <div key={item.symbol} className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground font-medium">{item.symbol}</span>
-              <span className={cn(
-                "font-mono text-sm font-semibold",
-                item.isNeutral ? "text-foreground" :
-                item.value >= 0 ? "text-green-400" : "text-red-400"
-              )}>
-                {item.isNeutral ? formatNumber(item.value) : formatPercent(item.value)}
-              </span>
-            </div>
-          ))}
+        <ChangeDisplay label="SPY" price={ticker.spy_price} change={ticker.spy_change} />
+        <ChangeDisplay label="QQQ" price={ticker.qqq_price} change={ticker.qqq_change} />
+        <ChangeDisplay label="IWM" price={ticker.iwm_price} change={ticker.iwm_change} />
+        <ChangeDisplay label="BTC" price={ticker.btc_price} change={ticker.btc_change} />
+        
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground text-sm">VIX</span>
+          <span className={cn(
+            "font-mono text-sm font-medium",
+            ticker.vix > 25 ? "text-red-400" : ticker.vix > 20 ? "text-yellow-400" : "text-green-400"
+          )}>
+            {ticker.vix?.toFixed(1) || "14.0"}
+          </span>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground text-sm">10Y</span>
+          <span className="font-mono text-sm">{ticker.yield_10y?.toFixed(2) || "4.26"}</span>
         </div>
       </div>
     </div>
   );
 }
 
-function PortfolioSection({ holdings, onAssetClick }: { 
-  holdings: PortfolioHolding[];
-  onAssetClick: (assetId: string) => void;
+function AlertsSection({ alerts, navigate }: { alerts: Alert[], navigate: (path: string) => void }) {
+  if (!alerts || alerts.length === 0) return null;
+  
+  const severityColors = {
+    HIGH: "border-l-red-500 bg-red-500/5",
+    MEDIUM: "border-l-yellow-500 bg-yellow-500/5",
+    LOW: "border-l-blue-500 bg-blue-500/5"
+  };
+  
+  const severityIcons = {
+    HIGH: AlertTriangle,
+    MEDIUM: Bell,
+    LOW: Info
+  };
+  
+  return (
+    <Card className="bg-card/50 border-border mb-6">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Bell className="w-4 h-4 text-yellow-400" />
+          Portfolio Alerts
+          <Badge variant="outline" className="text-xs ml-2">{alerts.length}</Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          {alerts.map((alert, i) => {
+            const Icon = severityIcons[alert.severity];
+            return (
+              <div 
+                key={i}
+                onClick={() => navigate(alert.asset_url)}
+                className={cn(
+                  "p-3 rounded border-l-2 cursor-pointer hover:bg-muted/50 transition-colors",
+                  severityColors[alert.severity]
+                )}
+              >
+                <div className="flex items-start gap-2">
+                  <Icon className={cn(
+                    "w-4 h-4 mt-0.5 shrink-0",
+                    alert.severity === 'HIGH' ? "text-red-400" : 
+                    alert.severity === 'MEDIUM' ? "text-yellow-400" : "text-blue-400"
+                  )} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-sm">{alert.symbol}</span>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                        {alert.alert_type.replace(/_/g, ' ')}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{alert.message}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PortfolioSection({ 
+  holdings, 
+  navigate 
+}: { 
+  holdings: PortfolioHolding[], 
+  navigate: (path: string) => void 
 }) {
   if (!holdings || holdings.length === 0) {
     return (
@@ -201,15 +296,16 @@ function PortfolioSection({ holdings, onAssetClick }: {
     );
   }
   
-  const getActionBadge = (action: string) => {
-    switch (action) {
-      case "ADD":
-        return <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs">ADD</Badge>;
-      case "TRIM":
-        return <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-xs">TRIM</Badge>;
-      default:
-        return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-xs">HOLD</Badge>;
-    }
+  const actionColors = {
+    ADD: "bg-green-500/20 text-green-400 border-green-500/30",
+    TRIM: "bg-red-500/20 text-red-400 border-red-500/30",
+    HOLD: "bg-blue-500/20 text-blue-400 border-blue-500/30"
+  };
+  
+  const actionIcons = {
+    ADD: Plus,
+    TRIM: Minus,
+    HOLD: Hand
   };
   
   return (
@@ -225,105 +321,124 @@ function PortfolioSection({ holdings, onAssetClick }: {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border text-muted-foreground text-xs">
-                <th className="text-left py-2 px-4 font-medium">Action</th>
-                <th className="text-left py-2 px-4 font-medium">Asset</th>
-                <th className="text-right py-2 px-4 font-medium">AI Dir</th>
-                <th className="text-right py-2 px-4 font-medium">RSI</th>
-                <th className="text-left py-2 px-4 font-medium">Setup</th>
-                <th className="text-left py-2 px-4 font-medium hidden lg:table-cell">Intel</th>
+              <tr className="border-b border-border bg-muted/30">
+                <th className="text-left py-2 px-4 font-medium text-muted-foreground">Action</th>
+                <th className="text-left py-2 px-4 font-medium text-muted-foreground">Asset</th>
+                <th className="text-right py-2 px-4 font-medium text-muted-foreground">Price</th>
+                <th className="text-right py-2 px-4 font-medium text-muted-foreground">Change</th>
+                <th className="text-center py-2 px-4 font-medium text-muted-foreground">AI Dir</th>
+                <th className="text-center py-2 px-4 font-medium text-muted-foreground">RSI</th>
+                <th className="text-left py-2 px-4 font-medium text-muted-foreground">Setup</th>
+                <th className="text-left py-2 px-4 font-medium text-muted-foreground hidden lg:table-cell">Intel</th>
               </tr>
             </thead>
             <tbody>
-              {holdings.map((h) => (
-                <tr 
-                  key={h.asset_id}
-                  className="border-b border-border/50 last:border-0 hover:bg-muted/30 cursor-pointer transition-colors"
-                  onClick={() => onAssetClick(String(h.asset_id))}
-                >
-                  <td className="py-2.5 px-4">
-                    {getActionBadge(h.action)}
-                  </td>
-                  <td className="py-2.5 px-4">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-foreground">{h.symbol}</span>
-                      <span className="text-xs text-muted-foreground truncate max-w-[100px]">
-                        {h.name}
+              {holdings.map((h) => {
+                const ActionIcon = actionIcons[h.action];
+                return (
+                  <tr 
+                    key={h.asset_id} 
+                    onClick={() => navigate(h.asset_url)}
+                    className="border-b border-border/50 cursor-pointer hover:bg-muted/30 transition-colors"
+                  >
+                    <td className="py-2.5 px-4">
+                      <Badge className={cn("text-xs font-medium border flex items-center gap-1 w-fit", actionColors[h.action])}>
+                        <ActionIcon className="w-3 h-3" />
+                        {h.action}
+                      </Badge>
+                    </td>
+                    <td className="py-2.5 px-4">
+                      <div className="flex flex-col">
+                        <span className="font-semibold">{h.symbol}</span>
+                        <span className="text-xs text-muted-foreground truncate max-w-[120px]">{h.name}</span>
+                      </div>
+                    </td>
+                    <td className="py-2.5 px-4 text-right">
+                      <span className="font-mono text-sm">
+                        {h.current_price && h.current_price > 0 ? `$${formatPrice(h.current_price)}` : '-'}
                       </span>
-                    </div>
-                  </td>
-                  <td className="text-right py-2.5 px-4">
-                    <span className={cn(
-                      "font-mono font-medium",
-                      typeof h.ai_direction === 'number' && h.ai_direction > 60 ? "text-green-400" :
-                      typeof h.ai_direction === 'number' && h.ai_direction < 40 ? "text-red-400" : "text-foreground"
-                    )}>
-                      {typeof h.ai_direction === 'number' ? h.ai_direction : 'N/A'}
-                    </span>
-                  </td>
-                  <td className="text-right py-2.5 px-4">
-                    <span className={cn(
-                      "font-mono",
-                      h.rsi > 70 ? "text-red-400" : h.rsi < 30 ? "text-green-400" : "text-foreground"
-                    )}>
-                      {h.rsi}
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-4">
-                    <Badge variant="outline" className="text-xs font-normal">
-                      {h.setup}
-                    </Badge>
-                  </td>
-                  <td className="py-2.5 px-4 hidden lg:table-cell">
-                    {h.news ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="flex items-center gap-1 cursor-pointer group">
-                            <span className="text-xs text-muted-foreground truncate block max-w-[180px] group-hover:text-foreground transition-colors">
-                              {decodeHtmlEntities(h.news)}
-                            </span>
-                            {h.news_url && (
-                              <a 
-                                href={h.news_url} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                <ExternalLink className="h-3 w-3 text-muted-foreground hover:text-primary" />
-                              </a>
-                            )}
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="max-w-[350px] p-3">
-                          <div className="space-y-2">
-                            <p className="font-medium text-sm">{decodeHtmlEntities(h.news)}</p>
-                            {h.news_full && (
-                              <p className="text-xs text-muted-foreground">
-                                {decodeHtmlEntities(h.news_full)}
-                              </p>
-                            )}
-                            {h.news_url && (
-                              <a 
-                                href={h.news_url} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-xs text-primary hover:underline flex items-center gap-1"
-                              >
-                                Read full article <ExternalLink className="h-3 w-3" />
-                              </a>
-                            )}
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    ) : (
-                      <span className="text-xs text-muted-foreground/50 italic">
-                        No recent news
+                    </td>
+                    <td className="py-2.5 px-4 text-right">
+                      <span className={cn(
+                        "font-mono text-sm font-medium",
+                        (h.change_pct || 0) > 0 ? "text-green-400" : (h.change_pct || 0) < 0 ? "text-red-400" : "text-muted-foreground"
+                      )}>
+                        {formatChange(h.change_pct || 0)}
                       </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="py-2.5 px-4 text-center">
+                      <span className={cn(
+                        "font-mono",
+                        typeof h.ai_direction === 'number' && h.ai_direction > 60 ? "text-green-400" : 
+                        typeof h.ai_direction === 'number' && h.ai_direction < 40 ? "text-red-400" : "text-foreground"
+                      )}>
+                        {h.ai_direction}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-4 text-center">
+                      <span className={cn(
+                        "font-mono",
+                        h.rsi > 70 ? "text-red-400" : h.rsi < 30 ? "text-green-400" : "text-foreground"
+                      )}>
+                        {h.rsi}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-4">
+                      <Badge variant="outline" className="text-xs font-normal">
+                        {h.setup}
+                      </Badge>
+                    </td>
+                    <td className="py-2.5 px-4 hidden lg:table-cell">
+                      {h.news ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1 cursor-pointer group">
+                              <span className="text-xs text-muted-foreground truncate block max-w-[180px] group-hover:text-foreground transition-colors">
+                                {smartTruncate(decodeHtmlEntities(h.news), 45)}
+                              </span>
+                              {h.news_url && (
+                                <a 
+                                  href={h.news_url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <ExternalLink className="h-3 w-3 text-muted-foreground hover:text-primary" />
+                                </a>
+                              )}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[350px] p-3">
+                            <div className="space-y-2">
+                              <p className="font-medium text-sm">{decodeHtmlEntities(h.news)}</p>
+                              {h.news_full && (
+                                <p className="text-xs text-muted-foreground">
+                                  {decodeHtmlEntities(h.news_full)}
+                                </p>
+                              )}
+                              {h.news_url && (
+                                <a 
+                                  href={h.news_url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-primary hover:underline flex items-center gap-1"
+                                >
+                                  Read full article <ExternalLink className="h-3 w-3" />
+                                </a>
+                              )}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/50 italic">
+                          No recent news
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -337,13 +452,13 @@ function SetupOpportunities({
   icon: Icon, 
   data,
   colorClass,
-  onAssetClick
+  navigate
 }: { 
-  title: string; 
-  icon: any; 
-  data?: CategoryData;
+  title: string;
+  icon: React.ElementType;
+  data: CategoryData;
   colorClass: string;
-  onAssetClick: (symbol: string) => void;
+  navigate: (path: string) => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(true);
   
@@ -383,31 +498,35 @@ function SetupOpportunities({
               ({data.picks.length})
             </span>
           </div>
-          {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          <ChevronDown className={cn(
+            "w-4 h-4 transition-transform",
+            isExpanded ? "rotate-0" : "-rotate-90"
+          )} />
         </CardTitle>
-        {data.theme_summary && (
-          <CardDescription className="text-xs">{data.theme_summary}</CardDescription>
-        )}
+        <p className="text-xs text-muted-foreground">{data.theme_summary}</p>
       </CardHeader>
       {isExpanded && (
         <CardContent className="pt-0 pb-3 space-y-2">
           {data.picks.map((pick, i) => (
             <div 
               key={i} 
-              className="flex items-start gap-2 p-2 bg-muted/30 rounded hover:bg-muted/50 cursor-pointer transition-colors"
-              onClick={() => onAssetClick(pick.symbol)}
+              onClick={() => pick.asset_url && navigate(pick.asset_url)}
+              className="flex items-center justify-between p-2 bg-muted/30 rounded hover:bg-muted/50 transition-colors cursor-pointer"
             >
-              <Badge className={cn("text-xs shrink-0", convictionColors[pick.conviction])}>
-                {pick.conviction}
-              </Badge>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <Badge className={cn("text-[10px] px-1.5 py-0 border", convictionColors[pick.conviction])}>
+                  {pick.conviction}
+                </Badge>
+                <div className="flex flex-col">
                   <span className="font-semibold text-sm">{pick.symbol}</span>
-                  {pick.name && (
-                    <span className="text-xs text-muted-foreground truncate">{pick.name}</span>
-                  )}
+                  <span className="text-xs text-muted-foreground truncate max-w-[150px]">{pick.name}</span>
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5">{pick.one_liner}</p>
+              </div>
+              <div className="text-right">
+                <div className="text-xs text-muted-foreground">{pick.setup_type}</div>
+                {pick.score && (
+                  <div className="text-xs font-mono text-primary">Score: {pick.score}</div>
+                )}
               </div>
             </div>
           ))}
@@ -436,24 +555,22 @@ function IntelSection({ items }: { items: IntelItem[] }) {
     );
   }
   
-  const categoryIcons: Record<string, any> = {
-    GEOPOL: Globe,
-    POLICY: Landmark,
-    TECH: Zap,
-    EARNINGS: BarChart3,
-    ECON: Activity,
-    CRYPTO: Layers,
-    DEFAULT: Flag
-  };
-  
   const categoryColors: Record<string, string> = {
     GEOPOL: "border-l-red-500",
-    POLICY: "border-l-blue-500",
-    TECH: "border-l-purple-500",
+    POLICY: "border-l-purple-500",
+    TECH: "border-l-blue-500",
     EARNINGS: "border-l-green-500",
     ECON: "border-l-yellow-500",
     CRYPTO: "border-l-orange-500",
-    DEFAULT: "border-l-muted-foreground"
+  };
+  
+  const categoryIcons: Record<string, React.ElementType> = {
+    GEOPOL: AlertTriangle,
+    POLICY: Landmark,
+    TECH: Zap,
+    EARNINGS: TrendingUp,
+    ECON: Activity,
+    CRYPTO: Target,
   };
   
   return (
@@ -468,7 +585,7 @@ function IntelSection({ items }: { items: IntelItem[] }) {
       <CardContent className="pt-0">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {items.map((item, i) => {
-            const Icon = categoryIcons[item.category] || Flag;
+            const Icon = categoryIcons[item.category] || Activity;
             return (
               <div 
                 key={i} 
@@ -481,27 +598,28 @@ function IntelSection({ items }: { items: IntelItem[] }) {
                   <Icon className="w-4 h-4 mt-0.5 shrink-0 text-muted-foreground" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                         {item.category}
                       </Badge>
-                      {item.source && (
-                        <span className="text-xs text-muted-foreground">{item.source}</span>
+                      <span className="text-[10px] text-muted-foreground">{item.source}</span>
+                      {item.time_ago && (
+                        <span className="text-[10px] text-muted-foreground">• {item.time_ago}</span>
                       )}
                     </div>
-                    <p className="text-sm font-medium leading-tight">{decodeHtmlEntities(item.headline)}</p>
-                    {item.impact && (
-                      <p className="text-xs text-muted-foreground mt-1">{decodeHtmlEntities(item.impact)}</p>
-                    )}
+                    <p className="text-sm font-medium mb-1 line-clamp-2">
+                      {decodeHtmlEntities(item.headline)}
+                    </p>
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      {decodeHtmlEntities(item.impact)}
+                    </p>
                     {item.url && (
                       <a 
                         href={item.url} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="text-xs text-primary hover:underline flex items-center gap-1 mt-2"
-                        onClick={(e) => e.stopPropagation()}
+                        className="text-xs text-primary hover:underline mt-1 inline-flex items-center gap-1"
                       >
-                        <ExternalLink className="w-3 h-3" />
-                        Read more
+                        Read more <ExternalLink className="w-3 h-3" />
                       </a>
                     )}
                   </div>
@@ -515,18 +633,19 @@ function IntelSection({ items }: { items: IntelItem[] }) {
   );
 }
 
-function MacroInsights({ intel }: { intel?: MorningIntel }) {
+function MacroInsightsSection({ intel }: { intel: MorningIntel }) {
   const [isExpanded, setIsExpanded] = useState(true);
-  
-  if (!intel) return null;
   
   const sections = [
     { key: 'market_pulse', label: 'Market Pulse', icon: Activity },
-    { key: 'liquidity_flows', label: 'Liquidity & Flows', icon: Droplets },
-    { key: 'macro_calendar', label: 'Calendar', icon: Calendar },
+    { key: 'liquidity_flows', label: 'Liquidity & Flows', icon: TrendingUp },
+    { key: 'macro_calendar', label: 'Calendar', icon: Clock },
   ];
   
-  const hasContent = sections.some(s => (intel as any)[s.key]);
+  const hasContent = sections.some(s => (intel as any)[s.key] && 
+    (intel as any)[s.key] !== 'Search timeout' && 
+    (intel as any)[s.key] !== 'Search unavailable');
+  
   if (!hasContent) return null;
   
   return (
@@ -540,7 +659,7 @@ function MacroInsights({ intel }: { intel?: MorningIntel }) {
             <Landmark className="w-4 h-4 text-primary" />
             Macro Insights
           </div>
-          {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          <ChevronDown className={cn("w-4 h-4 transition-transform", isExpanded ? "rotate-0" : "-rotate-90")} />
         </CardTitle>
       </CardHeader>
       {isExpanded && (
@@ -569,8 +688,8 @@ function MacroInsights({ intel }: { intel?: MorningIntel }) {
 export default function DailyBriefV4() {
   const [, navigate] = useLocation();
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const contentRef = useRef<HTMLDivElement>(null);
   
-  // Fetch daily brief data
   const { data, error, isLoading, mutate } = useSWR<DailyBriefData>(
     "daily-brief-v4",
     async () => {
@@ -578,50 +697,54 @@ export default function DailyBriefV4() {
       if (!endpoint) {
         throw new Error("Daily Brief API endpoint not configured");
       }
-      const res = await fetch(endpoint, { headers: getJsonApiHeaders() });
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`HTTP ${res.status}: ${errorText}`);
-      }
+      const res = await fetch(endpoint);
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
       return res.json();
     },
     { 
-      refreshInterval: 0, 
       revalidateOnFocus: false,
-      errorRetryCount: 2,
-      errorRetryInterval: 3000
+      dedupingInterval: 60000
     }
   );
   
-  // Handle asset click - navigate to asset detail
-  const handleAssetClick = (assetId: string) => {
-    navigate(`/asset/${assetId}`);
-  };
-  
-  // Handle symbol click - search for asset and navigate
-  const handleSymbolClick = async (symbol: string) => {
-    try {
-      // Try to find the asset by symbol
-      const res = await fetch(`${API_BASE}/dashboard/all-assets?search=${encodeURIComponent(symbol)}&limit=1`, {
-        headers: getJsonApiHeaders()
-      });
-      if (res.ok) {
-        const result = await res.json();
-        if (result.data && result.data.length > 0) {
-          navigate(`/asset/${result.data[0].asset_id}`);
-          return;
-        }
-      }
-    } catch (e) {
-      console.error("Failed to find asset:", e);
-    }
-    // Fallback: just show a message
-    console.log(`Could not find asset for symbol: ${symbol}`);
-  };
-  
-  const handleManualRefresh = () => {
-    mutate();
+  const handleManualRefresh = async () => {
     setLastRefresh(new Date());
+    await mutate();
+  };
+  
+  const handleExportPDF = async () => {
+    if (!contentRef.current) return;
+    
+    // Create a simple text export for now
+    const briefText = `
+STRATOS BRAIN DAILY BRIEF
+${format(new Date(), "EEEE, MMMM d, yyyy")}
+
+MARKET REGIME: ${data?.market_regime || 'NEUTRAL'}
+${data?.macro_summary || ''}
+
+PORTFOLIO (${data?.portfolio?.length || 0} positions)
+${data?.portfolio?.map(h => `${h.symbol}: ${h.action} | Price: $${formatPrice(h.current_price || 0)} | Change: ${formatChange(h.change_pct || 0)} | RSI: ${h.rsi}`).join('\n') || 'No holdings'}
+
+ALERTS (${data?.alerts?.length || 0})
+${data?.alerts?.map(a => `${a.symbol}: ${a.message}`).join('\n') || 'No alerts'}
+
+MARKET INTEL
+${data?.intel_items?.map(i => `[${i.category}] ${i.headline}`).join('\n') || 'No intel'}
+
+Generated: ${format(new Date(), "h:mm a")}
+    `.trim();
+    
+    // Create blob and download
+    const blob = new Blob([briefText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `daily-brief-${format(new Date(), "yyyy-MM-dd")}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
   
   // Error state
@@ -637,7 +760,7 @@ export default function DailyBriefV4() {
             </p>
             <Button onClick={handleManualRefresh} variant="outline">
               <RefreshCw className="w-4 h-4 mr-2" />
-              Retry
+              Try Again
             </Button>
           </div>
         </div>
@@ -648,7 +771,7 @@ export default function DailyBriefV4() {
   return (
     <TooltipProvider>
     <DashboardLayout>
-      <div className="p-4 md:p-6 max-w-7xl mx-auto">
+      <div className="p-4 md:p-6 max-w-7xl mx-auto" ref={contentRef}>
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           <div>
@@ -662,6 +785,15 @@ export default function DailyBriefV4() {
           </div>
           
           <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleExportPDF}
+              disabled={isLoading || !data}
+            >
+              <FileDown className="w-4 h-4 mr-2" />
+              Export
+            </Button>
             <Button 
               variant="outline" 
               size="sm" 
@@ -682,59 +814,57 @@ export default function DailyBriefV4() {
           </div>
         ) : data ? (
           <div className="space-y-6">
-            {/* Market Ticker Bar */}
+            {/* Market Ticker */}
             <MarketTickerBar ticker={data.market_ticker} />
             
-            {/* Main Grid */}
+            {/* Alerts Section */}
+            <AlertsSection alerts={data.alerts || []} navigate={navigate} />
+            
+            {/* Main Content Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left Column - Portfolio & Setups */}
+              {/* Left Column - Portfolio & Intel */}
               <div className="lg:col-span-2 space-y-6">
-                {/* Portfolio Holdings */}
-                <PortfolioSection 
-                  holdings={data.portfolio} 
-                  onAssetClick={handleAssetClick}
-                />
+                <PortfolioSection holdings={data.portfolio || []} navigate={navigate} />
                 
                 {/* Setup Opportunities */}
-                <div>
-                  <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
-                    <Target className="w-4 h-4 text-primary" />
+                <div className="space-y-4">
+                  <h2 className="text-lg font-semibold flex items-center gap-2">
+                    <Target className="w-5 h-5 text-primary" />
                     Setup Opportunities
                   </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <SetupOpportunities 
                       title="Momentum" 
-                      icon={Zap} 
+                      icon={Zap}
                       data={data.categories.momentum_breakouts}
                       colorClass="border-l-orange-500"
-                      onAssetClick={handleSymbolClick}
+                      navigate={navigate}
                     />
                     <SetupOpportunities 
                       title="Trend" 
-                      icon={TrendingUp} 
+                      icon={TrendingUp}
                       data={data.categories.trend_continuation}
                       colorClass="border-l-blue-500"
-                      onAssetClick={handleSymbolClick}
+                      navigate={navigate}
                     />
                     <SetupOpportunities 
                       title="Compression" 
-                      icon={Activity} 
+                      icon={Activity}
                       data={data.categories.compression_reversion}
                       colorClass="border-l-purple-500"
-                      onAssetClick={handleSymbolClick}
+                      navigate={navigate}
                     />
                   </div>
                 </div>
                 
-                {/* Intel Section */}
-                <IntelSection items={data.intel_items} />
+                <IntelSection items={data.intel_items || []} />
               </div>
               
-              {/* Right Column - Macro Insights */}
+              {/* Right Column - Macro & Stats */}
               <div className="space-y-6">
-                <MacroInsights intel={data.morning_intel} />
+                <MacroInsightsSection intel={data.morning_intel} />
                 
-                {/* Quick Stats Card */}
+                {/* Quick Stats */}
                 <Card className="bg-card/50 border-border">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base flex items-center gap-2">
@@ -746,6 +876,10 @@ export default function DailyBriefV4() {
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Portfolio Positions</span>
                       <span className="font-mono font-medium">{data.portfolio?.length || 0}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Active Alerts</span>
+                      <span className="font-mono font-medium">{data.alerts?.length || 0}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Active Setups</span>
@@ -776,9 +910,9 @@ export default function DailyBriefV4() {
                 <Clock className="w-3 h-3" />
                 Last refreshed: {format(lastRefresh, "h:mm a")}
               </div>
-              {data.tokens && (
+              {data._meta?.generation_time_ms && (
                 <div>
-                  Tokens: {data.tokens.in.toLocaleString()} in / {data.tokens.out.toLocaleString()} out
+                  Generated in {(data._meta.generation_time_ms / 1000).toFixed(1)}s
                 </div>
               )}
             </div>
