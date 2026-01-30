@@ -28,7 +28,10 @@ import {
   ChevronsUpDown,
   Flame,
   Thermometer,
-  Activity
+  Activity,
+  GitBranch,
+  Route,
+  Play
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,8 +43,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { apiFetcher } from "@/lib/api-config";
 import { formatCurrency, formatPercent } from "@/lib/formatters";
 
-// Lazy load the flow visualization component
+// Lazy load visualization components
 const SupplyChainFlow = lazy(() => import("@/components/SupplyChainFlow"));
+const SupplyChainSankey = lazy(() => import("@/components/SupplyChainSankey"));
+const SupplyChainJourney = lazy(() => import("@/components/SupplyChainJourney"));
 
 // Helper to format large numbers compactly
 function formatLargeNumber(value: number): string {
@@ -933,7 +938,7 @@ export default function SupplyChainMap() {
   const [selectedCompany, setSelectedCompany] = useState<SupplyChainCompany | null>(null);
   const [activeTier, setActiveTier] = useState<number | null>(null);
   const [heatMapPeriod, setHeatMapPeriod] = useState<HeatMapPeriod>('off');
-  const [viewMode, setViewMode] = useState<'tree' | 'flow'>('tree');
+  const [viewMode, setViewMode] = useState<'tree' | 'flow' | 'sankey' | 'journey'>('tree');
   
   // Fetch supply chain data
   const { data: tiers, error, isLoading } = useSWR<SupplyChainTier[]>(
@@ -1109,7 +1114,25 @@ export default function SupplyChainMap() {
                   className="text-xs h-7"
                 >
                   <Activity className="h-3 w-3 mr-1" />
-                  Flow View
+                  Flow
+                </Button>
+                <Button
+                  variant={viewMode === 'sankey' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('sankey')}
+                  className="text-xs h-7"
+                >
+                  <GitBranch className="h-3 w-3 mr-1" />
+                  Sankey
+                </Button>
+                <Button
+                  variant={viewMode === 'journey' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('journey')}
+                  className="text-xs h-7"
+                >
+                  <Play className="h-3 w-3 mr-1" />
+                  Journey
                 </Button>
               </div>
               
@@ -1152,6 +1175,34 @@ export default function SupplyChainMap() {
             </div>
           }>
             <SupplyChainFlow />
+          </Suspense>
+        </main>
+      )}
+      
+      {/* Sankey View */}
+      {viewMode === 'sankey' && (
+        <main className="container mx-auto px-4 py-8">
+          <Suspense fallback={
+            <div className="flex items-center justify-center h-[600px] bg-black/50 rounded-lg">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              <span className="ml-2 text-muted-foreground">Loading Sankey diagram...</span>
+            </div>
+          }>
+            <SupplyChainSankey />
+          </Suspense>
+        </main>
+      )}
+      
+      {/* Journey View */}
+      {viewMode === 'journey' && (
+        <main className="container mx-auto px-4 py-8">
+          <Suspense fallback={
+            <div className="flex items-center justify-center h-[600px] bg-black/50 rounded-lg">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              <span className="ml-2 text-muted-foreground">Loading journey...</span>
+            </div>
+          }>
+            <SupplyChainJourney />
           </Suspense>
         </main>
       )}
