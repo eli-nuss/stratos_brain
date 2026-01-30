@@ -2,11 +2,15 @@
 """
 Equity Daily OHLCV Ingestion Job
 ================================
-Fetches daily bars from Alpha Vantage API for all active equity assets.
+Fetches daily bars for all active equity assets:
+- US equities from Alpha Vantage API
+- International equities (symbols with exchange suffix like .AX, .L, .DE) from FMP API
+
 Designed to run as a GitHub Actions scheduled workflow.
 
 Features:
 - Optimized for Alpha Vantage Premium (75 calls/min)
+- FMP support for international stocks
 - Async batch processing with rate limiting
 - Trading day detection (skips weekends)
 - Upsert to daily_bars table (no duplicates)
@@ -18,6 +22,7 @@ Usage:
 Environment Variables:
     DATABASE_URL: PostgreSQL connection string
     ALPHAVANTAGE_API_KEY: Alpha Vantage API key
+    FMP_API_KEY: Financial Modeling Prep API key
 """
 
 import os
@@ -39,12 +44,17 @@ from psycopg2.extras import execute_values
 # ============================================================================
 
 ALPHAVANTAGE_API_KEY = os.environ.get("ALPHAVANTAGE_API_KEY")
+FMP_API_KEY = os.environ.get("FMP_API_KEY")
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 # Rate limiting for Alpha Vantage Premium (75 calls/min)
 # We use 60 calls/min to be safe (1 call per second)
-CALLS_PER_MINUTE = 60
-RATE_LIMIT_DELAY = 60.0 / CALLS_PER_MINUTE  # ~1 second between calls
+AV_CALLS_PER_MINUTE = 60
+AV_RATE_LIMIT_DELAY = 60.0 / AV_CALLS_PER_MINUTE  # ~1 second between calls
+
+# Rate limiting for FMP (300 calls/min for premium)
+FMP_CALLS_PER_MINUTE = 200
+FMP_RATE_LIMIT_DELAY = 60.0 / FMP_CALLS_PER_MINUTE  # ~0.3 seconds between calls
 
 # Batch settings
 BATCH_SIZE = 50  # Insert in batches of 50
@@ -118,10 +128,14 @@ def get_db_connection():
     return psycopg2.connect(DATABASE_URL)
 
 
-def get_equity_assets(conn, limit: Optional[int] = None) -> list[tuple]:
+def get_equity_assets(conn, limit: Optional[int] = None) -> tuple[list[tuple], list[tuple]]:
     """
-    Get all active equity assets.
-    Returns: List of (asset_id, symbol) tuples
+    Get all active equity assets, split into US and international.
+    
+    Returns: 
+        Tuple of (us_assets, intl_assets) where each is a list of (asset_id, symbol) tuples
+        - US assets: symbols without '.' (e.g., AAPL, MSFT)
+        - International assets: symbols with '.' (e.g., BHP.AX, SAP.DE)
     """
     query = """
         SELECT asset_id, symbol 
@@ -131,14 +145,20 @@ def get_equity_assets(conn, limit: Optional[int] = None) -> list[tuple]:
         ORDER BY asset_id
     """
     if limit:
-        query += f" LIMIT {limit}"
+        query = query.replace("ORDER BY", f"ORDER BY") + f" LIMIT {limit}"
     
     with conn.cursor() as cur:
         cur.execute(query)
-        return cur.fetchall()
+        all_assets = cur.fetchall()
+    
+    # Split into US and international
+    us_assets = [(aid, sym) for aid, sym in all_assets if '.' not in sym]
+    intl_assets = [(aid, sym) for aid, sym in all_assets if '.' in sym]
+    
+    return us_assets, intl_assets
 
 
-def insert_daily_bars(conn, records: list[dict]) -> int:
+def insert_daily_bars(conn, records: list[dict], source: str = "alphavantage") -> int:
     """
     Insert/update daily bars using upsert.
     Returns: Number of records inserted/updated
@@ -176,7 +196,7 @@ def insert_daily_bars(conn, records: list[dict]) -> int:
             close,
             volume,
             dollar_volume,
-            "alphavantage",
+            source,
             True  # adjusted_flag (using adjusted close)
         ))
     
@@ -188,10 +208,10 @@ def insert_daily_bars(conn, records: list[dict]) -> int:
 
 
 # ============================================================================
-# Alpha Vantage API Functions
+# Alpha Vantage API Functions (for US equities)
 # ============================================================================
 
-async def fetch_daily_adjusted(
+async def fetch_daily_adjusted_av(
     session: aiohttp.ClientSession,
     symbol: str,
     semaphore: asyncio.Semaphore
@@ -241,26 +261,12 @@ async def fetch_daily_adjusted(
             return {"symbol": symbol, "error": str(e)[:80], "data": None}
         finally:
             # Rate limit delay
-            await asyncio.sleep(RATE_LIMIT_DELAY)
+            await asyncio.sleep(AV_RATE_LIMIT_DELAY)
 
 
-def parse_daily_data(time_series: dict, target_date: str) -> Optional[dict]:
+def parse_daily_data_av(time_series: dict, target_date: str) -> Optional[dict]:
     """
     Parse daily adjusted data from Alpha Vantage.
-    
-    Alpha Vantage format:
-    {
-        "2024-01-05": {
-            "1. open": "...",
-            "2. high": "...",
-            "3. low": "...",
-            "4. close": "...",
-            "5. adjusted close": "...",
-            "6. volume": "...",
-            "7. dividend amount": "...",
-            "8. split coefficient": "..."
-        }
-    }
     """
     if not time_series or target_date not in time_series:
         return None
@@ -282,25 +288,106 @@ def parse_daily_data(time_series: dict, target_date: str) -> Optional[dict]:
 
 
 # ============================================================================
+# FMP API Functions (for international equities)
+# ============================================================================
+
+async def fetch_daily_fmp(
+    session: aiohttp.ClientSession,
+    symbol: str,
+    target_date: str,
+    semaphore: asyncio.Semaphore
+) -> dict:
+    """
+    Fetch daily OHLCV from FMP for international stocks.
+    Uses semaphore for rate limiting.
+    """
+    url = f"https://financialmodelingprep.com/stable/historical-price-eod/full"
+    params = {
+        "symbol": symbol,
+        "from": target_date,
+        "to": target_date,
+        "apikey": FMP_API_KEY
+    }
+    
+    async with semaphore:
+        try:
+            async with session.get(url, params=params, timeout=REQUEST_TIMEOUT) as response:
+                data = await response.json()
+                
+                # FMP returns a list directly
+                if isinstance(data, list) and len(data) > 0:
+                    return {"symbol": symbol, "error": None, "data": data[0]}
+                elif isinstance(data, dict) and "error" in data:
+                    logger.debug(f"FMP error for {symbol}: {data.get('error', 'unknown')}")
+                    return {"symbol": symbol, "error": "api_error", "data": None}
+                else:
+                    logger.debug(f"No FMP data for {symbol}")
+                    return {"symbol": symbol, "error": "no_data", "data": None}
+                
+        except asyncio.TimeoutError:
+            logger.warning(f"FMP timeout for {symbol}")
+            return {"symbol": symbol, "error": "timeout", "data": None}
+        except Exception as e:
+            logger.warning(f"FMP error fetching {symbol}: {str(e)[:80]}")
+            return {"symbol": symbol, "error": str(e)[:80], "data": None}
+        finally:
+            # Rate limit delay
+            await asyncio.sleep(FMP_RATE_LIMIT_DELAY)
+
+
+def parse_daily_data_fmp(day_data: dict, target_date: str) -> Optional[dict]:
+    """
+    Parse daily data from FMP.
+    
+    FMP format:
+    {
+        "date": "2026-01-28",
+        "open": 123.45,
+        "high": 125.00,
+        "low": 122.00,
+        "close": 124.50,
+        "adjClose": 124.50,
+        "volume": 1234567,
+        ...
+    }
+    """
+    if not day_data:
+        return None
+    
+    try:
+        # Use adjClose if available, otherwise use close
+        close = day_data.get("adjClose") or day_data.get("close")
+        
+        return {
+            "date": day_data.get("date", target_date),
+            "open": Decimal(str(day_data["open"])),
+            "high": Decimal(str(day_data["high"])),
+            "low": Decimal(str(day_data["low"])),
+            "close": Decimal(str(close)),
+            "volume": Decimal(str(day_data.get("volume", 0))),
+        }
+    except (KeyError, ValueError, TypeError) as e:
+        logger.warning(f"FMP parse error: {e}")
+        return None
+
+
+# ============================================================================
 # Batch Processing
 # ============================================================================
 
-async def process_assets(
+async def process_us_assets(
     assets: list[tuple],
     target_date: str,
     conn
 ) -> int:
     """
-    Process all assets with rate-limited async requests.
-    
-    Args:
-        assets: List of (asset_id, symbol) tuples
-        target_date: Date string in YYYY-MM-DD format
-        conn: Database connection
-    
-    Returns:
-        Total number of records inserted
+    Process US assets with Alpha Vantage API.
     """
+    if not assets:
+        return 0
+    
+    logger.info(f"Processing {len(assets)} US equities via Alpha Vantage...")
+    
     # Semaphore for rate limiting (1 concurrent request)
     semaphore = asyncio.Semaphore(1)
     
@@ -314,26 +401,26 @@ async def process_assets(
         for i, (asset_id, symbol) in enumerate(assets):
             # Progress logging every 100 assets
             if i % 100 == 0:
-                pct = i * 100 // len(assets)
-                logger.info(f"Progress: {i}/{len(assets)} ({pct}%) - Success: {success_count}, Errors: {error_count}")
+                pct = i * 100 // len(assets) if assets else 0
+                logger.info(f"  US Progress: {i}/{len(assets)} ({pct}%) - Success: {success_count}, Errors: {error_count}")
             
             # Fetch data
-            result = await fetch_daily_adjusted(session, symbol, semaphore)
+            result = await fetch_daily_adjusted_av(session, symbol, semaphore)
             
             # Handle rate limit
             if result["error"] == "rate_limit":
                 rate_limit_count += 1
                 if rate_limit_count >= 5:
-                    logger.error("Too many rate limits, stopping")
+                    logger.error("Too many rate limits, stopping US ingestion")
                     break
                 logger.info("Waiting 60s for rate limit cooldown...")
                 await asyncio.sleep(60)
                 # Retry
-                result = await fetch_daily_adjusted(session, symbol, semaphore)
+                result = await fetch_daily_adjusted_av(session, symbol, semaphore)
             
             # Parse and collect record
             if result["data"]:
-                bar_data = parse_daily_data(result["data"], target_date)
+                bar_data = parse_daily_data_av(result["data"], target_date)
                 if bar_data:
                     bar_data["asset_id"] = asset_id
                     batch_records.append(bar_data)
@@ -345,17 +432,82 @@ async def process_assets(
             
             # Insert in batches
             if len(batch_records) >= BATCH_SIZE:
-                inserted = insert_daily_bars(conn, batch_records)
+                inserted = insert_daily_bars(conn, batch_records, source="alphavantage")
                 total_inserted += inserted
-                logger.info(f"  → Inserted batch of {inserted} records")
+                logger.info(f"    → Inserted batch of {inserted} US records")
                 batch_records = []
     
     # Insert remaining records
     if batch_records:
-        inserted = insert_daily_bars(conn, batch_records)
+        inserted = insert_daily_bars(conn, batch_records, source="alphavantage")
         total_inserted += inserted
-        logger.info(f"  → Inserted final batch of {inserted} records")
+        logger.info(f"    → Inserted final batch of {inserted} US records")
     
+    logger.info(f"  US equities complete: {success_count} success, {error_count} errors")
+    return total_inserted
+
+
+async def process_intl_assets(
+    assets: list[tuple],
+    target_date: str,
+    conn
+) -> int:
+    """
+    Process international assets with FMP API.
+    """
+    if not assets:
+        return 0
+    
+    if not FMP_API_KEY:
+        logger.warning("FMP_API_KEY not set, skipping international equities")
+        return 0
+    
+    logger.info(f"Processing {len(assets)} international equities via FMP...")
+    
+    # Semaphore for rate limiting (allow more concurrent for FMP)
+    semaphore = asyncio.Semaphore(3)
+    
+    total_inserted = 0
+    batch_records = []
+    success_count = 0
+    error_count = 0
+    
+    async with aiohttp.ClientSession() as session:
+        for i, (asset_id, symbol) in enumerate(assets):
+            # Progress logging every 20 assets
+            if i % 20 == 0:
+                pct = i * 100 // len(assets) if assets else 0
+                logger.info(f"  Intl Progress: {i}/{len(assets)} ({pct}%) - Success: {success_count}, Errors: {error_count}")
+            
+            # Fetch data
+            result = await fetch_daily_fmp(session, symbol, target_date, semaphore)
+            
+            # Parse and collect record
+            if result["data"]:
+                bar_data = parse_daily_data_fmp(result["data"], target_date)
+                if bar_data:
+                    bar_data["asset_id"] = asset_id
+                    batch_records.append(bar_data)
+                    success_count += 1
+                else:
+                    error_count += 1
+            else:
+                error_count += 1
+            
+            # Insert in batches
+            if len(batch_records) >= BATCH_SIZE:
+                inserted = insert_daily_bars(conn, batch_records, source="fmp")
+                total_inserted += inserted
+                logger.info(f"    → Inserted batch of {inserted} intl records")
+                batch_records = []
+    
+    # Insert remaining records
+    if batch_records:
+        inserted = insert_daily_bars(conn, batch_records, source="fmp")
+        total_inserted += inserted
+        logger.info(f"    → Inserted final batch of {inserted} intl records")
+    
+    logger.info(f"  International equities complete: {success_count} success, {error_count} errors")
     return total_inserted
 
 
@@ -379,51 +531,70 @@ async def run_ingestion(target_date: str, limit: Optional[int] = None) -> int:
     logger.info(f"Target Date: {target_date}")
     logger.info("=" * 60)
     
-    # Check if trading day
+    # Check if trading day (for US markets - international may still trade)
     if not is_trading_day(target_date):
         last_trading = get_last_trading_day(target_date)
-        logger.info(f"⚠️  {target_date} is not a trading day")
-        logger.info(f"   Last trading day was: {last_trading}")
-        logger.info(f"   Skipping ingestion (no new data expected)")
-        return 0
+        logger.info(f"Note: {target_date} is not a US trading day")
+        logger.info(f"      Last US trading day was: {last_trading}")
+        logger.info(f"      Will still fetch international data...")
     
     # Validate environment
     if not ALPHAVANTAGE_API_KEY:
-        raise ValueError("ALPHAVANTAGE_API_KEY environment variable not set")
+        logger.warning("ALPHAVANTAGE_API_KEY not set, will skip US equities")
+    if not FMP_API_KEY:
+        logger.warning("FMP_API_KEY not set, will skip international equities")
     if not DATABASE_URL:
         raise ValueError("DATABASE_URL environment variable not set")
     
     # Get assets from database
     conn = get_db_connection()
-    assets = get_equity_assets(conn, limit)
-    logger.info(f"Found {len(assets)} active equity assets")
+    us_assets, intl_assets = get_equity_assets(conn, limit)
     
-    if not assets:
+    logger.info(f"Found {len(us_assets)} US equities (Alpha Vantage)")
+    logger.info(f"Found {len(intl_assets)} international equities (FMP)")
+    
+    if not us_assets and not intl_assets:
         logger.warning("No equity assets found!")
         conn.close()
         return 0
     
     # Estimate runtime
-    estimated_minutes = len(assets) * RATE_LIMIT_DELAY / 60
-    logger.info(f"Estimated runtime: ~{estimated_minutes:.0f} minutes")
+    us_minutes = len(us_assets) * AV_RATE_LIMIT_DELAY / 60 if ALPHAVANTAGE_API_KEY else 0
+    intl_minutes = len(intl_assets) * FMP_RATE_LIMIT_DELAY / 60 if FMP_API_KEY else 0
+    logger.info(f"Estimated runtime: ~{us_minutes + intl_minutes:.0f} minutes")
     
     # Process assets
     start_time = datetime.now()
-    inserted = await process_assets(assets, target_date, conn)
+    total_inserted = 0
+    
+    # Process US equities (skip on non-trading days)
+    if is_trading_day(target_date) and ALPHAVANTAGE_API_KEY and us_assets:
+        us_inserted = await process_us_assets(us_assets, target_date, conn)
+        total_inserted += us_inserted
+    elif not is_trading_day(target_date):
+        logger.info("Skipping US equities (not a trading day)")
+    
+    # Process international equities (may trade on different schedules)
+    if FMP_API_KEY and intl_assets:
+        intl_inserted = await process_intl_assets(intl_assets, target_date, conn)
+        total_inserted += intl_inserted
+    
     elapsed = (datetime.now() - start_time).total_seconds()
     
     conn.close()
     
     # Summary
+    total_assets = len(us_assets) + len(intl_assets)
     logger.info("=" * 60)
     logger.info(f"INGESTION COMPLETE")
-    logger.info(f"  Assets processed: {len(assets)}")
-    logger.info(f"  Records inserted: {inserted}")
-    logger.info(f"  Success rate: {inserted * 100 / len(assets):.1f}%")
+    logger.info(f"  US assets: {len(us_assets)}")
+    logger.info(f"  International assets: {len(intl_assets)}")
+    logger.info(f"  Total records inserted: {total_inserted}")
+    logger.info(f"  Success rate: {total_inserted * 100 / total_assets:.1f}%" if total_assets > 0 else "  Success rate: N/A")
     logger.info(f"  Elapsed time: {elapsed / 60:.1f} minutes")
     logger.info("=" * 60)
     
-    return inserted
+    return total_inserted
 
 
 def main():
