@@ -894,7 +894,7 @@ def main():
                 errors += 1
                 logger.warning(f"Error processing asset: {e}")
     
-    logger.info(f"Processed {processed} assets, found {len(all_setups)} setups"}
+    logger.info(f"Processed {processed} assets, found {len(all_setups)} setups")
     
     if errors > 0:
         logger.warning(f"Errors: {errors}")
