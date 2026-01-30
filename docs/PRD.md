@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 30, 2026 (v11.3.0 - Feature: AI Infrastructure Supply Chain Map with 99 companies across 7 tiers)  
+**Last Updated: January 30, 2026 (v11.4.0 - Feature: Daily Brief V4 redesign with improved UI and data connectivity)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -220,12 +220,42 @@ Stratos Brain includes two distinct AI chat agents:
   - **Tools:** Market screening, macro context, comparative analysis
   - **Output:** Market-wide insights and sector analysis
 
-### 4.5 Daily Brief
+### 4.5 Daily Brief (v4)
 
-A daily summary of market activity, including:
-- Top performing sectors
-- New signals detected
-- Watchlist updates
+An AI-powered daily market intelligence dashboard providing comprehensive market analysis:
+
+**Market Ticker Bar:**
+- Real-time market regime indicator (Bullish/Bearish/Neutral)
+- SPY, QQQ, IWM, BTC percentage changes
+- VIX and 10Y Treasury yield levels
+
+**Active Portfolio Section:**
+- Displays all active portfolio holdings with action recommendations (ADD/TRIM/HOLD)
+- AI Direction scores and RSI indicators
+- Current setup type and recent news
+- Clickable rows navigate to asset detail pages
+
+**Setup Opportunities:**
+- **Momentum Breakouts**: Donchian 55 breakouts, RS breakouts, Weinstein Stage 2
+- **Trend Continuation**: Golden cross, ADX holy grail, acceleration turns
+- **Compression/Reversion**: VCP squeeze, oversold bounce, squeeze release
+- Each setup shows conviction level (HIGH/MEDIUM/LOW) and composite scores
+
+**Market Intel:**
+- Aggregated news from MarketWatch and Seeking Alpha RSS feeds
+- Categorized by type: ECON, TECH, EARNINGS, GEOPOL, POLICY, CRYPTO
+- Direct links to source articles
+
+**Macro Insights (AI-Generated):**
+- Market Pulse: Current market sentiment and key levels
+- Liquidity & Flows: Treasury yields, DXY, fund flows
+- Calendar: Economic events and earnings releases
+
+**Technical Implementation:**
+- Frontend: `/pages/DailyBriefV4.tsx` - React component with dark theme
+- Backend: `/supabase/functions/daily-brief-api-v4/index.ts` - Edge function
+- Data Sources: Supabase tables, Gemini AI (with Google Search), RSS feeds
+- Generation time: ~5-10 seconds with parallel fetching
 
 ---
 
