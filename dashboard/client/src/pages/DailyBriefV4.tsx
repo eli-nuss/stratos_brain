@@ -688,28 +688,47 @@ function MacroInsightsSection({ intel }: { intel: MorningIntel }) {
 export default function DailyBriefV4() {
   const [, navigate] = useLocation();
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+  
+  // Fetch function that supports force refresh
+  const fetchBrief = async (forceRefresh: boolean = false) => {
+    const endpoint = getApiUrl("DAILY_BRIEF_V4");
+    if (!endpoint) {
+      throw new Error("Daily Brief API endpoint not configured");
+    }
+    // Add refresh=true query param to force regeneration
+    const url = forceRefresh ? `${endpoint}?refresh=true` : endpoint;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return res.json();
+  };
   
   const { data, error, isLoading, mutate } = useSWR<DailyBriefData>(
     "daily-brief-v4",
-    async () => {
-      const endpoint = getApiUrl("DAILY_BRIEF_V4");
-      if (!endpoint) {
-        throw new Error("Daily Brief API endpoint not configured");
-      }
-      const res = await fetch(endpoint);
-      if (!res.ok) throw new Error(`API error: ${res.status}`);
-      return res.json();
-    },
+    () => fetchBrief(false), // Normal load uses cache
     { 
       revalidateOnFocus: false,
-      dedupingInterval: 60000
+      revalidateOnReconnect: false,
+      dedupingInterval: 300000, // 5 minutes - don't re-fetch too often
+      refreshInterval: 0 // No auto-refresh
     }
   );
   
+  // Manual refresh forces regeneration
   const handleManualRefresh = async () => {
-    setLastRefresh(new Date());
-    await mutate();
+    setIsRefreshing(true);
+    try {
+      // Force refresh by fetching with refresh=true
+      const freshData = await fetchBrief(true);
+      // Update SWR cache with fresh data
+      await mutate(freshData, false);
+      setLastRefresh(new Date());
+    } catch (e) {
+      console.error('Refresh failed:', e);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
   
   const handleExportPDF = async () => {
@@ -798,10 +817,10 @@ Generated: ${format(new Date(), "h:mm a")}
               variant="outline" 
               size="sm" 
               onClick={handleManualRefresh} 
-              disabled={isLoading}
+              disabled={isLoading || isRefreshing}
             >
-              <RefreshCw className={cn("w-4 h-4 mr-2", isLoading && "animate-spin")} />
-              Refresh
+              <RefreshCw className={cn("w-4 h-4 mr-2", (isLoading || isRefreshing) && "animate-spin")} />
+              {isRefreshing ? "Regenerating..." : "Refresh"}
             </Button>
           </div>
         </div>
@@ -906,15 +925,30 @@ Generated: ${format(new Date(), "h:mm a")}
             
             {/* Footer */}
             <div className="flex items-center justify-between text-xs text-muted-foreground pt-4 border-t border-border">
-              <div className="flex items-center gap-2">
-                <Clock className="w-3 h-3" />
-                Last refreshed: {format(lastRefresh, "h:mm a")}
-              </div>
-              {data._meta?.generation_time_ms && (
-                <div>
-                  Generated in {(data._meta.generation_time_ms / 1000).toFixed(1)}s
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-3 h-3" />
+                  Last refreshed: {format(lastRefresh, "h:mm a")}
                 </div>
-              )}
+                {data._meta?.cached && (
+                  <div className="flex items-center gap-1 text-blue-400">
+                    <CheckCircle className="w-3 h-3" />
+                    Cached
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-4">
+                {data._meta?.generation_time_ms && (
+                  <div>
+                    Generated in {(data._meta.generation_time_ms / 1000).toFixed(1)}s
+                  </div>
+                )}
+                {data._meta?.cached_at && (
+                  <div className="text-muted-foreground">
+                    Cached at {format(new Date(data._meta.cached_at), "h:mm a")}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         ) : (

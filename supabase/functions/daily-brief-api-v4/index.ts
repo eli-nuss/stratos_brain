@@ -696,6 +696,114 @@ function generatePicks(candidates: any[]): any[] {
   }))
 }
 
+// Helper to get today's date in YYYY-MM-DD format
+function getTodayDate(): string {
+  return new Date().toISOString().split('T')[0]
+}
+
+// Check if cached brief exists and is fresh
+async function getCachedBrief(supabase: SupabaseClient): Promise<any | null> {
+  const today = getTodayDate()
+  const { data, error } = await supabase
+    .from('daily_briefs_v4')
+    .select('*')
+    .eq('brief_date', today)
+    .single()
+  
+  if (error || !data) return null
+  return data
+}
+
+// Save brief to cache
+async function saveBriefToCache(supabase: SupabaseClient, brief: any, generationTimeMs: number): Promise<void> {
+  const today = getTodayDate()
+  
+  // Upsert - insert or update if exists
+  await supabase
+    .from('daily_briefs_v4')
+    .upsert({
+      brief_date: today,
+      generated_at: new Date().toISOString(),
+      brief_data: brief,
+      generation_time_ms: generationTimeMs,
+      is_stale: false
+    }, { onConflict: 'brief_date' })
+}
+
+// Generate a fresh brief
+async function generateFreshBrief(supabase: SupabaseClient): Promise<{ brief: any, generationTimeMs: number }> {
+  console.log('[DailyBrief v4] Generating fresh brief...')
+  const startTime = Date.now()
+  
+  // Fetch all data in parallel
+  const [marketTicker, portfolioHoldings, rssItems] = await Promise.all([
+    fetchLiveMarketData(),
+    fetchPortfolioHoldings(supabase),
+    fetchAllRSS()
+  ])
+  
+  console.log(`[DailyBrief v4] Initial fetch completed in ${Date.now() - startTime}ms`)
+  
+  // Search news and generate intel in parallel
+  const [_, morningIntel, intelItems] = await Promise.all([
+    searchNewsForAllHoldings(portfolioHoldings),
+    generateMorningIntel(),
+    Promise.resolve(generateIntelFromRSS(rssItems))
+  ])
+  
+  // Generate alerts from portfolio
+  const alerts = generateAlerts(portfolioHoldings)
+  
+  // Fetch setups for each category
+  const setupTypes = {
+    momentum_breakouts: ['weinstein_stage2_breakout', 'donchian_55_breakout', 'rs_breakout', 'breakout_participation'],
+    trend_continuation: ['golden_cross', 'adx_holy_grail', 'acceleration_turn', 'trend_ignition'],
+    compression_reversion: ['vcp_squeeze', 'oversold_bounce', 'squeeze_release', 'exhaustion']
+  }
+  
+  const [momentum, trend, compression] = await Promise.all([
+    fetchSetupCandidates(supabase, setupTypes.momentum_breakouts),
+    fetchSetupCandidates(supabase, setupTypes.trend_continuation),
+    fetchSetupCandidates(supabase, setupTypes.compression_reversion)
+  ])
+  
+  const totalTime = Date.now() - startTime
+  console.log(`[DailyBrief v4] Generation complete in ${totalTime}ms`)
+  
+  const brief = {
+    date: getTodayDate(),
+    market_ticker: marketTicker,
+    market_regime: marketTicker.regime,
+    macro_summary: `10Y at ${marketTicker.yield_10y.toFixed(2)}%. VIX at ${marketTicker.vix.toFixed(1)}.`,
+    morning_intel: morningIntel,
+    portfolio: portfolioHoldings,
+    alerts: alerts,
+    categories: {
+      momentum_breakouts: {
+        theme_summary: `${generatePicks(momentum).length} momentum breakout setups detected`,
+        picks: generatePicks(momentum)
+      },
+      trend_continuation: {
+        theme_summary: `${generatePicks(trend).length} trend continuation setups detected`,
+        picks: generatePicks(trend)
+      },
+      compression_reversion: {
+        theme_summary: `${generatePicks(compression).length} compression/reversion setups detected`,
+        picks: generatePicks(compression)
+      }
+    },
+    intel_items: intelItems,
+    tokens: { in: 0, out: 0 },
+    _meta: {
+      generated_at: new Date().toISOString(),
+      generation_time_ms: totalTime,
+      cached: false
+    }
+  }
+  
+  return { brief, generationTimeMs: totalTime }
+}
+
 // Main handler
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -712,73 +820,39 @@ Deno.serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey)
     
-    console.log('[DailyBrief v4] Starting request...')
-    const startTime = Date.now()
+    // Check for force refresh query param
+    const url = new URL(req.url)
+    const forceRefresh = url.searchParams.get('refresh') === 'true'
     
-    // Fetch all data in parallel
-    const [marketTicker, portfolioHoldings, rssItems] = await Promise.all([
-      fetchLiveMarketData(),
-      fetchPortfolioHoldings(supabase),
-      fetchAllRSS()
-    ])
+    console.log(`[DailyBrief v4] Request received, forceRefresh=${forceRefresh}`)
     
-    console.log(`[DailyBrief v4] Initial fetch completed in ${Date.now() - startTime}ms`)
-    
-    // Search news and generate intel in parallel
-    const [_, morningIntel, intelItems] = await Promise.all([
-      searchNewsForAllHoldings(portfolioHoldings),
-      generateMorningIntel(),
-      Promise.resolve(generateIntelFromRSS(rssItems))
-    ])
-    
-    // Generate alerts from portfolio
-    const alerts = generateAlerts(portfolioHoldings)
-    
-    // Fetch setups for each category
-    const setupTypes = {
-      momentum_breakouts: ['weinstein_stage2_breakout', 'donchian_55_breakout', 'rs_breakout', 'breakout_participation'],
-      trend_continuation: ['golden_cross', 'adx_holy_grail', 'acceleration_turn', 'trend_ignition'],
-      compression_reversion: ['vcp_squeeze', 'oversold_bounce', 'squeeze_release', 'exhaustion']
-    }
-    
-    const [momentum, trend, compression] = await Promise.all([
-      fetchSetupCandidates(supabase, setupTypes.momentum_breakouts),
-      fetchSetupCandidates(supabase, setupTypes.trend_continuation),
-      fetchSetupCandidates(supabase, setupTypes.compression_reversion)
-    ])
-    
-    const totalTime = Date.now() - startTime
-    console.log(`[DailyBrief v4] Complete in ${totalTime}ms`)
-    
-    const brief = {
-      date: new Date().toISOString().split('T')[0],
-      market_ticker: marketTicker,
-      market_regime: marketTicker.regime,
-      macro_summary: `10Y at ${marketTicker.yield_10y.toFixed(2)}%. VIX at ${marketTicker.vix.toFixed(1)}.`,
-      morning_intel: morningIntel,
-      portfolio: portfolioHoldings,
-      alerts: alerts,
-      categories: {
-        momentum_breakouts: {
-          theme_summary: `${generatePicks(momentum).length} momentum breakout setups detected`,
-          picks: generatePicks(momentum)
-        },
-        trend_continuation: {
-          theme_summary: `${generatePicks(trend).length} trend continuation setups detected`,
-          picks: generatePicks(trend)
-        },
-        compression_reversion: {
-          theme_summary: `${generatePicks(compression).length} compression/reversion setups detected`,
-          picks: generatePicks(compression)
+    // If not forcing refresh, try to get cached brief
+    if (!forceRefresh) {
+      const cached = await getCachedBrief(supabase)
+      if (cached) {
+        console.log(`[DailyBrief v4] Returning cached brief from ${cached.generated_at}`)
+        const briefData = cached.brief_data
+        // Add cache metadata
+        briefData._meta = {
+          ...briefData._meta,
+          cached: true,
+          cached_at: cached.generated_at,
+          generation_time_ms: cached.generation_time_ms
         }
-      },
-      intel_items: intelItems,
-      tokens: { in: 0, out: 0 },
-      _meta: {
-        generated_at: new Date().toISOString(),
-        generation_time_ms: totalTime
+        return new Response(JSON.stringify(briefData), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
       }
+      console.log('[DailyBrief v4] No cached brief found, generating fresh...')
     }
+    
+    // Generate fresh brief
+    const { brief, generationTimeMs } = await generateFreshBrief(supabase)
+    
+    // Save to cache (async, don't wait)
+    saveBriefToCache(supabase, brief, generationTimeMs).catch(e => {
+      console.log('[DailyBrief v4] Failed to save to cache:', e)
+    })
     
     return new Response(JSON.stringify(brief), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
