@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 28, 2026 (v11.1.7 - Feature: Setups and R:R columns for ETF, Indices, Commodities tables)  
+**Last Updated: January 30, 2026 (v11.2.0 - Feature: International equities support with FMP integration)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -234,7 +234,7 @@ A daily summary of market activity, including:
 
 | Table | Description |
 |---|---|
-| `assets` | Master list of all tracked assets (equities and crypto) |
+| `assets` | Master list of all tracked assets (equities including international, and crypto) |
 | `daily_bars` | Raw OHLCV data for all assets |
 | `daily_features` | Calculated technical indicators for all assets |
 | `daily_signal_facts` | Daily record of all active signals for each asset |
@@ -274,8 +274,8 @@ A daily summary of market activity, including:
 | Source | Type | Data | Frequency |
 |---|---|---|---|
 | CoinGecko | API | Crypto OHLCV, market data | Daily |
-| Alpha Vantage | API | Equity OHLCV, fundamentals | Daily |
-| Financial Modeling Prep | API | Institutional holdings, ownership | Quarterly |
+| Alpha Vantage | API | US Equity OHLCV | Daily |
+| Financial Modeling Prep (FMP) | API | International equity OHLCV, ETF/Index/Commodity data, fundamentals, institutional holdings | Daily/Quarterly |
 | Google Gemini | API | LLM for AI analysis and chat | On-demand |
 | E2B | API | Sandboxed code execution | On-demand |
 
@@ -283,7 +283,23 @@ A daily summary of market activity, including:
 
 ## 7. Automated Workflows
 
-### 7.1 Daily Data Pipeline (pg_cron)
+### 7.1 Equity Daily OHLCV (GitHub Actions)
+
+- **Schedule:** Mon-Fri at 21:30 UTC (4:30 PM ET, after US market close)
+- **Workflow:**
+  1. Fetches all active equity assets from the database
+  2. Routes US equities (no exchange suffix) to Alpha Vantage API
+  3. Routes international equities (symbols with `.L`, `.DE`, `.AX`, etc.) to FMP API
+  4. Inserts/updates daily bars in the `daily_bars` table
+- **International Markets Supported:**
+  - London Stock Exchange (`.L`)
+  - Germany/Frankfurt (`.DE`)
+  - Australia (`.AX`)
+  - Paris (`.PA`)
+  - Toronto (`.TO`)
+  - Switzerland (`.SW`)
+
+### 7.2 Daily Data Pipeline (pg_cron)
 
 - **Schedule:** Every day at 00:00 UTC
 - **Workflow:**
@@ -291,7 +307,7 @@ A daily summary of market activity, including:
   2. The Python worker picks up the job.
   3. The worker executes the 5-stage data pipeline.
 
-### 7.2 Document Generation (Edge Function)
+### 7.3 Document Generation (Edge Function)
 
 - **Trigger:** User request from the dashboard.
 - **Workflow:**
