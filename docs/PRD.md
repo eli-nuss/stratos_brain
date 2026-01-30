@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 30, 2026 (v11.2.0 - Feature: International equities support with FMP integration)  
+**Last Updated: January 30, 2026 (v11.3.0 - Feature: AI Infrastructure Supply Chain Map with 99 companies across 7 tiers)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -203,6 +203,7 @@ The Signal Engine is the quantitative backbone of Stratos Brain, responsible for
 | Smart Money | Institutional tracking | 13F filings, guru portfolios |
 | Core Portfolio | Portfolio management | Holdings tracking |
 | Model Portfolio | Paper trading & portfolio construction | Sandbox mode, rebalance calculator, risk metrics, correlation matrix, stress testing, risk attribution, backtester, AI review |
+| AI Supply Chain | Interactive AI infrastructure market map | 7-tier visualization, 99 companies (78 public + 21 private), bottleneck analysis, company financials |
 
 ### 4.3 AI Chat System
 
@@ -254,6 +255,10 @@ A daily summary of market activity, including:
 | `etf_daily_bars` | OHLCV data for ETFs |
 | `index_daily_bars` | OHLCV data for market indices |
 | `commodity_daily_bars` | OHLCV data for commodities |
+| `supply_chain_tiers` | AI infrastructure supply chain tier definitions (7 tiers from raw materials to applications) |
+| `supply_chain_categories` | Categories within each tier (23 total categories) |
+| `asset_supply_chain_mapping` | Maps public companies to supply chain categories with role descriptions |
+| `private_companies` | Private companies in the AI supply chain (OpenAI, Anthropic, etc.) |
 
 ### 5.2 Database Views
 
@@ -359,6 +364,7 @@ A daily summary of market activity, including:
 - **`AssetTable`**: Main data grid for displaying assets.
 - **`AssetDetail`**: Detailed view for a single asset.
 - **`ChatWindow`**: Interface for the AI chat agents.
+- **`SupplyChainMap`**: Interactive visualization of the AI infrastructure supply chain with 7 tiers, expandable categories, and company detail sheets.
 
 ---
 

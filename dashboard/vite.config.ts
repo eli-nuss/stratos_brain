@@ -41,6 +41,10 @@ export default defineConfig({
       deny: ["**/.*"],
     },
     proxy: {
+      "/api/supply-chain": {
+        target: "http://localhost:3001",
+        changeOrigin: true,
+      },
       "/api/dashboard": {
         target: "https://wfogbaipiqootjrsprde.supabase.co/functions/v1/control-api/dashboard",
         changeOrigin: true,
