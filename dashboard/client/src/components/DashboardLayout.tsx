@@ -46,7 +46,7 @@ const navGroups = [
   {
     label: 'AI Research',
     items: [
-      { href: '/daily-brief', label: 'Daily Brief', icon: Sparkles },
+      { href: '/daily-brief-v4', label: 'Daily Brief', icon: Sparkles },
       { href: '/chat', label: 'Company Chat', icon: MessageSquare },
       { href: '/brain', label: 'Stratos Brain', icon: Brain },
     ]
