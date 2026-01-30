@@ -5373,16 +5373,25 @@ If asked about something not in the data, acknowledge the limitation.`
           })
         }
         
-        // Get fundamentals for linked holdings from fundamental_snapshot table
+        // Get fundamentals for linked holdings from equity_metadata table
         const { data: fundamentals, error: fundError } = await supabase
+          .from('equity_metadata')
+          .select('asset_id, pe_ratio, dividend_yield, market_cap')
+          .in('asset_id', linkedAssetIds)
+        
+        // Get additional fundamental data from fundamental_snapshot
+        const { data: snapshots, error: snapError } = await supabase
           .from('fundamental_snapshot')
-          .select('asset_id, pe_ratio, ps_ratio, revenue_growth_yoy, market_cap, dividend_yield')
+          .select('asset_id, revenue_growth_yoy, ps_5y_avg')
           .in('asset_id', linkedAssetIds)
         
         if (fundError) {
           console.error('Fundamentals query error:', fundError)
         }
-        console.log('Fundamentals query result:', { count: fundamentals?.length, error: fundError, linkedAssetIds: linkedAssetIds.slice(0, 5) })
+        if (snapError) {
+          console.error('Snapshot query error:', snapError)
+        }
+        console.log('Fundamentals query result:', { metadataCount: fundamentals?.length, snapshotCount: snapshots?.length })
         
         // Get latest daily features (returns) for linked holdings
         const { data: features } = await supabase
@@ -5426,11 +5435,11 @@ If asked about something not in the data, acknowledge the limitation.`
           total_linked_holdings: linkedAssetIds.length
         }
         
-        // Process fundamentals
+        // Process fundamentals from equity_metadata
         if (fundamentals && fundamentals.length > 0) {
           stats.holdings_with_fundamentals = fundamentals.length
           
-          // P/E ratios (filter outliers) - using pe_ratio from fundamental_snapshot
+          // P/E ratios (filter outliers) - using pe_ratio from equity_metadata
           const peValues = fundamentals
             .filter(f => f.pe_ratio && f.pe_ratio > 0 && f.pe_ratio < 500)
             .map(f => ({ value: f.pe_ratio, weight: weightMap[f.asset_id] || 1 }))
@@ -5438,24 +5447,27 @@ If asked about something not in the data, acknowledge the limitation.`
           stats.pe_ratio.median = calculateMedian(peValues.map(v => v.value))
           stats.pe_ratio.count = peValues.length
           
-          // P/S ratios - using ps_ratio from fundamental_snapshot
-          const psValues = fundamentals
-            .filter(f => f.ps_ratio && f.ps_ratio > 0 && f.ps_ratio < 500)
-            .map(f => ({ value: f.ps_ratio, weight: weightMap[f.asset_id] || 1 }))
-          stats.ps_ratio.weighted_avg = calculateWeightedAvg(psValues)
-          stats.ps_ratio.median = calculateMedian(psValues.map(v => v.value))
-          stats.ps_ratio.count = psValues.length
-          
-          // Dividend yield (already in percentage in fundamental_snapshot)
+          // Dividend yield (decimal in equity_metadata, convert to percentage)
           const divValues = fundamentals
             .filter(f => f.dividend_yield !== null && f.dividend_yield >= 0)
             .map(f => ({ value: f.dividend_yield * 100, weight: weightMap[f.asset_id] || 1 }))
           stats.dividend_yield.weighted_avg = calculateWeightedAvg(divValues)
           stats.dividend_yield.median = calculateMedian(divValues.map(v => v.value))
           stats.dividend_yield.count = divValues.length
+        }
+        
+        // Process additional data from fundamental_snapshot
+        if (snapshots && snapshots.length > 0) {
+          // P/S ratios - using ps_5y_avg from fundamental_snapshot (as proxy)
+          const psValues = snapshots
+            .filter(f => f.ps_5y_avg && f.ps_5y_avg > 0 && f.ps_5y_avg < 500)
+            .map(f => ({ value: f.ps_5y_avg, weight: weightMap[f.asset_id] || 1 }))
+          stats.ps_ratio.weighted_avg = calculateWeightedAvg(psValues)
+          stats.ps_ratio.median = calculateMedian(psValues.map(v => v.value))
+          stats.ps_ratio.count = psValues.length
           
-          // Revenue growth YoY (already in decimal, convert to percentage)
-          const revGrowthValues = fundamentals
+          // Revenue growth YoY (decimal, convert to percentage)
+          const revGrowthValues = snapshots
             .filter(f => f.revenue_growth_yoy !== null)
             .map(f => ({ value: f.revenue_growth_yoy * 100, weight: weightMap[f.asset_id] || 1 }))
           stats.revenue_growth_yoy.weighted_avg = calculateWeightedAvg(revGrowthValues)
