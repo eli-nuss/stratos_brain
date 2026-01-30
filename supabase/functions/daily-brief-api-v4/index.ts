@@ -42,11 +42,32 @@ interface IntelItem {
   date: string
 }
 
-// RSS Feeds
+// RSS Feeds - expanded list for better coverage
 const RSS_FEEDS = [
   { url: 'https://www.marketwatch.com/rss/topstories', source: 'MarketWatch' },
   { url: 'https://seekingalpha.com/market_currents.xml', source: 'Seeking Alpha' },
+  { url: 'https://feeds.bloomberg.com/markets/news.rss', source: 'Bloomberg' },
 ]
+
+// HTML entity decoder
+function decodeHtmlEntities(text: string): string {
+  if (!text) return ''
+  return text
+    .replace(/&#x([0-9A-Fa-f]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&mdash;/g, '—')
+    .replace(/&ndash;/g, '–')
+    .replace(/&rsquo;/g, "'")
+    .replace(/&lsquo;/g, "'")
+    .replace(/&rdquo;/g, '"')
+    .replace(/&ldquo;/g, '"')
+}
 
 // Fetch with timeout helper
 async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = 5000): Promise<Response | null> {
@@ -64,7 +85,7 @@ async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = 5000
   }
 }
 
-// Fetch RSS feed
+// Fetch RSS feed with better parsing
 async function fetchRSSFeed(url: string, source: string): Promise<any[]> {
   try {
     const response = await fetchWithTimeout(url, {
@@ -81,15 +102,19 @@ async function fetchRSSFeed(url: string, source: string): Promise<any[]> {
     const titleRegex = /<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/i
     const linkRegex = /<link>(.*?)<\/link>/i
     const descRegex = /<description>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/description>/is
+    const pubDateRegex = /<pubDate>(.*?)<\/pubDate>/i
     
     let match
-    while ((match = itemRegex.exec(xml)) !== null && items.length < 5) {
+    while ((match = itemRegex.exec(xml)) !== null && items.length < 8) {
       const content = match[1]
-      const title = titleRegex.exec(content)?.[1]?.trim()
+      const rawTitle = titleRegex.exec(content)?.[1]?.trim()
+      const title = decodeHtmlEntities(rawTitle || '')
       const link = linkRegex.exec(content)?.[1]?.trim()
-      const desc = descRegex.exec(content)?.[1]?.replace(/<[^>]+>/g, '').trim()
+      const rawDesc = descRegex.exec(content)?.[1]?.replace(/<[^>]+>/g, '').trim()
+      const description = decodeHtmlEntities(rawDesc || '')
+      const pubDate = pubDateRegex.exec(content)?.[1]?.trim()
       
-      if (title) items.push({ title, link, source, description: desc })
+      if (title) items.push({ title, link, source, description, pubDate })
     }
     
     return items
@@ -110,20 +135,74 @@ async function fetchAllRSS(): Promise<any[]> {
     if (r.status === 'fulfilled') items.push(...r.value)
   })
   
-  return items.slice(0, 10)
+  return items.slice(0, 15)
 }
 
-// Generate intel from RSS
+// Categorize news based on keywords
+function categorizeNews(title: string, description: string): string {
+  const text = `${title} ${description}`.toLowerCase()
+  
+  if (text.match(/bitcoin|crypto|ethereum|btc|eth|blockchain|defi|nft/)) return 'CRYPTO'
+  if (text.match(/fed|interest rate|inflation|treasury|powell|fomc|monetary/)) return 'POLICY'
+  if (text.match(/earnings|revenue|profit|eps|guidance|quarter|fiscal/)) return 'EARNINGS'
+  if (text.match(/gdp|jobs|employment|cpi|ppi|retail sales|manufacturing|economic/)) return 'ECON'
+  if (text.match(/china|russia|ukraine|tariff|trade war|geopolitical|sanctions/)) return 'GEOPOL'
+  if (text.match(/ai|tech|nvidia|apple|microsoft|google|amazon|semiconductor/)) return 'TECH'
+  
+  return 'ECON' // Default category
+}
+
+// Generate intel from RSS with better categorization
 function generateIntelFromRSS(rssItems: any[]): IntelItem[] {
-  const categories = ['ECON', 'TECH', 'EARNINGS', 'GEOPOL', 'POLICY', 'CRYPTO']
-  return rssItems.slice(0, 8).map((item, i) => ({
-    category: categories[i % categories.length],
-    headline: item.title?.slice(0, 100) || 'Market Update',
-    impact: item.description?.slice(0, 150) || 'Market news and analysis',
+  return rssItems.slice(0, 10).map((item) => ({
+    category: categorizeNews(item.title || '', item.description || ''),
+    headline: item.title?.slice(0, 120) || 'Market Update',
+    impact: item.description?.slice(0, 180) || 'Market news and analysis',
     url: item.link || '',
     source: item.source || 'News',
-    date: new Date().toISOString()
+    date: item.pubDate || new Date().toISOString()
   }))
+}
+
+// Match news to portfolio holdings
+function matchNewsToHoldings(holdings: PortfolioHolding[], rssItems: any[]): void {
+  const symbolKeywords: Record<string, string[]> = {
+    'MSTR': ['microstrategy', 'strategy inc', 'bitcoin', 'btc', 'saylor'],
+    'NVDA': ['nvidia', 'gpu', 'ai chip', 'jensen'],
+    'AAPL': ['apple', 'iphone', 'tim cook'],
+    'GOOGL': ['google', 'alphabet', 'search', 'youtube'],
+    'AMZN': ['amazon', 'aws', 'bezos', 'jassy'],
+    'TSLA': ['tesla', 'ev', 'musk', 'electric vehicle'],
+    'META': ['meta', 'facebook', 'instagram', 'zuckerberg'],
+    'MSFT': ['microsoft', 'azure', 'windows', 'nadella'],
+    'COPX': ['copper', 'mining', 'commodities'],
+    'GDXJ': ['gold', 'miners', 'precious metals'],
+    'URA': ['uranium', 'nuclear', 'energy'],
+    'SILJ': ['silver', 'miners', 'precious metals'],
+    'PLTM': ['platinum', 'precious metals'],
+    'ENLT': ['renewable', 'energy', 'solar', 'wind'],
+    'IREN': ['bitcoin', 'mining', 'crypto'],
+    'RKLB': ['rocket lab', 'space', 'satellite', 'launch'],
+    'RDW': ['redwire', 'space', 'satellite'],
+    'SIDU': ['sidus', 'space'],
+    'MU': ['micron', 'memory', 'dram', 'nand', 'semiconductor'],
+    'USAR': ['rare earth', 'mining'],
+    'FARTCOIN': ['fartcoin', 'meme', 'crypto'],
+  }
+  
+  holdings.forEach(h => {
+    const keywords = symbolKeywords[h.symbol] || [h.symbol.toLowerCase(), h.name.toLowerCase()]
+    
+    for (const item of rssItems) {
+      const searchText = `${item.title} ${item.description}`.toLowerCase()
+      const matched = keywords.some(kw => searchText.includes(kw))
+      
+      if (matched) {
+        h.news = decodeHtmlEntities(item.title?.slice(0, 100) || '')
+        break
+      }
+    }
+  })
 }
 
 // Call Gemini with timeout
@@ -191,16 +270,16 @@ async function generateMorningIntel() {
   return intel
 }
 
-// Fetch portfolio holdings with better error handling
+// Fetch ALL portfolio holdings (removed the slice limit)
 async function fetchPortfolioHoldings(supabase: SupabaseClient): Promise<PortfolioHolding[]> {
   try {
     console.log('[DailyBrief v4] Fetching portfolio holdings...')
     
     const { data: holdings, error: holdingsError } = await supabase
       .from('core_portfolio_holdings')
-      .select('asset_id, cost_basis, assets!inner(symbol, name, asset_type)')
+      .select('asset_id, cost_basis, quantity, assets!inner(symbol, name, asset_type)')
       .eq('is_active', true)
-      .limit(20)
+      .order('created_at', { ascending: false })
     
     if (holdingsError) {
       console.log('[DailyBrief v4] Holdings query error:', holdingsError.message)
@@ -212,12 +291,10 @@ async function fetchPortfolioHoldings(supabase: SupabaseClient): Promise<Portfol
       return []
     }
     
-    console.log(`[DailyBrief v4] Found ${holdings.length} holdings`)
+    console.log(`[DailyBrief v4] Found ${holdings.length} holdings - processing ALL`)
     
-    const enriched: PortfolioHolding[] = []
-    
-    // Process holdings in parallel batches
-    const enrichmentPromises = holdings.slice(0, 10).map(async (h) => {
+    // Process ALL holdings in parallel (no slice limit)
+    const enrichmentPromises = holdings.map(async (h) => {
       const asset = h.assets as any
       
       try {
@@ -241,13 +318,13 @@ async function fetchPortfolioHoldings(supabase: SupabaseClient): Promise<Portfol
         return {
           asset_id: h.asset_id,
           symbol: asset.symbol,
-          name: asset.name?.slice(0, 25) || asset.symbol,
+          name: asset.name?.slice(0, 30) || asset.symbol,
           action: rsi > 70 ? 'TRIM' : rsi < 30 ? 'ADD' : 'HOLD',
           price: h.cost_basis || 0,
           ai_direction: assetData?.ai_direction_score ?? 'N/A',
           rsi: Math.round(rsi),
           setup: setupData?.setup_name?.replace(/_/g, ' ') || 'No Setup',
-          news: '',
+          news: '', // Will be populated by matchNewsToHoldings
           catalysts: '',
           asset_url: `/asset/${h.asset_id}`
         } as PortfolioHolding
@@ -256,7 +333,7 @@ async function fetchPortfolioHoldings(supabase: SupabaseClient): Promise<Portfol
         return {
           asset_id: h.asset_id,
           symbol: asset.symbol,
-          name: asset.name?.slice(0, 25) || asset.symbol,
+          name: asset.name?.slice(0, 30) || asset.symbol,
           action: 'HOLD',
           price: h.cost_basis || 0,
           ai_direction: 'N/A',
@@ -423,19 +500,14 @@ Deno.serve(async (req) => {
     console.log(`[DailyBrief v4] Initial fetch completed in ${Date.now() - startTime}ms`)
     console.log(`[DailyBrief v4] Portfolio: ${portfolioHoldings.length}, RSS: ${rssItems.length}`)
     
+    // Match news to holdings BEFORE generating intel
+    matchNewsToHoldings(portfolioHoldings, rssItems)
+    
     // Generate intel and RSS items in parallel
     const [morningIntel, intelItems] = await Promise.all([
       generateMorningIntel(),
       Promise.resolve(generateIntelFromRSS(rssItems))
     ])
-    
-    // Match news to holdings
-    portfolioHoldings.forEach(h => {
-      const match = rssItems.find(r => 
-        r.title?.toLowerCase().includes(h.symbol.toLowerCase())
-      )
-      h.news = match ? `${match.title.slice(0, 80)}...` : ''
-    })
     
     // Fetch setups for each category in parallel
     const setupTypes = {

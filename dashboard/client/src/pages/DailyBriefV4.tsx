@@ -27,6 +27,16 @@ import useSWR from "swr";
 import { getApiUrl, getJsonApiHeaders, apiFetcher, API_BASE } from "@/lib/api-config";
 import { format } from "date-fns";
 
+// --- Helper Functions ---
+
+// Decode HTML entities that may come from RSS feeds
+const decodeHtmlEntities = (text: string): string => {
+  if (!text) return '';
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = text;
+  return textarea.value;
+};
+
 // --- Types ---
 
 interface PortfolioHolding {
@@ -264,7 +274,7 @@ function PortfolioSection({ holdings, onAssetClick }: {
                   </td>
                   <td className="py-2.5 px-4 hidden lg:table-cell">
                     <span className="text-xs text-muted-foreground truncate block max-w-[200px]">
-                      {h.news || "No recent news"}
+                      {h.news ? decodeHtmlEntities(h.news) : "No recent news"}
                     </span>
                   </td>
                 </tr>
@@ -433,9 +443,9 @@ function IntelSection({ items }: { items: IntelItem[] }) {
                         <span className="text-xs text-muted-foreground">{item.source}</span>
                       )}
                     </div>
-                    <p className="text-sm font-medium leading-tight">{item.headline}</p>
+                    <p className="text-sm font-medium leading-tight">{decodeHtmlEntities(item.headline)}</p>
                     {item.impact && (
-                      <p className="text-xs text-muted-foreground mt-1">{item.impact}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{decodeHtmlEntities(item.impact)}</p>
                     )}
                     {item.url && (
                       <a 
