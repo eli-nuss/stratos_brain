@@ -25,6 +25,12 @@ export const DAILY_BRIEF_API_BASE = 'https://wfogbaipiqootjrsprde.supabase.co/fu
 // Daily Brief V3 API URL
 export const DAILY_BRIEF_V3_API = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/daily-brief-api-v3';
 
+// Daily Brief V4 API URL (unified web + PDF)
+export const DAILY_BRIEF_V4_API = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/daily-brief-api-v4';
+
+// PDF Generation API URL
+export const PDF_GENERATE_API = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/generate-pdf';
+
 // Global Chat API base URL (Brain Chat)
 export const GLOBAL_CHAT_API_BASE = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/global-chat-api';
 
@@ -32,12 +38,14 @@ export const GLOBAL_CHAT_API_BASE = 'https://wfogbaipiqootjrsprde.supabase.co/fu
 const API_URLS: Record<string, string> = {
   DAILY_BRIEF_V3: DAILY_BRIEF_V3_API,
   DAILY_BRIEF: DAILY_BRIEF_API_BASE,
+  DAILY_BRIEF_V4: DAILY_BRIEF_V4_API,
+  PDF_GENERATE: PDF_GENERATE_API,
 };
 
 /**
  * Get API URL by key
  */
-export function getApiUrl(key: keyof typeof API_URLS): string {
+export function getApiUrl(key: string): string {
   return API_URLS[key] || '';
 }
 
