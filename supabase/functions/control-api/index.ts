@@ -5374,10 +5374,15 @@ If asked about something not in the data, acknowledge the limitation.`
         }
         
         // Get fundamentals for linked holdings
-        const { data: fundamentals } = await supabase
+        const { data: fundamentals, error: fundError } = await supabase
           .from('v_equity_fundamentals')
           .select('asset_id, pe_ratio_live, price_to_sales_ttm, quarterly_revenue_growth_yoy, market_cap, dividend_yield')
           .in('asset_id', linkedAssetIds)
+        
+        if (fundError) {
+          console.error('Fundamentals query error:', fundError)
+        }
+        console.log('Fundamentals query result:', { count: fundamentals?.length, linkedAssetIds: linkedAssetIds.slice(0, 5) })
         
         // Get latest daily features (returns) for linked holdings
         const { data: features } = await supabase
