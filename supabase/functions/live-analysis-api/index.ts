@@ -89,33 +89,34 @@ interface AIAnalysisResult {
 }
 
 /**
- * Fetch current intraday price from FMP
+ * Fetch current intraday price from FMP (using stable API)
  */
 async function fetchIntradayPrice(symbol: string, assetType: string): Promise<{ price: number; volume: number } | null> {
   try {
+    // Use the new stable API endpoint (legacy v3 endpoints deprecated Aug 2025)
+    let querySymbol = symbol
+    
     if (assetType === 'crypto') {
-      // For crypto, use CoinGecko or FMP crypto endpoint
-      const url = `https://financialmodelingprep.com/api/v3/quote/${symbol}USD?apikey=${FMP_API_KEY}`
-      const response = await fetch(url)
-      if (response.ok) {
-        const data = await response.json()
-        if (data && data[0]) {
-          return { price: data[0].price, volume: data[0].volume || 0 }
-        }
+      // For crypto, append USD to get the trading pair
+      querySymbol = `${symbol}USD`
+    }
+    
+    const url = `https://financialmodelingprep.com/stable/quote?symbol=${querySymbol}&apikey=${FMP_API_KEY}`
+    console.log(`[Live Analysis] Fetching price from: ${url.replace(FMP_API_KEY!, 'REDACTED')}`)
+    
+    const response = await fetch(url)
+    if (response.ok) {
+      const data = await response.json()
+      console.log(`[Live Analysis] FMP response for ${querySymbol}:`, JSON.stringify(data).substring(0, 200))
+      if (data && Array.isArray(data) && data[0]) {
+        return { price: data[0].price, volume: data[0].volume || 0 }
       }
     } else {
-      // For equities, use FMP quote endpoint
-      const url = `https://financialmodelingprep.com/api/v3/quote/${symbol}?apikey=${FMP_API_KEY}`
-      const response = await fetch(url)
-      if (response.ok) {
-        const data = await response.json()
-        if (data && data[0]) {
-          return { price: data[0].price, volume: data[0].volume || 0 }
-        }
-      }
+      const errorText = await response.text()
+      console.error(`[Live Analysis] FMP API error ${response.status}: ${errorText.substring(0, 200)}`)
     }
   } catch (error) {
-    console.error(`Error fetching intraday price for ${symbol}:`, error)
+    console.error(`[Live Analysis] Error fetching intraday price for ${symbol}:`, error)
   }
   return null
 }
@@ -431,22 +432,7 @@ serve(async (req) => {
 
     console.log(`[Live Analysis] Starting analysis for ${asset.symbol} (${asset.asset_id})`)
 
-    // Fetch current intraday price
-    const intradayData = await fetchIntradayPrice(asset.symbol, asset.asset_type)
-    if (!intradayData) {
-      return new Response(JSON.stringify({ 
-        error: 'Could not fetch current price',
-        message: 'Unable to retrieve real-time price data. Market may be closed or symbol not supported.'
-      }), {
-        status: 503,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-
-    const currentPrice = intradayData.price
-    console.log(`[Live Analysis] Current price for ${asset.symbol}: $${currentPrice}`)
-
-    // Fetch historical OHLCV data (last 365 days)
+    // Fetch historical OHLCV data first (we need this regardless)
     const { data: barsData, error: barsError } = await supabase
       .from('daily_bars')
       .select('date, open, high, low, close, volume')
@@ -475,6 +461,21 @@ serve(async (req) => {
     }))
 
     console.log(`[Live Analysis] Loaded ${bars.length} historical bars`)
+
+    // Try to fetch current intraday price from FMP
+    let currentPrice: number
+    let priceSource: 'live' | 'database' = 'live'
+    
+    const intradayData = await fetchIntradayPrice(asset.symbol, asset.asset_type)
+    if (intradayData && intradayData.price > 0) {
+      currentPrice = intradayData.price
+      console.log(`[Live Analysis] Using live price for ${asset.symbol}: $${currentPrice}`)
+    } else {
+      // Fallback to latest database close price
+      currentPrice = bars[bars.length - 1].close
+      priceSource = 'database'
+      console.log(`[Live Analysis] FMP unavailable, using latest DB close for ${asset.symbol}: $${currentPrice}`)
+    }
 
     // Calculate technical features
     const features = calculateFeatures(bars, currentPrice)
@@ -542,6 +543,7 @@ serve(async (req) => {
         asset_type: asset.asset_type
       },
       live_price: currentPrice,
+      price_source: priceSource,
       last_close: bars[bars.length - 1].close,
       price_change_pct: ((currentPrice - bars[bars.length - 1].close) / bars[bars.length - 1].close * 100).toFixed(2),
       analysis: {
