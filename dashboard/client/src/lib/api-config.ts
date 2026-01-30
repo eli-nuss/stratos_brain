@@ -34,6 +34,9 @@ export const PDF_GENERATE_API = 'https://wfogbaipiqootjrsprde.supabase.co/functi
 // Global Chat API base URL (Brain Chat)
 export const GLOBAL_CHAT_API_BASE = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/global-chat-api';
 
+// Live Analysis API URL (real-time intraday analysis)
+export const LIVE_ANALYSIS_API = 'https://wfogbaipiqootjrsprde.supabase.co/functions/v1/live-analysis-api';
+
 // API URL mapping
 const API_URLS: Record<string, string> = {
   DAILY_BRIEF_V3: DAILY_BRIEF_V3_API,

@@ -1,6 +1,6 @@
 import useSWR from "swr";
 import { useState, useRef, useEffect } from "react";
-import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, Activity, MessageCircle, Info, ExternalLink, Tag, FileText, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera } from "lucide-react";
+import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, Activity, MessageCircle, Info, ExternalLink, Tag, FileText, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera, RefreshCw, Zap } from "lucide-react";
 import html2canvas from "html2canvas";
 import { Area, Line, ComposedChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis, Legend } from "recharts";
 import { format } from "date-fns";
@@ -27,7 +27,7 @@ import AddToPortfolioButton from "./AddToPortfolioButton";
 import AssetTagButton from "./AssetTagButton";
 import AssetDetailSkeleton from "./AssetDetailSkeleton";
 import { ETFHoldingsTab } from "./ETFHoldingsTab";
-import { apiFetcher } from "@/lib/api-config";
+import { apiFetcher, LIVE_ANALYSIS_API, getApiHeaders } from "@/lib/api-config";
 
 interface AssetDetailProps {
   assetId: string;
@@ -94,6 +94,11 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
 
   const chartRef = useRef<HTMLDivElement>(null);
   const [isCapturing, setIsCapturing] = useState(false);
+  
+  // Live Analysis state
+  const [isRunningLiveAnalysis, setIsRunningLiveAnalysis] = useState(false);
+  const [liveAnalysisResult, setLiveAnalysisResult] = useState<any>(null);
+  const [liveAnalysisError, setLiveAnalysisError] = useState<string | null>(null);
 
   const captureChart = async () => {
     if (!chartRef.current) return;
@@ -129,6 +134,41 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                 console.error('Failed to capture chart:', err);
                 toast.error('Error generating chart image. Please try again.');    } finally {
       setIsCapturing(false);
+    }
+  };
+
+  // Run live analysis with current intraday price
+  const runLiveAnalysis = async () => {
+    setIsRunningLiveAnalysis(true);
+    setLiveAnalysisError(null);
+    
+    try {
+      const response = await fetch(LIVE_ANALYSIS_API, {
+        method: 'POST',
+        headers: {
+          ...getApiHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          asset_id: parseInt(assetId),
+          save_to_db: false // Don't save by default, just show results
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.message || result.error || 'Analysis failed');
+      }
+      
+      setLiveAnalysisResult(result);
+      toast.success(`Live analysis complete! Price: $${result.live_price?.toFixed(2)}`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to run live analysis';
+      setLiveAnalysisError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsRunningLiveAnalysis(false);
     }
   };
 
@@ -200,6 +240,36 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
             
             {/* Asset Tag button */}
             <AssetTagButton assetId={parseInt(assetId)} />
+            
+            {/* Live Update button */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={runLiveAnalysis}
+                  disabled={isRunningLiveAnalysis}
+                  className={`p-2 rounded-full transition-colors ${
+                    isRunningLiveAnalysis 
+                      ? 'bg-primary/20 text-primary cursor-wait' 
+                      : liveAnalysisResult 
+                        ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
+                        : 'text-muted-foreground hover:text-primary hover:bg-primary/10'
+                  }`}
+                >
+                  {isRunningLiveAnalysis ? (
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Zap className="w-5 h-5" />
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {isRunningLiveAnalysis 
+                  ? 'Running live analysis...' 
+                  : liveAnalysisResult 
+                    ? `Live analysis updated (${liveAnalysisResult.live_price ? '$' + liveAnalysisResult.live_price.toFixed(2) : 'click to refresh'})` 
+                    : 'Run live analysis with current price'}
+              </TooltipContent>
+            </Tooltip>
             
             {/* Research Chat button */}
             <Tooltip>
@@ -509,6 +579,144 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                   </div>
                 </div>
               )
+            )}
+
+            {/* Live Analysis Result Banner - Shows when live analysis has been run */}
+            {liveAnalysisResult && chartView !== 'financials' && (
+              <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/30 rounded-lg overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
+                {/* Header */}
+                <div className="flex items-center justify-between px-4 py-2.5 bg-emerald-500/10 border-b border-emerald-500/20">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                      <Zap className="w-3.5 h-3.5 text-emerald-400" />
+                    </div>
+                    <span className="text-sm font-semibold text-emerald-400">Live Analysis</span>
+                    <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/20 text-emerald-300 rounded">INTRADAY</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Live Price:</span>
+                      <span className="font-mono text-sm font-bold text-emerald-400">
+                        ${liveAnalysisResult.live_price?.toFixed(2)}
+                      </span>
+                      <span className={`text-xs font-mono ${
+                        parseFloat(liveAnalysisResult.price_change_pct) >= 0 ? 'text-emerald-400' : 'text-red-400'
+                      }`}>
+                        ({parseFloat(liveAnalysisResult.price_change_pct) >= 0 ? '+' : ''}{liveAnalysisResult.price_change_pct}%)
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setLiveAnalysisResult(null)}
+                      className="p-1 rounded hover:bg-emerald-500/20 text-emerald-400/60 hover:text-emerald-400 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Content */}
+                <div className="p-4 space-y-3">
+                  {/* Direction & Scores */}
+                  <div className="flex items-center gap-4">
+                    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${
+                      liveAnalysisResult.analysis?.direction === 'bullish' 
+                        ? 'bg-emerald-500/20 text-emerald-400' 
+                        : liveAnalysisResult.analysis?.direction === 'bearish'
+                          ? 'bg-red-500/20 text-red-400'
+                          : 'bg-muted/30 text-muted-foreground'
+                    }`}>
+                      {liveAnalysisResult.analysis?.direction === 'bullish' ? (
+                        <TrendingUp className="w-4 h-4" />
+                      ) : liveAnalysisResult.analysis?.direction === 'bearish' ? (
+                        <TrendingDown className="w-4 h-4" />
+                      ) : null}
+                      <span className="text-sm font-semibold capitalize">
+                        {liveAnalysisResult.analysis?.direction}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Direction Score:</span>
+                      <span className={`font-mono text-sm font-bold ${
+                        liveAnalysisResult.analysis?.ai_direction_score > 0 ? 'text-emerald-400' : 'text-red-400'
+                      }`}>
+                        {liveAnalysisResult.analysis?.ai_direction_score > 0 ? '+' : ''}{liveAnalysisResult.analysis?.ai_direction_score}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Quality:</span>
+                      <span className="font-mono text-sm font-bold text-blue-400">
+                        {liveAnalysisResult.analysis?.ai_setup_quality_score}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Confidence:</span>
+                      <span className="font-mono text-sm font-bold text-purple-400">
+                        {Math.round((liveAnalysisResult.analysis?.confidence || 0) * 100)}%
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Summary */}
+                  <p className="text-sm text-foreground/90 leading-relaxed">
+                    {liveAnalysisResult.analysis?.summary_text}
+                  </p>
+                  
+                  {/* Live Trade Plan */}
+                  {(liveAnalysisResult.analysis?.entry_zone || liveAnalysisResult.analysis?.targets) && (
+                    <div className="grid grid-cols-3 gap-3 pt-3 border-t border-emerald-500/20">
+                      {/* Entry Zone */}
+                      <div className="bg-emerald-500/5 rounded-lg p-2">
+                        <span className="text-[10px] text-emerald-400/70 uppercase tracking-wide">Entry Zone</span>
+                        <div className="font-mono text-sm font-bold text-emerald-400">
+                          ${liveAnalysisResult.analysis?.entry_zone?.low?.toFixed(2)} - ${liveAnalysisResult.analysis?.entry_zone?.high?.toFixed(2)}
+                        </div>
+                      </div>
+                      {/* Targets */}
+                      <div className="bg-emerald-500/5 rounded-lg p-2">
+                        <span className="text-[10px] text-emerald-400/70 uppercase tracking-wide">Targets</span>
+                        <div className="font-mono text-sm font-bold text-emerald-400">
+                          {liveAnalysisResult.analysis?.targets?.slice(0, 2).map((t: number) => `$${t?.toFixed(2)}`).join(' / ')}
+                        </div>
+                      </div>
+                      {/* Invalidation */}
+                      <div className="bg-red-500/5 rounded-lg p-2">
+                        <span className="text-[10px] text-red-400/70 uppercase tracking-wide">Invalidation</span>
+                        <div className="font-mono text-sm font-bold text-red-400">
+                          ${liveAnalysisResult.analysis?.key_levels?.invalidation?.toFixed(2) || '—'}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Why Now & Risks */}
+                  {(liveAnalysisResult.analysis?.why_now || liveAnalysisResult.analysis?.risks) && (
+                    <div className="space-y-2 pt-2">
+                      {liveAnalysisResult.analysis?.why_now && (
+                        <div className="flex items-start gap-2">
+                          <span className="text-[10px] text-emerald-400 uppercase tracking-wide w-16 flex-shrink-0">Why Now</span>
+                          <span className="text-xs text-foreground/80">{liveAnalysisResult.analysis.why_now}</span>
+                        </div>
+                      )}
+                      {liveAnalysisResult.analysis?.risks && (
+                        <div className="flex items-start gap-2">
+                          <span className="text-[10px] text-amber-400 uppercase tracking-wide w-16 flex-shrink-0">Risks</span>
+                          <span className="text-xs text-foreground/80">
+                            {Array.isArray(liveAnalysisResult.analysis.risks) 
+                              ? liveAnalysisResult.analysis.risks.join(', ') 
+                              : liveAnalysisResult.analysis.risks}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Timestamp */}
+                  <div className="flex items-center justify-between pt-2 text-[10px] text-muted-foreground/60">
+                    <span>Model: {liveAnalysisResult.model}</span>
+                    <span>Updated: {new Date(liveAnalysisResult.timestamp).toLocaleTimeString()}</span>
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* Trade Plan & Signals - Only show in Technicals view */}

@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD): Stratos Brain
 
 **Document Version:** 1.0  
-**Last Updated: January 30, 2026 (v11.5.0 - Feature: Daily Brief V4 enhanced with live market data, alerts, and visual polish)  
+**Last Updated: January 30, 2026 (v11.6.0 - Feature: Live Analysis button for real-time intraday AI technical analysis)  
 **Author:** Stratos Team  
 **Status:** Living Document
 
@@ -374,6 +374,41 @@ An AI-powered daily market intelligence dashboard providing comprehensive market
   - **Response (202 Accepted):** `{ "success": true, "message": "Document generation started", "job_id": string, "job_type": string }`
   - **Error Handling:** The background job now properly handles errors and updates the job status to `failed` with a descriptive error message.
 
+#### `live-analysis-api`
+
+- **`POST /`**: Performs real-time technical analysis for a single asset using the current intraday price.
+  - **Request Body:** `{ "asset_id": number, "save_to_db": boolean (optional, default false) }`
+  - **Response (200 OK):**
+    ```json
+    {
+      "success": true,
+      "asset": { "asset_id": number, "symbol": string, "name": string, "asset_type": string },
+      "live_price": number,
+      "last_close": number,
+      "price_change_pct": string,
+      "analysis": {
+        "direction": "bullish" | "bearish" | "neutral",
+        "ai_direction_score": number,
+        "ai_setup_quality_score": number,
+        "setup_type": string,
+        "attention_level": string,
+        "confidence": number,
+        "summary_text": string,
+        "key_levels": { "support": number[], "resistance": number[], "invalidation": number },
+        "entry_zone": { "low": number, "high": number },
+        "targets": number[],
+        "why_now": string,
+        "risks": string[],
+        "what_to_watch": string
+      },
+      "features": { ... },
+      "model": string,
+      "timestamp": string,
+      "saved_to_db": boolean
+    }
+    ```
+  - **Error Handling:** Returns appropriate error messages for missing asset, insufficient data, or API failures.
+
 ---
 
 ## 9. Frontend Architecture
@@ -392,7 +427,7 @@ An AI-powered daily market intelligence dashboard providing comprehensive market
 ### 9.3 Key Components
 
 - **`AssetTable`**: Main data grid for displaying assets.
-- **`AssetDetail`**: Detailed view for a single asset.
+- **`AssetDetail`**: Detailed view for a single asset. Includes a **Live Analysis** button (⚡) that triggers real-time AI technical analysis using the current intraday price instead of waiting for end-of-day data.
 - **`ChatWindow`**: Interface for the AI chat agents.
 - **`SupplyChainMap`**: Interactive visualization of the AI infrastructure supply chain with 7 tiers, expandable categories, and company detail sheets.
 
