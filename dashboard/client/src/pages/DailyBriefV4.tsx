@@ -492,8 +492,8 @@ export default function DailyBriefV4() {
   const { data, error, isLoading, mutate } = useSWR<DailyBriefData>(
     version === "v4" ? "daily-brief-v4" : "daily-brief-v3",
     async () => {
-      const endpoint = version === "v4" ? "/daily-brief-api-v4" : "/daily-brief-api-v3";
-      const res = await fetch(getApiUrl(endpoint), { headers: getJsonApiHeaders() });
+      const endpoint = version === "v4" ? getApiUrl("DAILY_BRIEF_V4") : getApiUrl("DAILY_BRIEF_V3");
+      const res = await fetch(endpoint, { headers: getJsonApiHeaders() });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json();
     },
@@ -530,7 +530,7 @@ export default function DailyBriefV4() {
   };
   
   const generatePDF = async (): Promise<string> => {
-    const res = await fetch(getApiUrl("/generate-pdf"), {
+    const res = await fetch(getApiUrl("PDF_GENERATE"), {
       method: "POST",
       headers: getJsonApiHeaders(),
       body: JSON.stringify({ briefData: data })
