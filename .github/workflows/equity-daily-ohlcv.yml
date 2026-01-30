@@ -1,12 +1,10 @@
 # Equity Daily OHLCV Ingestion
 # ============================
-# Fetches daily bars from Alpha Vantage API for all active equity assets.
+# Fetches daily bars for all active equity assets:
+# - US equities from Alpha Vantage API
+# - International equities (symbols with exchange suffix) from FMP API
+#
 # Runs Mon-Fri at 21:30 UTC (4:30 PM ET) after US market close.
-#
-# Note: This job takes ~85 minutes with 5,000+ equities at 60 calls/min.
-# GitHub Actions has a 6-hour timeout, so this is well within limits.
-#
-# Manual trigger: Go to Actions > Equity Daily OHLCV > Run workflow
 
 name: Equity Daily OHLCV
 
@@ -34,7 +32,7 @@ jobs:
   ingest-equities:
     name: Ingest Equity Daily Bars
     runs-on: ubuntu-latest
-    timeout-minutes: 120  # 2 hours (should complete in ~85 min)
+    timeout-minutes: 150  # 2 hours (should complete in ~85 min)
     
     steps:
       - name: Checkout repository
@@ -73,6 +71,7 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }}
+          FMP_API_KEY: ${{ secrets.FMP_API_KEY }}  # <-- ADD THIS LINE
         run: |
           echo "🚀 Starting equity OHLCV ingestion"
           echo "📅 Target date: ${{ steps.date.outputs.date }}"
