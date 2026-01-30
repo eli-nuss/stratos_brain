@@ -23,7 +23,12 @@ import {
   DollarSign,
   BarChart3,
   Globe,
-  Lock
+  Lock,
+  ChevronUp,
+  ChevronsUpDown,
+  Flame,
+  Thermometer,
+  Activity
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -95,6 +100,9 @@ interface SupplyChainCompany {
   key_investors?: string[];
 }
 
+// Heat map time period type
+type HeatMapPeriod = 'off' | '1d' | '7d' | '30d' | '1y';
+
 // Icon mapping
 const tierIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   layers: Layers,
@@ -115,21 +123,187 @@ const tierColors: Record<number, { bg: string; border: string; text: string; gra
   [3]: { bg: 'bg-purple-950/30', border: 'border-purple-600/50', text: 'text-purple-400', gradient: 'from-purple-900/30 to-purple-950/20' },
   [4]: { bg: 'bg-emerald-950/30', border: 'border-emerald-600/50', text: 'text-emerald-400', gradient: 'from-emerald-900/30 to-emerald-950/20' },
   [5]: { bg: 'bg-orange-950/30', border: 'border-orange-600/50', text: 'text-orange-400', gradient: 'from-orange-900/30 to-orange-950/20' },
+  [6]: { bg: 'bg-cyan-950/30', border: 'border-cyan-600/50', text: 'text-cyan-400', gradient: 'from-cyan-900/30 to-cyan-950/20' },
 };
+
+// Get heat map color based on performance
+function getHeatMapColor(value: number | null): string {
+  if (value === null) return 'bg-muted/30';
+  if (value >= 10) return 'bg-green-500/60 border-green-400';
+  if (value >= 5) return 'bg-green-500/40 border-green-500/50';
+  if (value >= 2) return 'bg-green-500/25 border-green-600/40';
+  if (value >= 0) return 'bg-green-500/10 border-green-700/30';
+  if (value >= -2) return 'bg-red-500/10 border-red-700/30';
+  if (value >= -5) return 'bg-red-500/25 border-red-600/40';
+  if (value >= -10) return 'bg-red-500/40 border-red-500/50';
+  return 'bg-red-500/60 border-red-400';
+}
+
+// Get performance value based on period
+function getPerformanceValue(company: SupplyChainCompany, period: HeatMapPeriod): number | null {
+  switch (period) {
+    case '1d': return company.return_1d;
+    case '7d': return company.return_7d;
+    case '30d': return company.return_30d;
+    case '1y': return company.return_1y;
+    default: return null;
+  }
+}
+
+// Calculate tier stats
+interface TierStats {
+  totalMarketCap: number;
+  avgPE: number | null;
+  avgReturn1D: number | null;
+  avgReturn7D: number | null;
+  avgReturn30D: number | null;
+  avgReturn1Y: number | null;
+  totalMarketSize: number;
+  avgCAGR: number;
+  publicCount: number;
+  privateCount: number;
+}
+
+function calculateTierStats(tier: SupplyChainTier): TierStats {
+  let totalMarketCap = 0;
+  let peSum = 0;
+  let peCount = 0;
+  let return1DSum = 0;
+  let return1DCount = 0;
+  let return7DSum = 0;
+  let return7DCount = 0;
+  let return30DSum = 0;
+  let return30DCount = 0;
+  let return1YSum = 0;
+  let return1YCount = 0;
+  let totalMarketSize = 0;
+  let cagrSum = 0;
+  let cagrCount = 0;
+  let publicCount = 0;
+  let privateCount = 0;
+
+  tier.categories?.forEach(cat => {
+    totalMarketSize += cat.market_size_2024 || 0;
+    if (cat.cagr_percent) {
+      cagrSum += cat.cagr_percent;
+      cagrCount++;
+    }
+    publicCount += cat.public_company_count || 0;
+    privateCount += cat.private_company_count || 0;
+
+    cat.companies?.forEach(company => {
+      if (company.market_cap) totalMarketCap += company.market_cap;
+      if (company.ev_to_ebitda && company.ev_to_ebitda > 0 && company.ev_to_ebitda < 200) {
+        peSum += company.ev_to_ebitda;
+        peCount++;
+      }
+      if (company.return_1d !== null) {
+        return1DSum += company.return_1d;
+        return1DCount++;
+      }
+      if (company.return_7d !== null) {
+        return7DSum += company.return_7d;
+        return7DCount++;
+      }
+      if (company.return_30d !== null) {
+        return30DSum += company.return_30d;
+        return30DCount++;
+      }
+      if (company.return_1y !== null) {
+        return1YSum += company.return_1y;
+        return1YCount++;
+      }
+    });
+  });
+
+  return {
+    totalMarketCap,
+    avgPE: peCount > 0 ? peSum / peCount : null,
+    avgReturn1D: return1DCount > 0 ? return1DSum / return1DCount : null,
+    avgReturn7D: return7DCount > 0 ? return7DSum / return7DCount : null,
+    avgReturn30D: return30DCount > 0 ? return30DSum / return30DCount : null,
+    avgReturn1Y: return1YCount > 0 ? return1YSum / return1YCount : null,
+    totalMarketSize,
+    avgCAGR: cagrCount > 0 ? cagrSum / cagrCount : 0,
+    publicCount,
+    privateCount
+  };
+}
+
+// Calculate category stats
+interface CategoryStats {
+  totalMarketCap: number;
+  avgPE: number | null;
+  avgReturn1D: number | null;
+  avgReturn7D: number | null;
+  avgReturn30D: number | null;
+  avgReturn1Y: number | null;
+}
+
+function calculateCategoryStats(category: SupplyChainCategory): CategoryStats {
+  let totalMarketCap = 0;
+  let peSum = 0;
+  let peCount = 0;
+  let return1DSum = 0;
+  let return1DCount = 0;
+  let return7DSum = 0;
+  let return7DCount = 0;
+  let return30DSum = 0;
+  let return30DCount = 0;
+  let return1YSum = 0;
+  let return1YCount = 0;
+
+  category.companies?.forEach(company => {
+    if (company.market_cap) totalMarketCap += company.market_cap;
+    if (company.ev_to_ebitda && company.ev_to_ebitda > 0 && company.ev_to_ebitda < 200) {
+      peSum += company.ev_to_ebitda;
+      peCount++;
+    }
+    if (company.return_1d !== null) {
+      return1DSum += company.return_1d;
+      return1DCount++;
+    }
+    if (company.return_7d !== null) {
+      return7DSum += company.return_7d;
+      return7DCount++;
+    }
+    if (company.return_30d !== null) {
+      return30DSum += company.return_30d;
+      return30DCount++;
+    }
+    if (company.return_1y !== null) {
+      return1YSum += company.return_1y;
+      return1YCount++;
+    }
+  });
+
+  return {
+    totalMarketCap,
+    avgPE: peCount > 0 ? peSum / peCount : null,
+    avgReturn1D: return1DCount > 0 ? return1DSum / return1DCount : null,
+    avgReturn7D: return7DCount > 0 ? return7DSum / return7DCount : null,
+    avgReturn30D: return30DCount > 0 ? return30DSum / return30DCount : null,
+    avgReturn1Y: return1YCount > 0 ? return1YSum / return1YCount : null
+  };
+}
 
 // Company Card Component
 function CompanyCard({ 
   company, 
   tierNumber,
-  onClick 
+  onClick,
+  heatMapPeriod
 }: { 
   company: SupplyChainCompany; 
   tierNumber: number;
   onClick: () => void;
+  heatMapPeriod: HeatMapPeriod;
 }) {
   const [, setLocation] = useLocation();
   const colors = tierColors[tierNumber] || tierColors[0];
   const isPrivate = company.company_type === 'private';
+  const performanceValue = getPerformanceValue(company, heatMapPeriod);
+  const isHeatMapActive = heatMapPeriod !== 'off';
   
   const handleClick = () => {
     // For public companies with asset_id, navigate directly to asset page
@@ -151,8 +325,8 @@ function CompanyCard({
       className={cn(
         "cursor-pointer rounded-lg border p-3 transition-all",
         "hover:shadow-lg hover:shadow-black/20",
-        colors.bg,
-        colors.border,
+        isHeatMapActive ? getHeatMapColor(performanceValue) : colors.bg,
+        !isHeatMapActive && colors.border,
         isPrivate && "border-dashed"
       )}
     >
@@ -175,7 +349,14 @@ function CompanyCard({
             </p>
           )}
         </div>
-        {company.return_1d !== null && (
+        {isHeatMapActive && performanceValue !== null ? (
+          <div className={cn(
+            "text-sm font-bold flex items-center gap-0.5",
+            performanceValue > 0 ? "text-green-400" : performanceValue < 0 ? "text-red-400" : "text-muted-foreground"
+          )}>
+            {performanceValue > 0 ? '+' : ''}{performanceValue.toFixed(1)}%
+          </div>
+        ) : company.return_1d !== null && (
           <div className={cn(
             "text-xs font-medium flex items-center gap-0.5",
             company.return_1d > 0 ? "text-green-500" : company.return_1d < 0 ? "text-red-500" : "text-muted-foreground"
@@ -203,25 +384,57 @@ function CompanyCard({
   );
 }
 
+// Stats Badge Component
+function StatsBadge({ label, value, trend }: { label: string; value: string; trend?: number | null }) {
+  return (
+    <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted/30 text-xs">
+      <span className="text-muted-foreground">{label}:</span>
+      <span className="font-medium">{value}</span>
+      {trend !== undefined && trend !== null && (
+        <span className={cn(
+          "font-medium",
+          trend > 0 ? "text-green-500" : trend < 0 ? "text-red-500" : "text-muted-foreground"
+        )}>
+          ({trend > 0 ? '+' : ''}{trend.toFixed(1)}%)
+        </span>
+      )}
+    </div>
+  );
+}
+
 // Category Section Component
 function CategorySection({
   category,
   tierNumber,
   isExpanded,
   onToggle,
-  onCompanyClick
+  onCompanyClick,
+  heatMapPeriod
 }: {
   category: SupplyChainCategory;
   tierNumber: number;
   isExpanded: boolean;
   onToggle: () => void;
   onCompanyClick: (company: SupplyChainCompany) => void;
+  heatMapPeriod: HeatMapPeriod;
 }) {
   const colors = tierColors[tierNumber] || tierColors[0];
   const totalCompanies = category.public_company_count + category.private_company_count;
+  const stats = useMemo(() => calculateCategoryStats(category), [category]);
+  const isHeatMapActive = heatMapPeriod !== 'off';
+  
+  // Get the relevant return for heat map
+  const avgReturn = heatMapPeriod === '1d' ? stats.avgReturn1D :
+                    heatMapPeriod === '7d' ? stats.avgReturn7D :
+                    heatMapPeriod === '30d' ? stats.avgReturn30D :
+                    heatMapPeriod === '1y' ? stats.avgReturn1Y : null;
   
   return (
-    <div className={cn("rounded-lg border", colors.border, colors.bg)}>
+    <div className={cn(
+      "rounded-lg border",
+      isHeatMapActive ? getHeatMapColor(avgReturn) : colors.border,
+      !isHeatMapActive && colors.bg
+    )}>
       <button
         onClick={onToggle}
         className="w-full flex items-center justify-between p-3 hover:bg-white/5 transition-colors rounded-lg"
@@ -243,11 +456,29 @@ function CategorySection({
             </p>
           </div>
         </div>
-        {isExpanded ? (
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-        ) : (
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-        )}
+        <div className="flex items-center gap-3">
+          {/* Category Stats */}
+          {stats.totalMarketCap > 0 && (
+            <div className="hidden sm:flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">
+                ${formatLargeNumber(stats.totalMarketCap)} mkt cap
+              </span>
+              {isHeatMapActive && avgReturn !== null && (
+                <span className={cn(
+                  "text-xs font-medium",
+                  avgReturn > 0 ? "text-green-500" : avgReturn < 0 ? "text-red-500" : "text-muted-foreground"
+                )}>
+                  {avgReturn > 0 ? '+' : ''}{avgReturn.toFixed(1)}%
+                </span>
+              )}
+            </div>
+          )}
+          {isExpanded ? (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          )}
+        </div>
       </button>
       
       <AnimatePresence>
@@ -266,6 +497,7 @@ function CategorySection({
                   company={company}
                   tierNumber={tierNumber}
                   onClick={() => onCompanyClick(company)}
+                  heatMapPeriod={heatMapPeriod}
                 />
               ))}
             </div>
@@ -283,7 +515,8 @@ function TierSection({
   onToggle,
   expandedCategories,
   onCategoryToggle,
-  onCompanyClick
+  onCompanyClick,
+  heatMapPeriod
 }: {
   tier: SupplyChainTier;
   isExpanded: boolean;
@@ -291,25 +524,31 @@ function TierSection({
   expandedCategories: Set<number>;
   onCategoryToggle: (categoryId: number) => void;
   onCompanyClick: (company: SupplyChainCompany) => void;
+  heatMapPeriod: HeatMapPeriod;
 }) {
   const colors = tierColors[tier.tier_number] || tierColors[0];
   const IconComponent = tierIcons[tier.icon_name] || Layers;
+  const stats = useMemo(() => calculateTierStats(tier), [tier]);
+  const isHeatMapActive = heatMapPeriod !== 'off';
   
-  const totalCompanies = tier.categories?.reduce(
-    (sum, cat) => sum + (cat.public_company_count || 0) + (cat.private_company_count || 0), 
-    0
-  ) || 0;
+  const totalCompanies = stats.publicCount + stats.privateCount;
+  
+  // Get the relevant return for heat map
+  const avgReturn = heatMapPeriod === '1d' ? stats.avgReturn1D :
+                    heatMapPeriod === '7d' ? stats.avgReturn7D :
+                    heatMapPeriod === '30d' ? stats.avgReturn30D :
+                    heatMapPeriod === '1y' ? stats.avgReturn1Y : null;
   
   return (
     <Card className={cn(
       "overflow-hidden transition-all duration-300",
-      colors.border,
+      isHeatMapActive ? getHeatMapColor(avgReturn) : colors.border,
       tier.is_bottleneck && "ring-2 ring-red-500/50"
     )}>
       <CardHeader 
         className={cn(
           "cursor-pointer hover:bg-white/5 transition-colors py-4",
-          `bg-gradient-to-r ${colors.gradient}`
+          !isHeatMapActive && `bg-gradient-to-r ${colors.gradient}`
         )}
         onClick={onToggle}
       >
@@ -350,6 +589,32 @@ function TierSection({
             )}
           </div>
         </div>
+        
+        {/* Tier Stats Row */}
+        <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-white/10">
+          {stats.totalMarketCap > 0 && (
+            <StatsBadge label="Mkt Cap" value={`$${formatLargeNumber(stats.totalMarketCap)}`} />
+          )}
+          {stats.totalMarketSize > 0 && (
+            <StatsBadge label="TAM" value={`$${formatLargeNumber(stats.totalMarketSize)}`} />
+          )}
+          {stats.avgCAGR > 0 && (
+            <StatsBadge label="Avg CAGR" value={`${stats.avgCAGR.toFixed(0)}%`} />
+          )}
+          {stats.avgPE !== null && (
+            <StatsBadge label="Avg EV/EBITDA" value={stats.avgPE.toFixed(1)} />
+          )}
+          {isHeatMapActive && avgReturn !== null && (
+            <StatsBadge 
+              label={`Avg ${heatMapPeriod.toUpperCase()}`} 
+              value={`${avgReturn > 0 ? '+' : ''}${avgReturn.toFixed(1)}%`}
+              trend={avgReturn}
+            />
+          )}
+          {!isHeatMapActive && stats.avgReturn1D !== null && (
+            <StatsBadge label="Avg 1D" value={`${stats.avgReturn1D > 0 ? '+' : ''}${stats.avgReturn1D.toFixed(1)}%`} trend={stats.avgReturn1D} />
+          )}
+        </div>
       </CardHeader>
       
       <AnimatePresence>
@@ -369,6 +634,7 @@ function TierSection({
                   isExpanded={expandedCategories.has(category.category_id)}
                   onToggle={() => onCategoryToggle(category.category_id)}
                   onCompanyClick={onCompanyClick}
+                  heatMapPeriod={heatMapPeriod}
                 />
               ))}
             </CardContent>
@@ -404,37 +670,24 @@ function CompanyDetailSheet({
                 {company.symbol || company.name}
               </SheetTitle>
               {company.symbol && (
-                <SheetDescription className="text-base">
-                  {company.name}
-                </SheetDescription>
+                <SheetDescription>{company.name}</SheetDescription>
               )}
             </div>
+            {company.competitive_position === 'leader' && (
+              <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/30">
+                Market Leader
+              </Badge>
+            )}
           </div>
-          {company.competitive_position && (
-            <Badge 
-              variant="outline" 
-              className={cn(
-                "w-fit mt-2",
-                company.competitive_position === 'leader' && "bg-yellow-500/10 text-yellow-500 border-yellow-500/30",
-                company.competitive_position === 'challenger' && "bg-blue-500/10 text-blue-500 border-blue-500/30",
-                company.competitive_position === 'niche' && "bg-purple-500/10 text-purple-500 border-purple-500/30"
-              )}
-            >
-              {company.competitive_position.charAt(0).toUpperCase() + company.competitive_position.slice(1)}
-            </Badge>
-          )}
         </SheetHeader>
         
         <div className="py-6 space-y-6">
-          {/* Role Description */}
-          {company.role_description && (
-            <div>
-              <h4 className="text-sm font-medium text-muted-foreground mb-2">Role in Supply Chain</h4>
-              <p className="text-sm">{company.role_description}</p>
-            </div>
-          )}
+          {/* Role & Products */}
+          <div>
+            <h4 className="text-sm font-medium text-muted-foreground mb-2">Role in Supply Chain</h4>
+            <p className="text-sm">{company.role_description || 'Key player in the AI infrastructure ecosystem.'}</p>
+          </div>
           
-          {/* Key Products */}
           {company.key_products && company.key_products.length > 0 && (
             <div>
               <h4 className="text-sm font-medium text-muted-foreground mb-2">Key Products</h4>
@@ -449,53 +702,66 @@ function CompanyDetailSheet({
           )}
           
           {/* Financial Metrics */}
-          <div>
-            <h4 className="text-sm font-medium text-muted-foreground mb-3">
-              {isPrivate ? 'Estimated Financials' : 'Financial Metrics'}
-            </h4>
-            <div className="grid grid-cols-2 gap-4">
-              {(company.market_cap || company.estimated_valuation) && (
-                <div className="p-3 rounded-lg bg-muted/50">
-                  <p className="text-xs text-muted-foreground">
-                    {isPrivate ? 'Est. Valuation' : 'Market Cap'}
-                  </p>
-                  <p className="text-lg font-semibold">
-                    ${formatLargeNumber(company.market_cap || company.estimated_valuation || 0)}
-                  </p>
-                </div>
-              )}
-              {(company.revenue_ttm || company.estimated_revenue) && (
-                <div className="p-3 rounded-lg bg-muted/50">
-                  <p className="text-xs text-muted-foreground">
-                    {isPrivate ? 'Est. Revenue' : 'Revenue TTM'}
-                  </p>
-                  <p className="text-lg font-semibold">
-                    ${formatLargeNumber(company.revenue_ttm || company.estimated_revenue || 0)}
-                  </p>
-                </div>
-              )}
-              {company.profit_margin !== null && (
-                <div className="p-3 rounded-lg bg-muted/50">
-                  <p className="text-xs text-muted-foreground">Profit Margin</p>
-                  <p className="text-lg font-semibold">{formatPercent(company.profit_margin)}</p>
-                </div>
-              )}
-              {company.ev_to_revenue !== null && (
-                <div className="p-3 rounded-lg bg-muted/50">
-                  <p className="text-xs text-muted-foreground">EV/Revenue</p>
-                  <p className="text-lg font-semibold">{company.ev_to_revenue?.toFixed(1)}x</p>
-                </div>
-              )}
-              {company.market_share_percent !== null && (
-                <div className="p-3 rounded-lg bg-muted/50">
-                  <p className="text-xs text-muted-foreground">Market Share</p>
-                  <p className="text-lg font-semibold">{company.market_share_percent}%</p>
-                </div>
-              )}
+          {!isPrivate && (
+            <div>
+              <h4 className="text-sm font-medium text-muted-foreground mb-3">Financial Metrics</h4>
+              <div className="grid grid-cols-2 gap-3">
+                {company.market_cap && (
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground">Market Cap</p>
+                    <p className="text-lg font-semibold">${formatLargeNumber(company.market_cap)}</p>
+                  </div>
+                )}
+                {company.revenue_ttm && (
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground">Revenue (TTM)</p>
+                    <p className="text-lg font-semibold">${formatLargeNumber(company.revenue_ttm)}</p>
+                  </div>
+                )}
+                {company.profit_margin !== null && (
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground">Profit Margin</p>
+                    <p className="text-lg font-semibold">{formatPercent(company.profit_margin)}</p>
+                  </div>
+                )}
+                {company.ev_to_ebitda && (
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground">EV/EBITDA</p>
+                    <p className="text-lg font-semibold">{company.ev_to_ebitda.toFixed(1)}x</p>
+                  </div>
+                )}
+                {company.market_share_percent && (
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground">Market Share</p>
+                    <p className="text-lg font-semibold">{company.market_share_percent}%</p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
           
-          {/* Performance (Public only) */}
+          {/* Private Company Valuation */}
+          {isPrivate && (
+            <div>
+              <h4 className="text-sm font-medium text-muted-foreground mb-3">Estimated Valuation</h4>
+              <div className="grid grid-cols-2 gap-3">
+                {company.estimated_valuation && (
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground">Valuation</p>
+                    <p className="text-lg font-semibold">${formatLargeNumber(company.estimated_valuation)}</p>
+                  </div>
+                )}
+                {company.estimated_revenue && (
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground">Est. Revenue</p>
+                    <p className="text-lg font-semibold">${formatLargeNumber(company.estimated_revenue)}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* Performance */}
           {!isPrivate && (
             <div>
               <h4 className="text-sm font-medium text-muted-foreground mb-3">Performance</h4>
@@ -617,12 +883,53 @@ function TierNavigation({
   );
 }
 
+// Heat Map Toggle Component
+function HeatMapToggle({
+  period,
+  onChange
+}: {
+  period: HeatMapPeriod;
+  onChange: (period: HeatMapPeriod) => void;
+}) {
+  const periods: { value: HeatMapPeriod; label: string }[] = [
+    { value: 'off', label: 'Off' },
+    { value: '1d', label: '1D' },
+    { value: '7d', label: '7D' },
+    { value: '30d', label: '30D' },
+    { value: '1y', label: '1Y' },
+  ];
+  
+  return (
+    <div className="flex items-center gap-2">
+      <Thermometer className="h-4 w-4 text-muted-foreground" />
+      <span className="text-sm text-muted-foreground">Heat Map:</span>
+      <div className="flex items-center rounded-lg border bg-muted/30 p-0.5">
+        {periods.map((p) => (
+          <button
+            key={p.value}
+            onClick={() => onChange(p.value)}
+            className={cn(
+              "px-2 py-1 text-xs font-medium rounded-md transition-all",
+              period === p.value 
+                ? "bg-primary text-primary-foreground" 
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // Main Component
 export default function SupplyChainMap() {
   const [expandedTiers, setExpandedTiers] = useState<Set<number>>(new Set([1])); // Start with bottleneck tier expanded
   const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set());
   const [selectedCompany, setSelectedCompany] = useState<SupplyChainCompany | null>(null);
   const [activeTier, setActiveTier] = useState<number | null>(null);
+  const [heatMapPeriod, setHeatMapPeriod] = useState<HeatMapPeriod>('off');
   
   // Fetch supply chain data
   const { data: tiers, error, isLoading } = useSWR<SupplyChainTier[]>(
@@ -657,6 +964,26 @@ export default function SupplyChainMap() {
     });
   }, []);
   
+  // Expand all tiers and categories
+  const expandAll = useCallback(() => {
+    if (!tiers) return;
+    const allTierNumbers = new Set(tiers.map(t => t.tier_number));
+    const allCategoryIds = new Set<number>();
+    tiers.forEach(tier => {
+      tier.categories?.forEach(cat => {
+        allCategoryIds.add(cat.category_id);
+      });
+    });
+    setExpandedTiers(allTierNumbers);
+    setExpandedCategories(allCategoryIds);
+  }, [tiers]);
+  
+  // Collapse all tiers and categories
+  const collapseAll = useCallback(() => {
+    setExpandedTiers(new Set());
+    setExpandedCategories(new Set());
+  }, []);
+  
   // Handle tier navigation click
   const handleTierNavClick = useCallback((tierNumber: number) => {
     setActiveTier(tierNumber);
@@ -671,22 +998,27 @@ export default function SupplyChainMap() {
   
   // Calculate totals
   const totals = useMemo(() => {
-    if (!tiers) return { companies: 0, publicCompanies: 0, privateCompanies: 0 };
+    if (!tiers) return { companies: 0, publicCompanies: 0, privateCompanies: 0, totalMarketCap: 0 };
     
     let publicCompanies = 0;
     let privateCompanies = 0;
+    let totalMarketCap = 0;
     
     tiers.forEach(tier => {
       tier.categories?.forEach(cat => {
         publicCompanies += cat.public_company_count || 0;
         privateCompanies += cat.private_company_count || 0;
+        cat.companies?.forEach(company => {
+          if (company.market_cap) totalMarketCap += company.market_cap;
+        });
       });
     });
     
     return {
       companies: publicCompanies + privateCompanies,
       publicCompanies,
-      privateCompanies
+      privateCompanies,
+      totalMarketCap
     };
   }, [tiers]);
   
@@ -733,6 +1065,10 @@ export default function SupplyChainMap() {
               </div>
             </div>
             <div className="flex items-center gap-6 text-sm">
+              <div className="text-center hidden md:block">
+                <p className="text-lg font-bold">${formatLargeNumber(totals.totalMarketCap)}</p>
+                <p className="text-xs text-muted-foreground">Total Mkt Cap</p>
+              </div>
               <div className="text-center">
                 <p className="text-2xl font-bold">{totals.companies}</p>
                 <p className="text-muted-foreground">Total Companies</p>
@@ -747,8 +1083,62 @@ export default function SupplyChainMap() {
               </div>
             </div>
           </div>
+          
+          {/* Controls Row */}
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/10">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={expandAll}
+                className="text-xs"
+              >
+                <ChevronsUpDown className="h-3 w-3 mr-1" />
+                Expand All
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={collapseAll}
+                className="text-xs"
+              >
+                <ChevronUp className="h-3 w-3 mr-1" />
+                Collapse All
+              </Button>
+            </div>
+            <HeatMapToggle period={heatMapPeriod} onChange={setHeatMapPeriod} />
+          </div>
         </div>
       </header>
+      
+      {/* Heat Map Legend */}
+      {heatMapPeriod !== 'off' && (
+        <div className="container mx-auto px-4 py-2">
+          <div className="flex items-center justify-center gap-2 text-xs">
+            <span className="text-muted-foreground">Performance:</span>
+            <div className="flex items-center gap-1">
+              <div className="w-6 h-4 rounded bg-red-500/60" />
+              <span>&lt;-10%</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-6 h-4 rounded bg-red-500/25" />
+              <span>-5%</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-6 h-4 rounded bg-muted/30" />
+              <span>0%</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-6 h-4 rounded bg-green-500/25" />
+              <span>+5%</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-6 h-4 rounded bg-green-500/60" />
+              <span>&gt;+10%</span>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 pr-20 lg:pr-24">
@@ -762,6 +1152,7 @@ export default function SupplyChainMap() {
                 expandedCategories={expandedCategories}
                 onCategoryToggle={toggleCategory}
                 onCompanyClick={setSelectedCompany}
+                heatMapPeriod={heatMapPeriod}
               />
             </div>
           ))}
