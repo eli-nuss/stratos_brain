@@ -479,6 +479,22 @@ export async function createBrainChat(title?: string): Promise<BrainChat> {
   return response.json();
 }
 
+// Send a message to a brain chat (without waiting for response)
+export async function sendBrainMessage(chatId: string, content: string, model: 'flash' | 'pro' = 'flash'): Promise<string | null> {
+  const response = await fetch(`${GLOBAL_CHAT_API_BASE}/chats/${chatId}/messages`, {
+    method: 'POST',
+    headers: getJsonApiHeaders(),
+    body: JSON.stringify({ content, model }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to send message');
+  }
+
+  const data = await response.json();
+  return data.job_id || null;
+}
+
 // Delete a brain chat
 export async function deleteBrainChat(chatId: string): Promise<void> {
   const response = await fetch(`${GLOBAL_CHAT_API_BASE}/chats/${chatId}`, {

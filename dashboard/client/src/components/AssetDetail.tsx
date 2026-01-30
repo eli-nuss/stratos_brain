@@ -2,7 +2,7 @@ import useSWR from "swr";
 import { useState, useRef, useEffect } from "react";
 import { X, TrendingUp, TrendingDown, Target, Shield, AlertTriangle, Activity, MessageCircle, Info, ExternalLink, Tag, FileText, ChevronDown, ChevronUp, Maximize2, Minimize2, Camera, RefreshCw, Zap, Brain, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { createBrainChat, useBrainChats, BrainChat } from "@/hooks/useBrainChats";
+import { createBrainChat, sendBrainMessage, useBrainChats, BrainChat } from "@/hooks/useBrainChats";
 import { BrainChatInterfaceNew as BrainChatInterface } from "./BrainChatInterfaceNew";
 import { useAuth } from "@/contexts/AuthContext";
 import html2canvas from "html2canvas";
@@ -191,7 +191,7 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
 
   // Create chat for live analysis discussion
   const openLiveAnalysisChat = async () => {
-    if (!liveAnalysisResult) return;
+    if (!liveAnalysisResult || !asset) return;
     
     // If we already have a chat for this analysis, just open it
     if (liveAnalysisChat) {
@@ -203,32 +203,54 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
     setLiveAnalysisChatOpen(true);
     
     try {
-      // Build the context message with all the analysis data
-      const contextMessage = `I'm looking at a live technical analysis for ${asset?.symbol} (${asset?.name}). Here's the current analysis:\n\n` +
-        `**Live Price:** $${liveAnalysisResult.live_price?.toFixed(2)} (${liveAnalysisResult.price_change_pct}% from last close)\n` +
-        `**Direction:** ${liveAnalysisResult.analysis?.direction} (Score: ${liveAnalysisResult.analysis?.ai_direction_score})\n` +
-        `**Setup Type:** ${liveAnalysisResult.analysis?.setup_type || 'N/A'}\n` +
-        `**Attention Level:** ${liveAnalysisResult.analysis?.attention_level || 'N/A'}\n` +
-        `**Quality Score:** ${liveAnalysisResult.analysis?.ai_setup_quality_score}\n` +
-        `**Confidence:** ${Math.round((liveAnalysisResult.analysis?.confidence || 0) * 100)}%\n\n` +
-        `**Summary:** ${liveAnalysisResult.analysis?.summary_text}\n\n` +
-        `**Entry Zone:** $${liveAnalysisResult.analysis?.entry_zone?.low?.toFixed(2) || 'N/A'} - $${liveAnalysisResult.analysis?.entry_zone?.high?.toFixed(2) || 'N/A'}\n` +
-        `**Targets:** ${liveAnalysisResult.analysis?.targets?.map((t: number) => `$${t?.toFixed(2)}`).join(' / ') || 'N/A'}\n` +
-        `**Invalidation:** $${liveAnalysisResult.analysis?.key_levels?.invalidation?.toFixed(2) || 'N/A'}\n\n` +
-        `**Why Now:** ${liveAnalysisResult.analysis?.why_now || 'N/A'}\n` +
-        `**Risks:** ${Array.isArray(liveAnalysisResult.analysis?.risks) ? liveAnalysisResult.analysis.risks.join(', ') : liveAnalysisResult.analysis?.risks || 'N/A'}\n\n` +
-        `Please help me understand this analysis. I may have follow-up questions.`;
+      // Build a comprehensive context message with all the analysis data
+      const contextMessage = `I need help understanding the live technical analysis for **${asset.symbol}** (${asset.name}).\n\n` +
+        `## Asset Information\n` +
+        `- **Symbol:** ${asset.symbol}\n` +
+        `- **Name:** ${asset.name}\n` +
+        `- **Asset Type:** ${asset.asset_type}\n` +
+        `- **Sector:** ${asset.sector || 'N/A'}\n` +
+        `- **Industry:** ${asset.industry || 'N/A'}\n\n` +
+        `## Live Analysis (as of ${new Date(liveAnalysisResult.timestamp).toLocaleString()})\n\n` +
+        `### Price & Direction\n` +
+        `- **Live Price:** $${liveAnalysisResult.live_price?.toFixed(2)}\n` +
+        `- **Change from Last Close:** ${liveAnalysisResult.price_change_pct}%\n` +
+        `- **Direction:** ${liveAnalysisResult.analysis?.direction} (Score: ${liveAnalysisResult.analysis?.ai_direction_score})\n` +
+        `- **Setup Type:** ${liveAnalysisResult.analysis?.setup_type || 'N/A'}\n` +
+        `- **Attention Level:** ${liveAnalysisResult.analysis?.attention_level || 'N/A'}\n\n` +
+        `### Quality Metrics\n` +
+        `- **Quality Score:** ${liveAnalysisResult.analysis?.ai_setup_quality_score}/100\n` +
+        `- **Confidence:** ${Math.round((liveAnalysisResult.analysis?.confidence || 0) * 100)}%\n\n` +
+        `### AI Summary\n` +
+        `${liveAnalysisResult.analysis?.summary_text}\n\n` +
+        `### Trade Plan\n` +
+        `- **Entry Zone:** $${liveAnalysisResult.analysis?.entry_zone?.low?.toFixed(2) || 'N/A'} - $${liveAnalysisResult.analysis?.entry_zone?.high?.toFixed(2) || 'N/A'}\n` +
+        `- **Targets:** ${liveAnalysisResult.analysis?.targets?.map((t: number) => `$${t?.toFixed(2)}`).join(' / ') || 'N/A'}\n` +
+        `- **Invalidation (Stop Loss):** $${liveAnalysisResult.analysis?.key_levels?.invalidation?.toFixed(2) || 'N/A'}\n\n` +
+        `### Key Levels\n` +
+        `- **Support:** ${liveAnalysisResult.analysis?.key_levels?.support?.map((s: number) => `$${s?.toFixed(2)}`).join(', ') || 'N/A'}\n` +
+        `- **Resistance:** ${liveAnalysisResult.analysis?.key_levels?.resistance?.map((r: number) => `$${r?.toFixed(2)}`).join(', ') || 'N/A'}\n\n` +
+        `### Catalysts & Risks\n` +
+        `- **Why Now:** ${liveAnalysisResult.analysis?.why_now || 'N/A'}\n` +
+        `- **What to Watch:** ${liveAnalysisResult.analysis?.what_to_watch || 'N/A'}\n` +
+        `- **Risks:** ${Array.isArray(liveAnalysisResult.analysis?.risks) ? liveAnalysisResult.analysis.risks.join(', ') : liveAnalysisResult.analysis?.risks || 'N/A'}\n\n` +
+        `---\n\n` +
+        `Please analyze this data and help me understand:\n` +
+        `1. Is this a good entry point?\n` +
+        `2. What are the key risks I should be aware of?\n` +
+        `3. Any additional context or analysis you can provide?`;
       
-      // Create a new chat with the analysis context as the title
-      const chat = await createBrainChat(`${asset?.symbol} Live Analysis - ${new Date().toLocaleDateString()}`, user?.id || null);
+      // Create a new chat with the asset symbol in the title
+      const chat = await createBrainChat(`${asset.symbol} Live Analysis - ${new Date().toLocaleDateString()}`, user?.id || null);
       setLiveAnalysisChat(chat);
+      
+      // Send the context message immediately so the AI has all the information
+      await sendBrainMessage(chat.chat_id, contextMessage, 'flash');
       
       // Refresh the brain chats list so it appears in the sidebar
       await refreshBrainChats();
       
-      // Note: The first message will be sent by the user in the chat interface
-      // We store the context so it can be used as a suggested first message
-      toast.success('Chat created! Ask your questions about the analysis.');
+      toast.success('Chat created with analysis context!');
     } catch (err) {
       console.error('Failed to create chat:', err);
       toast.error('Failed to start chat');
@@ -835,14 +857,14 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                           Ask Brain About This Analysis
                         </button>
                       </DialogTrigger>
-                      <DialogContent className="sm:max-w-4xl h-[80vh] p-0 overflow-hidden" showCloseButton={true}>
+                      <DialogContent className="sm:max-w-4xl h-[80vh] p-0 flex flex-col" showCloseButton={true}>
                         {isCreatingChat ? (
                           <div className="flex items-center justify-center h-full">
                             <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
-                            <span className="ml-2 text-muted-foreground">Creating chat...</span>
+                            <span className="ml-2 text-muted-foreground">Creating chat with analysis context...</span>
                           </div>
                         ) : liveAnalysisChat ? (
-                          <div className="h-full">
+                          <div className="h-full flex flex-col overflow-hidden">
                             <BrainChatInterface 
                               chat={liveAnalysisChat} 
                               onRefresh={refreshBrainChats}
