@@ -26,6 +26,7 @@ import { InlineOnePager } from "./InlineOnePager";
 import AddToPortfolioButton from "./AddToPortfolioButton";
 import AssetTagButton from "./AssetTagButton";
 import AssetDetailSkeleton from "./AssetDetailSkeleton";
+import { ETFHoldingsTab } from "./ETFHoldingsTab";
 import { apiFetcher } from "@/lib/api-config";
 
 interface AssetDetailProps {
@@ -83,7 +84,7 @@ function ConfidenceMeter({ confidence }: { confidence: number }) {
 export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
   const { data, isLoading } = useSWR(`/api/dashboard/asset?asset_id=${assetId}`, apiFetcher);
 
-  const [chartView, setChartView] = useState<'tradingview' | 'financials'>('tradingview');
+  const [chartView, setChartView] = useState<'tradingview' | 'financials' | 'holdings'>('tradingview');
   const [isChartFullscreen, setIsChartFullscreen] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({ about: true });
 
@@ -258,6 +259,19 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
                       </button>
                     )}
 
+                    {asset.asset_type === 'etf' && (
+                      <button
+                        onClick={() => setChartView('holdings')}
+                        className={`px-2 py-1 text-xs rounded transition-colors ${
+                          chartView === 'holdings'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        Holdings
+                      </button>
+                    )}
+
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -290,6 +304,13 @@ export default function AssetDetail({ assetId, onClose }: AssetDetailProps) {
               {chartView === 'financials' ? (
                 <div className={`${isChartFullscreen ? 'min-h-[600px]' : 'min-h-[450px]'} w-full transition-all duration-300`}>
                   <HistoricalFinancials assetId={parseInt(assetId)} assetType={asset.asset_type} symbol={asset.symbol} embedded={true} />
+                </div>
+              ) : chartView === 'holdings' ? (
+                <div className={`${isChartFullscreen ? 'min-h-[600px]' : 'min-h-[450px]'} w-full transition-all duration-300`}>
+                  <ETFHoldingsTab 
+                    symbol={asset.symbol} 
+                    assetId={parseInt(assetId)}
+                  />
                 </div>
               ) : (
                 <div className={`${isChartFullscreen ? 'h-[600px]' : 'h-[450px]'} w-full rounded-lg border border-border overflow-hidden transition-all duration-300`}>

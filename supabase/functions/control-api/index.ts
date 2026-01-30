@@ -5245,6 +5245,145 @@ If asked about something not in the data, acknowledge the limitation.`
         })
       }
 
+      // GET /dashboard/etf-holdings/:symbol - Get holdings for a specific ETF
+      case req.method === 'GET' && path.startsWith('/dashboard/etf-holdings/'): {
+        const symbol = path.replace('/dashboard/etf-holdings/', '').toUpperCase()
+        
+        if (!symbol) {
+          return new Response(JSON.stringify({ error: 'Symbol is required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Get ETF ID from symbol
+        const { data: etfData, error: etfError } = await supabase
+          .from('etf_assets')
+          .select('etf_id')
+          .eq('symbol', symbol)
+          .single()
+        
+        if (etfError || !etfData) {
+          return new Response(JSON.stringify({ error: 'ETF not found' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Get holdings with asset info
+        const { data: holdings, error: holdingsError } = await supabase
+          .from('etf_holdings')
+          .select(`
+            id,
+            weight_percent,
+            shares_held,
+            market_value,
+            as_of_date,
+            holding_name,
+            asset_id
+          `)
+          .eq('etf_id', etfData.etf_id)
+          .order('weight_percent', { ascending: false, nullsFirst: false })
+        
+        if (holdingsError) {
+          console.error('Holdings query error:', holdingsError)
+          throw holdingsError
+        }
+        
+        // Get asset symbols for holdings that have asset_id
+        const assetIds = (holdings || []).filter(h => h.asset_id).map(h => h.asset_id)
+        let assetMap: Record<number, { symbol: string; asset_type: string }> = {}
+        
+        if (assetIds.length > 0) {
+          const { data: assets } = await supabase
+            .from('assets')
+            .select('asset_id, symbol, asset_type')
+            .in('asset_id', assetIds)
+          
+          if (assets) {
+            assetMap = Object.fromEntries(assets.map(a => [a.asset_id, { symbol: a.symbol, asset_type: a.asset_type }]))
+          }
+        }
+        
+        // Enrich holdings with symbol info
+        const enrichedHoldings = (holdings || []).map(h => ({
+          ...h,
+          symbol: h.asset_id ? assetMap[h.asset_id]?.symbol : null,
+          asset_type: h.asset_id ? assetMap[h.asset_id]?.asset_type : null,
+          is_tracked: !!h.asset_id
+        }))
+        
+        return new Response(JSON.stringify({
+          symbol,
+          holdings: enrichedHoldings,
+          total: enrichedHoldings.length
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // GET /dashboard/etf-info/:symbol - Get ETF metadata (expense ratio, AUM, sector weightings)
+      case req.method === 'GET' && path.startsWith('/dashboard/etf-info/'): {
+        const symbol = path.replace('/dashboard/etf-info/', '').toUpperCase()
+        
+        if (!symbol) {
+          return new Response(JSON.stringify({ error: 'Symbol is required' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        // Get ETF info
+        const { data: info, error: infoError } = await supabase
+          .from('etf_info')
+          .select('*')
+          .eq('symbol', symbol)
+          .single()
+        
+        if (infoError && infoError.code !== 'PGRST116') {
+          console.error('ETF info query error:', infoError)
+          throw infoError
+        }
+        
+        // Also get holdings count and top 10 concentration from holdings table
+        const { data: etfData } = await supabase
+          .from('etf_assets')
+          .select('etf_id')
+          .eq('symbol', symbol)
+          .single()
+        
+        let holdingsStats = { count: 0, top10Concentration: 0 }
+        
+        if (etfData) {
+          const { data: holdings } = await supabase
+            .from('etf_holdings')
+            .select('weight_percent')
+            .eq('etf_id', etfData.etf_id)
+            .order('weight_percent', { ascending: false, nullsFirst: false })
+            .limit(10)
+          
+          if (holdings) {
+            holdingsStats.top10Concentration = holdings.reduce((sum, h) => sum + (h.weight_percent || 0), 0)
+          }
+          
+          const { count } = await supabase
+            .from('etf_holdings')
+            .select('*', { count: 'exact', head: true })
+            .eq('etf_id', etfData.etf_id)
+          
+          holdingsStats.count = count || 0
+        }
+        
+        return new Response(JSON.stringify({
+          symbol,
+          info: info || null,
+          holdingsCount: holdingsStats.count,
+          top10Concentration: holdingsStats.top10Concentration
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
       // ==================== RESEARCH NOTES ENDPOINTS ====================
 
       // GET /dashboard/research-notes - Get all research notes for a user (USER-SPECIFIC)
